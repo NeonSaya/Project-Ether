@@ -37,6 +37,11 @@ namespace OsuVR
         private Vector2 _position;
 
         /// <summary>
+        /// 击打对象的类型
+        /// </summary>
+        public HitObjectType ObjectType { get; protected set; }
+
+        /// <summary>
         /// 是否开始新连击
         /// </summary>
         public readonly bool IsNewCombo;
@@ -47,7 +52,7 @@ namespace OsuVR
         public readonly int ComboOffset;
 
         /// <summary>
-        /// 击打对象的结束时间
+        /// 击打对象的结束时间（虚拟属性，子类需要重写）
         /// </summary>
         public virtual double EndTime => StartTime;
 
@@ -57,7 +62,7 @@ namespace OsuVR
         public double Duration => EndTime - StartTime;
 
         /// <summary>
-        /// 击打对象的结束位置
+        /// 击打对象的结束位置（虚拟属性，子类需要重写）
         /// </summary>
         public virtual Vector2 EndPosition => Position;
 
@@ -97,7 +102,7 @@ namespace OsuVR
         public List<HitSampleInfo> Samples = new List<HitSampleInfo>();
 
         /// <summary>
-        /// 非标准音效列表
+        /// 任何可能被此[击打对象]使用的非标准样本
         /// </summary>
         public List<SequenceHitSampleInfo> AuxiliarySamples = new List<SequenceHitSampleInfo>();
 
@@ -157,10 +162,8 @@ namespace OsuVR
             {
                 if (!_difficultyStackOffsetCache.HasValue)
                 {
-                    _difficultyStackOffsetCache = new Vector2(
-                        _difficultyStackHeight * DifficultyScale * StackOffsetMultiplier,
-                        _difficultyStackHeight * DifficultyScale * StackOffsetMultiplier
-                    );
+                    float offset = _difficultyStackHeight * DifficultyScale * StackOffsetMultiplier;
+                    _difficultyStackOffsetCache = new Vector2(offset, offset);
                 }
                 return _difficultyStackOffsetCache.Value;
             }
@@ -182,7 +185,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 难度计算中的堆叠结束位置
+        /// 难度计算中的堆叠结束位置（虚拟属性，子类需要重写）
         /// </summary>
         public virtual Vector2 DifficultyStackedEndPosition => DifficultyStackedPosition;
 
@@ -217,10 +220,8 @@ namespace OsuVR
             {
                 if (!_gameplayStackOffsetCache.HasValue)
                 {
-                    _gameplayStackOffsetCache = new Vector2(
-                        _gameplayStackHeight * GameplayScale * StackOffsetMultiplier,
-                        _gameplayStackHeight * GameplayScale * StackOffsetMultiplier
-                    );
+                    float offset = _gameplayStackHeight * GameplayScale * StackOffsetMultiplier;
+                    _gameplayStackOffsetCache = new Vector2(offset, offset);
                 }
                 return _gameplayStackOffsetCache.Value;
             }
@@ -242,7 +243,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 游戏玩法中的堆叠结束位置
+        /// 游戏玩法中的堆叠结束位置（虚拟属性，子类需要重写）
         /// </summary>
         public virtual Vector2 GameplayStackedEndPosition => GameplayStackedPosition;
 
@@ -267,15 +268,16 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 屏幕空间中的游戏玩法堆叠结束位置
+        /// 屏幕空间中的游戏玩法堆叠结束位置（虚拟属性，子类需要重写）
         /// </summary>
         public virtual Vector2 ScreenSpaceGameplayStackedEndPosition => ScreenSpaceGameplayStackedPosition;
 
         // 构造函数
-        protected HitObject(double startTime, Vector2 position, bool isNewCombo, int comboOffset)
+        protected HitObject(double startTime, Vector2 position, HitObjectType type, bool isNewCombo, int comboOffset)
         {
             StartTime = startTime;
             _position = position;
+            ObjectType = type;
             IsNewCombo = isNewCombo;
             ComboOffset = comboOffset;
         }
@@ -350,6 +352,21 @@ namespace OsuVR
         }
 
         /// <summary>
+        /// 应用默认设置
+        /// </summary>
+        public virtual void ApplyDefaults(GameMode mode)
+        {
+            // 这里可以添加默认设置逻辑
+            // 根据模式设置堆叠偏移乘数
+            StackOffsetMultiplier = mode switch
+            {
+                GameMode.Droid => -4f,
+                GameMode.Standard => -6.4f,
+                _ => -6.4f
+            };
+        }
+
+        /// <summary>
         /// 更新连击信息
         /// </summary>
         public void UpdateComboInformation(HitObject lastObj)
@@ -358,13 +375,13 @@ namespace OsuVR
             ComboIndexWithOffsets = lastObj?.ComboIndexWithOffsets ?? 0;
             IndexInCurrentCombo = lastObj != null ? lastObj.IndexInCurrentCombo + 1 : 0;
 
-            if (IsNewCombo || lastObj == null || lastObj is Spinner)
+            if (IsNewCombo || lastObj == null || lastObj is SpinnerObject)
             {
                 IndexInCurrentCombo = 0;
                 ComboIndex++;
 
                 // 旋转圆圈不影响连击颜色偏移
-                if (!(this is Spinner))
+                if (!(this is SpinnerObject))
                 {
                     ComboIndexWithOffsets += ComboOffset + 1;
                 }
@@ -401,6 +418,14 @@ namespace OsuVR
 
             return centeredPosition;
         }
+
+        /// <summary>
+        /// 获取击打对象的字符串表示
+        /// </summary>
+        public override string ToString()
+        {
+            return $"{ObjectType} at {StartTime}ms, Position: {Position}";
+        }
     }
 
     /// <summary>
@@ -416,27 +441,57 @@ namespace OsuVR
     /// </summary>
     public abstract class HitSampleInfo
     {
-        // 基础音效信息
+        public string Name { get; set; }
+        public SampleBank Bank { get; set; }
+        public int Volume { get; set; }
+
+        public virtual HitSampleInfo Copy()
+        {
+            return (HitSampleInfo)MemberwiseClone();
+        }
     }
 
+    /// <summary>
+    /// 默认音效库信息 (修复构造函数版)
+    /// </summary>
+    public class BankHitSampleInfo : HitSampleInfo
+    {
+        // 这里的常量用于 OsuParser 中的引用
+        public const string HIT_NORMAL = "hitnormal";
+        public const string HIT_WHISTLE = "hitwhistle";
+        public const string HIT_FINISH = "hitfinish";
+        public const string HIT_CLAP = "hitclap";
+
+        public string Name { get; set; }
+        public SampleBank Bank { get; set; }
+        public int CustomSampleBank { get; set; }
+        public int Volume { get; set; }
+        public bool IsLayered { get; set; }
+        // 注意最后参数 isLayered = false 是默认值，这样也可以兼容 4 个参数的调用
+        public BankHitSampleInfo(string name, SampleBank bank, int customBank, int volume, bool isLayered = false)
+        {
+            Name = name;
+            Bank = bank;
+            CustomSampleBank = customBank;
+            Volume = volume;
+            IsLayered = isLayered;
+        }
+    }
     /// <summary>
     /// 序列音效信息
     /// </summary>
     public class SequenceHitSampleInfo : HitSampleInfo
     {
-        // 序列音效特定信息
-    }
+        public List<(double time, HitSampleInfo sample)> Sequence { get; set; }
 
-    /// <summary>
-    /// 旋转圆圈类（占位）
-    /// </summary>
-    public class Spinner : HitObject
-    {
-        public Spinner(double startTime, double endTime, bool isNewCombo)
-            : base(startTime, Vector2.zero, isNewCombo, 0)
+        public SequenceHitSampleInfo()
         {
+            Sequence = new List<(double, HitSampleInfo)>();
         }
 
-        public override double EndTime => base.EndTime; // 实际应该返回结束时间
+        public SequenceHitSampleInfo(List<(double time, HitSampleInfo sample)> sequence)
+        {
+            Sequence = sequence;
+        }
     }
 }

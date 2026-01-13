@@ -45,6 +45,9 @@ namespace OsuVR
             // 步骤3：将坐标平移到目标中心点
             Vector3 worldPosition = TargetCenter + new Vector3(worldX, worldY, 0f);
 
+            // 如果觉得还要抬头，就减小这个值；如果觉得还要低头，就增大这个值
+            worldPosition.y += 0.5f;
+
             return worldPosition;
         }
 
