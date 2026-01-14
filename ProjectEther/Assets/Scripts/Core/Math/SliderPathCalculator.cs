@@ -454,7 +454,7 @@ namespace OsuVR
             List<Vector2> controlPoints = new List<Vector2>();
             foreach (Vector2 point in slider.ControlPoints)
             {
-                controlPoints.Add(point - slider.Position);
+                controlPoints.Add(point);
             }
 
             // ¼ÆËãÂ·¾¶µã
@@ -505,7 +505,8 @@ namespace OsuVR
             for (int i = 0; i < numPoints; i++)
             {
                 float progress = i / (float)(numPoints - 1);
-                Vector2 point = SliderPathCalculator.FindPointOnPath(originalPath, progress * (currentLength / targetLength));
+                float fractionOnOriginalCurve = progress * (targetLength / currentLength);
+                Vector2 point = SliderPathCalculator.FindPointOnPath(originalPath, fractionOnOriginalCurve);
                 resampled.Add(point);
             }
 

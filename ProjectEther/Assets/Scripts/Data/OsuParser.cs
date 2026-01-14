@@ -1,6 +1,8 @@
-﻿using System;
+﻿using System.IO;
+using System.Globalization; 
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 namespace OsuVR
 {
@@ -15,11 +17,123 @@ namespace OsuVR
         private static readonly char[] ColonSeparator = { ':' };
         private static readonly char[] PipeChar = { '|' };
 
+
+
+        // [新增] 用于标记当前解析段落的枚举
+        private enum Section
+        {
+            None,
+            General,
+            Metadata,
+            Difficulty,
+            Events,
+            TimingPoints,
+            Colours,
+            HitObjects
+        }
+
+        // [新增] 完整解析入口：读取文件并分发到各个解析方法
+        public static Beatmap Parse(string path)
+        {
+            var beatmap = new Beatmap();
+            var section = Section.None;
+
+            if (!File.Exists(path))
+            {
+                Debug.LogError($"文件未找到: {path}");
+                return beatmap;
+            }
+
+            foreach (var line in File.ReadLines(path))
+            {
+                string trim = line.Trim();
+                if (string.IsNullOrWhiteSpace(trim) || trim.StartsWith("//")) continue;
+
+                // [新增] 解析文件版本号 (通常在第一行: osu file format v14)
+                if (trim.StartsWith("osu file format v"))
+                {
+                    if (int.TryParse(trim.Substring(17), out int ver))
+                        beatmap.FormatVersion = ver;
+                    continue;
+                }
+
+                // 检测段落标记 (例如 [General])
+                if (trim.StartsWith("["))
+                {
+                    string sectionName = trim.Trim('[', ']');
+                    // 尝试解析枚举，如果失败则为 None
+                    if (!Enum.TryParse(sectionName, true, out section))
+                        section = Section.None;
+
+                    // 特殊处理英式拼写 [Colours]
+                    if (sectionName == "Colours") section = Section.Colours;
+
+                    continue;
+                }
+
+                // 根据当前段落调用对应的解析方法
+                try
+                {
+                    switch (section)
+                    {
+                        case Section.General:
+                            ParseGeneral(trim, beatmap.General);
+                            break;
+                        case Section.Metadata:
+                            ParseMetadata(trim, beatmap.Metadata);
+                            break;
+                        case Section.Difficulty:
+                            ParseDifficulty(trim, beatmap.Difficulty);
+                            break;
+                        case Section.Events:
+                            ParseEvents(trim, beatmap);
+                            break;
+                        case Section.TimingPoints:
+                            ParseTimingPoints(trim, beatmap.ControlPoints);
+                            break;
+                        case Section.Colours:
+                            ParseColors(trim, beatmap.ComboColors);
+                            break;
+                        case Section.HitObjects:
+                            // 复用你原有的 HitObject 解析逻辑！
+                            ParseHitObject(trim, beatmap);
+                            break;
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"解析行失败 [{section}]: {trim}\n错误: {e.Message}");
+                }
+            }
+
+            // [新增] 后处理：在所有数据解析完毕后，重新校准滑条时间
+            // 这样可以防止 TimingPoints 在 HitObjects 后面导致计算错误
+            foreach (var hitObject in beatmap.HitObjects)
+            {
+                if (hitObject is SliderObject slider)
+                {
+                    // 重新执行刚才的计算逻辑
+                    var timingPoint = beatmap.GetTimingPointAt(slider.StartTime);
+                    var diffPoint = beatmap.GetDifficultyPointAt(slider.StartTime);
+
+                    double beatLength = timingPoint.MsPerBeat;
+                    double speedMultiplier = diffPoint.SpeedMultiplier;
+                    double globalMultiplier = beatmap.Difficulty.SliderMultiplier;
+
+                    double pxPerBeat = globalMultiplier * 100.0 * speedMultiplier;
+                    if (pxPerBeat < 0.001) pxPerBeat = 100.0; // 防呆
+
+                    slider.Duration = (slider.PixelLength * slider.RepeatCount) / pxPerBeat * beatLength;
+                    slider.EndTime = slider.StartTime + slider.Duration;
+                }
+            }
+            Debug.Log($"谱面解析完成: {beatmap.Metadata.Title} (Ver: {beatmap.Metadata.Version})");
+            return beatmap;
+        }
+
         /// <summary>
-        /// 解析击打对象行（修复版：正确处理 Bitmask）
+        /// 解析击打对象行（修正版：移除外部枚举依赖，使用纯位运算）
         /// </summary>
-        /// <param name="line">谱面文件中的一行</param>
-        /// <param name="beatmap">谱面数据</param>
         public static void ParseHitObject(string line, Beatmap beatmap)
         {
             try
@@ -45,55 +159,40 @@ namespace OsuVR
 
                 // --- 核心修复开始 ---
 
-                // 解析原始类型值
+                // 解析原始类型值 (Bitmask)
                 int rawType = int.Parse(parts[3]);
 
-                // 1. 处理连击偏移量：获取类型值的高4位 (Bit 4,5,6) 并右移4位
-                // 掩码通常是 112 (01110000)
-                int comboOffset = (rawType & (int)HitObjectType.ComboColorOffset) >> 4;
+                // 1. 处理连击偏移量 (Combo Offset)
+                // 逻辑：获取第 4, 5, 6 位 (掩码 112, 即 0x70)，然后右移 4 位
+                int comboOffset = (rawType >> 4) & 7;
 
-                // 2. 检查是否是新连击 (Bit 2, 值 4)
-                bool isNewCombo = (rawType & (int)HitObjectType.NewCombo) != 0;
+                // 2. 检查是否是新连击 (New Combo)
+                // 逻辑：检查第 2 位 (值 4) 是否为 1
+                bool isNewCombo = (rawType & 4) != 0;
 
                 // 3. 获取实际对象类型
-                // 关键点：必须同时移除 "ComboOffset" 和 "NewCombo" 的位，才能得到纯粹的对象ID
-                // 例如：Type 5 (Circle + NC) -> 5 & ~4 & ~112 = 1 (Circle)
-                int actualType = rawType;
-                actualType &= ~(int)HitObjectType.ComboColorOffset; // 移除偏移量
-                actualType &= ~(int)HitObjectType.NewCombo;         // 移除新连击标记
+                // 逻辑：虽然可以剥离 Flag，但在 osu! 中，直接检查 Bit 0, Bit 1, Bit 3 更标准
+                // 1 = Circle, 2 = Slider, 8 = Spinner
+
+                if ((rawType & 1) != 0) // Type 1: Circle
+                {
+                    CreateHitCircle(parts, time, position, beatmap, isNewCombo, comboOffset);
+                }
+                else if ((rawType & 2) != 0) // Type 2: Slider
+                {
+                    CreateSlider(parts, time, position, beatmap, isNewCombo, comboOffset);
+                }
+                else if ((rawType & 8) != 0) // Type 8: Spinner
+                {
+                    CreateSpinner(parts, time, beatmap, isNewCombo);
+                }
+                else
+                {
+                    // 忽略未知类型或 Mania Hold (128)
+                    // Debug.LogWarning($"忽略未知类型: {rawType} at {time}");
+                }
 
                 // --- 核心修复结束 ---
-
-                // 解析音效类型（如果有）
-                int soundType = parts.Length > 4 ? int.Parse(parts[4]) : 0;
-
-                // 根据类型创建不同的击打对象
-                // 注意：这里使用包含逻辑 (if) 比 switch 更安全，因为某些特殊谱面可能叠加Flag
-                // 但为了保持代码结构，我们使用处理后的 actualType 进行 switch
-                switch (actualType)
-                {
-                    case (int)HitObjectType.Circle: // 1
-                        CreateHitCircle(parts, time, position, beatmap, isNewCombo, comboOffset);
-                        break;
-
-                    case (int)HitObjectType.Slider: // 2
-                        CreateSlider(parts, time, position, beatmap, isNewCombo, comboOffset);
-                        break;
-
-                    case (int)HitObjectType.Spinner: // 8
-                        CreateSpinner(parts, time, beatmap, isNewCombo);
-                        break;
-
-                    // 如果需要支持 Mania Hold (长按)，ID 通常是 128 (Bit 7)
-                    case 128:
-                        Debug.LogWarning($"暂不支持 Mania Hold Note (Type 128) at {time}");
-                        break;
-
-                    default:
-                        // 如果仍然无法识别，可能是代码没有正确移除 Flag，打印详细调试信息
-                        Debug.LogWarning($"未知的击打对象类型: {actualType} (Raw: {rawType})");
-                        break;
-                }
             }
             catch (FormatException e)
             {
@@ -139,12 +238,135 @@ namespace OsuVR
                 ParseSampleInfo(circle, sampleParts);
             }
         }
+        // [新增] 解析 [General]
+        private static void ParseGeneral(string line, GeneralSection general)
+        {
+            var pair = line.Split(':');
+            if (pair.Length < 2) return;
+            var key = pair[0].Trim();
+            var value = pair[1].Trim();
 
+            switch (key)
+            {
+                case "AudioFilename": general.AudioFilename = value; break;
+                case "AudioLeadIn": int.TryParse(value, out int leadIn); general.AudioLeadIn = leadIn; break;
+                case "PreviewTime": int.TryParse(value, out int preview); general.PreviewTime = preview; break;
+                case "Mode": int.TryParse(value, out int mode); general.Mode = mode; break;
+                case "StackLeniency": float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float stack); general.StackLeniency = stack; break;
+            }
+        }
+
+        // [新增] 解析 [Metadata]
+        private static void ParseMetadata(string line, MetadataSection metadata)
+        {
+            var pair = line.Split(':');
+            if (pair.Length < 2) return;
+            var key = pair[0].Trim();
+            var value = pair[1].Trim();
+
+            switch (key)
+            {
+                case "Title": metadata.Title = value; break;
+                case "Artist": metadata.Artist = value; break;
+                case "Creator": metadata.Creator = value; break;
+                case "Version": metadata.Version = value; break;
+                case "BeatmapID": int.TryParse(value, out int bid); metadata.BeatmapID = bid; break;
+            }
+        }
+
+        // [新增] 解析 [Difficulty]
+        private static void ParseDifficulty(string line, DifficultySection difficulty)
+        {
+            var pair = line.Split(':');
+            if (pair.Length < 2) return;
+            var key = pair[0].Trim();
+            var value = pair[1].Trim();
+
+            // 使用 CultureInfo.InvariantCulture 确保小数解析正确
+            switch (key)
+            {
+                case "HPDrainRate": float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float hp); difficulty.HPDrainRate = hp; break;
+                case "CircleSize": float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float cs); difficulty.CircleSize = cs; break;
+                case "OverallDifficulty": float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float od); difficulty.OverallDifficulty = od; break;
+                case "ApproachRate": float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float ar); difficulty.ApproachRate = ar; break;
+                case "SliderMultiplier": double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double sm); difficulty.SliderMultiplier = sm; break;
+                case "SliderTickRate": double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double str); difficulty.SliderTickRate = str; break;
+            }
+        }
+
+        // [新增] 解析 [Events] (主要是背景图和休息时间)
+        private static void ParseEvents(string line, Beatmap beatmap)
+        {
+            var parts = line.Split(',');
+            if (parts.Length < 3) return;
+
+            // 背景图事件: 0,0,"filename",0,0
+            if (parts[0] == "0" && parts[1] == "0")
+            {
+                string filename = parts[2].Trim('"');
+                beatmap.Events.BackgroundFilename = filename;
+            }
+            // 休息时间: 2,Start,End 或 Break,Start,End
+            else if (parts[0] == "2" || parts[0] == "Break")
+            {
+                if (double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double start) &&
+                    double.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out double end))
+                {
+                    beatmap.Events.Breaks.Add(new BreakPeriod(start, end));
+                }
+            }
+        }
+
+        // [新增] 解析 [TimingPoints] (BPM 和 速度变化)
+        private static void ParseTimingPoints(string line, ControlPoints controlPoints)
+        {
+            var parts = line.Split(',');
+            if (parts.Length < 2) return;
+
+            double time = double.Parse(parts[0], CultureInfo.InvariantCulture);
+            double beatLength = double.Parse(parts[1], CultureInfo.InvariantCulture);
+            // 第7个参数决定是否继承 (1=Red Line/BPM变化, 0=Green Line/速度倍率变化)
+            bool uninherited = parts.Length <= 6 || parts[6] == "1";
+
+            if (uninherited)
+            {
+                // 红线 (BPM Change)
+                int timeSignature = parts.Length > 2 ? int.Parse(parts[2]) : 4;
+                controlPoints.Timing.Add(new TimingPoint(time, beatLength, timeSignature));
+            }
+            else
+            {
+                // 绿线 (Velocity Change)
+                // beatLength 为负数百分比，例如 -100 = 1.0x, -50 = 2.0x, -200 = 0.5x
+                double speedMultiplier = beatLength < 0 ? 100.0 / -beatLength : 1.0;
+                controlPoints.Difficulty.Add(new DifficultyPoint(time, speedMultiplier));
+            }
+        }
+
+        // [新增] 解析 [Colours] (Combo 颜色)
+        private static void ParseColors(string line, List<Color> colors)
+        {
+            var pair = line.Split(':');
+            if (pair.Length < 2) return;
+
+            var key = pair[0].Trim();
+            if (key.StartsWith("Combo"))
+            {
+                var rgb = pair[1].Trim().Split(',');
+                if (rgb.Length == 3)
+                {
+                    float r = int.Parse(rgb[0]) / 255f;
+                    float g = int.Parse(rgb[1]) / 255f;
+                    float b = int.Parse(rgb[2]) / 255f;
+                    colors.Add(new Color(r, g, b));
+                }
+            }
+        }
         /// <summary>
         /// 创建滑条
         /// </summary>
         private static void CreateSlider(string[] parts, double time, Vector2 startPosition,
-            Beatmap beatmap, bool isNewCombo, int comboOffset)
+               Beatmap beatmap, bool isNewCombo, int comboOffset)
         {
             try
             {
@@ -201,13 +423,6 @@ namespace OsuVR
                 // 解析重复次数（第6个参数）
                 int repeatCount = int.Parse(parts[6]);
 
-                // 检查重复次数是否合理
-                if (repeatCount > 9000)
-                {
-                    Debug.LogError($"滑条重复次数过高: {repeatCount}");
-                    return;
-                }
-
                 // 解析滑条长度（第7个参数）
                 double pixelLength = Math.Max(0.0, double.Parse(parts[7], System.Globalization.CultureInfo.InvariantCulture));
 
@@ -228,26 +443,49 @@ namespace OsuVR
                     comboOffset: comboOffset
                 );
 
-                // 如果有上一个对象，更新连击信息
+                // 更新连击信息
                 if (beatmap.HitObjects.Count > 0)
                 {
                     slider.UpdateComboInformation(beatmap.HitObjects[beatmap.HitObjects.Count - 1]);
                 }
 
-                // 解析滑条节点音效（如果有）
-                // 格式: 第8个参数是节点音效，第9个参数是节点音效类型（可选）
+                // 解析滑条节点音效
                 if (parts.Length > 8 && !string.IsNullOrEmpty(parts[8]))
                 {
                     ParseSliderNodeSamples(slider, parts);
                 }
 
-                // 计算滑条路径点
+                // --- 🔥 核心修复：计算滑条持续时间 (Timing Calculation) 🔥 ---
+
+                // 1. 获取当前的 BPM 信息 (红线)
+                var timingPoint = beatmap.GetTimingPointAt(time);
+
+                // 2. 获取当前的速度倍率 (绿线)
+                var diffPoint = beatmap.GetDifficultyPointAt(time);
+
+                // 3. 计算每拍滑行的像素距离 (osu! 标准速度公式)
+                // 速度 = 全局倍率 * 100 * 局部倍率
+                double pxPerBeat = beatmap.Difficulty.SliderMultiplier * 100.0 * diffPoint.SpeedMultiplier;
+
+                // 防止除以零保护
+                if (pxPerBeat < 0.001) pxPerBeat = 0.001;
+
+                // 4. 计算总拍数 = (长度 * 折返次数) / 每拍距离
+                double totalBeats = (pixelLength * repeatCount) / pxPerBeat;
+
+                // 5. 持续时间 = 拍数 * 每拍毫秒数
+                slider.Duration = totalBeats * timingPoint.MsPerBeat;
+                slider.EndTime = time + slider.Duration;
+
+                // --- 修复结束 ---
+
+                // 计算滑条路径点 (裁剪路径)
                 CalculateSliderPath(slider);
 
                 // 将滑条添加到谱面
                 beatmap.HitObjects.Add(slider);
 
-                Debug.Log($"创建滑条: 时间={time}ms, 类型={curveType}, 控制点={controlPoints.Count}, 重复={repeatCount}, 长度={pixelLength}");
+                // Debug.Log($"创建滑条: 时间={time}ms, 持续={slider.Duration:F2}ms, 速度倍率={diffPoint.SpeedMultiplier:F2}");
             }
             catch (FormatException e)
             {
@@ -608,32 +846,6 @@ namespace OsuVR
     }
 
     /// <summary>
-    /// 谱面数据类
-    /// </summary>
-    public class Beatmap
-    {
-        /// <summary>
-        /// 击打对象列表
-        /// </summary>
-        public List<HitObject> HitObjects { get; } = new List<HitObject>();
-
-        /// <summary>
-        /// 谱面格式版本
-        /// </summary>
-        public int FormatVersion { get; set; } = 14; // 默认使用较新版本
-
-        /// <summary>
-        /// 获取偏移时间（简化版，实际应该根据谱面偏移调整）
-        /// </summary>
-        public double GetOffsetTime(double time)
-        {
-            // 这里可以添加偏移量计算
-            // 目前直接返回原时间
-            return time;
-        }
-    }
-
-    /// <summary>
     /// 音效库信息（用于解析）
     /// </summary>
     public class SampleBankInfo
@@ -763,6 +975,18 @@ namespace OsuVR
             catch (System.Exception e)
             {
                 Debug.LogError($"加载谱面失败: {e.Message}");
+            }
+        }
+        // 辅助方法：解析曲线类型
+        private static CurveType ParseCurveType(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return CurveType.Bezier;
+            switch (s[0])
+            {
+                case 'P': return CurveType.Perfect;
+                case 'L': return CurveType.Linear;
+                case 'C': return CurveType.Catmull;
+                default: return CurveType.Bezier;
             }
         }
     }

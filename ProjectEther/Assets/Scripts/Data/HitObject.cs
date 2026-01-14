@@ -59,7 +59,7 @@ namespace OsuVR
         /// <summary>
         /// 击打对象的持续时间（毫秒）
         /// </summary>
-        public double Duration => EndTime - StartTime;
+        public double Duration;
 
         /// <summary>
         /// 击打对象的结束位置（虚拟属性，子类需要重写）

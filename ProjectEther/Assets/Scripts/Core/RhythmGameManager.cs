@@ -4,7 +4,7 @@ using UnityEngine;
 namespace OsuVR
 {
     /// <summary>
-    /// 节奏游戏管理器：控制游戏循环和音符生成（使用AudioSource精准同步）
+    /// 节奏游戏管理器：控制游戏循环和音符生成（支持HitCircle、Slider、Spinner）
     /// </summary>
     public class RhythmGameManager : MonoBehaviour
     {
@@ -19,10 +19,17 @@ namespace OsuVR
         [Tooltip("音乐文件（会赋值给musicSource的clip）")]
         public AudioClip musicClip;
 
-        [Header("音符配置")]
-        [Tooltip("音符预制体")]
-        public GameObject notePrefab;
+        [Header("音符预制体")]
+        [Tooltip("打击圈预制体")]
+        public GameObject hitCirclePrefab;
 
+        [Tooltip("滑条预制体")]
+        public GameObject sliderPrefab;
+
+        [Tooltip("转盘预制体")]
+        public GameObject spinnerPrefab;
+
+        [Header("音符配置")]
         [Tooltip("音符飞行速度（米/秒）")]
         public float noteSpeed = 5.0f;
 
@@ -71,7 +78,7 @@ namespace OsuVR
         // 私有变量
         private List<HitObject> hitObjects = new List<HitObject>();
         private int nextNoteIndex = 0;
-
+        private Beatmap currentBeatmap;
         // 已生成音符的缓存
         private Dictionary<HitObject, GameObject> activeNoteObjects = new Dictionary<HitObject, GameObject>();
 
@@ -86,10 +93,19 @@ namespace OsuVR
             Debug.Log($"开始初始化节奏游戏管理器...");
 
             // 检查必要组件
-            if (notePrefab == null)
+            if (hitCirclePrefab == null)
             {
-                Debug.LogError("音符预制体未分配！请分配一个音符预制体。");
-                return;
+                Debug.LogError("打击圈预制体未分配！");
+            }
+
+            if (sliderPrefab == null)
+            {
+                Debug.LogWarning("滑条预制体未分配，滑条将不会被生成。");
+            }
+
+            if (spinnerPrefab == null)
+            {
+                Debug.LogWarning("转盘预制体未分配，转盘将不会被生成。");
             }
 
             // 初始化AudioSource
@@ -107,7 +123,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 初始化AudioSource
+        /// 初始化AudioSource (修复了 VR 音频设置)
         /// </summary>
         private void InitializeAudioSource()
         {
@@ -124,6 +140,10 @@ namespace OsuVR
             // 设置AudioSource属性
             musicSource.playOnAwake = false;
             musicSource.loop = false;
+
+            // 修复: VR游戏中必须关闭多普勒效应，否则当你摇头或快速移动时，音乐音调会变怪
+            musicSource.dopplerLevel = 0;
+            musicSource.reverbZoneMix = 0; // 通常也不需要混响
 
             // 如果有分配音乐文件，设置clip
             if (musicClip != null)
@@ -343,6 +363,9 @@ namespace OsuVR
         /// <summary>
         /// 加载osu谱面文件
         /// </summary>
+        /// <summary>
+        /// 加载osu谱面文件
+        /// </summary>
         private void LoadBeatmap()
         {
             Debug.Log($"开始加载谱面文件: {osuFileName}");
@@ -355,41 +378,42 @@ namespace OsuVR
             {
                 Debug.LogError($"谱面文件不存在: {filePath}");
                 // 如果没有文件，创建测试数据
-                CreateTestBeatmap(new Beatmap()); // 这里的逻辑视情况保留或删除
+                CreateTestBeatmap(new Beatmap());
                 return;
             }
 
             try
             {
-                // 2. 修正解析逻辑：使用静态解析器
-                Beatmap beatmap = new Beatmap();
-                string[] lines = System.IO.File.ReadAllLines(filePath);
-                bool inHitObjects = false;
+                // [修改] 使用新的 OsuParser.Parse 静态方法解析整个文件
+                // 这将自动解析 Metadata, Difficulty, TimingPoints 等所有信息
+                currentBeatmap = OsuParser.Parse(filePath);
 
-                foreach (string line in lines)
+                // 获取 HitObjects 列表用于游戏逻辑
+                hitObjects = currentBeatmap.HitObjects;
+                totalNotes = hitObjects.Count;
+
+                // 统计不同类型的音符数量
+                int hitCircleCount = 0;
+                int sliderCount = 0;
+                int spinnerCount = 0;
+
+                foreach (var obj in hitObjects)
                 {
-                    string trim = line.Trim();
-                    if (trim == "[HitObjects]")
-                    {
-                        inHitObjects = true;
-                        continue;
-                    }
-
-                    if (inHitObjects && !string.IsNullOrEmpty(trim))
-                    {
-                        if (trim.StartsWith("[") && trim.EndsWith("]")) break;
-                        // 调用静态方法
-                        OsuParser.ParseHitObject(trim, beatmap);
-                    }
+                    if (obj is HitCircle) hitCircleCount++;
+                    else if (obj is SliderObject) sliderCount++;
+                    else if (obj is SpinnerObject) spinnerCount++;
                 }
 
-                hitObjects = new List<HitObject>(beatmap.HitObjects);
-                totalNotes = hitObjects.Count;
-                Debug.Log($"✅ 谱面加载完成，共 {totalNotes} 个音符");
+                Debug.Log($"✅ 谱面加载完成: {currentBeatmap.Metadata.Title} - {currentBeatmap.Metadata.Version}");
+                Debug.Log($"  Audio: {currentBeatmap.General.AudioFilename}");
+                Debug.Log($"  CS:{currentBeatmap.Difficulty.CircleSize} AR:{currentBeatmap.Difficulty.ApproachRate}");
+                Debug.Log($"  总音符: {totalNotes} (圈:{hitCircleCount}, 滑:{sliderCount}, 转:{spinnerCount})");
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"解析失败: {e.Message}");
+                Debug.LogError($"解析失败: {e.Message}\n{e.StackTrace}");
+                // 出错时回退到测试谱面
+                CreateTestBeatmap(new Beatmap());
             }
         }
 
@@ -398,34 +422,40 @@ namespace OsuVR
         /// </summary>
         private void CreateTestBeatmap(Beatmap beatmap)
         {
-            // 创建一些测试点击圆圈
-            // 位置分布在osu游戏区域的不同位置
+            Debug.Log("创建测试谱面数据...");
 
-            // 中心点
+            beatmap.Metadata.Title = "Test Beatmap";
+            beatmap.Metadata.Artist = "Unity Developer";
+            beatmap.Metadata.Version = "Debug Difficulty";
+            beatmap.Difficulty.ApproachRate = 9;
+            currentBeatmap = beatmap;
+
+            // 创建打击圈
             beatmap.HitObjects.Add(new HitCircle(1000, new Vector2(256, 192), true, 0));
-
-            // 四个角落
             beatmap.HitObjects.Add(new HitCircle(2000, new Vector2(50, 50), false, 0));
-            beatmap.HitObjects.Add(new HitCircle(3000, new Vector2(462, 50), false, 0));
-            beatmap.HitObjects.Add(new HitCircle(4000, new Vector2(50, 334), false, 0));
-            beatmap.HitObjects.Add(new HitCircle(5000, new Vector2(462, 334), false, 0));
+            beatmap.HitObjects.Add(new HitCircle(3000, new Vector2(462, 334), false, 0));
 
-            // 中间位置
-            beatmap.HitObjects.Add(new HitCircle(6000, new Vector2(128, 96), true, 1));
-            beatmap.HitObjects.Add(new HitCircle(7000, new Vector2(384, 96), false, 0));
-            beatmap.HitObjects.Add(new HitCircle(8000, new Vector2(128, 288), false, 0));
-            beatmap.HitObjects.Add(new HitCircle(9000, new Vector2(384, 288), false, 0));
+            // 创建滑条（简单直线）
+            List<Vector2> sliderPoints = new List<Vector2> { Vector2.zero, new Vector2(256, 192) };
 
-            // 添加一些连击
-            for (int i = 0; i < 5; i++)
-            {
-                float x = 100 + i * 70;
-                float y = 150 + i * 20;
-                double time = 10000 + i * 500;
-                bool isNewCombo = (i == 0);
+            beatmap.HitObjects.Add(new SliderObject(
+                startTime: 4000,
+                position: new Vector2(128, 96),
+                curveType: CurveType.Linear,    // 补上缺失的曲线类型
+                controlPoints: sliderPoints,    // 必须是 List<Vector2>
+                repeatCount: 1,
+                pixelLength: 100,
+                isNewCombo: true,               // bool
+                comboOffset: 0              // int
+            ));
 
-                beatmap.HitObjects.Add(new HitCircle(time, new Vector2(x, y), isNewCombo, 0));
-            }
+            // 创建转盘
+            beatmap.HitObjects.Add(new SpinnerObject(7000, 10000, true));
+
+            hitObjects = new List<HitObject>(beatmap.HitObjects);
+            totalNotes = hitObjects.Count;
+
+            Debug.Log($"测试谱面创建完成，共 {totalNotes} 个音符");
         }
 
         /// <summary>
@@ -445,13 +475,13 @@ namespace OsuVR
             {
                 HitObject hitObject = hitObjects[nextNoteIndex];
 
-                // 计算生成时间
-                double spawnTime = hitObject.StartTime - spawnOffsetMs;
+                // 计算生成时间（使用每个物件的TimePreempt作为提前量）
+                double spawnTime = hitObject.StartTime - hitObject.TimePreempt;
 
                 // 比较当前音乐时间（注意：在缓冲期 currentMusicTimeMs 是负数，这正好能对应上）
                 if (currentMusicTimeMs >= spawnTime)
                 {
-                    SpawnNote(hitObject);
+                    SpawnNoteByType(hitObject);
                     nextNoteIndex++;
                     spawnedNotes++;
                 }
@@ -463,42 +493,95 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 生成单个音符
+        /// 根据类型生成音符
         /// </summary>
-        /// <param name="hitObject">击打对象</param>
-        private void SpawnNote(HitObject hitObject)
+        private void SpawnNoteByType(HitObject hitObject)
         {
-            // 使用CoordinateMapper将osu坐标转换为世界坐标
+            GameObject prefabToSpawn = null;
+            GameObject noteObject = null;
+
+            // 根据类型选择预制体
+            if (hitObject is HitCircle && hitCirclePrefab != null)
+            {
+                prefabToSpawn = hitCirclePrefab;
+                Debug.Log($"生成打击圈: 时间={hitObject.StartTime}ms");
+            }
+            else if (hitObject is SliderObject && sliderPrefab != null)
+            {
+                prefabToSpawn = sliderPrefab;
+                Debug.Log($"生成滑条: 开始时间={hitObject.StartTime}ms, 结束时间={((SliderObject)hitObject).EndTime}ms");
+            }
+            else if (hitObject is SpinnerObject && spinnerPrefab != null)
+            {
+                prefabToSpawn = spinnerPrefab;
+                Debug.Log($"生成转盘: 开始时间={hitObject.StartTime}ms, 结束时间={((SpinnerObject)hitObject).EndTime}ms");
+            }
+            else
+            {
+                Debug.LogWarning($"无法生成音符: 未知类型或预制体未分配 - {hitObject.GetType().Name}");
+                return;
+            }
+
+            if (prefabToSpawn == null)
+            {
+                Debug.LogWarning($"预制体未分配: {hitObject.GetType().Name}");
+                return;
+            }
+
+            // 计算生成位置
             Vector3 targetPosition = CoordinateMapper.MapToWorld(hitObject.Position);
+            Vector3 spawnPosition = targetPosition;
 
-            // 计算生成位置（在目标位置前方一定距离）
-            // 让音符从远处飞向目标位置
-            Vector3 spawnPosition = targetPosition + new Vector3(0, 0, 3.0f); // 从前方3米处开始
+            // 对于打击圈，从前方生成
+            if (hitObject is HitCircle)
+            {
+                spawnPosition = targetPosition + new Vector3(0, 0, 3.0f);
+            }
 
-            // 实例化音符预制体
-            GameObject noteObject = Instantiate(notePrefab, spawnPosition, Quaternion.identity);
+            // 实例化音符
+            noteObject = Instantiate(prefabToSpawn, spawnPosition, Quaternion.identity);
+            noteObject.name = $"{hitObject.GetType().Name}_{hitObject.StartTime}ms";
 
-            // 设置音符名称（便于调试）
-            noteObject.name = $"Note_{hitObject.StartTime}ms";
-
-            // 将音符添加到活动列表
+            // 添加到活动列表
             activeNoteObjects[hitObject] = noteObject;
             activeNotes = activeNoteObjects.Count;
 
-            // 为音符添加NoteController组件（如果还没有的话）
-            NoteController noteController = noteObject.GetComponent<NoteController>();
-            if (noteController == null)
+            // 初始化对应的控制器
+            if (hitObject is HitCircle)
             {
-                noteController = noteObject.AddComponent<NoteController>();
+                NoteController noteController = noteObject.GetComponent<NoteController>();
+                if (noteController == null)
+                {
+                    noteController = noteObject.AddComponent<NoteController>();
+                }
+                noteController.Initialize(hitObject, targetPosition, noteSpeed, this);
+            }
+            else if (hitObject is SliderObject)
+            {
+                SliderController sliderController = noteObject.GetComponent<SliderController>();
+                if (sliderController == null)
+                {
+                    sliderController = noteObject.AddComponent<SliderController>();
+                }
+                sliderController.Initialize((SliderObject)hitObject, 0.15f, this);
+            }
+            else if (hitObject is SpinnerObject)
+            {
+                SpinnerController spinnerController = noteObject.GetComponent<SpinnerController>();
+                if (spinnerController == null)
+                {
+                    spinnerController = noteObject.AddComponent<SpinnerController>();
+                }
+                spinnerController.Initialize((SpinnerObject)hitObject, this);
             }
 
-            // 配置音符控制器
-            noteController.Initialize(hitObject, targetPosition, noteSpeed, this);
-
             // 设置自动销毁时间
-            // 音符应该在击打时间后一段时间自动销毁
-            double timeUntilHit = hitObject.StartTime - currentMusicTimeMs;
-            double destroyDelay = (timeUntilHit / 1000.0) + noteLifetime;
+            double endTime = hitObject.StartTime;
+            if (hitObject is SliderObject) endTime = ((SliderObject)hitObject).EndTime;
+            if (hitObject is SpinnerObject) endTime = ((SpinnerObject)hitObject).EndTime;
+
+            double timeUntilEnd = endTime - currentMusicTimeMs;
+            double destroyDelay = (timeUntilEnd / 1000.0) + noteLifetime;
 
             if (destroyDelay > 0)
             {
@@ -506,11 +589,18 @@ namespace OsuVR
             }
             else
             {
-                // 如果已经过了击打时间，立即销毁
+                // 如果已经过了结束时间，立即销毁
                 Destroy(noteObject);
             }
+        }
 
-            Debug.Log($"生成音符: 时间={hitObject.StartTime}ms, 位置={hitObject.Position}, 世界位置={targetPosition}, 距离击打还有{timeUntilHit:F0}ms");
+        /// <summary>
+        /// 生成单个音符（旧方法，保持兼容性）
+        /// </summary>
+        private void SpawnNote(HitObject hitObject)
+        {
+            // 这个方法现在只是调用新方法，保持旧代码兼容
+            SpawnNoteByType(hitObject);
         }
 
         /// <summary>
@@ -542,7 +632,6 @@ namespace OsuVR
         /// <summary>
         /// 获取游戏进度百分比
         /// </summary>
-        /// <returns>进度百分比 (0-1)</returns>
         public float GetProgress()
         {
             if (hitObjects.Count == 0) return 0f;
@@ -553,23 +642,17 @@ namespace OsuVR
         /// <summary>
         /// 当音符被击打时调用
         /// </summary>
-        /// <param name="hitObject">被击打的音符对象</param>
-        /// <param name="accuracy">击打准确度（毫秒偏差）</param>
         public void OnNoteHit(HitObject hitObject, double accuracy)
         {
             if (activeNoteObjects.ContainsKey(hitObject))
             {
-                // 获取音符对象
                 GameObject noteObject = activeNoteObjects[hitObject];
-
-                // 从活动列表中移除
                 activeNoteObjects.Remove(hitObject);
                 activeNotes = activeNoteObjects.Count;
 
-                // 播放击打效果（例如粒子效果）
+                // 播放击打效果
                 // 这里可以添加击打特效
 
-                // 销毁音符
                 Destroy(noteObject);
 
                 Debug.Log($"击打音符: 时间={hitObject.StartTime}ms, 准确度={accuracy:F1}ms");
@@ -579,15 +662,27 @@ namespace OsuVR
         /// <summary>
         /// 当音符错过时调用
         /// </summary>
-        /// <param name="hitObject">错过的音符对象</param>
         public void OnNoteMiss(HitObject hitObject)
         {
             Debug.Log($"错过音符: 时间={hitObject.StartTime}ms");
 
-            // 从活动列表中移除（即使已经自动销毁）
             if (activeNoteObjects.ContainsKey(hitObject))
             {
                 activeNoteObjects.Remove(hitObject);
+                activeNotes = activeNoteObjects.Count;
+            }
+        }
+
+        /// <summary>
+        /// 当转盘完成时调用
+        /// </summary>
+        public void OnSpinnerCompleted(SpinnerObject spinnerObject)
+        {
+            Debug.Log($"转盘完成: 开始时间={spinnerObject.StartTime}ms");
+
+            if (activeNoteObjects.ContainsKey(spinnerObject))
+            {
+                activeNoteObjects.Remove(spinnerObject);
                 activeNotes = activeNoteObjects.Count;
             }
         }
@@ -627,13 +722,30 @@ namespace OsuVR
         /// <summary>
         /// 在编辑器中显示调试按钮和信息
         /// </summary>
+        /// <summary>
+        /// 在编辑器中显示调试按钮和信息
+        /// </summary>
         void OnGUI()
         {
             if (!Application.isPlaying) return;
 
-            GUILayout.BeginArea(new Rect(10, 10, 350, 300));
+            // [修改] 增加高度到 500 以容纳更多信息
+            GUILayout.BeginArea(new Rect(10, 10, 350, 500));
 
-            GUILayout.Label("=== 节奏游戏调试 (DSP时间同步) ===");
+            GUILayout.Label("=== 节奏游戏调试 (多类型音符) ===");
+
+            // [新增] 显示谱面元数据
+            if (currentBeatmap != null && currentBeatmap.Metadata != null)
+            {
+                GUILayout.Space(5);
+                GUILayout.Label($"曲名: {currentBeatmap.Metadata.Title}");
+                GUILayout.Label($"艺术家: {currentBeatmap.Metadata.Artist}");
+                GUILayout.Label($"难度: {currentBeatmap.Metadata.Version} (by {currentBeatmap.Metadata.Creator})");
+                GUILayout.Label($"参数: CS:{currentBeatmap.Difficulty.CircleSize} AR:{currentBeatmap.Difficulty.ApproachRate} OD:{currentBeatmap.Difficulty.OverallDifficulty} HP:{currentBeatmap.Difficulty.HPDrainRate}");
+                GUILayout.Label($"BPM点: {currentBeatmap.ControlPoints?.Timing?.Count ?? 0} | 滑条倍率: {currentBeatmap.Difficulty.SliderMultiplier}");
+                GUILayout.Space(5);
+            }
+
             GUILayout.Label($"游戏状态: {(isPlaying ? "进行中" : (bufferStartDspTime > 0 ? "准备中" : "未开始"))}");
             GUILayout.Label($"音乐状态: {(isMusicPlaying ? "播放中" : "未播放")}");
             GUILayout.Label($"当前时间: {GetFormattedTime()}");
@@ -714,7 +826,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 获取当前音乐时间（毫秒） - 供NoteController使用
+        /// 获取当前音乐时间（毫秒） - 供所有Controller使用
         /// </summary>
         public double GetCurrentMusicTimeMs()
         {

@@ -42,6 +42,7 @@ namespace OsuVR
         private MeshFilter meshFilter;
         private MeshRenderer meshRenderer;
         private Mesh sliderMesh;
+        private MeshCollider meshCollider;
         private GameObject followBall;
         private Renderer followBallRenderer; // 缓存球体渲染器
 
@@ -83,6 +84,9 @@ namespace OsuVR
             // 获取组件
             if (!meshFilter) meshFilter = GetComponent<MeshFilter>();
             if (!meshRenderer) meshRenderer = GetComponent<MeshRenderer>();
+            // [新增] 获取或添加 MeshCollider
+            if (!meshCollider) meshCollider = GetComponent<MeshCollider>();
+            if (!meshCollider) meshCollider = gameObject.AddComponent<MeshCollider>();
 
             // 初始化属性块
             if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
@@ -144,42 +148,44 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 将osu!的数据转换为Unity世界坐标路径点
+        /// 将osu!的数据转换为本地坐标路径点 (修复脱位问题)
         /// </summary>
         private void PopulateWorldPointsFromData()
         {
             // 清理旧数据
             worldPathPoints.Clear();
 
-            // 1. 使用 SliderPathExtensions 获取处理好的 osu! 坐标点集
-            // GetSliderPath 已经在内部处理了：
-            // - 曲线类型计算 (Bezier/Linear/Catmull/Perfect)
-            // - 像素长度裁剪 (PixelLength)
-            // - 坐标偏移 (Position)
+            // 1. 获取 osu! 的绝对坐标路径点
             List<Vector2> osuPoints = sliderData.GetSliderPath();
 
-            // 2. 将 osu! 像素坐标 映射到 Unity 世界坐标
-            // 假设 CoordinateMapper 负责将 (0~512, 0~384) 映射到 Unity 的 (x, y) 平面
+            // 2. 计算滑条起点的世界坐标 (作为锚点)
+            // 这一步非常重要：我们需要计算相对于这个起点的偏移量
+            Vector3 startWorldPos = CoordinateMapper.MapToWorld(sliderData.Position);
+
             foreach (Vector2 p in osuPoints)
             {
-                worldPathPoints.Add(CoordinateMapper.MapToWorld(p));
+                // 计算当前点的世界坐标
+                Vector3 currentWorldPos = CoordinateMapper.MapToWorld(p);
+
+                // 核心修复：转换为本地坐标
+                // 本地坐标 = 当前世界坐标 - 起点世界坐标
+                // 这样 Mesh 就会从 (0,0,0) 开始绘制，而不是从世界原点叠加
+                Vector3 localPos = currentWorldPos - startWorldPos;
+
+                worldPathPoints.Add(localPos);
             }
 
-            // 3. 安全检查：如果计算失败，至少保证有点，防止 Mesh 生成报错
+            // 3. 安全检查
             if (worldPathPoints.Count < 2)
             {
-                Debug.LogWarning($"滑条路径点计算过少 (ID: {sliderData?.StartTime})，添加默认点");
-                Vector3 start = CoordinateMapper.MapToWorld(sliderData.Position);
-                // 简单的向右延伸
-                Vector3 end = CoordinateMapper.MapToWorld(sliderData.Position + new Vector2(50, 0));
-
-                worldPathPoints.Add(start);
-                worldPathPoints.Add(end);
+                // 如果路径点不足，手动添加一个本地的终点 (例如向右延伸 1 米)
+                worldPathPoints.Add(Vector3.zero);
+                worldPathPoints.Add(Vector3.right * 1.0f);
             }
         }
 
         /// <summary>
-        /// 生成滑条网格（修复UV拉伸）
+        /// 生成滑条网格并更新碰撞体
         /// </summary>
         private void GenerateSliderMesh()
         {
@@ -201,7 +207,6 @@ namespace OsuVR
 
             for (int i = 0; i < worldPathPoints.Count; i++)
             {
-                // 计算切线和副法线（左右方向）
                 Vector3 currentPoint = worldPathPoints[i];
                 Vector3 direction = Vector3.forward;
 
@@ -210,32 +215,25 @@ namespace OsuVR
                 else if (i > 0)
                     direction = (currentPoint - worldPathPoints[i - 1]).normalized;
 
-                // 假设滑条平铺在平面上，Up为Y轴
-                Vector3 rightDir = Vector3.Cross(direction, Vector3.up).normalized;
-                if (rightDir.sqrMagnitude < 0.001f) rightDir = Vector3.right; // 防止万向节死锁
+                Vector3 rightDir = Vector3.Cross(direction, Vector3.forward).normalized;
 
-                // 添加左右顶点
-                vertices.Add(currentPoint - rightDir * (sliderWidth * 0.5f)); // 左
-                vertices.Add(currentPoint + rightDir * (sliderWidth * 0.5f)); // 右
+                if(rightDir.sqrMagnitude < 0.001f) rightDir = Vector3.right;
 
-                // 优化UV：基于真实物理距离，防止拉伸
+                vertices.Add(currentPoint - rightDir * (sliderWidth * 0.5f));
+                vertices.Add(currentPoint + rightDir * (sliderWidth * 0.5f));
+
                 float u = cumulativeLengths[i] * textureTiling;
                 uvs.Add(new Vector2(u, 0));
                 uvs.Add(new Vector2(u, 1));
             }
 
-            // 构建三角形
             for (int i = 0; i < worldPathPoints.Count - 1; i++)
             {
                 int baseIdx = i * 2;
-                // 左下, 右上, 左上 (注意Unity剔除顺序)
                 triangles.Add(baseIdx);
                 triangles.Add(baseIdx + 1);
                 triangles.Add(baseIdx + 2);
 
-                // 右上, 左下, 右下 (错误的顺序会导致背面不可见，这里使用标准顺序)
-                // 修正：0-1-2 (左下-右下-左上), 1-3-2 (右下-右上-左上)
-                // 实际上是 Strip 结构
                 triangles.Add(baseIdx + 1);
                 triangles.Add(baseIdx + 3);
                 triangles.Add(baseIdx + 2);
@@ -247,6 +245,13 @@ namespace OsuVR
             sliderMesh.RecalculateNormals();
 
             meshFilter.mesh = sliderMesh;
+
+            // [新增] 动态更新 MeshCollider
+            if (meshCollider != null)
+            {
+                meshCollider.sharedMesh = null; // 强制刷新
+                meshCollider.sharedMesh = sliderMesh;
+            }
         }
 
         private void CreateFollowBall()
@@ -320,7 +325,7 @@ namespace OsuVR
 
                 // 5. 高性能获取位置
                 Vector3 targetPos = GetPositionOnPathOptimized((float)spanProgress);
-                followBall.transform.position = targetPos;
+                followBall.transform.localPosition = targetPos - Vector3.forward * 0.002f;
             }
             else if (currentTime > endTime)
             {
