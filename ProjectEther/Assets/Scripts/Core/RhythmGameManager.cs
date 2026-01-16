@@ -33,7 +33,7 @@ namespace OsuVR
         [Tooltip("音符飞行速度（米/秒）")]
         public float noteSpeed = 5.0f;
 
-        [Tooltip("音符提前生成时间（毫秒）")]
+        [Tooltip("音符提前生成时间（毫秒）")] //自动计算
         public float spawnOffsetMs = 1000f;
 
         [Tooltip("音符生命周期（秒），超过此时间未击打则自动销毁")]
@@ -84,6 +84,24 @@ namespace OsuVR
 
         // 缓冲期开始的时间
         private double bufferStartDspTime = 0;
+
+        // [新增] 1. 静态计算公式
+        public static double CalculateTimePreempt(float ar)
+        {
+            // 限制 AR 在 0 到 10 之间
+            ar = Mathf.Clamp(ar, 0f, 10f);
+
+            if (ar < 5)
+            {
+                // AR 0 = 1800ms, AR 5 = 1200ms
+                return 1200 + 120 * (5 - ar);
+            }
+            else
+            {
+                // AR 5 = 1200ms, AR 10 = 450ms
+                return 1200 - 150 * (ar - 5);
+            }
+        }
 
         /// <summary>
         /// 初始化游戏
@@ -403,7 +421,23 @@ namespace OsuVR
                     else if (obj is SliderObject) sliderCount++;
                     else if (obj is SpinnerObject) spinnerCount++;
                 }
+                // 根据谱面中的AR设置计算spawnOffsetMs
+                if (currentBeatmap != null && currentBeatmap.Difficulty != null)
+                {
+                    spawnOffsetMs = (float)CalculateTimePreempt(currentBeatmap.Difficulty.ApproachRate);
 
+                    Debug.Log($"[AR System] Loaded AR: {currentBeatmap.Difficulty.ApproachRate}, TimePreempt: {spawnOffsetMs}ms");
+                }
+                // [新增/核心修复] 2. 立即将 AR 时间应用到所有音符
+                // 这样 SpawnNotes 里的 (StartTime - TimePreempt) 才能算出正确的生成时间
+                foreach (var obj in hitObjects)
+                {
+                    // 只有当音符自己的 TimePreempt 没被设置时才覆盖
+                    if (obj.TimePreempt <= 0.1)
+                    {
+                        obj.TimePreempt = spawnOffsetMs;
+                    }
+                }
                 Debug.Log($"✅ 谱面加载完成: {currentBeatmap.Metadata.Title} - {currentBeatmap.Metadata.Version}");
                 Debug.Log($"  Audio: {currentBeatmap.General.AudioFilename}");
                 Debug.Log($"  CS:{currentBeatmap.Difficulty.CircleSize} AR:{currentBeatmap.Difficulty.ApproachRate}");

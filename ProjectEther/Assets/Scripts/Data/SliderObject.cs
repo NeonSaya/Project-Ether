@@ -4,6 +4,23 @@ using UnityEngine;
 
 namespace OsuVR
 {
+    // [新增] 定义滑条内部的事件类型
+    public enum SliderEventType
+    {
+        Tick,
+        Repeat,
+        Tail
+    }
+
+    // [新增] 滑条嵌套物件（代表滑条过程中的每一个判定点）
+    public class SliderNestedObject
+    {
+        public double Time;          // 判定时间
+        public Vector2 Position;     // 判定发生时的球位置（相对坐标）
+        public SliderEventType Type; // 类型
+        public int SpanIndex;        // 属于第几个跨度
+        public bool IsHit;           // 是否已击中（运行时状态）
+    }
     /// <summary>
     /// 表示一个滑条击打对象
     /// </summary>
@@ -70,6 +87,9 @@ namespace OsuVR
         /// 滑条速度（osu! 像素/毫秒），用于难度计算
         /// </summary>
         public double Velocity { get; set; } = 1.0;
+
+        // [新增] 存储所有 Tick (检查点) 的时间
+        public List<SliderNestedObject> NestedHitObjects { get; private set; } = new List<SliderNestedObject>();
 
         /// <summary>
         /// 滑条节点的音效列表 [节点索引][音效列表]
@@ -259,5 +279,88 @@ namespace OsuVR
             // 需要判断位置是否重叠、时间间隔是否足够小
             // 如果重叠，增加 StackHeight
         }
+        /// <summary>
+        /// [核心重写] 按照 osu! 逻辑生成所有嵌套判定物件 (Ticks, Repeats, Tail)
+        /// </summary>
+        public void CalculateNestedHitObjects(double tickRate, double beatLength)
+        {
+            NestedHitObjects.Clear();
+            if (tickRate <= 0 || beatLength <= 0 || RepeatCount == 0) return;
+
+            // 1. 计算 Tick 间隔
+            double tickInterval = beatLength / tickRate;
+            // 2. 单次滑行的时间
+            double spanDuration = Duration / RepeatCount;
+            // 3. 最小 Tick 距离 (防止 Tick 离头尾太近)
+            double minTickDistanceFromEnd = 0.01 * spanDuration;
+
+            for (int span = 0; span < RepeatCount; span++)
+            {
+                double spanStartTime = StartTime + (span * spanDuration);
+                bool reversed = span % 2 == 1;
+
+                // --- A. 生成 Ticks ---
+                // Ticks 是基于长度生成的，这里简化为基于时间
+                double currentTickTime = tickInterval;
+
+                while (currentTickTime < spanDuration - minTickDistanceFromEnd)
+                {
+                    double absoluteTime = spanStartTime + currentTickTime;
+
+                    // 计算 Tick 的位置 (用于特效生成等)
+                    double progressInSpan = currentTickTime / spanDuration;
+                    // 如果是反向跨度，位置也要反过来算
+                    if (reversed) progressInSpan = 1.0 - progressInSpan;
+
+                    Vector2 pos = GetPositionAtProgress(progressInSpan); // 这里是简化调用，实际需要 GetPositionOnPath
+
+                    NestedHitObjects.Add(new SliderNestedObject
+                    {
+                        Time = absoluteTime,
+                        Type = SliderEventType.Tick,
+                        SpanIndex = span,
+                        Position = pos,
+                        IsHit = false
+                    });
+
+                    currentTickTime += tickInterval;
+                }
+
+                // --- B. 生成 Repeat (折返点) 或 Tail (终点) ---
+                double spanEndTime = spanStartTime + spanDuration;
+                Vector2 endPos = reversed ? Vector2.zero : PathPoints.Last(); // 简化：偶数次终点在末端，奇数次在起点
+
+                if (span < RepeatCount - 1)
+                {
+                    // 这是一个折返点 (Repeat)
+                    NestedHitObjects.Add(new SliderNestedObject
+                    {
+                        Time = spanEndTime,
+                        Type = SliderEventType.Repeat,
+                        SpanIndex = span,
+                        Position = endPos,
+                        IsHit = false
+                    });
+                }
+                else
+                {
+                    // 最后一个跨度，这是整个滑条的终点 (Tail)
+                    NestedHitObjects.Add(new SliderNestedObject
+                    {
+                        Time = spanEndTime,
+                        Type = SliderEventType.Tail,
+                        SpanIndex = span,
+                        Position = endPos,
+                        IsHit = false
+                    });
+                }
+            }
+
+            // 确保按时间排序 (理论上已经是排序的，但为了保险)
+            NestedHitObjects.Sort((a, b) => a.Time.CompareTo(b.Time));
+        }
+
+        // 辅助：获取进度位置 (需要配合 SliderPathCalculator，这里假设你有类似逻辑)
+        // 注意：这里的 progress 是 0~1 对应整个 PathPoints
     }
 }

@@ -41,6 +41,11 @@ namespace OsuVR
         public float totalRotation = 0.0f;
         public float currentRotationSpeed = 0.0f;
 
+
+        [Header("视觉组件")]
+        public Transform approachCircleObject; // 拖拽赋值
+
+
         // 私有变量
         private RhythmGameManager gameManager;
         private double currentMusicTimeMs = 0;
@@ -92,6 +97,19 @@ namespace OsuVR
             }
 
             Debug.Log($"转盘初始化: 开始时间={spinnerObj.StartTime}ms, 结束时间={spinnerObj.EndTime}ms, 持续时间={spinnerObj.Duration}ms");
+
+            // [新增] 启动缩圈动画
+            if (approachCircleObject != null)
+            {
+                var scaler = approachCircleObject.GetComponent<ApproachCircleScaler>();
+                if (scaler == null) scaler = approachCircleObject.gameObject.AddComponent<ApproachCircleScaler>();
+
+                // 转盘的缩圈通常指向 StartTime (开始旋转的时间)
+                scaler.Initialize(spinnerObj.StartTime, manager.spawnOffsetMs);
+
+
+                approachCircleObject.gameObject.SetActive(true);
+            }
         }
 
         void Update()

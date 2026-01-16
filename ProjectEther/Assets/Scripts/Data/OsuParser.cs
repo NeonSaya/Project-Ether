@@ -482,6 +482,9 @@ namespace OsuVR
                 // 计算滑条路径点 (裁剪路径)
                 CalculateSliderPath(slider);
 
+                //计算滑条打点
+                slider.CalculateNestedHitObjects(beatmap.Difficulty.SliderTickRate, timingPoint.MsPerBeat);
+
                 // 将滑条添加到谱面
                 beatmap.HitObjects.Add(slider);
 
