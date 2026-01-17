@@ -98,10 +98,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sliderWidth: 0.2
-  borderWidth: 0.2
+  borderWidth: 0.22
   sliderHeight: 0.01
-  bodyMaterial: {fileID: 2100000, guid: 0129cef7edd96c64eaf0099f13e3bd83, type: 2}
-  borderMaterial: {fileID: 2100000, guid: cd6cee54816cbab41a7b216c976ddb60, type: 2}
   textureTiling: 1
   followBallPrefab: {fileID: 7693255145427549243, guid: 799efdc8cb6e97a43ba515b9321223c0,
     type: 3}
@@ -111,6 +109,11 @@ MonoBehaviour:
     type: 3}
   reverseArrowPrefab: {fileID: 3775155482816626991, guid: 1de2a07236245cc4d9e9db28b0c41c1e,
     type: 3}
+  sliderTickPrefab: {fileID: 8308767009617404742, guid: e9059b8a0fa3fab499ad85ae6d45b576,
+    type: 3}
+  customBodyColor: {r: 0.31132078, g: 0.31132078, b: 0.31132078, a: 0.78431374}
+  customBorderColor: {r: 1, g: 1, b: 1, a: 1}
+  sharedMaterial: {fileID: 2100000, guid: 7a5e5d34b17465741a629b88f26c7527, type: 2}
 --- !u!64 &5550271967489302791
 MeshCollider:
   m_ObjectHideFlags: 0

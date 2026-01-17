@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 
 namespace OsuVR
@@ -24,12 +26,6 @@ namespace OsuVR
         [Tooltip("滑条高度（轻微凸起效果）")]
         public float sliderHeight = 0.01f;
 
-        [Tooltip("滑条本体材质")]
-        public Material bodyMaterial;   // 确认保留这个
-
-        [Tooltip("滑条边框材质")]
-        public Material borderMaterial; // 确认保留这个
-
         [Tooltip("纹理平铺密度（每单位长度重复多少次纹理）")]
         public float textureTiling = 1.0f;
 
@@ -47,22 +43,37 @@ namespace OsuVR
         [Header("osu! 风格组件")]
         public GameObject sliderHeadPrefab;    // 拖入 VisualHitCircle Prefab
         public GameObject reverseArrowPrefab;  // 拖入 ReverseArrow Prefab
-
+        public GameObject sliderTickPrefab;
         private GameObject headInstance;       // 实例化的头
         private GameObject arrowInstance;      // 实例化的箭头
+
+
+        [Header("调试设置")]
+        public bool showDebugLabel = true; // 开关
+        public GameObject debugTextPrefab; // 需在 Inspector 拖入一个带 TextMeshPro 的 Prefab
+        private TextMeshPro debugTextInstance; // 实例化的文本
+
+
+        // [新增] 这里的颜色用于生成 Vertex Colors
+        public Color customBodyColor = new Color(0.2f, 0.6f, 1f, 0.9f); // 默认 osu! 蓝
+        public Color customBorderColor = Color.white;
+
+        // [新增] 专用材质球 (拖入 Mat_Osu_Slider)
+        [Tooltip("osu! 风格专用材质 (使用 OsuSlider Shader)")]
+        public Material sharedMaterial;
+
+        // 用于管理生成的 Tick 物体 (Key: 数据对象, Value: 场景物体)
+        private Dictionary<SliderNestedObject, GameObject> tickVisuals = new Dictionary<SliderNestedObject, GameObject>();
 
         // 私有组件引用
         private RhythmGameManager gameManager;
         private MeshFilter meshFilter;
         private MeshRenderer meshRenderer;
-        private Mesh bodyMesh;
         private MeshCollider meshCollider;
         private GameObject followBall;
         private Renderer followBallRenderer; // 缓存球体渲染器
-        private GameObject borderObject;
-        private MeshFilter borderMeshFilter;
-        private MeshRenderer borderMeshRenderer;
-        private Mesh borderMesh;
+        private Mesh combinedMesh;
+
 
         // [新增] 嵌套物件判定索引
         private int currentNestedIndex = 0;
@@ -111,6 +122,13 @@ namespace OsuVR
             this.borderWidth = width * 1.25f;
             this.gameManager = manager;
 
+
+            // 确保滑条的 AR 时间与全局管理器一致
+            if (this.sliderData.TimePreempt < 100)
+            {
+                double defaultAR = (manager != null && manager.spawnOffsetMs > 100) ? manager.spawnOffsetMs : 1200;
+                this.sliderData.TimePreempt = defaultAR;
+            }
             // -----------------------------------------------------------------
             // [修复] 暴力修复时间戳：遍历所有子物件，防止混合了绝对/相对时间
             // -----------------------------------------------------------------
@@ -131,23 +149,10 @@ namespace OsuVR
             if (!meshFilter) meshFilter = GetComponent<MeshFilter>();
             if (!meshRenderer) meshRenderer = GetComponent<MeshRenderer>();
 
-            // [修改] 初始化边框组件
-            if (borderObject == null)
+            if (sharedMaterial != null)
             {
-                borderObject = new GameObject("SliderBorder");
-                borderObject.transform.SetParent(transform, false);
-
-                borderObject.transform.localPosition = Vector3.forward * 0.01f;
-
-                borderMeshFilter = borderObject.AddComponent<MeshFilter>();
-                borderMeshRenderer = borderObject.AddComponent<MeshRenderer>();
+                meshRenderer.sharedMaterial = sharedMaterial;
             }
-            borderObject.SetActive(true);
-
-            // 3. [新增] 设置材质
-            // Inspector 里 bodyMaterial 拖滑条颜色，borderMaterial 拖纯白材质
-            if (bodyMaterial != null) meshRenderer.sharedMaterial = bodyMaterial;
-            if (borderMaterial != null) borderMeshRenderer.sharedMaterial = borderMaterial;
 
             if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
 
@@ -177,6 +182,9 @@ namespace OsuVR
 
             isInitialized = true;
             isActive = true;
+
+            // 8. 创建调试标签
+            CreateDebugLabel();
         }
 
         private void ResetState()
@@ -188,9 +196,8 @@ namespace OsuVR
             isActive = false;
             currentAlpha = 1f;
 
-            // 清理所有 Mesh
-            if (bodyMesh != null) bodyMesh.Clear();
-            if (borderMesh != null) borderMesh.Clear();
+            // [修复] 清理 combinedMesh
+            if (combinedMesh != null) combinedMesh.Clear();
         }
 
         /// <summary>
@@ -251,79 +258,60 @@ namespace OsuVR
             }
         }
         /// <summary>
-        /// [新增] 生成双层网格：一层本体，一层边框
+        /// [完全重写] 使用 SliderMeshGenerator 生成单次绘制的完美滑条
         /// </summary>
         private void GenerateMeshes()
         {
             if (worldPathPoints.Count < 2) return;
 
-            // 1. 生成本体 (Body) - 较窄
-            if (bodyMesh == null) bodyMesh = new Mesh { name = "BodyMesh" };
-            GenerateStrip(bodyMesh, sliderWidth);
-            meshFilter.mesh = bodyMesh;
+            // 1. 计算尺寸
+            // radius: 本体半径 (宽度的一半)
+            float radius = sliderWidth * 0.5f;
 
-            // 2. 生成边框 (Border) - 较宽
-            if (borderMesh == null) borderMesh = new Mesh { name = "BorderMesh" };
-            GenerateStrip(borderMesh, borderWidth);
-            borderMeshFilter.mesh = borderMesh;
+            // borderThickness: 边框线的厚度
+            // 假设你的 borderWidth 是滑条的总宽度 (包含边框)，那么单边厚度 = (总宽 - 本体宽) / 2
+            float borderThickness = (borderWidth - sliderWidth) * 0.5f;
 
-            // 3. 更新碰撞体 (使用本体的 Mesh 即可)
-            if (meshCollider != null)
+            // 2. 调用生成器 (你需要确保 SliderMeshGenerator.cs 已经创建)
+            combinedMesh = SliderMeshGenerator.GenerateSmoothSlider(
+                worldPathPoints,
+                radius,
+                borderThickness,
+                customBodyColor,
+                customBorderColor
+            );
+            // [新增] 调试校验逻辑
+            bool isMeshValid = (combinedMesh != null && combinedMesh.vertexCount > 0);
+
+            if (!isMeshValid)
             {
-                meshCollider.sharedMesh = null;
-                meshCollider.sharedMesh = bodyMesh;
+                Debug.LogError($"❌ 滑条生成失败! Time: {sliderData.StartTime}ms, Points: {worldPathPoints.Count}");
+
+                // 如果生成失败，把调试文字变红！
+                if (debugTextInstance != null)
+                {
+                    debugTextInstance.color = Color.red;
+                    debugTextInstance.text += "\n[MESH ERROR]";
+                }
             }
-        }
-
-        /// <summary>
-        /// [新增] 通用条带生成算法
-        /// </summary>
-        private void GenerateStrip(Mesh targetMesh, float width)
-        {
-            targetMesh.Clear();
-            List<Vector3> vertices = new List<Vector3>();
-            List<Vector2> uvs = new List<Vector2>();
-            List<int> triangles = new List<int>();
-
-            for (int i = 0; i < worldPathPoints.Count; i++)
+            else
             {
-                Vector3 current = worldPathPoints[i];
-                Vector3 dir = Vector3.forward;
-
-                if (i < worldPathPoints.Count - 1)
-                    dir = (worldPathPoints[i + 1] - current).normalized;
-                else if (i > 0)
-                    dir = (current - worldPathPoints[i - 1]).normalized;
-
-                // 计算右向量 (垂直于路径方向和Z轴)
-                Vector3 right = Vector3.Cross(dir, Vector3.forward).normalized;
-                if (right.sqrMagnitude < 0.001f) right = Vector3.right;
-
-                // 左右顶点
-                vertices.Add(current - right * (width * 0.5f));
-                vertices.Add(current + right * (width * 0.5f));
-
-                // UV 映射
-                float u = cumulativeLengths[i] * textureTiling;
-                uvs.Add(new Vector2(u, 0));
-                uvs.Add(new Vector2(u, 1));
+                // 如果成功，显示顶点数 (方便观察性能)
+                if (debugTextInstance != null)
+                {
+                    debugTextInstance.text += $"\n({combinedMesh.vertexCount}v)";
+                }
             }
 
-            for (int i = 0; i < worldPathPoints.Count - 1; i++)
-            {
-                int baseIdx = i * 2;
-                triangles.Add(baseIdx);
-                triangles.Add(baseIdx + 1);
-                triangles.Add(baseIdx + 2);
-                triangles.Add(baseIdx + 1);
-                triangles.Add(baseIdx + 3);
-                triangles.Add(baseIdx + 2);
-            }
+            // 3. 赋值
+            if (meshFilter) meshFilter.mesh = combinedMesh;
 
-            targetMesh.SetVertices(vertices);
-            targetMesh.SetUVs(0, uvs);
-            targetMesh.SetTriangles(triangles, 0);
-            targetMesh.RecalculateNormals();
+            // 4. 更新碰撞体
+            if (meshCollider) meshCollider.sharedMesh = combinedMesh;
+
+            // [清理] 如果场景里还有旧的 SliderBorder 子物体，删掉它
+            Transform oldBorder = transform.Find("SliderBorder");
+            if (oldBorder != null) Destroy(oldBorder.gameObject);
         }
 
         /// <summary>
@@ -331,34 +319,62 @@ namespace OsuVR
         /// </summary>
         private void CreateVisuals()
         {
-            // 1. 创建滑条头 (Slider Head)
+            // 创建滑条头 (Slider Head)
             if (sliderHeadPrefab != null)
             {
                 if (headInstance != null) Destroy(headInstance);
 
                 headInstance = Instantiate(sliderHeadPrefab, transform);
                 headInstance.transform.localPosition = Vector3.zero;
-                headInstance.transform.localPosition -= Vector3.forward * 0.005f;
+                // 防止 Z-Fighting，稍微往前一点点
+                headInstance.transform.localPosition -= Vector3.forward * 0.05f;
                 headInstance.SetActive(true);
 
                 var scaler = headInstance.GetComponent<ApproachCircleScaler>();
                 if (scaler != null)
                 {
-                    // 计算 AR 时间 (TimePreempt)
-                    // 如果你还没有 Difficulty 数据，暂时先写死 1200ms
-                    // 正确做法是从 beatmap.Difficulty 计算 AR
-                    double arMs = 1200;
-                    if (gameManager != null)
-                    {
-                        // 以后你可以从 gameManager 获取当前谱面的 AR
-                    }
+                    // [修改] 直接使用 sliderData 里的正确 AR，不再硬编码 1200
+                    double arMs = sliderData.TimePreempt;
+
+                    // 双重保险：如果数据里还是错的，用 Manager 的
+                    if (arMs < 100 && gameManager != null)
+                        arMs = gameManager.spawnOffsetMs;
 
                     // 启动缩圈
                     scaler.Initialize(sliderData.StartTime, arMs);
                 }
             }
 
-            // 2. 创建折返箭头 (Reverse Arrow)
+          
+
+            // 2. [新增] 生成 Tick (小圆点)
+            if (sliderTickPrefab != null && sliderData.NestedHitObjects != null)
+            {
+                // 清理旧的 Tick (如果是对象池模式需改为回收)
+                foreach (var kvp in tickVisuals) if (kvp.Value) Destroy(kvp.Value);
+                tickVisuals.Clear();
+
+                foreach (var nested in sliderData.NestedHitObjects)
+                {
+                    if (nested.Type == SliderEventType.Tick)
+                    {
+                        GameObject tickObj = Instantiate(sliderTickPrefab, transform);
+
+                        // 计算 Tick 在路径上的位置
+                        // 我们利用 CalculatePositionAtTime 辅助函数 (下面会写)
+                        Vector3 tickPos = GetPositionAtTime(nested.Time);
+
+                        // 设置位置 (Z轴稍微靠前，避免被滑条体挡住)
+                        tickObj.transform.localPosition = tickPos - Vector3.forward * 0.065f;
+
+                        // 存入字典，以便打中时隐藏
+                        tickVisuals[nested] = tickObj;
+                        tickObj.SetActive(true);
+                    }
+                }
+            }
+
+            // 创建折返箭头 (Reverse Arrow)
             // 只有当重复次数 > 1 时才需要箭头
             if (reverseArrowPrefab != null && sliderData.RepeatCount > 1)
             {
@@ -421,15 +437,16 @@ namespace OsuVR
                 direction = tangent.normalized;
             }
 
-            arrowInstance.transform.localPosition = position - Vector3.forward * 0.006f; // 防穿模
+            arrowInstance.transform.localPosition = position - Vector3.forward * 0.075f; // 防穿模
 
             // 设置旋转：让箭头的 "Up" (或 "Right") 对齐 direction
             // 假设你的箭头图片是向上的，我们需要让它的 Up 轴指向 direction，同时保持 Forward 轴指向相机 (Vector3.back)
             // 这样 VR 里看才是平面的
-            arrowInstance.transform.rotation = Quaternion.LookRotation(Vector3.back, direction);
+            Quaternion baseRotation = Quaternion.LookRotation(Vector3.back, direction);
+
 
             // 如果你的箭头贴图是向右的，可能需要额外的旋转，例如：
-            // arrowInstance.transform.Rotate(0, 0, -90);
+            arrowInstance.transform.localRotation = baseRotation * Quaternion.Euler(-180, 0, -90);
         }
 
 
@@ -446,24 +463,14 @@ namespace OsuVR
                 }
                 followBallRenderer = followBall.GetComponent<Renderer>();
 
-                // [新增] 添加碰撞体用于射线检测
                 ballCollider = followBall.GetComponent<SphereCollider>();
                 if (ballCollider == null) ballCollider = followBall.AddComponent<SphereCollider>();
 
-                // 重要：设置 Layer 为 "Note" (确保你在 Unity 的 Tags & Layers 中添加了这个层，且 ID 与 LaserShooter 匹配)
-                // 如果你还没有设置 Layer，暂时可以用代码查找，或者在 Inspector 手动设置
-                // followBall.layer = LayerMask.NameToLayer("Note"); 
+                followBall.transform.localScale = Vector3.one * (sliderWidth * 2.0f);
+
+
+                followBall.SetActive(false);
             }
-
-            // 调整球体大小，比视觉宽度稍大一点，增加判定容错率
-            followBall.transform.localScale = Vector3.one * (sliderWidth * 2.0f);
-
-            if (followBallRenderer != null && bodyMaterial != null)
-            {
-                followBallRenderer.sharedMaterial = bodyMaterial;
-            }
-
-            followBall.SetActive(false);
         }
 
         /// <summary>
@@ -485,34 +492,8 @@ namespace OsuVR
             {
                 if (!followBall.activeSelf) followBall.SetActive(true);
 
-                // 1. 计算总进度 (0.0 ~ 1.0)
-                double totalProgress = (currentTime - startTime) / totalDuration;
-
-                // 2. 获取折返次数 (默认1次)
-                // 注意：请确保你的 SliderObject 定义了 RepeatCount
-                int repeatCount = sliderData.RepeatCount > 0 ? sliderData.RepeatCount : 1;
-
-                // 3. 计算单次跨度进度 (Ping-Pong 算法)
-                double spanRaw = totalProgress * repeatCount;
-                int currentSpanIndex = (int)spanRaw;
-                double spanProgress = spanRaw - currentSpanIndex;
-
-                // 处理边界情况：刚好结束时
-                if (currentSpanIndex >= repeatCount)
-                {
-                    currentSpanIndex = repeatCount - 1;
-                    spanProgress = 1.0;
-                }
-
-                // 4. 如果是奇数次跨度（1, 3, 5...），则反向运动
-                if (currentSpanIndex % 2 != 0)
-                {
-                    spanProgress = 1.0 - spanProgress;
-                }
-
-                // 5. 高性能获取位置
-                Vector3 targetPos = GetPositionOnPathOptimized((float)spanProgress);
-                followBall.transform.localPosition = targetPos - Vector3.forward * 0.002f;
+                Vector3 targetPos = GetPositionAtTime(currentTime);
+                followBall.transform.localPosition = targetPos - Vector3.forward * 0.035f;
             }
             else if (currentTime > endTime)
             {
@@ -587,37 +568,26 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 使用 MaterialPropertyBlock 优化性能，避免材质实例化
+        /// 使用 MaterialPropertyBlock 优化性能
         /// </summary>
         private void UpdateMaterialAlpha()
         {
-            // 1. 更新本体颜色
-            Color baseColor = bodyMaterial != null ? bodyMaterial.color : Color.white;
-            baseColor.a = currentAlpha;
-
+            // 1. 更新滑条主体透明度 (OsuSlider Shader)
             if (meshRenderer)
             {
                 meshRenderer.GetPropertyBlock(_propBlock);
-                _propBlock.SetColor(ColorPropertyId, baseColor);
+                _propBlock.SetFloat("_MainAlpha", currentAlpha);
                 meshRenderer.SetPropertyBlock(_propBlock);
             }
 
-            // 2. [新增] 更新边框颜色
-            if (borderMeshRenderer)
-            {
-                Color borderC = borderMaterial != null ? borderMaterial.color : Color.white;
-                borderC.a = currentAlpha;
-
-                borderMeshRenderer.GetPropertyBlock(_propBlock);
-                _propBlock.SetColor(ColorPropertyId, borderC);
-                borderMeshRenderer.SetPropertyBlock(_propBlock);
-            }
-
-            // 3. 更新球体颜色
+            // 2. 更新跟随球透明度
             if (followBallRenderer)
             {
                 followBallRenderer.GetPropertyBlock(_propBlock);
-                _propBlock.SetColor(ColorPropertyId, baseColor);
+                Color ballColor = customBodyColor;
+                ballColor.a = currentAlpha;
+
+                _propBlock.SetColor(ColorPropertyId, ballColor);
                 followBallRenderer.SetPropertyBlock(_propBlock);
             }
         }
@@ -658,7 +628,7 @@ namespace OsuVR
         // 确保销毁时清理 Mesh 内存
         void OnDestroy()
         {
-            if (bodyMesh != null) Destroy(bodyMesh);
+            if (combinedMesh != null) Destroy(combinedMesh);
         }
 
         // =========================================================
@@ -772,9 +742,19 @@ namespace OsuVR
                     switch (nestedObject.Type)
                     {
                         case SliderEventType.Tick:
-                            // Debug.Log("Tick Hit"); 
-                            // gameManager.AddScore(10); 
+                            // 1. 播放呼吸感动画
+                            StartCoroutine(FollowBallPulse());
+
+                            // 2. 隐藏场景里的这个 Tick (它被吃掉了)
+                            if (tickVisuals.ContainsKey(nestedObject))
+                            {
+                                GameObject tickObj = tickVisuals[nestedObject];
+                                if (tickObj != null) tickObj.SetActive(false);
+                            }
+
+                            // gameManager.AddScore(30); 
                             // gameManager.AddCombo();
+                            Debug.Log("Tick Hit");
                             break;
 
                         case SliderEventType.Repeat:
@@ -847,11 +827,6 @@ namespace OsuVR
             if (headInstance) headInstance.SetActive(false); // 隐藏头，显示球
 
             Debug.Log($"<color=green>Slider Head HIT</color>");
-
-            // ❌ 删除这一行！不要在这里告诉 Manager 击中了，否则它会把滑条删掉！
-            // gameManager.OnNoteHit(sliderData, 0); 
-
-            // ✅ 如果需要加分/音效，可以在这里单独处理，但绝不能调用会导致 Destroy 的方法
             ticksGot++;
         }
 
@@ -879,13 +854,162 @@ namespace OsuVR
 
             followBallRenderer.GetPropertyBlock(_propBlock);
 
-            Color targetColor = isTracking ? Color.yellow : (bodyMaterial ? bodyMaterial.color : Color.white);
+            Color targetColor = isTracking ? Color.yellow : customBodyColor;
+
             targetColor.a = currentAlpha;
 
             _propBlock.SetColor(ColorPropertyId, targetColor);
 
             followBallRenderer.SetPropertyBlock(_propBlock);
         }
+
+
+        /// <summary>
+        /// 跟随球的呼吸/脉冲效果 (Tick 击中反馈)
+        /// </summary>
+        private IEnumerator FollowBallPulse()
+        {
+            if (followBall == null) yield break;
+
+            float duration = 0.15f; // 动画时长
+            float timer = 0f;
+
+            // 原始大小 (假设是 sliderWidth * 2)
+            Vector3 baseScale = Vector3.one * (sliderWidth * 2.0f);
+            Vector3 targetScale = baseScale * 1.3f; // 瞬间变大 1.3 倍
+
+            while (timer < duration)
+            {
+                timer += Time.deltaTime;
+                float t = timer / duration;
+
+                // 简单的 Sine 曲线：先变大后变小
+                float scaleMultiplier = Mathf.Sin(t * Mathf.PI); // 0 -> 1 -> 0
+
+                // Lerp 插值
+                followBall.transform.localScale = Vector3.Lerp(baseScale, targetScale, scaleMultiplier);
+
+                yield return null;
+            }
+
+            // 确保恢复原样
+            followBall.transform.localScale = baseScale;
+        }
+
+        /// <summary>
+        /// [新增] 根据时间计算路径上的本地坐标 (复用 Ping-Pong 逻辑)
+        /// </summary>
+        private Vector3 GetPositionAtTime(double time)
+        {
+            double startTime = sliderData.StartTime;
+            double duration = sliderData.EndTime - startTime;
+
+            // 计算总进度 (0.0 ~ 1.0)
+            double totalProgress = (time - startTime) / duration;
+            totalProgress = System.Math.Clamp(totalProgress, 0.0, 1.0); // 钳制范围
+
+            // 获取折返次数
+            int repeatCount = sliderData.RepeatCount > 0 ? sliderData.RepeatCount : 1;
+
+            // Ping-Pong 算法
+            double spanRaw = totalProgress * repeatCount;
+            int currentSpanIndex = (int)spanRaw;
+            double spanProgress = spanRaw - currentSpanIndex;
+
+            // 边界处理
+            if (currentSpanIndex >= repeatCount)
+            {
+                currentSpanIndex = repeatCount - 1;
+                spanProgress = 1.0;
+            }
+
+            // 奇数跨度反向
+            if (currentSpanIndex % 2 != 0)
+            {
+                spanProgress = 1.0 - spanProgress;
+            }
+
+            // 调用你现有的优化寻路
+            return GetPositionOnPathOptimized((float)spanProgress);
+        }
+        /// <summary>
+        /// [调试] 创建头顶的调试标签
+        /// </summary>
+        private void CreateDebugLabel()
+        {
+            if (!showDebugLabel) return;
+
+            // 如果没有分配 Prefab，就代码动态生成一个临时的
+            GameObject labelObj = null;
+            if (debugTextPrefab != null)
+            {
+                labelObj = Instantiate(debugTextPrefab, transform);
+            }
+            else
+            {
+                labelObj = new GameObject("DebugLabel");
+                labelObj.transform.parent = transform;
+                labelObj.transform.localScale = Vector3.one * 0.05f; // 缩小一点
+
+                // 挂载 TextMesh (如果没有 TMP，这是最简单的原生方案)
+                TextMesh tm = labelObj.AddComponent<TextMesh>();
+                tm.characterSize = 0.1f;
+                tm.fontSize = 40;
+                tm.anchor = TextAnchor.LowerCenter;
+                tm.alignment = TextAlignment.Center;
+                tm.color = Color.white;
+            }
+
+            // 设置位置：在滑条头上方 0.1 米
+            labelObj.transform.localPosition = new Vector3(0, 0.1f, 0);
+            // 旋转：朝向相机 (简单起见，直接反向)
+            labelObj.transform.localRotation = Quaternion.identity;
+
+            // 设置文字内容
+            // 显示：开始时间 | 连击号
+            string info = $"{sliderData.StartTime}ms\n#{sliderData.ComboIndex}";
+
+            // 尝试获取组件 (兼容 TextMeshPro 和 TextMesh)
+            var tmp = labelObj.GetComponent<TextMeshPro>();
+            if (tmp)
+            {
+                tmp.text = info;
+                debugTextInstance = tmp;
+            }
+            else
+            {
+                var tm = labelObj.GetComponent<TextMesh>();
+                if (tm) tm.text = info;
+            }
+        }
+
+        /// <summary>
+        /// 调试用：在场景视图中绘制滑条路径
+        /// </summary>
+        private void OnDrawGizmos()
+        {
+            // 只有当游戏运行时且有数据才画
+            if (!Application.isPlaying || worldPathPoints == null || worldPathPoints.Count < 2) return;
+
+            // 1. 画路径线 (黄色)
+            Gizmos.color = Color.yellow;
+            for (int i = 0; i < worldPathPoints.Count - 1; i++)
+            {
+                // 注意 worldPathPoints 是本地坐标，要转成世界坐标画
+                Vector3 p1 = transform.TransformPoint(worldPathPoints[i]);
+                Vector3 p2 = transform.TransformPoint(worldPathPoints[i + 1]);
+                Gizmos.DrawLine(p1, p2);
+            }
+
+            // 2. 画起终点 (绿色/红色球)
+            Gizmos.color = Color.green;
+            Gizmos.DrawSphere(transform.TransformPoint(worldPathPoints[0]), 0.02f);
+
+            Gizmos.color = Color.red;
+            Gizmos.DrawSphere(transform.TransformPoint(worldPathPoints[worldPathPoints.Count - 1]), 0.02f);
+        }
     }
+
+
 }
 

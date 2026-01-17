@@ -159,6 +159,20 @@ namespace OsuVR
                     slider.TryHitHead();
                 }
 
+                SpinnerController spinner = hit.collider.GetComponent<SpinnerController>();
+                if (spinner == null && hit.collider.transform.parent != null)
+                {
+                    //传递打击点给 Spinner
+                    spinner = hit.collider.transform.parent.GetComponent<SpinnerController>();
+                }
+
+                if (spinner != null && spinner.IsActive)
+                {
+                    // 传递击中点和当前手柄 ID (Left/Right)
+                    // SpinnerController 会根据 handSide 区分两只手的角度增量
+                    spinner.OnRayStay(hit.point, this.handSide);
+                }
+
                 // 调试绘制
                 Debug.DrawLine(origin, hit.point, Color.green);
             }
