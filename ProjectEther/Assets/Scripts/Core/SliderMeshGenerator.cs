@@ -251,7 +251,7 @@ namespace OsuVR
         }
 
         // ====================================================================
-        // 核心组件：绘制拐角 (Join)
+        // 核心组件：绘制拐角 (Join) - [已修复烤面筋/背面剔除问题]
         // ====================================================================
         private static void AddJoin(
             List<Vector3> verts, List<Color> cols, List<Vector2> uvs, List<int> tris,
@@ -259,73 +259,87 @@ namespace OsuVR
             float radius, float borderThickness,
             Color cBody, Color cBorder)
         {
-            // 1. 计算两个法线向量之间的直接夹角
-            // 这是判断是否需要拐角连接的最可靠依据
             float angleDiff = Vector3.Angle(rPrev, rCurr);
-
-            // 如果夹角非常小 (比如小于 0.5 度)，则认为是直线，跳过连接
-            // 这个阈值足够小，不会漏掉硬转角，又能过滤掉浮点误差
             if (angleDiff < 0.5f) return;
 
-            // 2. 判断转向 (左转还是右转)
-            // 使用叉积的 Z 分量 (假设在 XY 平面)
+            // 计算转向 (叉积 Z)
             float crossZ = rPrev.x * rCurr.y - rPrev.y * rCurr.x;
-            bool isRightTurn = crossZ < 0;
-
-            // [极端情况保护]：如果是 180 度大掉头，crossZ 会接近 0，导致转向判断失效。
-            // 如果角度很大 (>175度) 且 crossZ 很小，我们强制给一个转向 (比如右转) 以确保填充
+            bool isRightTurn = crossZ < 0; // 右转时 Z < 0
+            
+            // 180度掉头保护
             if (angleDiff > 175f && Mathf.Abs(crossZ) < 1e-4f) isRightTurn = true;
 
-            // 3. 确定需要填充的 "外侧" 扇形的起始和结束向量
-            // 右转 -> 左侧 (-Right) 是外侧
-            // 左转 -> 右侧 (+Right) 是外侧
+            // 确定外侧向量
             Vector3 vStart = isRightTurn ? -rPrev : rPrev;
-            Vector3 vEnd = isRightTurn ? -rCurr : rCurr;
+            Vector3 vEnd   = isRightTurn ? -rCurr : rCurr;
 
-            // 4. 动态分段
-            // 角度越大，分段越多，保证圆滑。每 10 度分一段。
+            // 动态分段 (保证圆滑)
             int segments = Mathf.CeilToInt(angleDiff / 10f);
-            // 至少保证有 2 段，对于硬转角来说这很重要，否则看着太尖
             if (segments < 2) segments = 2;
 
-            // --- 开始生成几何体 ---
             int centerIdx = verts.Count;
+            
+            // 添加中心点 (UV X=0.5 表示在滑条中间)
             verts.Add(center);
             cols.Add(cBody);
-            uvs.Add(new Vector2(0.5f, 0f));
+            uvs.Add(new Vector2(0.5f, 0.5f)); 
 
             int firstEdgeIdx = centerIdx + 1;
 
+            // 生成扇形顶点
             for (int i = 0; i <= segments; i++)
             {
                 float t = (float)i / segments;
-                // 使用 Slerp 在外侧向量之间进行球面插值，生成完美的圆弧
                 Vector3 dir = Vector3.Slerp(vStart, vEnd, t).normalized;
 
-                // Inner point
+                // Inner (Body Edge)
                 verts.Add(center + dir * radius);
                 cols.Add(cBody);
-                uvs.Add(new Vector2(0.5f, 1f));
+                // UV X: 如果是外侧，根据左右转决定是 0 还是 1 (这里简单设为边缘)
+                // UV Y: 保持 0.5
+                float edgeUV = isRightTurn ? 0f : 1f; 
+                uvs.Add(new Vector2(edgeUV, 0.5f)); // Body 边缘 (近似处理)
 
-                // Outer point
+                // Outer (Border Edge)
                 verts.Add(center + dir * (radius + borderThickness));
                 cols.Add(cBorder);
-                uvs.Add(new Vector2(0.5f, 1f));
+                uvs.Add(new Vector2(edgeUV, 0.5f)); // Border 边缘
             }
 
-            // 生成三角形
+            // 生成三角形 (关键修复：根据转向调整顶点顺序)
             for (int i = 0; i < segments; i++)
             {
                 int baseCurr = firstEdgeIdx + i * 2;
                 int baseNext = firstEdgeIdx + (i + 1) * 2;
 
-                // Body Fan (扇形)
-                tris.Add(centerIdx);
-                tris.Add(baseCurr);
-                tris.Add(baseNext);
+                // --- 1. Body Fan (扇形) ---
+                if (isRightTurn)
+                {
+                    // 右转：逆序连接防止剔除 (Center -> Next -> Curr)
+                    tris.Add(centerIdx);
+                    tris.Add(baseNext);
+                    tris.Add(baseCurr);
+                }
+                else
+                {
+                    // 左转：顺序连接 (Center -> Curr -> Next)
+                    tris.Add(centerIdx);
+                    tris.Add(baseCurr);
+                    tris.Add(baseNext);
+                }
 
-                // Border Quad (四边形)
-                AddQuad(tris, baseCurr, baseCurr + 1, baseNext, baseNext + 1);
+                // --- 2. Border Quad (四边形) ---
+                // 同样根据转向调整顺序
+                if (isRightTurn)
+                {
+                    // 右转 (反向)
+                    AddQuad(tris, baseNext, baseNext + 1, baseCurr, baseCurr + 1);
+                }
+                else
+                {
+                    // 左转 (正向)
+                    AddQuad(tris, baseCurr, baseCurr + 1, baseNext, baseNext + 1);
+                }
             }
         }
 
