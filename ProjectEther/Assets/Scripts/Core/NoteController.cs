@@ -28,6 +28,9 @@ namespace OsuVR
         public bool hasBeenHit = false;
         public bool isHovered = false; // 当前帧是否被射线指着
 
+        [Header("视觉组件")]
+        public Transform approachCircleObject;
+
         // 内部变量
         private double currentMusicTimeMs = 0;
         private double timeToHit = 0;
@@ -48,21 +51,31 @@ namespace OsuVR
             hasBeenHit = false;
             isHovered = false;
 
-            // 设置位置和朝向
-            transform.position = targetPos;
-            transform.LookAt(Vector3.zero); // 面向玩家
-
-            // 初始化视觉组件
-            if (approachCircle != null)
+            // [核心修复] 强制修复 AR (TimePreempt)
+            // 如果 hitObject 数据里没算 AR (是0)，或者非常小，强制使用 Manager 的全局 AR
+            if (hitObject.TimePreempt < 100)
             {
-                circleRenderer = approachCircle.GetComponent<MeshRenderer>();
-                if (circleRenderer != null)
-                {
-                    originalColor = circleRenderer.material.color;
-                }
-                // 初始化缩圈大小
-                approachCircle.localScale = Vector3.one * maxApproachScale;
+                // 如果 Manager 也没算，就默认 AR5 (1200ms)
+                double defaultAR = (manager != null && manager.spawnOffsetMs > 100) ? manager.spawnOffsetMs : 1200;
+                hitObject.TimePreempt = defaultAR;
             }
+
+            transform.position = targetPos;
+            transform.LookAt(Vector3.zero);
+
+            // 初始化视觉 (缩圈)
+            if (approachCircleObject != null)
+            {
+                var scaler = approachCircleObject.GetComponent<ApproachCircleScaler>();
+                if (scaler == null) scaler = approachCircleObject.gameObject.AddComponent<ApproachCircleScaler>();
+
+                // 确保传入正确的 TimePreempt
+                scaler.Initialize(hitObject.StartTime, hitObject.TimePreempt);
+                approachCircleObject.gameObject.SetActive(true);
+            }
+
+            // 手动调用一次 Update 确保初始大小正确
+            Update();
         }
 
         /// <summary>
@@ -84,12 +97,25 @@ namespace OsuVR
             // 3. 更新缩圈动画 (Progress: 1.0 -> 0.0)
             if (approachCircle != null)
             {
-                float progress = (float)(timeToHit / hitObject.TimePreempt);
+                // [修复] 获取 AR 的双重保险
+                // 优先用 hitObject 自带的，没有就用 Manager 的全局 AR，还没有就默认 1200
+                double preempt = hitObject.TimePreempt > 0.1 ? hitObject.TimePreempt : (gameManager ? gameManager.spawnOffsetMs : 1200);
+
+                // 计算进度 (1.0 -> 0.0)
+                float progress = (float)(timeToHit / preempt);
                 progress = Mathf.Clamp01(progress);
 
-                // 线性插值计算大小
+                // [手感优化] 视觉平滑处理：
+                // 使用 Lerp 线性缩放是标准的 osu! 行为
                 float currentScale = 1f + (maxApproachScale - 1f) * progress;
-                approachCircle.localScale = Vector3.one * currentScale;
+
+                // [视觉修复] 强制压扁 Z 轴
+                // 只要你的 ApproachCircle 是平面贴图，Z=1 还是 Z=0.01 视觉上都是扁的
+                // 如果你的预制体是 3D 的 (如 Cylinder)，把 z 设为 0.01f 可以强行压扁
+                approachCircle.localScale = new Vector3(currentScale, currentScale, 1f);
+
+                // [可选] 确保它朝向摄像机 (如果是 VR，这一步很重要，让圆圈始终正面朝你)
+                approachCircle.LookAt(Camera.main.transform);
             }
 
             // 4. 更新颜色反馈 (被指着时变黄)
@@ -124,17 +150,31 @@ namespace OsuVR
         {
             if (hasBeenHit) return;
 
-            double absDiff = System.Math.Abs(currentMusicTimeMs - hitObject.StartTime);
+            // 计算时间偏差：当前时间 - 打击时间
+            // 负数 = 提前 (Early), 正数 = 延迟 (Late)
+            double diff = currentMusicTimeMs - hitObject.StartTime;
 
             // --- HIT 判定 ---
-            // 条件：时间偏差在窗口内 AND 当前被射线指着
-            if (absDiff <= hitWindow && isHovered)
+            // 条件1: diff >= -20 (缩圈几乎重合，只允许提前20ms)
+            // 条件2: diff <= hitWindow (允许延迟 hitWindow 毫秒)
+            // 条件3: isHovered (被射线指着)
+            if (diff >= -20 && diff <= hitWindow)
             {
-                OnHit(absDiff);
+                if (isHovered)
+                {
+                    OnHit(diff);
+                }
+            }
+            // --- 保护逻辑 ---
+            // 如果 diff < -20 (打太早了)，直接 return，什么都不做
+            // 这样玩家手放在那里不动，也不会触发 Miss，直到缩圈到位自动触发 Hit
+            else if (diff < -20)
+            {
+                return;
             }
             // --- MISS 判定 ---
             // 条件：当前时间已经超过了 (打击时间 + 宽容度) 且还没被打中
-            else if (currentMusicTimeMs > hitObject.StartTime + hitWindow)
+            else if (diff > hitWindow)
             {
                 OnMiss();
             }
@@ -145,7 +185,9 @@ namespace OsuVR
         /// </summary>
         public void OnRayHover()
         {
+          
             isHovered = true;
+
         }
 
         /// <summary>

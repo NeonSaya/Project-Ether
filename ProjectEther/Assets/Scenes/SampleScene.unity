@@ -839,6 +839,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0251cd8ae9c107f4fa5754d52ff9c1bc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  handSide: 1
   rayOrigin: {fileID: 2076324891}
   maxDistance: 10000
   noteLayer:
@@ -846,6 +847,7 @@ MonoBehaviour:
     m_Bits: 64
   laserLine: {fileID: 1450979163}
   laserColor: {r: 0, g: 1, b: 1, a: 1}
+  hitColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   laserWidth: 0.02
   useMouseForDebug: 0
 --- !u!4 &1450979157 stripped
@@ -1067,6 +1069,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0251cd8ae9c107f4fa5754d52ff9c1bc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  handSide: 0
   rayOrigin: {fileID: 370617667}
   maxDistance: 10000
   noteLayer:
@@ -1074,6 +1077,7 @@ MonoBehaviour:
     m_Bits: 64
   laserLine: {fileID: 2054233612}
   laserColor: {r: 0, g: 1, b: 1, a: 1}
+  hitColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   laserWidth: 0.02
   useMouseForDebug: 0
 --- !u!4 &2054233611 stripped
@@ -1298,7 +1302,7 @@ MonoBehaviour:
   spinnerPrefab: {fileID: 51600588370694526, guid: f5b2c6a9eeb2ecf418ee2cd230421d89,
     type: 3}
   noteSpeed: 3
-  spawnOffsetMs: 1000
+  spawnOffsetMs: 2000
   noteLifetime: 3
   preparationTime: 2
   autoStart: 1

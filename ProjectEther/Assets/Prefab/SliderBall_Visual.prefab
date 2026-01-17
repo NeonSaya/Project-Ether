@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 7834752498837823557}
   - component: {fileID: 6090243971205565204}
   - component: {fileID: 7647144241821536034}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Ball
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -118,7 +118,7 @@ GameObject:
   - component: {fileID: 3167074508051367908}
   - component: {fileID: 6767292561959923403}
   - component: {fileID: 5237048900002112812}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: FollowCircle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -221,7 +221,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8368255144139263128}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: SliderBall_Visual
   m_TagString: Untagged
   m_Icon: {fileID: 0}

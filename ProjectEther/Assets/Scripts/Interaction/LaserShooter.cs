@@ -7,14 +7,24 @@ namespace OsuVR
     /// </summary>
     public class LaserShooter : MonoBehaviour
     {
+        public enum HandSide
+        {
+            Left,
+            Right
+        }
+        [Header("手柄设置")]
+ 
+        public HandSide handSide;
+
         [Header("射线设置")]
         public Transform rayOrigin; // 射线发射点
         public float maxDistance = 10f; // 射线距离
         public LayerMask noteLayer; // 只检测音符层
 
         [Header("视觉效果")]
-        public LineRenderer laserLine; // 激光线渲染器（可选）
+        public LineRenderer laserLine;
         public Color laserColor = Color.cyan;
+        public Color hitColor = Color.yellow;
         public float laserWidth = 0.02f;
 
         [Header("输入设置")]
@@ -23,10 +33,19 @@ namespace OsuVR
         // 缓存上次击中的音符，避免每帧重复查找
         private NoteController lastHoveredNote = null;
 
+       
         void Start()
         {
-            // 初始化激光线
-            InitializeLaserLine();
+            if (handSide == HandSide.Left)
+            {
+                laserColor=Color.cyan;
+            }
+            else
+            {
+                laserColor=Color.magenta;
+            }
+                // 初始化激光线
+                InitializeLaserLine();
         }
 
         /// <summary>
@@ -83,18 +102,15 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 发射激光射线检测音符 (优化版：使用 SphereCast 粗光柱)
+        /// 发射激光射线检测音符 (支持 HitCircle 和 Slider)
         /// </summary>
         private void CastLaserRay()
         {
-           
             Vector3 direction = rayOrigin ? rayOrigin.forward : transform.forward;
             Vector3 origin = (rayOrigin ? rayOrigin.position : transform.position) + direction * 0.2f;
             RaycastHit hit;
 
-            // --- 核心修改：使用 SphereCast 代替 Raycast ---
-            // radius: 0.15f 表示激光有 15厘米 粗 (像根柱子一样捅过去)
-            // 这样手抖也能打中，手感会好很多
+            // 使用 SphereCast 增加判定宽容度 (光柱直径 15cm)
             float laserRadius = 0.15f;
 
             bool hitSomething = Physics.SphereCast(
@@ -106,16 +122,9 @@ namespace OsuVR
                 noteLayer
             );
 
-            if (hitSomething)
-            {
-                // 让控制台告诉我们，它到底打到了谁
-                Debug.Log($"激光打到了: {hit.collider.name} (层级: {LayerMask.LayerToName(hit.collider.gameObject.layer)})");
-            }
-
-            // 后面的逻辑保持不变
+            // 清除上一帧的悬停状态（如果需要的话，目前NoteController逻辑里没有强制退出逻辑，视具体实现而定）
             if (lastHoveredNote != null &&
-                (lastHoveredNote.hasBeenHit ||
-                 !lastHoveredNote.isActive ||
+                (!lastHoveredNote.isActive ||
                  (hitSomething && hit.collider.gameObject != lastHoveredNote.gameObject)))
             {
                 lastHoveredNote = null;
@@ -123,20 +132,49 @@ namespace OsuVR
 
             if (hitSomething)
             {
+                // 1. 尝试获取 HitCircle (NoteController)
                 NoteController note = hit.collider.GetComponent<NoteController>();
-
                 if (note != null && note.isActive && !note.hasBeenHit)
                 {
                     note.OnRayHover();
                     lastHoveredNote = note;
-
-                    // 调试线看起来还是细的，但实际判定是粗的
-                    Debug.DrawLine(origin, hit.point, Color.green);
                 }
-            }
-            else
-            {
-                //Debug.DrawRay(origin, direction * maxDistance, Color.red);
+
+                // 2. 尝试获取 Slider (SliderController)
+                // 射线可能打到 SliderBall (有 Collider) 或者 SliderTrack (有 MeshCollider)
+                SliderController slider = hit.collider.GetComponent<SliderController>();
+
+                // 如果打到的是球 (FollowBall 是 Slider 的子物体，SliderController 在父物体上)
+                if (slider == null && hit.collider.transform.parent != null)
+                {
+                    slider = hit.collider.transform.parent.GetComponent<SliderController>();
+                }
+
+                if (slider != null && slider.isActiveAndEnabled)
+                {
+                    // (A) 告诉滑条：我正在照着你 (用于 Tracking 和 Tick 判定)
+                    slider.OnRayStay();
+
+                    // (B) 尝试击打滑条头 (如果是刚开始)
+                    slider.TryHitHead();
+                }
+
+                SpinnerController spinner = hit.collider.GetComponent<SpinnerController>();
+                if (spinner == null && hit.collider.transform.parent != null)
+                {
+                    //传递打击点给 Spinner
+                    spinner = hit.collider.transform.parent.GetComponent<SpinnerController>();
+                }
+
+                if (spinner != null && spinner.IsActive)
+                {
+                    // 传递击中点和当前手柄 ID (Left/Right)
+                    // SpinnerController 会根据 handSide 区分两只手的角度增量
+                    spinner.OnRayStay(hit.point, this.handSide);
+                }
+
+                // 调试绘制
+                Debug.DrawLine(origin, hit.point, Color.green);
             }
         }
 
@@ -150,42 +188,38 @@ namespace OsuVR
             Vector3 origin = rayOrigin ? rayOrigin.position : transform.position;
             Vector3 direction = rayOrigin ? rayOrigin.forward : transform.forward;
 
-            // 发射射线检测终点
             RaycastHit hit;
             Vector3 endPoint;
+            bool isHittingInteractive = false;
 
+            // 为了视觉准确性，这里用 Raycast 而不是 SphereCast，或者你可以保持一致
             if (Physics.Raycast(origin, direction, out hit, maxDistance, noteLayer))
             {
                 endPoint = hit.point;
 
-                // 根据击中音符的状态改变激光颜色
-                NoteController note = hit.collider.GetComponent<NoteController>();
-                if (note != null)
+                // 检查是否击中了交互物体 (Note 或 Slider)
+                if (hit.collider.GetComponent<NoteController>() != null ||
+                    hit.collider.GetComponent<SliderController>() != null ||
+                    (hit.collider.transform.parent != null && hit.collider.transform.parent.GetComponent<SliderController>() != null))
                 {
-                    if (note.isHovered)
-                    {
-                        laserLine.startColor = Color.yellow;
-                        laserLine.endColor = Color.yellow;
-                    }
-                    else
-                    {
-                        laserLine.startColor = laserColor;
-                        laserLine.endColor = laserColor;
-                    }
+                    isHittingInteractive = true;
                 }
             }
             else
             {
                 endPoint = origin + direction * maxDistance;
-                laserLine.startColor = laserColor;
-                laserLine.endColor = laserColor;
             }
 
             // 更新激光线位置
             laserLine.SetPosition(0, origin);
             laserLine.SetPosition(1, endPoint);
 
-            // 添加一些视觉效果（可选）
+            // 击中物体时变色
+            Color targetColor = isHittingInteractive ? hitColor : laserColor;
+            laserLine.startColor = targetColor;
+            laserLine.endColor = targetColor;
+
+            // 脉冲效果
             float pulse = Mathf.Sin(Time.time * 10f) * 0.1f + 0.9f;
             laserLine.startWidth = laserWidth * pulse;
             laserLine.endWidth = laserWidth * pulse * 0.5f;
