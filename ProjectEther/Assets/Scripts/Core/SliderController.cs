@@ -758,7 +758,15 @@ namespace OsuVR
                             break;
 
                         case SliderEventType.Repeat:
-                            Debug.Log("<color=cyan>Slider Repeat Hit</color>");
+							if(hit)
+							{
+								Debug.Log("<color=cyan>Slider Repeat Hit</color>");
+							}
+							else
+							{
+								Debug.Log($"<color=red>Slider Repeat MISS</color>");
+						        gameManager.OnNoteMiss(sliderData);
+							}
                             // gameManager.AddScore(30); 
                             // gameManager.AddCombo();
                             // 更新箭头位置到另一端
@@ -771,6 +779,7 @@ namespace OsuVR
                             // gameManager.AddScore(30); 
                             // gameManager.AddCombo(); // 尾部通常给 Combo
                             break;
+							
                     }
                 }
                 else
