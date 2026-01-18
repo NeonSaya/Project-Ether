@@ -25,6 +25,22 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
+    - _AAWidth: 0.012
+    - _BodyGlow: 0.3
+    - _BodyInnerGlow: 0.4
+    - _BodyPower: 1.5
+    - _BodyTubePower: 1.18
+    - _BorderRatio: 0.078
+    - _BorderSoftness: 0
+    - _BorderWidth: 0.15
+    - _EdgeFeather: 0.06
+    - _EdgeSmooth: 0.02
+    - _Feather: 0.02
     - _MainAlpha: 1
-    m_Colors: []
+    - _StencilRef: 10
+    - _TubeExponent: 1.2
+    - _TubeIntensity: 0.62
+    m_Colors:
+    - _BodyColor: {r: 0.2641509, g: 0.2641509, b: 0.2641509, a: 0.9019608}
+    - _BorderColor: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []

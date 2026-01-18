@@ -19,7 +19,7 @@ namespace OsuVR
         private const float TargetDistance = 2.0f;
 
         // Osu坐标中心点对应的世界坐标（玩家眼睛高度前方）
-        private static readonly Vector3 TargetCenter = new Vector3(0f, 1.3f, TargetDistance);
+        private static readonly Vector3 TargetCenter = new Vector3(0f, 1.6f, TargetDistance);
 
         // 计算缩放比例
         private static readonly float ScaleX = TargetWidth / OSURegionWidth;

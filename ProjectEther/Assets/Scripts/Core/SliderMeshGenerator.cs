@@ -1,360 +1,112 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using UnityEngine;
 
 namespace OsuVR
 {
-    /// <summary>
-    ///  »¬ÌõÍø¸ñÉú³ÉÆ÷
-    /// </summary>
     public static class SliderMeshGenerator
     {
-        // Ô²½Ç¾«Ï¸¶È£ºÉÈĞÎµÄ·Ö¶ÎÊı¡£Ô½¸ßÔ½Ô²£¬12-16 ÊÇĞÔÄÜÓë»­ÖÊµÄ×î¼ÑÆ½ºâµã
-        private const int ROUND_SEGMENTS = 16;
+        private const int CIRCLE_RESOLUTION = 32;
+        // æŒ‡å®šä½ çš„ Shader åå­—
+        private const string SHADER_NAME = "Osu/SliderVR_Flat_Stencil_VR_Fixed";
 
-        // ¼«Ğ¡ÖµãĞÖµ£ºÓÃÓÚ¹ıÂËÖØºÏµã£¬·ÀÖ¹³ıÒÔÁã
-        private const float MIN_POINT_DISTANCE = 0.001f;
-
-        public static Mesh GenerateSmoothSlider(
-            List<Vector3> rawPoints,
+        public static (Mesh border, Mesh body, Material borderMaterial, Material bodyMaterial) GeneratePhysicalSlider(
+            List<Vector3> worldPathPoints,
             float radius,
             float borderThickness,
-            Color bodyColor,
-            Color borderColor)
+            Color borderColor,
+            Color bodyColor)
         {
-            if (rawPoints == null || rawPoints.Count < 2) return null;
+            // 1. ç”Ÿæˆç½‘æ ¼
+            // è¾¹æ¡†ç½‘æ ¼åŠå¾„ = åŠå¾„ + åšåº¦
+            Mesh border = BuildSausageMesh(worldPathPoints, radius + borderThickness, "Slider_Border");
+            // æœ¬ä½“ç½‘æ ¼åŠå¾„ = åŠå¾„
+            Mesh body = BuildSausageMesh(worldPathPoints, radius, "Slider_Body");
 
-            // -------------------------------------------------------------
-            // [¹Ø¼üĞŞ¸´] 1. Êı¾İÇåÏ´ (Sanitization)
-            // ¹ıÂËµô osu! Êı¾İÖĞ³£¼ûµÄÖØºÏµã (ÌØ±ğÊÇ Linear »¬ÌõÆğÊÖ)
-            // -------------------------------------------------------------
-            List<Vector3> pathPoints = new List<Vector3>();
-            pathPoints.Add(rawPoints[0]);
-
-            for (int i = 1; i < rawPoints.Count; i++)
+            // 2. æŸ¥æ‰¾å¹¶åˆ›å»ºæè´¨
+            Shader osuShader = Shader.Find(SHADER_NAME);
+            if (osuShader == null)
             {
-                // Ö»ÓĞµ±µ±Ç°µãºÍÉÏÒ»¸öµãµÄ¾àÀë > 0.001 Ê±²Å¼ÓÈë
-                // ÕâÄÜÍêÃÀ½â¾ö osu! ÏßĞÔ»¬Ìõ³£¼ûµÄ¡°Ë«Æğµã¡±µ¼ÖÂµÄäÖÈ¾±¬Õ¨ Bug
-                if (Vector3.Distance(rawPoints[i], pathPoints[pathPoints.Count - 1]) > 0.001f)
-                {
-                    pathPoints.Add(rawPoints[i]);
-                }
+                Debug.LogWarning($"Shader '{SHADER_NAME}' not found! Fallback to Standard.");
+                osuShader = Shader.Find("Standard");
             }
 
-            if (pathPoints.Count < 2) return null;
+            // 3. é…ç½® Body æè´¨ (åº•å±‚ï¼Œå…ˆæ¸²æŸ“)
+            Material bodyMaterial = new Material(osuShader);
+            bodyMaterial.SetColor("_Color", bodyColor);
+            bodyMaterial.SetInt("_StencilID", 10);
+            // æ¸²æŸ“é˜Ÿåˆ—è®¾ä¸º 3000 (Transparent é»˜è®¤å€¼)ï¼Œä¿è¯å…ˆç”»
+            bodyMaterial.renderQueue = 3000;
 
-            // -------------------------------------------------------------
-            // 2. Ô¤¼ÆËã·¨Ïß (Precompute Normals)
-            // -------------------------------------------------------------
-            int count = pathPoints.Count;
-            Vector3[] forwards = new Vector3[count];
-            Vector3[] rights = new Vector3[count];
-            Vector3 planeNormal = Vector3.back; // ¼ÙÉè»¬ÌõÃæÏò -Z
+            // 4. é…ç½® Border æè´¨ (é¡¶å±‚ï¼Œåæ¸²æŸ“)
+            Material borderMaterial = new Material(osuShader);
+            borderMaterial.SetColor("_Color", borderColor);
+            borderMaterial.SetInt("_StencilID", 10);
+            // æ¸²æŸ“é˜Ÿåˆ—è®¾ä¸º 3001ï¼Œç¡®ä¿åœ¨ Body ä¹‹åç»˜åˆ¶
+            // åªæœ‰è¿™æ ·ï¼ŒShader é‡Œçš„ Stencil NotEqual æ‰èƒ½ç”Ÿæ•ˆï¼ˆBorder ä¼šé¿å¼€ Body çš„åŒºåŸŸï¼‰
+            borderMaterial.renderQueue = 3001;
 
-            for (int i = 0; i < count; i++)
-            {
-                Vector3 dir;
-                if (i < count - 1)
-                    dir = (pathPoints[i + 1] - pathPoints[i]).normalized;
-                else
-                    dir = forwards[i - 1]; // ÖÕµãÑØÓÃÉÏÒ»¸ö·½Ïò
-
-                forwards[i] = dir;
-
-                // ¼ÆËãÓÒÏòÁ¿
-                Vector3 r = Vector3.Cross(dir, planeNormal).normalized;
-
-                // [±£»¤] ·ÀÖ¹ dir ºÍ planeNormal Æ½ĞĞµ¼ÖÂ·¨Ïß¶ªÊ§
-                if (r.sqrMagnitude < 0.001f) r = Vector3.right;
-
-                rights[i] = r;
-            }
-
-            // -------------------------------------------------------------
-            // 3. ¹¹½¨Íø¸ñ
-            // -------------------------------------------------------------
-            Mesh mesh = new Mesh();
-            mesh.name = "OsuSliderMesh_Fixed";
-
-            List<Vector3> verts = new List<Vector3>();
-            List<Color> cols = new List<Color>();
-            List<Vector2> uvs = new List<Vector2>();
-            List<int> tris = new List<int>();
-
-            for (int i = 0; i < count; i++)
-            {
-                Vector3 currentPos = pathPoints[i];
-                Vector3 currentRight = rights[i];
-                Vector3 currentForward = forwards[i];
-
-                // A. ÆğµãÔ²Í·
-                if (i == 0)
-                {
-                    AddCap(verts, cols, uvs, tris, currentPos, -currentForward, currentRight, radius, borderThickness, bodyColor, borderColor);
-                }
-
-                // B. ¹Õ½ÇÁ¬½Ó (ĞŞ¸´Ó²×ª½Ç)
-                if (i > 0 && i < count - 1)
-                {
-                    // È·±£ prevRight ÊÇÓĞĞ§µÄ
-                    Vector3 prevRight = rights[i - 1];
-                    AddJoin(verts, cols, uvs, tris, currentPos, prevRight, currentRight, radius, borderThickness, bodyColor, borderColor);
-                }
-
-                // C. Ö±Ïß¶Î
-                if (i < count - 1)
-                {
-                    Vector3 nextPos = pathPoints[i + 1];
-                    AddSegment(verts, cols, uvs, tris, currentPos, nextPos, currentRight, rights[i], radius, borderThickness, bodyColor, borderColor);
-                }
-
-                // D. ÖÕµãÔ²Í·
-                if (i == count - 1)
-                {
-                    AddCap(verts, cols, uvs, tris, currentPos, forwards[i - 1], rights[i - 1], radius, borderThickness, bodyColor, borderColor);
-                }
-            }
-
-            mesh.SetVertices(verts);
-            mesh.SetColors(cols);
-            mesh.SetUVs(0, uvs);
-            mesh.SetTriangles(tris, 0);
-            mesh.RecalculateBounds();
-
-            return mesh;
+            return (border, body, borderMaterial, bodyMaterial);
         }
 
-        // ====================================================================
-        // ºËĞÄ×é¼ş£º»æÖÆÖ±Ïß¶Î
-        // ====================================================================
-        private static void AddSegment(
-            List<Vector3> verts, List<Color> cols, List<Vector2> uvs, List<int> tris,
-            Vector3 pStart, Vector3 pEnd,
-            Vector3 rStart, Vector3 rEnd,
-            float radius, float borderThickness,
-            Color cBody, Color cBorder)
+        private static Mesh BuildSausageMesh(List<Vector3> path, float w, string name)
         {
-            float dInner = radius;
-            float dOuter = radius + borderThickness;
+            Mesh m = new Mesh { name = name };
+            List<Vector3> v = new List<Vector3>();
+            List<int> t = new List<int>();
+            Vector3 up = Vector3.back; // å‡è®¾æ»‘æ¡æ˜¯å¹³é“ºåœ¨ XY å¹³é¢ï¼ŒèƒŒå‘ Z è½´
 
-            // ÎÒÃÇÉú³É 4 ¸öÌõ´ø (LeftBorder, LeftBody, RightBody, RightBorder)
-            // ÎªÁË¼òµ¥£¬ÎÒÃÇÖ»Éú³É 3 ¸ö Quad (LeftBorder, Body, RightBorder)
-            // ¶¥µãË³Ğò£º´Ó×óÍâ -> ×óÄÚ -> ÓÒÄÚ -> ÓÒÍâ
+            for (int i = 0; i < path.Count; i++)
+            {
+                // æ·»åŠ èŠ‚ç‚¹å¤„çš„åœ†å½¢ç›–å¸½
+                AddCircle(v, t, path[i], w);
 
-            // Start ½ØÃæ
-            Vector3 s0 = pStart - rStart * dOuter;
-            Vector3 s1 = pStart - rStart * dInner;
-            Vector3 s2 = pStart + rStart * dInner;
-            Vector3 s3 = pStart + rStart * dOuter;
+                // æ·»åŠ ä¸¤ç‚¹ä¹‹é—´çš„è¿æ¥çŸ©å½¢
+                if (i < path.Count - 1)
+                {
+                    Vector3 curr = path[i];
+                    Vector3 next = path[i + 1];
 
-            // End ½ØÃæ
-            Vector3 e0 = pEnd - rEnd * dOuter;
-            Vector3 e1 = pEnd - rEnd * dInner;
-            Vector3 e2 = pEnd + rEnd * dInner;
-            Vector3 e3 = pEnd + rEnd * dOuter;
+                    // è®¡ç®—ä¾§å‘å‘é‡ï¼Œæ„å»ºå¸¦çŠ¶ç½‘æ ¼
+                    Vector3 dir = (next - curr).normalized;
+                    Vector3 side = Vector3.Cross(dir, up).normalized;
 
-            int v = verts.Count;
+                    int b = v.Count;
+                    v.Add(curr - side * w);
+                    v.Add(curr + side * w);
+                    v.Add(next - side * w);
+                    v.Add(next + side * w);
 
-            // Ìí¼Ó¶¥µã
-            verts.Add(s0); verts.Add(s1); verts.Add(s2); verts.Add(s3);
-            verts.Add(e0); verts.Add(e1); verts.Add(e2); verts.Add(e3);
-
-            // Ìí¼ÓÑÕÉ«
-            cols.Add(cBorder); cols.Add(cBody); cols.Add(cBody); cols.Add(cBorder);
-            cols.Add(cBorder); cols.Add(cBody); cols.Add(cBody); cols.Add(cBorder);
-
-            // Ìí¼Ó UV (0=Left, 1=Right)
-            uvs.Add(new Vector2(0, 0)); uvs.Add(new Vector2(0.2f, 0)); uvs.Add(new Vector2(0.8f, 0)); uvs.Add(new Vector2(1, 0));
-            uvs.Add(new Vector2(0, 1)); uvs.Add(new Vector2(0.2f, 1)); uvs.Add(new Vector2(0.8f, 1)); uvs.Add(new Vector2(1, 1));
-
-            // Ìí¼ÓÈı½ÇĞÎ (3¸ö Quad = 6¸ö Tris)
-            // Quad 1: Left Border (0-1-5-4)
-            AddQuad(tris, v + 0, v + 1, v + 4, v + 5);
-            // Quad 2: Main Body (1-2-6-5)
-            AddQuad(tris, v + 1, v + 2, v + 5, v + 6);
-            // Quad 3: Right Border (2-3-7-6)
-            AddQuad(tris, v + 2, v + 3, v + 6, v + 7);
+                    // æ„å»ºä¸¤ä¸ªä¸‰è§’å½¢ç»„æˆçŸ©å½¢
+                    t.Add(b); t.Add(b + 2); t.Add(b + 1);
+                    t.Add(b + 1); t.Add(b + 2); t.Add(b + 3);
+                }
+            }
+            m.SetVertices(v);
+            m.SetTriangles(t, 0);
+            m.RecalculateBounds();
+            m.RecalculateNormals(); // å»ºè®®æ·»åŠ ï¼Œè™½ç„¶ Shader æ˜¯ Unlit ä½†è®¡ç®—ä¸€ä¸‹æ²¡åå¤„
+            return m;
         }
 
-        // ====================================================================
-        // ºËĞÄ×é¼ş£º»æÖÆÔ²Í· (Cap)
-        // ====================================================================
-        private static void AddCap(
-            List<Vector3> verts, List<Color> cols, List<Vector2> uvs, List<int> tris,
-            Vector3 center, Vector3 forward, Vector3 right,
-            float radius, float borderThickness,
-            Color cBody, Color cBorder)
+        private static void AddCircle(List<Vector3> v, List<int> t, Vector3 c, float r)
         {
-            // Ïò "forward" ·½Ïò»­°ëÔ²£¬´Ó -Right ×ªµ½ +Right
-            // µ«ÒòÎªÊÇ Cap£¬Í¨³£Ö¸µÄÊÇ¡°Ä©¶Ë·â¿Ú¡±£¬ËùÒÔÆäÊµÊÇÏòºó»­
-            // ÕâÀïµÄ forward ²ÎÊıÊµ¼ÊÉÏÊÇÎÒÃÇÏëÒª³¯ÏòµÄ·½Ïò
+            int centerIdx = v.Count;
+            v.Add(c);
+            int startEdge = v.Count;
 
-            int centerIdx = verts.Count;
-            verts.Add(center);
-            cols.Add(cBody);
-            uvs.Add(new Vector2(0.5f, 0f));
-
-            int segments = ROUND_SEGMENTS;
-            int firstEdgeIdx = centerIdx + 1;
-
-            // Ğı×ªÖá£ºZÖá (¼ÙÉèÆ½ÃæÊÇ XY)
-            // ÆğÊ¼ÏòÁ¿£º-Right
-            Vector3 startVec = -right;
-
-            for (int i = 0; i <= segments; i++)
+            for (int i = 0; i <= CIRCLE_RESOLUTION; i++)
             {
-                float t = (float)i / segments;
-                // ÈÆ Z ÖáĞı×ª 180 ¶È (-Right -> Forward -> +Right)
-                Quaternion rot = Quaternion.AngleAxis(180f * t, Vector3.back);
-                // ×¢Òâ£ºÈç¹û Cap ÊÇÏòºóµÄ£¬ÕâÀï rotation Öá¿ÉÄÜÒª·´¹ıÀ´£¬ÊÓ forward ·½Ïò¶ø¶¨
-                // ÕâÀïÎÒÃÇ×öÒ»¸öÍ¨ÓÃµÄ look rotation
-
-                // ¸üÍ¨ÓÃµÄ×ö·¨£ºÔÚ -Right ºÍ +Right Ö®¼ä²åÖµ£¬ÖĞ¼ä¾­¹ı forward
-                // ¼òµ¥µÄ°ëÔ²²åÖµ£º
-                // 0.0 = -Right
-                // 0.5 = Forward
-                // 1.0 = +Right
-
-                // Ê¹ÓÃ Slerp ½øĞĞÇòÃæ²åÖµ×îÎÈ
-                Vector3 currentDir;
-                if (t < 0.5f)
-                    currentDir = Vector3.Slerp(-right, forward, t * 2f);
-                else
-                    currentDir = Vector3.Slerp(forward, right, (t - 0.5f) * 2f);
-
-                currentDir.Normalize();
-
-                // Inner Point (Body Edge)
-                verts.Add(center + currentDir * radius);
-                cols.Add(cBody);
-                uvs.Add(new Vector2(0.5f, 1f));
-
-                // Outer Point (Border Edge)
-                verts.Add(center + currentDir * (radius + borderThickness));
-                cols.Add(cBorder);
-                uvs.Add(new Vector2(0.5f, 1f));
+                float a = (i / (float)CIRCLE_RESOLUTION) * Mathf.PI * 2f;
+                // è¿™é‡Œç”Ÿæˆçš„æ˜¯ XY å¹³é¢çš„åœ†ï¼Œæ ¹æ®ä½ çš„ Up å‘é‡é€»è¾‘æ˜¯åŒ¹é…çš„
+                v.Add(c + new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0) * r);
             }
 
-            // Éú³ÉÈı½ÇĞÎ
-            for (int i = 0; i < segments; i++)
+            for (int i = 0; i < CIRCLE_RESOLUTION; i++)
             {
-                int baseCurr = firstEdgeIdx + i * 2;
-                int baseNext = firstEdgeIdx + (i + 1) * 2;
-
-                // 1. Body Fan (Center -> Inner -> NextInner)
-                tris.Add(centerIdx);
-                tris.Add(baseCurr);
-                tris.Add(baseNext);
-
-                // 2. Border Quad (Inner -> Outer -> NextOuter -> NextInner)
-                AddQuad(tris, baseCurr, baseCurr + 1, baseNext, baseNext + 1);
+                t.Add(centerIdx);
+                t.Add(startEdge + i + 1);
+                t.Add(startEdge + i);
             }
-        }
-
-        // ====================================================================
-        // ºËĞÄ×é¼ş£º»æÖÆ¹Õ½Ç (Join) - [ÒÑĞŞ¸´¿¾Ãæ½î/±³ÃæÌŞ³ıÎÊÌâ]
-        // ====================================================================
-        private static void AddJoin(
-            List<Vector3> verts, List<Color> cols, List<Vector2> uvs, List<int> tris,
-            Vector3 center, Vector3 rPrev, Vector3 rCurr,
-            float radius, float borderThickness,
-            Color cBody, Color cBorder)
-        {
-            float angleDiff = Vector3.Angle(rPrev, rCurr);
-            if (angleDiff < 0.5f) return;
-
-            // ¼ÆËã×ªÏò (²æ»ı Z)
-            float crossZ = rPrev.x * rCurr.y - rPrev.y * rCurr.x;
-            bool isRightTurn = crossZ < 0; // ÓÒ×ªÊ± Z < 0
-            
-            // 180¶ÈµôÍ·±£»¤
-            if (angleDiff > 175f && Mathf.Abs(crossZ) < 1e-4f) isRightTurn = true;
-
-            // È·¶¨Íâ²àÏòÁ¿
-            Vector3 vStart = isRightTurn ? -rPrev : rPrev;
-            Vector3 vEnd   = isRightTurn ? -rCurr : rCurr;
-
-            // ¶¯Ì¬·Ö¶Î (±£Ö¤Ô²»¬)
-            int segments = Mathf.CeilToInt(angleDiff / 10f);
-            if (segments < 2) segments = 2;
-
-            int centerIdx = verts.Count;
-            
-            // Ìí¼ÓÖĞĞÄµã (UV X=0.5 ±íÊ¾ÔÚ»¬ÌõÖĞ¼ä)
-            verts.Add(center);
-            cols.Add(cBody);
-            uvs.Add(new Vector2(0.5f, 0.5f)); 
-
-            int firstEdgeIdx = centerIdx + 1;
-
-            // Éú³ÉÉÈĞÎ¶¥µã
-            for (int i = 0; i <= segments; i++)
-            {
-                float t = (float)i / segments;
-                Vector3 dir = Vector3.Slerp(vStart, vEnd, t).normalized;
-
-                // Inner (Body Edge)
-                verts.Add(center + dir * radius);
-                cols.Add(cBody);
-                // UV X: Èç¹ûÊÇÍâ²à£¬¸ù¾İ×óÓÒ×ª¾ö¶¨ÊÇ 0 »¹ÊÇ 1 (ÕâÀï¼òµ¥ÉèÎª±ßÔµ)
-                // UV Y: ±£³Ö 0.5
-                float edgeUV = isRightTurn ? 0f : 1f; 
-                uvs.Add(new Vector2(edgeUV, 0.5f)); // Body ±ßÔµ (½üËÆ´¦Àí)
-
-                // Outer (Border Edge)
-                verts.Add(center + dir * (radius + borderThickness));
-                cols.Add(cBorder);
-                uvs.Add(new Vector2(edgeUV, 0.5f)); // Border ±ßÔµ
-            }
-
-            // Éú³ÉÈı½ÇĞÎ (¹Ø¼üĞŞ¸´£º¸ù¾İ×ªÏòµ÷Õû¶¥µãË³Ğò)
-            for (int i = 0; i < segments; i++)
-            {
-                int baseCurr = firstEdgeIdx + i * 2;
-                int baseNext = firstEdgeIdx + (i + 1) * 2;
-
-                // --- 1. Body Fan (ÉÈĞÎ) ---
-                if (isRightTurn)
-                {
-                    // ÓÒ×ª£ºÄæĞòÁ¬½Ó·ÀÖ¹ÌŞ³ı (Center -> Next -> Curr)
-                    tris.Add(centerIdx);
-                    tris.Add(baseNext);
-                    tris.Add(baseCurr);
-                }
-                else
-                {
-                    // ×ó×ª£ºË³ĞòÁ¬½Ó (Center -> Curr -> Next)
-                    tris.Add(centerIdx);
-                    tris.Add(baseCurr);
-                    tris.Add(baseNext);
-                }
-
-                // --- 2. Border Quad (ËÄ±ßĞÎ) ---
-                // Í¬Ñù¸ù¾İ×ªÏòµ÷ÕûË³Ğò
-                if (isRightTurn)
-                {
-                    // ÓÒ×ª (·´Ïò)
-                    AddQuad(tris, baseNext, baseNext + 1, baseCurr, baseCurr + 1);
-                }
-                else
-                {
-                    // ×ó×ª (ÕıÏò)
-                    AddQuad(tris, baseCurr, baseCurr + 1, baseNext, baseNext + 1);
-                }
-            }
-        }
-
-        // ¸¨Öú£ºÌí¼ÓËÄ±ßĞÎ (Á½¸öÈı½ÇĞÎ)
-        // v0-v1 ÊÇ×ó±ß£¬v2-v3 ÊÇÓÒ±ß (»òÕß ÉÏ-ÏÂ)
-        // Ë³Ğò£ºv0 -> v2 -> v1 (Tri 1), v1 -> v2 -> v3 (Tri 2)
-        private static void AddQuad(List<int> tris, int v0, int v1, int v2, int v3)
-        {
-            tris.Add(v0);
-            tris.Add(v2);
-            tris.Add(v1);
-
-            tris.Add(v1);
-            tris.Add(v2);
-            tris.Add(v3);
         }
     }
 }
