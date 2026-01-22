@@ -110,9 +110,19 @@ namespace OsuVR
             // 这样可以防止 TimingPoints 在 HitObjects 后面导致计算错误
             foreach (var hitObject in beatmap.HitObjects)
             {
+                if (beatmap.ComboColors.Count == 0)
+                {
+                    beatmap.ComboColors.Add(new Color(1f, 0.3f, 0.3f)); // 红
+                    beatmap.ComboColors.Add(new Color(0.3f, 0.6f, 1f)); // 蓝
+                    beatmap.ComboColors.Add(new Color(0.3f, 1f, 0.3f)); // 绿
+                    beatmap.ComboColors.Add(new Color(1f, 0.8f, 0.2f)); // 黄
+                }
+
+                ApplyStacking(beatmap);
+
+                // 重新计算滑条时间
                 if (hitObject is SliderObject slider)
                 {
-                    // 重新执行刚才的计算逻辑
                     var timingPoint = beatmap.GetTimingPointAt(slider.StartTime);
                     var diffPoint = beatmap.GetDifficultyPointAt(slider.StartTime);
 
@@ -846,6 +856,27 @@ namespace OsuVR
                 Debug.Log($"  像素长度: {slider.PixelLength}");
             }
         }
+
+        // 在 OsuParser 类中添加 ApplyStacking 方法（原本定义在 OsuParserExample 内部，需移到 OsuParser 并设为 public）
+        private static void ApplyStacking(Beatmap beatmap)
+        {
+            float stackThreshold = 3.0f; // 坐标判定阈值
+                                         // 遍历物件，如果坐标极其接近，给 StackOrder 计数
+            for (int i = 0; i < beatmap.HitObjects.Count; i++)
+            {
+                var current = beatmap.HitObjects[i];
+                if (i == 0) continue;
+
+                var prev = beatmap.HitObjects[i - 1];
+
+                // 如果位置几乎重叠，且时间间隔小于预取时间 (TimePreempt) 的一部分
+                if (Vector2.Distance(current.Position, prev.Position) < stackThreshold)
+                {
+                    // 给物件打上堆叠标签，Controller 绘图时会用到
+                    current.StackOrder = prev.StackOrder + 1;
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -978,18 +1009,6 @@ namespace OsuVR
             catch (System.Exception e)
             {
                 Debug.LogError($"加载谱面失败: {e.Message}");
-            }
-        }
-        // 辅助方法：解析曲线类型
-        private static CurveType ParseCurveType(string s)
-        {
-            if (string.IsNullOrEmpty(s)) return CurveType.Bezier;
-            switch (s[0])
-            {
-                case 'P': return CurveType.Perfect;
-                case 'L': return CurveType.Linear;
-                case 'C': return CurveType.Catmull;
-                default: return CurveType.Bezier;
             }
         }
     }

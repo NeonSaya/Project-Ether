@@ -35,15 +35,14 @@ namespace OsuVR
             bodyMaterial.SetColor("_Color", bodyColor);
             bodyMaterial.SetInt("_StencilID", 10);
             // 渲染队列设为 3000 (Transparent 默认值)，保证先画
-            bodyMaterial.renderQueue = 3000;
+            bodyMaterial.renderQueue = 2980;
 
             // 4. 配置 Border 材质 (顶层，后渲染)
             Material borderMaterial = new Material(osuShader);
             borderMaterial.SetColor("_Color", borderColor);
             borderMaterial.SetInt("_StencilID", 10);
-            // 渲染队列设为 3001，确保在 Body 之后绘制
             // 只有这样，Shader 里的 Stencil NotEqual 才能生效（Border 会避开 Body 的区域）
-            borderMaterial.renderQueue = 3001;
+            borderMaterial.renderQueue = 2981;
 
             return (border, body, borderMaterial, bodyMaterial);
         }

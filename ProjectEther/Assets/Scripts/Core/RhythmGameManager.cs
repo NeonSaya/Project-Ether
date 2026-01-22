@@ -360,7 +360,6 @@ namespace OsuVR
 
             Debug.Log("游戏已暂停");
         }
-
         /// <summary>
         /// 恢复游戏
         /// </summary>
@@ -402,8 +401,7 @@ namespace OsuVR
 
             try
             {
-                // [修改] 使用新的 OsuParser.Parse 静态方法解析整个文件
-                // 这将自动解析 Metadata, Difficulty, TimingPoints 等所有信息
+                // 使用新的 OsuParser.Parse 静态方法解析整个文件
                 currentBeatmap = OsuParser.Parse(filePath);
 
                 // 获取 HitObjects 列表用于游戏逻辑
@@ -415,6 +413,17 @@ namespace OsuVR
                 int sliderCount = 0;
                 int spinnerCount = 0;
 
+                // 如果谱面没有定义 ComboColors，则使用默认颜色
+                if (currentBeatmap.ComboColors == null || currentBeatmap.ComboColors.Count == 0)
+                {
+                    currentBeatmap.ComboColors = new List<Color> {
+                        new Color(1f, 0.4f, 0.4f), // 红
+                        new Color(0.4f, 0.6f, 1f), // 蓝
+                        new Color(0.4f, 1f, 0.4f), // 绿
+                        new Color(1f, 0.8f, 0.4f)  // 黄
+                     };
+                }
+                // 统计音符类型
                 foreach (var obj in hitObjects)
                 {
                     if (obj is HitCircle) hitCircleCount++;
@@ -526,131 +535,127 @@ namespace OsuVR
             }
         }
 
-        /// <summary>
-        /// 根据类型生成音符
-        /// </summary>
         private void SpawnNoteByType(HitObject hitObject)
         {
-            GameObject prefabToSpawn = null;
+            // 1. 获取对象池管理器
+            var poolMgr = NotePoolManager.Instance;
+            if (poolMgr == null) { Debug.LogError("PoolManager 没挂载！"); return; }
+
             GameObject noteObject = null;
 
+            // 2. 颜色计算 (保持不变)
+            Color comboColor = Color.white;
+            if (currentBeatmap.ComboColors != null && currentBeatmap.ComboColors.Count > 0)
+            {
+                comboColor = currentBeatmap.ComboColors[hitObject.ComboIndex % currentBeatmap.ComboColors.Count];
+            }
+
+            // 3. CS 计算 (保持不变)
             float currentCS = (currentBeatmap != null && currentBeatmap.Difficulty != null)
-                      ? currentBeatmap.Difficulty.CircleSize
-                      : 5f;
+               ? currentBeatmap.Difficulty.CircleSize
+               : 5f;
 
-            // 根据类型选择预制体
-            if (hitObject is HitCircle && hitCirclePrefab != null)
-            {
-                prefabToSpawn = hitCirclePrefab;
-                Debug.Log($"生成打击圈: 时间={hitObject.StartTime}ms");
-            }
-            else if (hitObject is SliderObject && sliderPrefab != null)
-            {
-                prefabToSpawn = sliderPrefab;
-                Debug.Log($"生成滑条: 开始时间={hitObject.StartTime}ms, 结束时间={((SliderObject)hitObject).EndTime}ms");
-            }
-            else if (hitObject is SpinnerObject && spinnerPrefab != null)
-            {
-                prefabToSpawn = spinnerPrefab;
-                Debug.Log($"生成转盘: 开始时间={hitObject.StartTime}ms, 结束时间={((SpinnerObject)hitObject).EndTime}ms");
-            }
-            else
-            {
-                Debug.LogWarning($"无法生成音符: 未知类型或预制体未分配 - {hitObject.GetType().Name}");
-                return;
-            }
-
-            if (prefabToSpawn == null)
-            {
-                Debug.LogWarning($"预制体未分配: {hitObject.GetType().Name}");
-                return;
-            }
-
-            // 计算生成位置
-            Vector3 targetPosition = CoordinateMapper.MapToWorld(hitObject.Position);
-            Vector3 spawnPosition = targetPosition;
-
-            // 对于打击圈，从前方生成
+            // 4. 从池中获取对象 & 初始化
+            // ------------------------------------------------------
             if (hitObject is HitCircle)
             {
-                spawnPosition = targetPosition + new Vector3(0, 0, 3.0f);
-            }
+                // ✅ 改动：从 CirclePool 获取
+                noteObject = poolMgr.CirclePool.Get();
 
-            // 实例化音符
-            noteObject = Instantiate(prefabToSpawn, spawnPosition, Quaternion.identity);
-            noteObject.name = $"{hitObject.GetType().Name}_{hitObject.StartTime}ms";
-
-            // 添加到活动列表
-            activeNoteObjects[hitObject] = noteObject;
-            activeNotes = activeNoteObjects.Count;
-
-            // 初始化对应的控制器
-            if (hitObject is HitCircle)
-            {
-                NoteController noteController = noteObject.GetComponent<NoteController>();
-                if (noteController == null)
+                // 获取控制器并初始化
+                var controller = noteObject.GetComponent<NoteController>();
+                if (controller != null)
                 {
-                    noteController = noteObject.AddComponent<NoteController>();
+                    // 计算目标位置
+                    Vector3 targetPosition = CoordinateMapper.MapToWorld(hitObject.Position);
+
+                    // ✅ 改动：传入 CirclePool 引用，方便它自己回池
+                    controller.Initialize(hitObject, targetPosition, noteSpeed, currentCS, comboColor, this, poolMgr.CirclePool);
                 }
-                noteController.Initialize(hitObject, targetPosition, noteSpeed, currentCS, this);
             }
             else if (hitObject is SliderObject)
             {
-                SliderController sliderController = noteObject.GetComponent<SliderController>();
-                if (sliderController == null)
+                // ✅ 改动：从 SliderPool 获取
+                noteObject = poolMgr.SliderPool.Get();
+
+                var controller = noteObject.GetComponent<SliderController>();
+                if (controller != null)
                 {
-                    sliderController = noteObject.AddComponent<SliderController>();
+                    // ✅ 改动：同时传入 SliderPool 和 TickPool (给 Tick 用)
+                    controller.Initialize((SliderObject)hitObject, currentCS, comboColor, this, poolMgr.SliderPool, poolMgr.TickPool);
                 }
-                sliderController.Initialize((SliderObject)hitObject, currentCS, this);
             }
             else if (hitObject is SpinnerObject)
             {
-                SpinnerController spinnerController = noteObject.GetComponent<SpinnerController>();
-                if (spinnerController == null)
+                // ✅ 改动：从 SpinnerPool 获取
+                noteObject = poolMgr.SpinnerPool.Get();
+
+                var controller = noteObject.GetComponent<SpinnerController>();
+                if (controller != null)
                 {
-                    spinnerController = noteObject.AddComponent<SpinnerController>();
+                    // ✅ 改动：传入 SpinnerPool
+                    controller.Initialize((SpinnerObject)hitObject, this, poolMgr.SpinnerPool);
                 }
-                spinnerController.Initialize((SpinnerObject)hitObject, this);
-            }
-
-            // 设置自动销毁时间
-            double endTime = hitObject.StartTime;
-            if (hitObject is SliderObject) endTime = ((SliderObject)hitObject).EndTime;
-            if (hitObject is SpinnerObject) endTime = ((SpinnerObject)hitObject).EndTime;
-
-            double timeUntilEnd = endTime - currentMusicTimeMs;
-            double destroyDelay = (timeUntilEnd / 1000.0) + noteLifetime;
-
-            if (destroyDelay > 0)
-            {
-                Destroy(noteObject, (float)destroyDelay);
             }
             else
             {
-                // 如果已经过了结束时间，立即销毁
-                Destroy(noteObject);
+                Debug.LogWarning($"无法生成音符: 未知类型 - {hitObject.GetType().Name}");
+                return;
             }
+
+            // 5. 设置名称 (方便调试，不再 Instantiate 所以要手动改名)
+            if (noteObject != null)
+            {
+                noteObject.name = $"{hitObject.GetType().Name}_{hitObject.StartTime}ms";
+
+                // 6. 添加到活动列表
+                activeNoteObjects[hitObject] = noteObject;
+                activeNotes = activeNoteObjects.Count;
+            }
+            // 物件的销毁现在完全由 Controller 在 Update/OnHit/OnMiss 中通过 Pool.Release() 接管
         }
 
         /// <summary>
-        /// 生成单个音符（旧方法，保持兼容性）
-        /// </summary>
-        private void SpawnNote(HitObject hitObject)
-        {
-            // 这个方法现在只是调用新方法，保持旧代码兼容
-            SpawnNoteByType(hitObject);
-        }
-
-        /// <summary>
-        /// 清理所有活动音符
+        /// 清理所有活动音符 (对象池版)
         /// </summary>
         private void ClearAllNotes()
         {
+            var poolMgr = NotePoolManager.Instance;
+
+            // 遍历所有当前活动的音符
             foreach (var kvp in activeNoteObjects)
             {
-                if (kvp.Value != null)
+                HitObject hitObject = kvp.Key;
+                GameObject obj = kvp.Value;
+
+                if (obj != null && obj.activeInHierarchy)
                 {
-                    Destroy(kvp.Value);
+                    // 根据 HitObject 的类型，归还到正确的池子
+                    if (poolMgr != null)
+                    {
+                        if (hitObject is HitCircle)
+                        {
+                            poolMgr.CirclePool.Release(obj);
+                        }
+                        else if (hitObject is SliderObject)
+                        {
+                            poolMgr.SliderPool.Release(obj);
+                        }
+                        else if (hitObject is SpinnerObject)
+                        {
+                            poolMgr.SpinnerPool.Release(obj);
+                        }
+                        else
+                        {
+                            // 未知类型，直接 Disable (兜底)
+                            obj.SetActive(false);
+                        }
+                    }
+                    else
+                    {
+                        // 如果池管理器没了（比如退出游戏时），直接销毁
+                        Destroy(obj);
+                    }
                 }
             }
 
