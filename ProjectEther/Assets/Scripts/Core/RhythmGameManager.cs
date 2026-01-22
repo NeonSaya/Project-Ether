@@ -534,6 +534,10 @@ namespace OsuVR
             GameObject prefabToSpawn = null;
             GameObject noteObject = null;
 
+            float currentCS = (currentBeatmap != null && currentBeatmap.Difficulty != null)
+                      ? currentBeatmap.Difficulty.CircleSize
+                      : 5f;
+
             // 根据类型选择预制体
             if (hitObject is HitCircle && hitCirclePrefab != null)
             {
@@ -588,7 +592,7 @@ namespace OsuVR
                 {
                     noteController = noteObject.AddComponent<NoteController>();
                 }
-                noteController.Initialize(hitObject, targetPosition, noteSpeed, this);
+                noteController.Initialize(hitObject, targetPosition, noteSpeed, currentCS, this);
             }
             else if (hitObject is SliderObject)
             {
@@ -597,7 +601,7 @@ namespace OsuVR
                 {
                     sliderController = noteObject.AddComponent<SliderController>();
                 }
-                sliderController.Initialize((SliderObject)hitObject, 0.15f, this);
+                sliderController.Initialize((SliderObject)hitObject, currentCS, this);
             }
             else if (hitObject is SpinnerObject)
             {
@@ -877,5 +881,24 @@ namespace OsuVR
 
             return 0;
         }
+
+        public static float CalculateVROsuSize(float cs)
+        {
+            // 1. 标准 osu! 比例换算
+            // CS 越大，物件越小。
+            float rawScale = (1.0f - 0.7f * (cs - 5f) / 5f);
+
+            // 2. ✅ VR 物理尺寸补正
+            // 基准值 0.11f (11cm) 是 VR 中最舒适的打击直径。
+            // 加上 1.15 倍的 VR 视觉补偿系数。
+            float baseWorldSize = 0.11f * 1.15f;
+
+            float finalSize = rawScale * baseWorldSize;
+
+            // 3. ✅ 照顾 VR 下限
+            // 无论 CS 多高，物件直径不能低于 7cm，否则手柄很难受
+            return Mathf.Max(finalSize, 0.07f);
+        }
+
     }
 }

@@ -41,7 +41,7 @@ namespace OsuVR
         /// <summary>
         /// 初始化音符
         /// </summary>
-        public void Initialize(HitObject hitObj, Vector3 targetPos, float speed, RhythmGameManager manager)
+        public void Initialize(HitObject hitObj, Vector3 targetPos, float speed, float beatmapCS, RhythmGameManager manager)
         {
             hitObject = hitObj;
             targetPosition = targetPos;
@@ -50,6 +50,10 @@ namespace OsuVR
             isActive = true;
             hasBeenHit = false;
             isHovered = false;
+
+            float finalSize = RhythmGameManager.CalculateVROsuSize(beatmapCS);
+
+            transform.localScale = new Vector3(finalSize, finalSize, 0.02f);
 
             // [核心修复] 强制修复 AR (TimePreempt)
             // 如果 hitObject 数据里没算 AR (是0)，或者非常小，强制使用 Manager 的全局 AR
@@ -61,7 +65,8 @@ namespace OsuVR
             }
 
             transform.position = targetPos;
-            transform.LookAt(Vector3.zero);
+
+            if (Camera.main) transform.LookAt(Camera.main.transform);
 
             // 初始化视觉 (缩圈)
             if (approachCircleObject != null)

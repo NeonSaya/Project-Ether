@@ -32,7 +32,7 @@ BeatmapSetID:1581132
 
 [Difficulty]
 HPDrainRate:5
-CircleSize:4.3
+CircleSize:7
 OverallDifficulty:8.6
 ApproachRate:9.6
 SliderMultiplier:2

@@ -111,17 +111,19 @@ namespace OsuVR
         /// <summary>
         /// 初始化滑条控制器
         /// </summary>
-        public void Initialize(SliderObject sliderData, float width, RhythmGameManager manager)
+        public void Initialize(SliderObject sliderData, float beatmapCS, RhythmGameManager manager)
         {
             ResetState();
 
             if (sliderData == null || manager == null) return;
 
             this.sliderData = sliderData;
-            this.sliderWidth = width;
-            // 自动计算边框宽度 (例如比本体宽 15%)
-            this.borderWidth = width * 1.25f;
             this.gameManager = manager;
+
+            float finalSize = RhythmGameManager.CalculateVROsuSize(beatmapCS);
+
+            this.sliderWidth = finalSize;
+            this.borderWidth = finalSize * 1.25f;
 
 
             // 确保滑条的 AR 时间与全局管理器一致
@@ -162,6 +164,10 @@ namespace OsuVR
 
             // 5. [核心修改] 生成双层网格 (本体 + 边框)
             GenerateMeshes();
+            // ✅ VR 照顾：跟踪球也要跟着变大
+
+            if (headInstance) headInstance.transform.localScale = new Vector3(finalSize, finalSize, 0.02f);
+            if (followBall) followBall.transform.localScale = Vector3.one * (finalSize * 1.1f);
 
             // 6. 创建跟踪球与碰撞体
             CreateFollowBall();
@@ -176,9 +182,6 @@ namespace OsuVR
             headHit = false;
             finished = false;
             currentAlpha = 1f;
-
-            if (followBall) followBall.SetActive(false);
-
             UpdateMaterialAlpha();
 
             isInitialized = true;
@@ -349,6 +352,9 @@ namespace OsuVR
                 headInstance = Instantiate(sliderHeadPrefab, transform);
                 headInstance.transform.localPosition = Vector3.zero;
                 // 防止 Z-Fighting，稍微往前一点点
+                float headScale = this.sliderWidth;
+                headInstance.transform.localScale = new Vector3(headScale, headScale, 0.02f);
+
                 headInstance.transform.localPosition -= Vector3.forward * 0.05f;
                 headInstance.SetActive(true);
 
@@ -381,6 +387,9 @@ namespace OsuVR
                     if (nested.Type == SliderEventType.Tick)
                     {
                         GameObject tickObj = Instantiate(sliderTickPrefab, transform);
+
+                        float tickScale = this.sliderWidth * 0.3f;
+                        tickObj.transform.localScale = new Vector3(tickScale, tickScale, tickScale);
 
                         // 计算 Tick 在路径上的位置
                         // 我们利用 CalculatePositionAtTime 辅助函数 (下面会写)
@@ -432,6 +441,9 @@ namespace OsuVR
             }
 
             arrowInstance.SetActive(true);
+
+            float arrowScale = this.sliderWidth;
+            arrowInstance.transform.localScale = new Vector3(arrowScale, arrowScale, 0.02f);
 
             Vector3 position;
             Vector3 direction;
