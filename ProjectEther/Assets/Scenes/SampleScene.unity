@@ -1292,9 +1292,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 08a22671453431949a4a309b93f7d2dc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  osuFileName: test.osu
+  osuFileName: test1.osu
   musicSource: {fileID: 0}
-  musicClip: {fileID: 8300000, guid: 95987a30f156585468825fc1fb915d7c, type: 3}
+  musicClip: {fileID: 8300000, guid: 2aad969b6fb3d994d96b960eb136cfc1, type: 3}
   hitCirclePrefab: {fileID: 5026766453584379729, guid: 6cc26bdd4f36015438bb5a90bcc131ef,
     type: 3}
   sliderPrefab: {fileID: 8225510774563580309, guid: 549833058cabb0a4ea465588159b6da1,

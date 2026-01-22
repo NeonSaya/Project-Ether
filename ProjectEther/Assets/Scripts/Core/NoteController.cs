@@ -1,5 +1,6 @@
-﻿using UnityEngine;
-using System.Collections; // 必须引用，用于协程动画
+﻿using System.Collections;
+using UnityEngine;
+using UnityEngine.Pool;
 
 namespace OsuVR
 {
@@ -37,12 +38,20 @@ namespace OsuVR
         private RhythmGameManager gameManager;
         private MeshRenderer circleRenderer;
         private Color originalColor;
+        private MaterialPropertyBlock _propBlock;
+
+        // 存池接口
+        private IObjectPool<GameObject> myPool;
 
         /// <summary>
         /// 初始化音符
         /// </summary>
-        public void Initialize(HitObject hitObj, Vector3 targetPos, float speed, RhythmGameManager manager)
+        public void Initialize(HitObject hitObj, Vector3 targetPos, float speed, float beatmapCS, Color comboColor, RhythmGameManager manager, IObjectPool<GameObject> pool)
         {
+            // 存下池引用
+            this.myPool = pool;
+            ResetState();
+
             hitObject = hitObj;
             targetPosition = targetPos;
             moveSpeed = speed;
@@ -50,6 +59,33 @@ namespace OsuVR
             isActive = true;
             hasBeenHit = false;
             isHovered = false;
+
+            // 存下原始颜色，供 Update 逻辑使用
+            this.originalColor = comboColor;
+            if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
+            // 正确引用渲染器
+            this.circleRenderer = GetComponentInChildren<MeshRenderer>();
+
+            // 统一尺寸
+            float finalSize = RhythmGameManager.CalculateVROsuSize(beatmapCS);
+            transform.localScale = new Vector3(finalSize, finalSize, 0.02f);
+
+            // Stacking 堆叠偏移
+            Vector3 stackedPos = targetPos;
+            stackedPos.z -= hitObj.StackOrder * 0.005f;
+
+            // 直接设置位置，删掉后面那行重复的 transform.position = targetPos
+            transform.position = stackedPos;
+
+            // 应用 Combo 颜色
+            Renderer[] renderers = GetComponentsInChildren<Renderer>();
+            foreach (var r in renderers)
+            {
+                r.GetPropertyBlock(_propBlock);
+                _propBlock.SetColor("_Color", comboColor);
+                _propBlock.SetColor("_BaseColor", comboColor); // 兼容 URP
+                r.SetPropertyBlock(_propBlock);
+            }
 
             // [核心修复] 强制修复 AR (TimePreempt)
             // 如果 hitObject 数据里没算 AR (是0)，或者非常小，强制使用 Manager 的全局 AR
@@ -61,7 +97,8 @@ namespace OsuVR
             }
 
             transform.position = targetPos;
-            transform.LookAt(Vector3.zero);
+
+            if (Camera.main) transform.LookAt(Camera.main.transform);
 
             // 初始化视觉 (缩圈)
             if (approachCircleObject != null)
@@ -76,6 +113,32 @@ namespace OsuVR
 
             // 手动调用一次 Update 确保初始大小正确
             Update();
+        }
+
+        /// <summary>
+        /// 重置状态 (防止复用时出现“半透明”或“已击打”的僵尸音符)
+        /// </summary>
+        private void ResetState()
+        {
+            isActive = true;
+            hasBeenHit = false;
+            isHovered = false;
+
+            // 恢复可见性 (防止上一条命是 Miss 导致缩小成 0 了)
+            transform.localScale = Vector3.one;
+
+            // 恢复缩圈大小
+            if (approachCircle != null)
+            {
+                approachCircle.localScale = Vector3.one * maxApproachScale;
+                approachCircle.gameObject.SetActive(true);
+            }
+
+            // 恢复颜色 (尤其是 Alpha 值)
+            if (circleRenderer != null)
+            {
+                circleRenderer.enabled = true;
+            }
         }
 
         /// <summary>
@@ -121,10 +184,11 @@ namespace OsuVR
             // 4. 更新颜色反馈 (被指着时变黄)
             if (circleRenderer != null)
             {
-                if (isHovered)
-                    circleRenderer.material.color = Color.yellow;
-                else
-                    circleRenderer.material.color = originalColor;
+                circleRenderer.GetPropertyBlock(_propBlock);
+                Color targetColor = isHovered ? Color.yellow : originalColor;
+                _propBlock.SetColor("_Color", targetColor);
+                _propBlock.SetColor("_BaseColor", targetColor);
+                circleRenderer.SetPropertyBlock(_propBlock);
             }
         }
 
@@ -245,30 +309,31 @@ namespace OsuVR
         IEnumerator HitEffectCoroutine()
         {
             float timer = 0f;
-            float duration = 0.2f; // 动画时长
+            float duration = 0.2f;
             Vector3 startScale = approachCircle.localScale;
-            Color startColor = circleRenderer != null ? circleRenderer.material.color : Color.white;
+            Color startColor = originalColor; // 使用存下的颜色
             Color endColor = startColor;
-            endColor.a = 0f; // 变透明
+            endColor.a = 0f;
 
             while (timer < duration)
             {
                 timer += Time.deltaTime;
                 float t = timer / duration;
-
-                // 变大 1.5 倍
                 approachCircle.localScale = Vector3.Lerp(startScale, startScale * 1.5f, t);
 
-                // 变透明
+                // 更新透明度
                 if (circleRenderer != null)
                 {
-                    circleRenderer.material.color = Color.Lerp(startColor, endColor, t);
+                    circleRenderer.GetPropertyBlock(_propBlock);
+                    Color c = Color.Lerp(startColor, endColor, t);
+                    _propBlock.SetColor("_Color", c);
+                    _propBlock.SetColor("_BaseColor", c);
+                    circleRenderer.SetPropertyBlock(_propBlock);
                 }
-
                 yield return null;
             }
 
-            Destroy(gameObject); // 动画播完，销毁物体
+            ReturnToPool(); // 替换 Destroy(gameObject)
         }
 
         /// <summary>
@@ -283,12 +348,11 @@ namespace OsuVR
             while (timer < duration)
             {
                 timer += Time.deltaTime;
-                // 缩小到 0
                 transform.localScale = Vector3.Lerp(startScale, Vector3.zero, timer / duration);
                 yield return null;
             }
 
-            Destroy(gameObject);
+            ReturnToPool(); // ✅ 替换 Destroy(gameObject)
         }
 
         /// <summary>
@@ -299,6 +363,23 @@ namespace OsuVR
             // 绘制判定球
             Gizmos.color = Color.green;
             Gizmos.DrawWireSphere(transform.position, 0.2f);
+        }
+
+        /// <summary>
+        /// Destory
+        /// </summary>
+        private void ReturnToPool()
+        {
+            StopAllCoroutines();
+
+            if (myPool != null)
+            {
+                myPool.Release(gameObject);
+            }
+            else
+            {
+                Destroy(gameObject); // 兜底：如果池子没了直接销毁
+            }
         }
     }
 }

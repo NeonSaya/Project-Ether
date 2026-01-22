@@ -111,7 +111,9 @@ MonoBehaviour:
     type: 3}
   sliderTickPrefab: {fileID: 8308767009617404742, guid: e9059b8a0fa3fab499ad85ae6d45b576,
     type: 3}
-  customBodyColor: {r: 0.31132078, g: 0.31132078, b: 0.31132078, a: 0.78431374}
+  showDebugLabel: 1
+  debugTextPrefab: {fileID: 0}
+  customBodyColor: {r: 0.13207549, g: 0.13207549, b: 0.13207549, a: 0.78431374}
   customBorderColor: {r: 1, g: 1, b: 1, a: 1}
   sharedMaterial: {fileID: 2100000, guid: 7a5e5d34b17465741a629b88f26c7527, type: 2}
 --- !u!64 &5550271967489302791

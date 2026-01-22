@@ -122,6 +122,10 @@ namespace OsuVR
         public bool IsFirstNote => ComboIndex == 1 && IndexInCurrentCombo == 0;
 
         /// <summary>
+        /// ¶ÑµşË³Ğò±ê¼Ç
+        /// </summary>
+        public int StackOrder { get; set; }
+        /// <summary>
         /// ¶ÑµşÆ«ÒÆ³ËÊı
         /// </summary>
         public float StackOffsetMultiplier

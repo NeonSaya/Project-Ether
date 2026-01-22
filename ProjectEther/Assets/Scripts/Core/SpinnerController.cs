@@ -1,7 +1,8 @@
 ﻿using System.Collections.Generic;
+using TMPro;          // 引用 TextMeshPro (如果你用的是 TMP)
 using UnityEngine;
 using UnityEngine.UI; // 必须引用 UI 命名空间
-using TMPro;          // 引用 TextMeshPro (如果你用的是 TMP)
+using UnityEngine.Pool;
 
 namespace OsuVR
 {
@@ -53,8 +54,11 @@ namespace OsuVR
         private int bonusCount = 0;
         private float bonusRotationThreshold = 0f; // 下一次触发 Bonus 需要的角度
 
-        public void Initialize(SpinnerObject data, RhythmGameManager manager)
+        private IObjectPool<GameObject> myPool;
+
+        public void Initialize(SpinnerObject data, RhythmGameManager manager, IObjectPool<GameObject> pool)
         {
+            this.myPool = pool;
             spinnerData = data;
             gameManager = manager;
             IsActive = true;
@@ -241,7 +245,8 @@ namespace OsuVR
                 gameManager.OnNoteMiss(spinnerData);
             }
 
-            Destroy(gameObject);
+            if (myPool != null) myPool.Release(gameObject);
+            else Destroy(gameObject);
         }
     }
 }

@@ -1,59 +1,75 @@
-Shader "Osu/Slider"
+ï»¿Shader "Osu/SliderVR_Flat_Stencil_VR_Fixed"
 {
     Properties
     {
-        // ¿ÉÒÔÔÚ²ÄÖÊÃæ°åµ÷½ÚÕûÌåÍ¸Ã÷¶È
-        _MainAlpha ("Master Alpha", Range(0,1)) = 1.0
+        _Color ("Color", Color) = (1,1,1,1)
+        _StencilID ("Stencil ID", Int) = 10
     }
     SubShader
     {
-        Tags { "RenderType"="Transparent" "Queue"="Transparent" }
-        LOD 100
-        
-        // »ìºÏÄ£Ê½£º±ê×¼Í¸Ã÷»ìºÏ
+        Tags 
+        { 
+            "RenderType" = "Transparent" 
+            "Queue" = "Transparent-2" 
+            "RenderPipeline" = "UniversalPipeline"
+            "IgnoreProjector" = "True"
+        }
         Blend SrcAlpha OneMinusSrcAlpha
-        // ¹Ø±ÕÉî¶ÈĞ´Èë£¬·ÀÖ¹°ëÍ¸Ã÷ÎïÌåÕÚµ²ÎÊÌâ
-        ZWrite Off
-        // ¹Ø±ÕÌŞ³ı£¬ÕâÑù»¬ÌõÕı·´Ãæ¶¼ÄÜ¿´µ½£¨VRÀïºÜÖØÒª£©
-        Cull Off 
+        ZWrite Off 
+        Cull Off
 
-        Pass
-        {
-            CGPROGRAM
+        Stencil {
+            Ref [_StencilID]
+            Comp NotEqual
+            Pass Replace
+        }
+
+        Pass {
+            HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            
-            #include "UnityCG.cginc"
+            // âœ… å¿…é¡»ï¼šå¯ç”¨å®ä¾‹åŒ–ç¼–è¯‘
+            #pragma multi_compile_instancing
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            struct appdata
-            {
-                float4 vertex : POSITION;
-                fixed4 color : COLOR; // ½ÓÊÕ C# ´«½øÀ´µÄ¶¥µãÑÕÉ«
+            struct Attr { 
+                float4 posOS : POSITION;
+                // âœ… å¿…é¡»ï¼šå®ä¾‹åŒ– ID
+                UNITY_VERTEX_INPUT_INSTANCE_ID 
             };
 
-            struct v2f
-            {
-                float4 vertex : SV_POSITION;
-                fixed4 color : COLOR;
+            struct Vary { 
+                float4 posCS : SV_POSITION;
+                // âœ… å¿…é¡»ï¼šç«‹ä½“è¾“å‡ºå®
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+                UNITY_VERTEX_OUTPUT_STEREO 
             };
 
-            float _MainAlpha;
+            // âœ… ä¿®å¤ï¼šå°†å˜é‡æ”¾å…¥å®ä¾‹åŒ–ç¼“å†²åŒºï¼Œä»¥æ”¯æŒ multi_compile_instancing
+            UNITY_INSTANCING_BUFFER_START(UnityPerMaterial)
+                UNITY_DEFINE_INSTANCED_PROP(float4, _Color)
+            UNITY_INSTANCING_BUFFER_END(UnityPerMaterial)
 
-            v2f vert (appdata v)
-            {
-                v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
-                o.color = v.color; // Ö±½Ó´«µİÑÕÉ«
+            Vary vert(Attr i) {
+                Vary o;
+                // âœ… å¿…é¡»ï¼šè®¾ç½®å®ä¾‹åŒ–å’Œç«‹ä½“æ•°æ®
+                UNITY_SETUP_INSTANCE_ID(i);
+                UNITY_TRANSFER_INSTANCE_ID(i, o);
+                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+
+                o.posCS = TransformObjectToHClip(i.posOS.xyz);
                 return o;
             }
 
-            fixed4 frag (v2f i) : SV_Target
-            {
-                fixed4 col = i.color;
-                col.a *= _MainAlpha; // Ó¦ÓÃÕûÌåÍ¸Ã÷¶È
-                return col;
+            half4 frag(Vary i) : SV_Target {
+                // âœ… å¿…é¡»ï¼šåœ¨ç‰‡å…ƒç€è‰²å™¨åˆå§‹åŒ–ç«‹ä½“æ•°æ®
+                UNITY_SETUP_INSTANCE_ID(i);
+                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(i);
+                
+                // âœ… ä¿®å¤ï¼šä½¿ç”¨å®è·å–å½“å‰å®ä¾‹çš„é¢œè‰²
+                return UNITY_ACCESS_INSTANCED_PROP(UnityPerMaterial, _Color);
             }
-            ENDCG
+            ENDHLSL
         }
     }
 }
