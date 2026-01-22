@@ -116,6 +116,8 @@ namespace OsuVR
         // [新增] 缓存 Combo 颜色给头部使用
         private Color currentComboColor;
 
+        // 全局唯一的 Stencil ID 计数器
+        private static int globalStencilIdCounter = 1;
         /// <summary>
         /// 初始化滑条控制器 (对象池版)
         /// </summary>
@@ -203,30 +205,44 @@ namespace OsuVR
         /// </summary>
         private void ResetState()
         {
-            // 必须先回收旧的 Tick
+            // 1. 回收 Tick (保持不变)
             RecycleAllTicks();
 
-            // 清理路径数据
+            // 2. 清理路径数据 (保持不变)
             worldPathPoints.Clear();
             cumulativeLengths.Clear();
             totalPathLength = 0f;
 
-            // 重置状态位
+            // 3. 重置状态位 (保持不变)
             isFadingOut = false;
-            isActive = true; // 设为 true 准备初始化
+            isActive = true;
             currentAlpha = 1f;
             headHit = false;
             finished = false;
 
-            // 确保旧的视觉组件隐藏或销毁
+            // 4. 处理子物体
             if (headInstance) headInstance.SetActive(false);
             if (arrowInstance) arrowInstance.SetActive(false);
             if (followBall) followBall.SetActive(false);
 
-            // [性能] 清理 Mesh 引用，防止内存不断涨
+            // ✅ 核心修复：销毁旧的调试文本
+            // 如果变量引用还在，直接销毁
+            if (debugTextInstance != null)
+            {
+                Destroy(debugTextInstance.gameObject);
+                debugTextInstance = null;
+            }
+            // 双重保险：以防引用丢失但物体还在（比如代码重编译后），按名字找一下
+            Transform oldDebug = transform.Find("DebugLabel");
+            if (oldDebug != null)
+            {
+                Destroy(oldDebug.gameObject);
+            }
+
+            // 5. 清理 Mesh
             if (combinedMesh != null)
             {
-                Destroy(combinedMesh); // 销毁旧 Mesh
+                Destroy(combinedMesh);
                 combinedMesh = null;
             }
         }
@@ -318,7 +334,7 @@ namespace OsuVR
         {
             if (worldPathPoints.Count < 2) return;
 
-            // 1. [修复] 先清理旧的边框物体，防止重复
+            // 0. 先清理旧的边框物体，防止重复
             Transform oldBorder = transform.Find("SliderBorder");
             if (oldBorder != null) DestroyImmediate(oldBorder.gameObject);
 
@@ -330,13 +346,17 @@ namespace OsuVR
             // 假设你的 borderWidth 是滑条的总宽度 (包含边框)，那么单边厚度 = (总宽 - 本体宽) / 2
             float borderThickness = (borderWidth - sliderWidth) * 0.5f;
 
-            // 2. 调用生成器
+            // 2. 生成唯一的 Stencil ID
+            int uniqueStencilId = (globalStencilIdCounter++ % 255) + 1;
+
+            // 调用生成器，传入 uniqueStencilId
             var (borderMesh, bodyMesh, borderMat, bodyMat) = SliderMeshGenerator.GeneratePhysicalSlider(
-                 worldPathPoints,
-                 radius,
-                 borderThickness,
-                 customBorderColor,
-                 customBodyColor
+                    worldPathPoints,
+                    radius,
+                    borderThickness,
+                    customBorderColor,
+                    customBodyColor,
+                    uniqueStencilId
             );
 
             // 3. 渲染主体网格
@@ -873,14 +893,15 @@ namespace OsuVR
                             if (hit)
                             {
                                 Debug.Log("<color=cyan>Slider Repeat Hit</color>");
+                                // gameManager.AddScore(30); 
+                                // gameManager.AddCombo();
                             }
                             else
                             {
                                 Debug.Log($"<color=red>Slider Repeat MISS</color>");
                                 gameManager.OnNoteMiss(sliderData);
                             }
-                            // gameManager.AddScore(30); 
-                            // gameManager.AddCombo();
+                            
                             // 更新箭头位置到另一端
                             UpdateArrowTransform(nestedObject.SpanIndex + 1);
                             // 视觉：在这里可以做反转箭头的消失动画
@@ -896,6 +917,7 @@ namespace OsuVR
                 }
                 else
                 {
+                    UpdateArrowTransform(nestedObject.SpanIndex + 1);
                     // Miss
                     // 只要跟丢了 Tick/Repeat/Tail 中的任何一个，都会触发 Miss (断连)
                     // Debug.Log($"<color=red>Slider {nestedObject.Type} MISS</color>");
