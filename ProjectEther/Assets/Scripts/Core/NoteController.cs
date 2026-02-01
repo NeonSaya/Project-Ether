@@ -40,6 +40,20 @@ namespace OsuVR
         private Color originalColor;
         private MaterialPropertyBlock _propBlock;
 
+        // ✅ [优化] 缓存 Scaler 组件，避免每次 Initialize 都 Get
+        private ApproachCircleScaler cachedScaler;
+
+        // ✅ [优化] 缓存相机，杜绝 Update 里使用 Camera.main
+        private static Camera _cachedMainCamera;
+        private Camera MainCamera
+        {
+            get
+            {
+                if (_cachedMainCamera == null) _cachedMainCamera = Camera.main;
+                return _cachedMainCamera;
+            }
+        }
+
         // 存池接口
         private IObjectPool<GameObject> myPool;
 
@@ -72,7 +86,7 @@ namespace OsuVR
 
             // Stacking 堆叠偏移
             Vector3 stackedPos = targetPos;
-            stackedPos.z -= hitObj.StackOrder * 0.005f;
+            stackedPos.z -= hitObj.StackOrder * 0.01f;
 
             // 直接设置位置，删掉后面那行重复的 transform.position = targetPos
             transform.position = stackedPos;
@@ -98,7 +112,8 @@ namespace OsuVR
 
             transform.position = targetPos;
 
-            if (Camera.main) transform.LookAt(Camera.main.transform);
+            //if (Camera.main) transform.LookAt(Camera.main.transform);
+            if (MainCamera != null) transform.LookAt(MainCamera.transform);
 
             // 初始化视觉 (缩圈)
             if (approachCircleObject != null)
@@ -184,8 +199,8 @@ namespace OsuVR
             // 4. 更新颜色反馈 (被指着时变黄)
             if (circleRenderer != null)
             {
+                Color targetColor = originalColor;
                 circleRenderer.GetPropertyBlock(_propBlock);
-                Color targetColor = isHovered ? Color.yellow : originalColor;
                 _propBlock.SetColor("_Color", targetColor);
                 _propBlock.SetColor("_BaseColor", targetColor);
                 circleRenderer.SetPropertyBlock(_propBlock);
@@ -262,8 +277,6 @@ namespace OsuVR
             hasBeenHit = true;
             isActive = false;
 
-            Debug.Log($"🔥 HIT! 时间: {hitObject.StartTime}ms, 偏差: {accuracy:F1}ms");
-
             // 通知管理器
             if (gameManager != null)
             {
@@ -288,8 +301,6 @@ namespace OsuVR
         {
             hasBeenHit = true;
             isActive = false;
-
-            Debug.Log($"💨 MISS! 时间: {hitObject.StartTime}ms");
 
             // 通知管理器
             if (gameManager != null)
@@ -371,6 +382,8 @@ namespace OsuVR
         private void ReturnToPool()
         {
             StopAllCoroutines();
+
+            transform.SetParent(null);
 
             if (myPool != null)
             {

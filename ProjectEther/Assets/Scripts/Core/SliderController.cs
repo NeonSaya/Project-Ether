@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Pool;
+using static UnityEngine.UI.Slider;
 
 namespace OsuVR
 {
@@ -84,7 +85,9 @@ namespace OsuVR
 
         // [新增] 判定相关变量
         private SphereCollider ballCollider; // 用于射线的碰撞体
-        private bool isTracking = false;     // 当前帧是否被射线照射
+
+        // 状态变量
+        public bool isTracking = false;     // 当前帧是否被射线照射
         private bool hasStarted = false;     // 滑条是否已经开始
         private bool headHit = false;        // 滑条头是否被击中
         private bool finished = false;       // 滑条是否结束
@@ -118,11 +121,49 @@ namespace OsuVR
 
         // 全局唯一的 Stencil ID 计数器
         private static int globalStencilIdCounter = 1;
+
+        // 用来控制视觉显隐的索引
+        private int nextVisualIndex = 0;
+
+        // 在 SliderController 类中添加这个列表，用来记录所有生成的子物体（Tick, 箭头等）
+        private List<GameObject> garbageList = new List<GameObject>();
         /// <summary>
         /// 初始化滑条控制器 (对象池版)
         /// </summary>
         public void Initialize(SliderObject sliderData, float beatmapCS, Color comboColor, RhythmGameManager manager, IObjectPool<GameObject> pool, IObjectPool<GameObject> tPool)
         {
+            CleanUpEverything();
+
+            // 1. 检查滑条头 (headInstance)
+            // 如果它在 Unity 引擎层被销毁了 (Equals(null))，但在 C# 里还留着引用
+            // 我们必须手动把它设为 true null，后续 CreateVisuals 才会重新 Instantiate
+            if (headInstance != null && headInstance.Equals(null))
+            {
+                headInstance = null;
+            }
+
+            // 2. 检查跟随球 (followBall) - 注意你代码里变量名可能是 followBall 或 followBallInstance
+            if (followBall != null && followBall.Equals(null))
+            {
+                followBall = null;
+            }
+
+            // 3. 检查 Tick 缓存 (防止 ResetState 遍历时报错)
+            if (tickVisuals != null)
+            {
+                var keysToRemove = new System.Collections.Generic.List<SliderNestedObject>();
+
+                foreach (var kvp in tickVisuals)
+                {
+                    if (kvp.Value == null || kvp.Value.Equals(null))
+                    {
+                        keysToRemove.Add(kvp.Key);
+                    }
+                }
+                foreach (var key in keysToRemove) tickVisuals.Remove(key);
+            }
+
+
             // 存下池子引用
             this.myPool = pool;
             this.tickPool = tPool;
@@ -136,8 +177,12 @@ namespace OsuVR
             this.gameManager = manager;
             this.currentComboColor = comboColor;
 
-            // 位置设置
+            // 设置位置，考虑 Stack
             Vector3 startPos = CoordinateMapper.MapToWorld(sliderData.Position);
+
+            float stackOffset = sliderData.StackOrder * 0.01f;
+            startPos.z -= stackOffset;
+
             transform.position = startPos;
 
             // CS 尺寸计算
@@ -187,6 +232,7 @@ namespace OsuVR
 
             // 重置计数器
             currentNestedIndex = 0;
+            nextVisualIndex = 0;
             ticksGot = 0;
             isTracking = false;
             headHit = false;
@@ -415,12 +461,13 @@ namespace OsuVR
         /// </summary>
         private void CreateVisuals()
         {
+            if (this == null || this.gameObject == null) return;
+
             // 创建滑条头 (Slider Head)
             if (sliderHeadPrefab != null)
             {
-                if (headInstance != null) Destroy(headInstance);
-
                 headInstance = Instantiate(sliderHeadPrefab, transform);
+                garbageList.Add(headInstance);
                 headInstance.transform.localPosition = Vector3.zero;
                 // 防止 Z-Fighting，稍微往前一点点
                 float headScale = this.sliderWidth;
@@ -435,6 +482,7 @@ namespace OsuVR
 
                 foreach (var r in headRenderers)
                 {
+                    if (r == null) continue;
                     r.GetPropertyBlock(headMbp);
                     headMbp.SetColor("_Color", currentComboColor);
                     headMbp.SetColor("_BaseColor", currentComboColor); // 兼容 URP
@@ -457,9 +505,6 @@ namespace OsuVR
             // 2.  生成 Tick (小圆点)
             if (sliderTickPrefab != null && sliderData.NestedHitObjects != null)
             {
-                // 双重保险：清理旧 Tick
-                if (tickVisuals.Count > 0) RecycleAllTicks();
-
                 foreach (var nested in sliderData.NestedHitObjects)
                 {
                     if (nested.Type == SliderEventType.Tick)
@@ -467,19 +512,32 @@ namespace OsuVR
                         // 从池中获取
                         GameObject tickObj = tickPool.Get();
 
-                        tickObj.transform.SetParent(transform);
-                        tickObj.transform.localRotation = Quaternion.identity;
+                        if (tickObj != null)
+                        {
+                            tickObj.transform.SetParent(transform);
+                            tickObj.transform.localRotation = Quaternion.identity;
+                            tickObj.SetActive(false);
 
-                        // 设置缩放
-                        float tickScale = this.sliderWidth * 0.3f;
-                        tickObj.transform.localScale = new Vector3(tickScale, tickScale, tickScale);
+                            // 设置缩放
+                            float tickScale = this.sliderWidth * 0.3f;
+                            tickObj.transform.localScale = new Vector3(tickScale, tickScale, tickScale);
 
-                        // 设置位置
-                        Vector3 tickPos = GetPositionAtTime(nested.Time);
-                        tickObj.transform.localPosition = tickPos - Vector3.forward * 0.065f;
+                            // 设置位置
+                            Vector3 tickPos = GetPositionAtTime(nested.Time);
+                            tickObj.transform.localPosition = tickPos - Vector3.forward * 0.065f;
 
-                        // 存入字典
-                        tickVisuals[nested] = tickObj;
+                            // 存入字典
+                            if (!tickVisuals.ContainsKey(nested))
+                            {
+                                tickVisuals.Add(nested, tickObj);
+                            }
+                            else
+                            {
+                                // 极端情况：如果字典里已经有这个 key，说明逻辑有误，先归还旧的
+                                tickPool.Release(tickVisuals[nested]);
+                                tickVisuals[nested] = tickObj;
+                            }
+                        }
                     }
                 }
             }
@@ -488,9 +546,8 @@ namespace OsuVR
             // 只有当重复次数 > 1 时才需要箭头
             if (reverseArrowPrefab != null && sliderData.RepeatCount > 1)
             {
-                if (arrowInstance != null) Destroy(arrowInstance);
-
                 arrowInstance = Instantiate(reverseArrowPrefab, transform);
+                garbageList.Add(arrowInstance);
                 UpdateArrowTransform(0); // 初始化箭头位置 (第0跨度)
                 arrowInstance.SetActive(true);
             }
@@ -753,7 +810,9 @@ namespace OsuVR
             // 3. 视觉反馈
             UpdateVisuals();
 
-            // 帧末重置状态
+        }
+        void LateUpdate()
+        {
             isTracking = false;
         }
 
@@ -774,7 +833,11 @@ namespace OsuVR
         {
             isTracking = true;
         }
-
+        void OnDisable()
+        {
+            // 当物体被隐藏/回收时，清理残留
+            CleanUpEverything();
+        }
         /// <summary>
         /// 尝试击打滑条头 (由 LaserShooter 在按下/进入瞬间调用)
         /// </summary>
@@ -824,12 +887,7 @@ namespace OsuVR
                 // 判定窗口 (这里用 150ms 举例，对应 OD5)
                 // osu!droid: onSliderHeadHit
                 if (Mathf.Abs((float)diff) <= 150)
-                {
-                    // 如果是 Relax/VR，只要 Tracking 就算击中头
-                    if (isTracking)
-                    {
-                        HitHead();
-                    }
+                { 
                 }
                 // 超时 Miss
                 else if (diff > 150)
@@ -993,6 +1051,39 @@ namespace OsuVR
         /// </summary>
         private void UpdateVisuals()
         {
+            if (sliderData.NestedHitObjects != null)
+            {
+                // 遍历还没有显示的 Tick
+                while (nextVisualIndex < sliderData.NestedHitObjects.Count)
+                {
+                    var nested = sliderData.NestedHitObjects[nextVisualIndex];
+
+                    // 计算可见时间：物体判定时间 - 提前量(AR)
+                    // 这里的 TimePreempt 是滑条整体的 AR 时间
+                    double appearTime = nested.Time - sliderData.TimePreempt;
+
+                    // 如果当前时间已经到了该显示的时间
+                    if (currentMusicTimeCache >= appearTime)
+                    {
+                        // 尝试从字典里找到对应的视觉物体
+                        if (tickVisuals.TryGetValue(nested, out GameObject visualObj) && visualObj != null)
+                        {
+                            // 激活它！
+                            if (!visualObj.activeSelf)
+                            {
+                                visualObj.SetActive(true);
+                            }
+                        }
+
+                        // 指向下一个
+                        nextVisualIndex++;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+            }
             if (followBallRenderer == null) return;
 
             followBallRenderer.GetPropertyBlock(_propBlock);
@@ -1151,7 +1242,42 @@ namespace OsuVR
             Gizmos.color = Color.red;
             Gizmos.DrawSphere(transform.TransformPoint(worldPathPoints[worldPathPoints.Count - 1]), 0.02f);
         }
+
+        /// <summary>
+        /// 彻底清理上一轮留下的所有视觉残留
+        /// </summary>
+        private void CleanUpEverything()
+        {
+            // 1. 清理垃圾桶 (Head, Arrow)
+            // 倒序遍历，方便移除
+            for (int i = garbageList.Count - 1; i >= 0; i--)
+            {
+                GameObject obj = garbageList[i];
+
+                if (obj != null)
+                {
+                    Destroy(obj);
+                }
+            }
+            garbageList.Clear(); // 清空列表，断开所有“尸体”引用
+
+            // 2. 清理 Tick (池化)
+            if (tickVisuals != null && tickPool != null)
+            {
+                foreach (var kvp in tickVisuals)
+                {
+                    if (kvp.Value != null)
+                    {
+                        kvp.Value.SetActive(false);
+                        tickPool.Release(kvp.Value);
+                    }
+                }
+                tickVisuals.Clear();
+            }
+
+            // 3. 重置变量 (防止 CreateVisuals 误用)
+            headInstance = null;
+            arrowInstance = null;
+        }
     }
-
-
 }
