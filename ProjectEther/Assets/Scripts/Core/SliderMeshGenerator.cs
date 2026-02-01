@@ -14,7 +14,8 @@ namespace OsuVR
             float radius,
             float borderThickness,
             Color borderColor,
-            Color bodyColor)
+            Color bodyColor,
+            int stencilID)
         {
             // 1. 生成网格
             // 边框网格半径 = 半径 + 厚度
@@ -33,14 +34,14 @@ namespace OsuVR
             // 3. 配置 Body 材质 (底层，先渲染)
             Material bodyMaterial = new Material(osuShader);
             bodyMaterial.SetColor("_Color", bodyColor);
-            bodyMaterial.SetInt("_StencilID", 10);
+            bodyMaterial.SetInt("_StencilID", stencilID);
             // 渲染队列设为 3000 (Transparent 默认值)，保证先画
             bodyMaterial.renderQueue = 2980;
 
             // 4. 配置 Border 材质 (顶层，后渲染)
             Material borderMaterial = new Material(osuShader);
             borderMaterial.SetColor("_Color", borderColor);
-            borderMaterial.SetInt("_StencilID", 10);
+            borderMaterial.SetInt("_StencilID", stencilID);
             // 只有这样，Shader 里的 Stencil NotEqual 才能生效（Border 会避开 Body 的区域）
             borderMaterial.renderQueue = 2981;
 

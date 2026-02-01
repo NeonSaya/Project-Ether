@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 4270561920374336135}
   - component: {fileID: 9087260423001143001}
   - component: {fileID: 5550271967489302791}
+  - component: {fileID: -8690662954809436508}
   m_Layer: 6
   m_Name: Slider_Prefab
   m_TagString: Untagged
@@ -116,6 +117,7 @@ MonoBehaviour:
   customBodyColor: {r: 0.13207549, g: 0.13207549, b: 0.13207549, a: 0.78431374}
   customBorderColor: {r: 1, g: 1, b: 1, a: 1}
   sharedMaterial: {fileID: 2100000, guid: 7a5e5d34b17465741a629b88f26c7527, type: 2}
+  isTracking: 0
 --- !u!64 &5550271967489302791
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -138,3 +140,17 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 0}
+--- !u!114 &-8690662954809436508
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8225510774563580309}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6a3b39a0779bd04db07af30828f0095, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  isRelaxEnabled: 1
+  hitWindowMs: 200

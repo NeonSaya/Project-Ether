@@ -1,0 +1,34 @@
+{
+    "name": "VR_Controls",
+    "maps": [
+        {
+            "name": "Player",
+            "id": "22410f09-2d60-4386-9f78-98dfa561842a",
+            "actions": [
+                {
+                    "name": "UI_Click",
+                    "type": "Button",
+                    "id": "b85f96b0-b6a5-4f0b-8a72-3680e92a9ac7",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "78810d85-a2b5-4e73-ae73-6efdea53a4eb",
+                    "path": "<XRController>/triggerPressed",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "UI_Click",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        }
+    ],
+    "controlSchemes": []
+}

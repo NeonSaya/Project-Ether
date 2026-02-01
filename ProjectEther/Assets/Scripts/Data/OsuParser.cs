@@ -137,6 +137,7 @@ namespace OsuVR
                     slider.EndTime = slider.StartTime + slider.Duration;
                 }
             }
+            StackingProcessor.ApplyStacking(beatmap);
             Debug.Log($"谱面解析完成: {beatmap.Metadata.Title} (Ver: {beatmap.Metadata.Version})");
             return beatmap;
         }

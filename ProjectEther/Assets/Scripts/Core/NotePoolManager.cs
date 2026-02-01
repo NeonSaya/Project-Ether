@@ -61,13 +61,16 @@ namespace OsuVR
             // 1. Circle 池：Aspire 连打极多，容量大
             CirclePool = new ObjectPool<GameObject>(
                 createFunc: () => Instantiate(hitCirclePrefab, transform),
-                actionOnGet: (obj) => {
-                    obj.SetActive(true);
-                    // 确保状态重置由 Controller 自身处理
+                actionOnGet: (obj) =>
+                {
+                    if (obj != null) obj.SetActive(true);
                 },
                 actionOnRelease: (obj) => {
-                    obj.SetActive(false);
-                    obj.transform.SetParent(transform); // 回家
+                    if (obj != null) // Release 时最好也加个保险
+                    {
+                        obj.SetActive(false);
+                        obj.transform.SetParent(transform);
+                    }
                 },
                 actionOnDestroy: (obj) => Destroy(obj),
                 collectionCheck: false, // 🚨 极限性能模式：关闭重复检查
@@ -78,10 +81,16 @@ namespace OsuVR
             // 2. Slider 池：滑条体Mesh重，尽量复用
             SliderPool = new ObjectPool<GameObject>(
                 createFunc: () => Instantiate(sliderPrefab, transform),
-                actionOnGet: (obj) => obj.SetActive(true),
+                actionOnGet: (obj) =>
+                {
+                    if (obj != null) obj.SetActive(true);
+                },
                 actionOnRelease: (obj) => {
-                    obj.SetActive(false);
-                    obj.transform.SetParent(transform);
+                    if (obj != null)
+                    {
+                        obj.SetActive(false);
+                        obj.transform.SetParent(transform);
+                    }
                 },
                 actionOnDestroy: (obj) => Destroy(obj),
                 collectionCheck: false,
@@ -92,10 +101,16 @@ namespace OsuVR
             // 3. Spinner 池
             SpinnerPool = new ObjectPool<GameObject>(
                 createFunc: () => Instantiate(spinnerPrefab, transform),
-                actionOnGet: (obj) => obj.SetActive(true),
+                actionOnGet: (obj) =>
+                {
+                    if (obj != null) obj.SetActive(true);
+                },
                 actionOnRelease: (obj) => {
-                    obj.SetActive(false);
-                    obj.transform.SetParent(transform);
+                    if (obj != null)
+                    {
+                        obj.SetActive(false);
+                        obj.transform.SetParent(transform);
+                    }
                 },
                 actionOnDestroy: (obj) => Destroy(obj),
                 collectionCheck: false,
@@ -106,16 +121,26 @@ namespace OsuVR
             // 4. Tick 池：应对每秒 30+ 个 Tick 的情况
             TickPool = new ObjectPool<GameObject>(
                 createFunc: () => Instantiate(sliderTickPrefab, transform),
-                actionOnGet: (obj) => obj.SetActive(true),
+                actionOnGet: (obj) =>
+                {
+                    if (obj != null) obj.SetActive(true);
+                },
                 actionOnRelease: (obj) => {
-                    obj.SetActive(false);
-                    // 注意：Tick 回收时通常不需要 SetParent，因为 Get 时会马上被 SetParent 到 Slider 下
+                    if (obj != null) obj.SetActive(false);
                 },
                 actionOnDestroy: (obj) => Destroy(obj),
                 collectionCheck: false,
                 defaultCapacity: 200,
                 maxSize: 2000 // Aspire 可能会有海量 Tick
             );
+
+        }
+        void OnDestroy()
+        {
+            CirclePool?.Clear();
+            SliderPool?.Clear();
+            SpinnerPool?.Clear();
+            TickPool?.Clear();
         }
     }
 }

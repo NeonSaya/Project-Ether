@@ -1,5 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
+using UnityEngine.Networking;
 
 namespace OsuVR
 {
@@ -129,14 +132,17 @@ namespace OsuVR
             // 初始化AudioSource
             InitializeAudioSource();
 
-            // 加载谱面
-            LoadBeatmap();
-
-            // 如果设置为自动开始，则启动游戏
-            if (autoStart)
+            // 检查是否有选歌数据
+            if (GameContext.Instance != null && !string.IsNullOrEmpty(GameContext.Instance.SelectedBeatmapPath))
             {
-                // 添加一个短暂的延迟，确保所有组件都初始化完成
-                Invoke("StartGame", 1.0f);
+                // 有数据，加载选中的歌
+                LoadBeatmapFromPath(GameContext.Instance.SelectedBeatmapPath);
+            }
+            else
+            {
+                // 没数据（直接运行场景时），加载默认
+                LoadBeatmap();
+                if (autoStart) Invoke("StartGame", 1.0f);
             }
         }
 
@@ -310,6 +316,116 @@ namespace OsuVR
 
             // 清理现有的音符（确保开始前没有残留音符）
             ClearAllNotes();
+        }
+
+        /// <summary>
+        /// 从指定绝对路径加载谱面（供 UI 选歌使用）
+        /// </summary>
+        /// <param name="absoluteOsuFilePath">.osu 文件的完整路径</param>
+        public void LoadBeatmapFromPath(string absoluteOsuFilePath)
+        {
+            Debug.Log($"正在从路径加载谱面: {absoluteOsuFilePath}");
+
+            // 0. 停止之前的游戏状态
+            CancelInvoke("StartGame");
+            StopAllCoroutines();
+            if (isPlaying)
+            {
+                isPlaying = false;
+                if (musicSource.isPlaying) musicSource.Stop();
+                ClearAllNotes();
+            }
+
+            // 1. 解析谱面
+            if (!File.Exists(absoluteOsuFilePath))
+            {
+                Debug.LogError($"文件不存在: {absoluteOsuFilePath}");
+                return;
+            }
+
+            try
+            {
+                currentBeatmap = OsuParser.Parse(absoluteOsuFilePath);
+                hitObjects = currentBeatmap.HitObjects;
+                totalNotes = hitObjects.Count;
+
+                // 2. 颜色设置
+                if (currentBeatmap.ComboColors == null || currentBeatmap.ComboColors.Count == 0)
+                {
+                    currentBeatmap.ComboColors = new List<Color> {
+                        new Color(1f, 0.4f, 0.4f), new Color(0.4f, 0.6f, 1f),
+                        new Color(0.4f, 1f, 0.4f), new Color(1f, 0.8f, 0.4f)
+                     };
+                }
+
+                // 3. 计算 AR (spawnOffsetMs)
+                if (currentBeatmap != null && currentBeatmap.Difficulty != null)
+                {
+                    spawnOffsetMs = (float)CalculateTimePreempt(currentBeatmap.Difficulty.ApproachRate);
+                    Debug.Log($"[AR System] Loaded AR: {currentBeatmap.Difficulty.ApproachRate}, TimePreempt: {spawnOffsetMs}ms");
+                }
+
+                // 4. 应用 AR 到所有音符 (核心修复逻辑)
+                foreach (var obj in hitObjects)
+                {
+                    if (obj.TimePreempt <= 0.1) obj.TimePreempt = spawnOffsetMs;
+                }
+
+                Debug.Log($"✅ 谱面数据解析成功: {currentBeatmap.Metadata.Title}");
+
+                // 5. 动态加载音频
+                // 获取音频文件的绝对路径
+                string folderPath = Path.GetDirectoryName(absoluteOsuFilePath);
+                string audioPath = Path.Combine(folderPath, currentBeatmap.General.AudioFilename);
+
+                StartCoroutine(LoadAudioClip(audioPath));
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"加载失败: {e.Message}\n{e.StackTrace}");
+            }
+        }
+
+        /// <summary>
+        /// 协程：动态加载本地音频文件
+        /// </summary>
+        private IEnumerator LoadAudioClip(string audioPath)
+        {
+            // Windows/Android 路径需要加 file:// 前缀，且要注意转义
+            string url = "file://" + audioPath;
+
+            Debug.Log($"开始加载音频: {url}");
+
+            using (UnityWebRequest www = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.UNKNOWN))
+            {
+                yield return www.SendWebRequest();
+
+                if (www.result == UnityWebRequest.Result.ConnectionError || www.result == UnityWebRequest.Result.ProtocolError)
+                {
+                    Debug.LogError($"音频加载错误: {www.error}");
+                }
+                else
+                {
+                    AudioClip clip = DownloadHandlerAudioClip.GetContent(www);
+
+                    if (clip != null)
+                    {
+                        // 必须设置 name，否则 Unity 有时会报错
+                        clip.name = Path.GetFileName(audioPath);
+                        musicSource.clip = clip;
+                        musicClip = clip; // 同步引用
+
+                        Debug.Log($"🎵 音频加载完毕: {clip.name} (长度: {clip.length:F1}s)");
+
+                        // 音频加载好后，自动开始游戏
+                        StartGame();
+                    }
+                    else
+                    {
+                        Debug.LogError("下载的 AudioClip 为空！");
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -559,47 +675,54 @@ namespace OsuVR
             // ------------------------------------------------------
             if (hitObject is HitCircle)
             {
-                // ✅ 改动：从 CirclePool 获取
                 noteObject = poolMgr.CirclePool.Get();
+                // 🛑 【核心修复】如果池子给了个已销毁的坏对象，手动生成一个新的
+                if (noteObject == null) noteObject = Instantiate(poolMgr.hitCirclePrefab);
 
-                // 获取控制器并初始化
+                // 确保它是激活的
+                if (!noteObject.activeSelf) noteObject.SetActive(true);
+
                 var controller = noteObject.GetComponent<NoteController>();
                 if (controller != null)
                 {
-                    // 计算目标位置
                     Vector3 targetPosition = CoordinateMapper.MapToWorld(hitObject.Position);
-
-                    // ✅ 改动：传入 CirclePool 引用，方便它自己回池
                     controller.Initialize(hitObject, targetPosition, noteSpeed, currentCS, comboColor, this, poolMgr.CirclePool);
                 }
             }
             else if (hitObject is SliderObject)
             {
-                // ✅ 改动：从 SliderPool 获取
                 noteObject = poolMgr.SliderPool.Get();
+                // 🛑 【核心修复】
+                if (noteObject == null) noteObject = Instantiate(poolMgr.sliderPrefab);
+
+                if (!noteObject.activeSelf) noteObject.SetActive(true);
 
                 var controller = noteObject.GetComponent<SliderController>();
                 if (controller != null)
                 {
-                    // ✅ 改动：同时传入 SliderPool 和 TickPool (给 Tick 用)
                     controller.Initialize((SliderObject)hitObject, currentCS, comboColor, this, poolMgr.SliderPool, poolMgr.TickPool);
                 }
             }
             else if (hitObject is SpinnerObject)
             {
-                // ✅ 改动：从 SpinnerPool 获取
                 noteObject = poolMgr.SpinnerPool.Get();
+                // 🛑 【核心修复】
+                if (noteObject == null) noteObject = Instantiate(poolMgr.spinnerPrefab);
 
+                if (!noteObject.activeSelf) noteObject.SetActive(true);
+                Vector2 osuCenter = new Vector2(256, 192);
+
+                Vector3 worldCenter = CoordinateMapper.MapToWorld(osuCenter);
+
+                noteObject.transform.position = worldCenter;
                 var controller = noteObject.GetComponent<SpinnerController>();
                 if (controller != null)
                 {
-                    // ✅ 改动：传入 SpinnerPool
                     controller.Initialize((SpinnerObject)hitObject, this, poolMgr.SpinnerPool);
                 }
             }
             else
             {
-                Debug.LogWarning($"无法生成音符: 未知类型 - {hitObject.GetType().Name}");
                 return;
             }
 
