@@ -718,7 +718,7 @@ namespace OsuVR
                 var controller = noteObject.GetComponent<SpinnerController>();
                 if (controller != null)
                 {
-                    controller.Initialize((SpinnerObject)hitObject, this, poolMgr.SpinnerPool);
+                    controller.Initialize((SpinnerObject)hitObject, this, poolMgr.SpinnerPool, worldCenter);
                 }
             }
             else
@@ -1012,19 +1012,20 @@ namespace OsuVR
 
         public static float CalculateVROsuSize(float cs)
         {
-            // 1. 标准 osu! 比例换算
-            // CS 越大，物件越小。
-            float rawScale = (1.0f - 0.7f * (cs - 5f) / 5f);
+            // 1. 调整 CS 范围：将 osu! 的 CS 范围 (2-7) 映射到 (0-5)
+            float adjustedCS = cs - 2f;
 
-            // 2. ✅ VR 物理尺寸补正
-            // 基准值 0.11f (11cm) 是 VR 中最舒适的打击直径。
-            // 加上 1.15 倍的 VR 视觉补偿系数。
+            // 2. 标准 osu! 比例换算
+            float rawScale = (1.0f - 0.7f * (adjustedCS - 5f) / 5f);
+
+            // 3. VR 物理尺寸补正 (保留你觉得舒服的参数)
+            // 基准值 0.11f (11cm) * 1.15 倍
             float baseWorldSize = 0.11f * 1.15f;
 
             float finalSize = rawScale * baseWorldSize;
 
-            // 3. ✅ 照顾 VR 下限
-            // 无论 CS 多高，物件直径不能低于 7cm，否则手柄很难受
+            // 4. 照顾 VR 下限
+            // 无论 CS 多高，物件直径不能低于 7cm
             return Mathf.Max(finalSize, 0.07f);
         }
 
