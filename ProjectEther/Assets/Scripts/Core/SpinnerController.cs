@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
-using TMPro;          // 引用 TextMeshPro
+using TMPro;
 using UnityEngine;
-using UnityEngine.UI; // 引用 UI
+using UnityEngine.UI;
 using UnityEngine.Pool;
 
 namespace OsuVR
@@ -13,37 +13,32 @@ namespace OsuVR
         public SpinnerObject spinnerData;
 
         [Header("视觉组件 - 核心")]
-        [Tooltip("旋转的主盘面 (Disc)")]
         public Transform discRotating;
-
-        [Tooltip("缩圈 (Approach Circle)")]
         public Transform approachCircle;
-
-        [Header("视觉组件 - UI")]
-        [Tooltip("警告提示 (SPIN!)")]
         public GameObject warningObject;
-
-        [Tooltip("进度条/计量表")]
         public Image meterImage;
-
-        [Tooltip("奖励分数文本 (Bonus Text)")]
         public TextMeshProUGUI bonusText;
-
-        [Tooltip("跟随射线的指环 (Tracker Ring)")]
         public Transform trackerRing;
+        private TrailRenderer ringTrail;
 
         [Header("判定参数")]
-        [Tooltip("旋转灵敏度倍率")]
-        public float rotationMultiplier = 1.2f;
+        [Tooltip("旋转灵敏度倍率 (值越大，画一圈算的角度越多)")]
+        public float rotationMultiplier = 1.1f; // 稍微降低一点，因为现在画小圈更容易了
 
         [Tooltip("转盘整体大小倍率")]
         public float scaleSize = 0.5f;
 
-        [Header("手感参数")]
-        [Tooltip("中心死区半径 (米)：防止打中中心导致角度乱跳")]
-        public float centerDeadZone = 0.05f;
+        [Tooltip("转速要求倍率：每秒需要转多少圈 (默认 5 圈)")]
+        public float rotationsPerSecond = 5f;
 
-        [Tooltip("视觉平滑系数：值越大越跟手，值越小越有惯性 (建议 15-20)")]
+        [Header("手感参数")]
+        [Tooltip("虚拟圆心跟随速度：越小越容忍大范围移动，越大要求画圈更圆 (建议 2-5)")]
+        public float centerFollowSpeed = 3.0f;
+
+        [Tooltip("最小画圈半径：如果画的圈太小(原地抖动)，不计入旋转")]
+        public float minDrawingRadius = 0.05f;
+
+        [Tooltip("视觉平滑系数")]
         public float visualSmoothing = 20f;
 
         // --- 状态变量 ---
@@ -53,36 +48,55 @@ namespace OsuVR
 
         public bool isHovered = false;
         private RhythmGameManager gameManager;
-        private float totalRotationAngle = 0f;      // 累计旋转总角度 (判定用)
-        private float currentVisualRotation = 0f;   // 当前视觉角度 (显示用)
-        private float targetVisualRotation = 0f;    // 目标视觉角度 (插值用)
-        private float angleRequirement = 0f;        // 通关所需角度
+        private float totalRotationAngle = 0f;
+        private float currentVisualRotation = 0f;
+        private float targetVisualRotation = 0f;
+        private float angleRequirement = 0f;
 
-        private float rotationDeltaSinceLastFrame = 0f;
-        // RPM 计算相关
-        private float rotationDeltaAccumulator = 0f; 
-        // Bonus 相关
+        // RPM 计算
+        private float rotationDeltaAccumulator = 0f;
+        // Bonus
         private int bonusCount = 0;
         private float bonusThreshold = 0f;
 
-        // 对象池引用
         private IObjectPool<GameObject> myPool;
 
-        // ✅ [只保留这一个字典] 记录每个手柄的状态：<手柄, (上一帧角度, 上次更新时间)>
-        private Dictionary<RayController, (float angle, float time)> handStates = new Dictionary<RayController, (float, float)>();
+        // ✅ [数据结构升级] 
+        // 记录: <手柄, (上一帧角度, 上次时间, 虚拟圆心位置)>
+        private Dictionary<RayController, HandState> handStates = new Dictionary<RayController, HandState>();
 
-        public void Initialize(SpinnerObject data, RhythmGameManager manager, IObjectPool<GameObject> pool)
+        // 定义一个结构体来存状态，比Tuple清晰
+        private class HandState
+        {
+            public float lastAngle;
+            public float lastTime;
+            public Vector2 virtualCenter; // 这一只手的动态圆心
+            public bool isInitialized;
+            public Transform ringInstance;
+            public TrailRenderer trail; // 是否刚进入
+        }
+
+        public void Initialize(SpinnerObject data, RhythmGameManager manager, IObjectPool<GameObject> pool, Vector3 fixPosition)
         {
             this.spinnerData = data;
             this.gameManager = manager;
             this.myPool = pool;
 
-            // 设置大小
+            transform.position = fixPosition;
+            transform.rotation = Quaternion.LookRotation(transform.position - Camera.main.transform.position);
             transform.localScale = Vector3.one * scaleSize;
 
-            // 计算目标角度
+            // 🔥 [难度提升] 计算目标角度
             float duration = (float)(data.EndTime - data.StartTime) / 1000f;
-            float requiredRotations = duration * 3f + 1f;
+
+            // 公式：需要转的总圈数 = 时长 * 每秒目标圈数
+            // 例如：时长5秒，要求每秒转4圈 -> 总共需要转 20 圈
+            float requiredRotations = duration * rotationsPerSecond;
+
+            // [可选] 极短转盘的低保：防止时长 0.1秒 这种算出来只需转 0.2 圈太容易
+            // 这里设置至少要转 1 圈才能通关 (你可以根据需求改成 0.5f 或其他值)
+            requiredRotations = Mathf.Max(requiredRotations, 1f);
+
             this.angleRequirement = requiredRotations * 360f;
 
             // 重置状态
@@ -94,22 +108,26 @@ namespace OsuVR
             bonusThreshold = angleRequirement + 360f;
             rotationDeltaAccumulator = 0f;
 
-            // 重置追踪状态
-            if (handStates == null)
-                handStates = new Dictionary<RayController, (float, float)>();
-            else
-                handStates.Clear();
+            handStates.Clear();
 
-            // 视觉重置
-            if (meterImage) meterImage.fillAmount = 0f;
+            // UI 重置
+            if (meterImage) { meterImage.fillAmount = 0f; meterImage.color = Color.white; }
             if (warningObject) warningObject.SetActive(true);
-            if (bonusText)
-            {
-                bonusText.text = "";
-                bonusText.gameObject.SetActive(false);
-                bonusText.transform.localScale = Vector3.one;
-            }
+            if (bonusText) { bonusText.gameObject.SetActive(false); bonusText.text = ""; }
             if (approachCircle) approachCircle.localScale = Vector3.one * 4f;
+            if (trackerRing)
+            {
+                // 尝试获取组件 (如果还没获取过)
+                if (ringTrail == null) ringTrail = trackerRing.GetComponent<TrailRenderer>();
+
+                // 确保初始状态是关闭且干净的
+                if (ringTrail != null)
+                {
+                    ringTrail.Clear(); // 清除旧轨迹
+                    ringTrail.emitting = false; // 停止发射
+                }
+                trackerRing.gameObject.SetActive(false);
+            }
         }
 
         void Update()
@@ -118,130 +136,163 @@ namespace OsuVR
 
             double currentTime = gameManager.GetCurrentMusicTimeMs();
 
-            // 1. 检查结束
             if (currentTime > spinnerData.EndTime)
             {
                 FinishSpinner();
                 return;
             }
 
-            // 2. 缩圈动画
             if (approachCircle)
             {
                 double duration = spinnerData.EndTime - spinnerData.StartTime;
                 double timeLeft = spinnerData.EndTime - currentTime;
-                float timeProgress = (float)(timeLeft / duration);
-                approachCircle.localScale = Vector3.one * Mathf.Clamp01(timeProgress) * 4f;
+                approachCircle.localScale = Vector3.one * Mathf.Clamp01((float)(timeLeft / duration)) * 4f;
             }
 
-            // 3. ✅ [已删除 ProcessInput] 改为被动接收 + 自动清理
             CleanUpInactiveHands();
 
-            // 视觉平滑插值 (防止画面抖动)
+            // 视觉平滑
             currentVisualRotation = Mathf.Lerp(currentVisualRotation, targetVisualRotation, Time.deltaTime * visualSmoothing);
             if (discRotating)
             {
                 discRotating.localEulerAngles = new Vector3(0, 0, -currentVisualRotation);
             }
 
-            // 4. 计算 RPM 平滑
-            float instantaneousRPM = (rotationDeltaSinceLastFrame / Time.deltaTime) / 6f;
+            // RPM 计算
+            float instantaneousRPM = (rotationDeltaAccumulator / Time.deltaTime) / 6f;
             CurrentRPM = Mathf.Lerp(CurrentRPM, instantaneousRPM, Time.deltaTime * 5f);
-            rotationDeltaSinceLastFrame = 0f;
+            rotationDeltaAccumulator = 0f;
 
-            // 5. 更新盘面旋转视觉
-            if (discRotating)
-            {
-                discRotating.localEulerAngles = new Vector3(0, 0, -currentVisualRotation);
-            }
-
-            // 6. 更新 Meter
             if (meterImage && angleRequirement > 0)
             {
-                float progress = totalRotationAngle / angleRequirement;
-                meterImage.fillAmount = Mathf.Clamp01(progress);
-                if (progress >= 1f) meterImage.color = Color.cyan;
-                else meterImage.color = Color.white;
+                Progress = totalRotationAngle / angleRequirement;
+                meterImage.fillAmount = Mathf.Clamp01(Progress);
+                if (Progress >= 1f) meterImage.color = Color.cyan;
             }
 
-            // 7. Bonus 检测
             if (totalRotationAngle > bonusThreshold)
             {
                 AddBonus();
             }
 
-            // 8. 动画
             if (bonusText && bonusText.gameObject.activeSelf)
             {
                 bonusText.transform.localScale = Vector3.Lerp(bonusText.transform.localScale, Vector3.one, Time.deltaTime * 5f);
             }
         }
 
-        // ✅ 核心旋转逻辑 (由 RayController 调用)
+        // =================================================================================
+        // 🔥 核心旋转逻辑 (任意位置画圈版)
+        // =================================================================================
         public void UpdateRotation(Vector3 hitPoint, RayController source)
         {
-            // 1. 本地坐标转换
-            // 把世界坐标的击打点，转换为相对于转盘中心的本地向量
-            Vector3 localPoint = transform.InverseTransformPoint(hitPoint);
+            // 1. 转为本地坐标 (Z轴由HitPoint决定，这里只取XY平面)
+            Vector3 localPoint3D = transform.InverseTransformPoint(hitPoint);
+            Vector2 currentPos = new Vector2(localPoint3D.x, localPoint3D.y);
+            float currentTime = Time.time;
 
-            // ✅ [健壮性] 中心死区检测
-            // 如果点击点离中心太近，Atan2 计算会不稳定，直接忽略
-            if (new Vector2(localPoint.x, localPoint.y).magnitude < centerDeadZone)
+            // 2. 获取或初始化状态 (如果是新进来的手)
+            if (!handStates.ContainsKey(source))
+            {
+                // ✅ [新增] 克隆指环视觉
+                Transform newRing = null;
+                TrailRenderer newTrail = null;
+
+                // 只有当模板存在时才克隆
+                if (trackerRing)
+                {
+                    // 克隆一个新的指环
+                    newRing = Instantiate(trackerRing, transform);
+                    newRing.gameObject.SetActive(true); // 确保克隆体是显示的
+
+                    newTrail = newRing.GetComponent<TrailRenderer>();
+                    if (newTrail != null)
+                    {
+                        newTrail.Clear();       // 清除旧数据
+                        newTrail.emitting = true; // 开始发射
+
+                        // ✅ [关键] 代码强制把拖尾变细
+                        newTrail.startWidth = 0.015f; // 起始宽度 (非常细，约1.5厘米)
+                        newTrail.endWidth = 0f;       // 结束宽度 (尖尾)
+                        newTrail.time = 0.25f;        // 持续时间 (0.25秒消失)
+                    }
+                }
+
+                // 初始化并存入状态
+                handStates[source] = new HandState
+                {
+                    lastTime = currentTime,
+                    lastAngle = 0f, // 初始角度暂定0，反正第一帧不计算Delta
+                    virtualCenter = currentPos, // 刚进来时，圆心就是当前点
+                    isInitialized = false,
+                    ringInstance = newRing, // 绑定视觉
+                    trail = newTrail
+                };
+            }
+
+            // 获取当前手的状态
+            HandState state = handStates[source];
+
+            // 3. 🔥 [动态圆心逻辑]
+            // 圆心会缓慢跟随手柄当前位置。
+            // 如果你画圈，currentPos 始终围着 virtualCenter 转。
+            // 如果你平移，virtualCenter 会跟过去。
+            state.virtualCenter = Vector2.Lerp(state.virtualCenter, currentPos, Time.deltaTime * centerFollowSpeed);
+
+            // 4. 计算相对于 "虚拟圆心" 的角度
+            // 这样无论你在转盘的哪个角落画圈，只要你在绕着你的虚拟圆心转，就算数
+            Vector2 direction = currentPos - state.virtualCenter;
+
+            // [防抖] 如果画的半径太小 (比如只是手抖)，不计算角度，防止数值乱跳
+            if (direction.magnitude < minDrawingRadius)
             {
                 return;
             }
 
-            // 2. 更新指环位置 (视觉反馈)
-            if (trackerRing)
+            // 计算角度 (Atan2 返回 -180 到 180)
+            float currentAngle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+
+            // 5. 更新指环 (视觉反馈在击打点)
+            if (state.ringInstance != null)
             {
-                if (!trackerRing.gameObject.activeSelf) trackerRing.gameObject.SetActive(true);
-                trackerRing.position = hitPoint;
-                // 稍微浮起来一点，防止穿模
-                trackerRing.position -= transform.forward * 0.01f;
-                trackerRing.rotation = transform.rotation;
+                state.ringInstance.position = hitPoint;
+                state.ringInstance.position -= transform.forward * 0.01f; // 防穿模，稍微浮起来
+                state.ringInstance.rotation = transform.rotation;
             }
 
-            // 3. 计算当前角度 (Atan2 返回 -180 到 180)
-            float currentAngle = Mathf.Atan2(localPoint.y, localPoint.x) * Mathf.Rad2Deg;
-            float currentTime = Time.time;
-
-            // 4. 计算增量
-            if (handStates.ContainsKey(source))
+            // 6. 计算增量
+            if (state.isInitialized && currentTime > state.lastTime)
             {
-                var (lastAngle, lastTime) = handStates[source];
+                float delta = currentAngle - state.lastAngle;
 
-                // ✅ [健壮性] 时间过滤：防止同一帧被多次调用
-                if (currentTime > lastTime)
+                // 处理 ±180 度跨越突变
+                if (delta > 180f) delta -= 360f;
+                if (delta < -180f) delta += 360f;
+
+                // [限制] 物理过滤：防止追踪丢帧导致的瞬间180度跳变
+                if (Mathf.Abs(delta) < 120f && Mathf.Abs(delta) > 0.01f)
                 {
-                    float delta = currentAngle - lastAngle;
+                    // 速度越快(delta越大)，加分越多
+                    float validRotation = Mathf.Abs(delta) * rotationMultiplier;
 
-                    // 处理跨越 ±180 度的突变
-                    // 比如从 179 度变成 -179 度，数学差值是 -358，实际只是转了 2 度
-                    if (delta > 180f) delta -= 360f;
-                    if (delta < -180f) delta += 360f;
+                    totalRotationAngle += validRotation;
+                    targetVisualRotation += validRotation;
+                    rotationDeltaAccumulator += validRotation; // 喂给 RPM 计速器
 
-                    // ✅ [健壮性] 物理限制过滤
-                    // 人手不可能一帧转超过 120 度，如果发生，通常是追踪丢失或计算错误
-                    if (Mathf.Abs(delta) < 120f && Mathf.Abs(delta) > 0.01f)
-                    {
-                        float validRotation = Mathf.Abs(delta) * rotationMultiplier;
-
-                        // 累加数据
-                        totalRotationAngle += validRotation;
-                        targetVisualRotation += validRotation; // 目标值增加，Update里会插值追赶
-                        rotationDeltaAccumulator += validRotation; // 喂给 RPM
-
-                        // 隐藏警告
-                        if (warningObject && warningObject.activeSelf) warningObject.SetActive(false);
-                    }
+                    // 如果有警告提示，转动起来后隐藏它
+                    if (warningObject && warningObject.activeSelf) warningObject.SetActive(false);
                 }
             }
+            else
+            {
+                state.isInitialized = true; // 第一帧只记录，不计算
+            }
 
-            // 5. 更新状态
-            handStates[source] = (currentAngle, currentTime);
+            // 7. 更新状态供下一帧使用
+            state.lastAngle = currentAngle;
+            state.lastTime = currentTime;
         }
 
-        // ✅ 自动清理离开的手
         private void CleanUpInactiveHands()
         {
             float currentTime = Time.time;
@@ -249,8 +300,7 @@ namespace OsuVR
 
             foreach (var kvp in handStates)
             {
-                // 如果超过 0.1 秒没有更新，说明这只手移开了
-                if (currentTime - kvp.Value.time > 0.1f)
+                if (currentTime - kvp.Value.lastTime > 0.1f)
                 {
                     if (toRemove == null) toRemove = new List<RayController>();
                     toRemove.Add(kvp.Key);
@@ -259,12 +309,26 @@ namespace OsuVR
 
             if (toRemove != null)
             {
-                foreach (var hand in toRemove) handStates.Remove(hand);
+                foreach (var hand in toRemove)
+                {
+                    // ✅ [新增] 销毁这只手对应的指环物体
+                    var state = handStates[hand];
+                    if (state.ringInstance != null)
+                    {
+                        Destroy(state.ringInstance.gameObject);
+                    }
+                    handStates.Remove(hand);
+                }
             }
 
-            // 如果没有手在操作，隐藏指环
-            if (handStates.Count == 0 && trackerRing)
+            if (handStates.Count == 0 && trackerRing && trackerRing.gameObject.activeSelf)
             {
+
+                if (ringTrail != null)
+                {
+                    ringTrail.emitting = false;
+                    ringTrail.Clear();
+                }
                 trackerRing.gameObject.SetActive(false);
             }
         }
@@ -286,9 +350,10 @@ namespace OsuVR
             IsActive = false;
             Progress = totalRotationAngle / angleRequirement;
 
+            // 判定逻辑保持不变
             if (Progress >= 1.0f) gameManager.OnNoteHit(spinnerData, 0);
             else if (Progress > 0.9f) gameManager.OnNoteHit(spinnerData, 1);
-            else if (Progress > 0.75f) gameManager.OnNoteHit(spinnerData, 2);
+            else if (Progress > 0.5f) gameManager.OnNoteHit(spinnerData, 2);
             else gameManager.OnNoteMiss(spinnerData);
 
             if (myPool != null) myPool.Release(gameObject);

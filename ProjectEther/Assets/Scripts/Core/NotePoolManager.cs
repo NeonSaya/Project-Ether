@@ -74,8 +74,8 @@ namespace OsuVR
                 },
                 actionOnDestroy: (obj) => Destroy(obj),
                 collectionCheck: false, // 🚨 极限性能模式：关闭重复检查
-                defaultCapacity: 200,
-                maxSize: 1000
+                defaultCapacity: 300,
+                maxSize: 2000
             );
 
             // 2. Slider 池：滑条体Mesh重，尽量复用
@@ -94,8 +94,8 @@ namespace OsuVR
                 },
                 actionOnDestroy: (obj) => Destroy(obj),
                 collectionCheck: false,
-                defaultCapacity: 50,
-                maxSize: 200
+                defaultCapacity: 100,
+                maxSize: 500
             );
 
             // 3. Spinner 池
@@ -115,7 +115,7 @@ namespace OsuVR
                 actionOnDestroy: (obj) => Destroy(obj),
                 collectionCheck: false,
                 defaultCapacity: 5,
-                maxSize: 20
+                maxSize: 50
             );
 
             // 4. Tick 池：应对每秒 30+ 个 Tick 的情况
@@ -130,8 +130,8 @@ namespace OsuVR
                 },
                 actionOnDestroy: (obj) => Destroy(obj),
                 collectionCheck: false,
-                defaultCapacity: 200,
-                maxSize: 2000 // Aspire 可能会有海量 Tick
+                defaultCapacity: 5000,
+                maxSize: 100000 // Aspire 可能会有海量 Tick
             );
 
         }

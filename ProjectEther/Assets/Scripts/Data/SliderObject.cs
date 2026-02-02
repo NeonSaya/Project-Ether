@@ -20,6 +20,7 @@ namespace OsuVR
         public SliderEventType Type; // 类型
         public int SpanIndex;        // 属于第几个跨度
         public bool IsHit;           // 是否已击中（运行时状态）
+        public bool IsTimeFixed;    // 时间是否已锁定（防止重复计算）
     }
     /// <summary>
     /// 表示一个滑条击打对象
