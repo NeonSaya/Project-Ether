@@ -10,7 +10,6 @@ GameObject:
   m_Component:
   - component: {fileID: 6387697008065223598}
   - component: {fileID: 6958983277251099046}
-  - component: {fileID: 9107025817588109340}
   - component: {fileID: 2167872863410058600}
   m_Layer: 6
   m_Name: Spinner_Prefab
@@ -28,7 +27,7 @@ Transform:
   m_GameObject: {fileID: 51600588370694526}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0.02, y: -0.004, z: 0}
   m_LocalScale: {x: 0.25, y: 0.25, z: 0.25}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -55,25 +54,13 @@ MonoBehaviour:
   meterImage: {fileID: 529683935001914702}
   bonusText: {fileID: 5920010929535491213}
   trackerRing: {fileID: 4796435999241420989}
-  rotationMultiplier: 1.5
+  rotationMultiplier: 1
   scaleSize: 0.5
   rotationsPerSecond: 5
-  centerFollowSpeed: 3
+  centerFollowSpeed: 4
   minDrawingRadius: 0.05
   visualSmoothing: 20
   isHovered: 0
---- !u!114 &9107025817588109340
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 51600588370694526}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 13cd53d5f56ca624390afeb61c4e079b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!135 &2167872863410058600
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -84,16 +71,16 @@ SphereCollider:
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 64
   m_ExcludeLayers:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
   m_IsTrigger: 1
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
-  m_Radius: 1.5
+  m_Radius: 2
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &581584266554090542
 GameObject:
@@ -189,7 +176,6 @@ GameObject:
   - component: {fileID: 959570655588213839}
   - component: {fileID: 7967567098054667913}
   - component: {fileID: 5680439825692096357}
-  - component: {fileID: 2834059551229312864}
   m_Layer: 6
   m_Name: ApproachCircle
   m_TagString: Untagged
@@ -206,7 +192,7 @@ Transform:
   m_GameObject: {fileID: 781226850047124303}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: -0.001}
   m_LocalScale: {x: 3, y: 3, z: 3}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -262,28 +248,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &2834059551229312864
-MeshCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 781226850047124303}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 0
-  m_CookingOptions: 30
-  m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &2631782594164704354
 GameObject:
   m_ObjectHideFlags: 0
@@ -429,6 +393,7 @@ GameObject:
   - component: {fileID: 8436280935499223227}
   - component: {fileID: 6541715522079275928}
   - component: {fileID: 8344058632454425300}
+  - component: {fileID: 8672609187678970525}
   m_Layer: 6
   m_Name: Disc_Background
   m_TagString: Untagged
@@ -501,6 +466,27 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!65 &8672609187678970525
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2866426894184642309}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 6.1232336e-17}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &3570527516467786793
 GameObject:
   m_ObjectHideFlags: 0
@@ -696,7 +682,6 @@ GameObject:
   - component: {fileID: 4796435999241420989}
   - component: {fileID: 5634944993315685775}
   - component: {fileID: 9208654098757368560}
-  - component: {fileID: 3153612795463222315}
   - component: {fileID: 8339978296286600231}
   m_Layer: 6
   m_Name: Tracker_Ring
@@ -770,28 +755,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &3153612795463222315
-MeshCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7033416807471244464}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 0
-  m_CookingOptions: 30
-  m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!96 &8339978296286600231
 TrailRenderer:
   serializedVersion: 3

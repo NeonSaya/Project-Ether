@@ -1,8 +1,9 @@
-﻿using System.IO;
-using System.Globalization; 
+﻿using System;
 using System.Collections.Generic;
+using System.Globalization; 
+using System.IO;
+using System.Linq;
 using UnityEngine;
-using System;
 
 namespace OsuVR
 {
@@ -138,80 +139,250 @@ namespace OsuVR
                 }
             }
             StackingProcessor.ApplyStacking(beatmap);
+
+            ProcessCombos(beatmap);
+
             Debug.Log($"谱面解析完成: {beatmap.Metadata.Title} (Ver: {beatmap.Metadata.Version})");
             return beatmap;
         }
 
         /// <summary>
-        /// 解析击打对象行（修正版：移除外部枚举依赖，使用纯位运算）
+        /// 后处理：计算每个物件的 ComboIndex 并分配颜色
+        /// </summary>
+        private static void ProcessCombos(Beatmap beatmap)
+        {
+            // 1. 确保有颜色定义 (如果没有，使用默认 osu! 颜色)
+            if (beatmap.ComboColors == null || beatmap.ComboColors.Count == 0)
+            {
+                beatmap.ComboColors = new List<Color> {
+                    new Color(1f, 192/255f, 0f),       // 黄
+                    new Color(0f, 202/255f, 0f),       // 绿
+                    new Color(18/255f, 124/255f, 1f),  // 蓝
+                    new Color(242/255f, 24/255f, 57/255f) // 红
+                };
+            }
+
+            int currentComboIndex = 0;
+            // 强制让第一个 Note 成为新 Combo，这样索引从 1 开始 (符合 osu 逻辑)
+            bool forceNewCombo = true;
+
+            foreach (var obj in beatmap.HitObjects)
+            {
+                // 如果是 Spinner，通常不影响 Combo 颜色计数，但会重置 Combo 计数器
+                if (obj is SpinnerObject)
+                {
+                    forceNewCombo = true; // Spinner 结束后下一个通常是新 Combo
+                    continue;
+                }
+
+                // 检查是否是新连击
+                if (obj.IsNewCombo || forceNewCombo)
+                {
+                    currentComboIndex++;
+
+                    // 应用 Combo Offset (跳过颜色)
+                    currentComboIndex += obj.ComboOffset;
+
+                    forceNewCombo = false;
+                }
+
+                // ✅ 关键：把计算出的索引赋值给对象
+                obj.ComboIndex = currentComboIndex;
+
+                // ✅ 关键：根据索引直接分配颜色 (可选，Manager里其实也会算，但这里存一份更稳)
+                // 注意：osu 的 ComboIndex 是从 1 开始的，所以要 -1
+                int colorIndex = (obj.ComboIndex - 1) % beatmap.ComboColors.Count;
+                // 防止负数取模问题
+                if (colorIndex < 0) colorIndex += beatmap.ComboColors.Count;
+
+                obj.Color = beatmap.ComboColors[colorIndex];
+            }
+        }
+
+        /// <summary>
+        /// 解析击打对象行（融合版：位运算入口 + 原版滑条逻辑）
         /// </summary>
         public static void ParseHitObject(string line, Beatmap beatmap)
         {
             try
             {
-                // 使用逗号分割行，获取各个属性
                 string[] parts = line.Split(CommaSeparator, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length < 4) return;
 
-                // 检查是否有足够的属性
-                if (parts.Length < 4)
-                {
-                    Debug.LogWarning($"击打对象格式错误: {line}");
-                    return;
-                }
-
-                // 解析X坐标
-                float x = float.Parse(parts[0], System.Globalization.CultureInfo.InvariantCulture);
-                // 解析Y坐标
-                float y = float.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture);
+                // 1. 基础属性
+                float x = float.Parse(parts[0], CultureInfo.InvariantCulture);
+                float y = float.Parse(parts[1], CultureInfo.InvariantCulture);
                 Vector2 position = new Vector2(x, y);
+                double time = double.Parse(parts[2], CultureInfo.InvariantCulture);
 
-                // 解析时间
-                double time = double.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture);
-
-                // --- 核心修复开始 ---
-
-                // 解析原始类型值 (Bitmask)
+                // 2. [优化] 使用位运算解析类型 (更稳健)
                 int rawType = int.Parse(parts[3]);
+                int hitSoundInt = int.Parse(parts[4]); // 获取基础 HitSound
 
-                // 1. 处理连击偏移量 (Combo Offset)
-                // 逻辑：获取第 4, 5, 6 位 (掩码 112, 即 0x70)，然后右移 4 位
+                // 3. 连击逻辑
                 int comboOffset = (rawType >> 4) & 7;
-
-                // 2. 检查是否是新连击 (New Combo)
-                // 逻辑：检查第 2 位 (值 4) 是否为 1
                 bool isNewCombo = (rawType & 4) != 0;
 
-                // 3. 获取实际对象类型
-                // 逻辑：虽然可以剥离 Flag，但在 osu! 中，直接检查 Bit 0, Bit 1, Bit 3 更标准
-                // 1 = Circle, 2 = Slider, 8 = Spinner
-
-                if ((rawType & 1) != 0) // Type 1: Circle
+                // 4. 分发 (调用你原来的逻辑)
+                if ((rawType & 1) != 0) // Circle
                 {
-                    CreateHitCircle(parts, time, position, beatmap, isNewCombo, comboOffset);
+                    CreateHitCircle(parts, time, position, beatmap, isNewCombo, comboOffset, hitSoundInt);
                 }
-                else if ((rawType & 2) != 0) // Type 2: Slider
+                else if ((rawType & 2) != 0) // Slider
                 {
-                    CreateSlider(parts, time, position, beatmap, isNewCombo, comboOffset);
+                    CreateSlider(parts, time, position, beatmap, isNewCombo, comboOffset, hitSoundInt);
                 }
-                else if ((rawType & 8) != 0) // Type 8: Spinner
+                else if ((rawType & 8) != 0) // Spinner
                 {
-                    CreateSpinner(parts, time, beatmap, isNewCombo);
+                    CreateSpinner(parts, time, beatmap, isNewCombo, hitSoundInt);
                 }
-                else
-                {
-                    // 忽略未知类型或 Mania Hold (128)
-                    // Debug.LogWarning($"忽略未知类型: {rawType} at {time}");
-                }
-
-                // --- 核心修复结束 ---
-            }
-            catch (FormatException e)
-            {
-                Debug.LogError($"解析击打对象时格式错误: {e.Message} \nLine: {line}");
             }
             catch (Exception e)
             {
-                Debug.LogError($"解析击打对象时发生错误: {e.Message} \nLine: {line}");
+                Debug.LogError($"解析 HitObject 失败: {line}\n{e.Message}");
+            }
+        }
+
+        // =========================================================
+        // 🔥 核心修复：完全还原的 CreateSlider 方法
+        // =========================================================
+        /// <summary>
+        /// 创建滑条
+        /// </summary>
+        private static void CreateSlider(string[] parts, double time, Vector2 startPosition,
+               Beatmap beatmap, bool isNewCombo, int comboOffset,int hitSoundInt)
+        {
+            try
+            {
+                // 检查是否有足够的滑条参数
+                if (parts.Length < 8)
+                {
+                    Debug.LogError($"滑条格式错误: 参数不足 ({parts.Length}/8)");
+                    return;
+                }
+
+                // 第5个参数是滑条曲线信息，格式如: "B|150:250|200:300"
+                string curveData = parts[5];
+
+                // 使用管道符分割曲线数据
+                string[] curveParts = curveData.Split(PipeSeparator, StringSplitOptions.RemoveEmptyEntries);
+
+                if (curveParts.Length < 2)
+                {
+                    Debug.LogError($"滑条曲线格式错误: {curveData}");
+                    return;
+                }
+
+                // 第一个部分是曲线类型（单个字符）
+                string curveTypeStr = curveParts[0];
+                CurveType curveType = ParseCurveType(curveTypeStr);
+
+                // 解析控制点（从第二个部分开始）
+                List<Vector2> controlPoints = new List<Vector2>();
+
+                // 第一个控制点是起点 (0, 0) - 相对于滑条起点
+                controlPoints.Add(Vector2.zero);
+
+                // 解析后续控制点
+                for (int i = 1; i < curveParts.Length; i++)
+                {
+                    string pointStr = curveParts[i];
+                    string[] coords = pointStr.Split(ColonSeparator);
+
+                    if (coords.Length < 2)
+                    {
+                        Debug.LogWarning($"控制点格式错误: {pointStr}");
+                        continue;
+                    }
+
+                    // 解析坐标
+                    float pointX = float.Parse(coords[0], System.Globalization.CultureInfo.InvariantCulture);
+                    float pointY = float.Parse(coords[1], System.Globalization.CultureInfo.InvariantCulture);
+
+                    // 控制点是相对于滑条起点的
+                    Vector2 controlPoint = new Vector2(pointX, pointY) - startPosition;
+                    controlPoints.Add(controlPoint);
+                }
+
+                // 解析重复次数（第6个参数）
+                int repeatCount = int.Parse(parts[6]);
+
+                // 解析滑条长度（第7个参数）
+                double pixelLength = Math.Max(0.0, double.Parse(parts[7], System.Globalization.CultureInfo.InvariantCulture));
+
+                // 判断是否真正开始新连击
+                bool actuallyNewCombo = beatmap.HitObjects.Count == 0 ||
+                                       (beatmap.HitObjects.Count > 0 && beatmap.HitObjects[beatmap.HitObjects.Count - 1] is SpinnerObject) ||
+                                       isNewCombo;
+
+                // 创建滑条对象
+                SliderObject slider = new SliderObject(
+                    startTime: time,
+                    position: startPosition,
+                    curveType: curveType,
+                    controlPoints: controlPoints,
+                    repeatCount: repeatCount,
+                    pixelLength: pixelLength,
+                    isNewCombo: actuallyNewCombo,
+                    comboOffset: comboOffset
+                );
+
+                slider.HitSound = (HitSoundType)hitSoundInt;
+
+                // 更新连击信息
+                if (beatmap.HitObjects.Count > 0)
+                {
+                    slider.UpdateComboInformation(beatmap.HitObjects[beatmap.HitObjects.Count - 1]);
+                }
+
+                // 解析滑条节点音效
+                if (parts.Length > 8 && !string.IsNullOrEmpty(parts[8]))
+                {
+                    ParseSliderNodeSamples(slider, parts);
+                }
+
+                // --- 🔥 核心修复：计算滑条持续时间 (Timing Calculation) 🔥 ---
+
+                // 1. 获取当前的 BPM 信息 (红线)
+                var timingPoint = beatmap.GetTimingPointAt(time);
+
+                // 2. 获取当前的速度倍率 (绿线)
+                var diffPoint = beatmap.GetDifficultyPointAt(time);
+
+                // 3. 计算每拍滑行的像素距离 (osu! 标准速度公式)
+                // 速度 = 全局倍率 * 100 * 局部倍率
+                double pxPerBeat = beatmap.Difficulty.SliderMultiplier * 100.0 * diffPoint.SpeedMultiplier;
+
+                // 防止除以零保护
+                if (pxPerBeat < 0.001) pxPerBeat = 0.001;
+
+                // 4. 计算总拍数 = (长度 * 折返次数) / 每拍距离
+                double totalBeats = (pixelLength * repeatCount) / pxPerBeat;
+
+                // 5. 持续时间 = 拍数 * 每拍毫秒数
+                slider.Duration = totalBeats * timingPoint.MsPerBeat;
+                slider.EndTime = time + slider.Duration;
+
+                // --- 修复结束 ---
+
+                // 计算滑条路径点 (裁剪路径)
+                CalculateSliderPath(slider);
+
+                //计算滑条打点
+                slider.CalculateNestedHitObjects(beatmap.Difficulty.SliderTickRate, timingPoint.MsPerBeat);
+
+                // 将滑条添加到谱面
+                beatmap.HitObjects.Add(slider);
+
+                // Debug.Log($"创建滑条: 时间={time}ms, 持续={slider.Duration:F2}ms, 速度倍率={diffPoint.SpeedMultiplier:F2}");
+            }
+            catch (FormatException e)
+            {
+                Debug.LogError($"解析滑条时格式错误: {e.Message}");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"创建滑条时发生错误: {e.Message}");
             }
         }
 
@@ -219,7 +390,7 @@ namespace OsuVR
         /// 创建点击圆圈
         /// </summary>
         private static void CreateHitCircle(string[] parts, double time, Vector2 position,
-            Beatmap beatmap, bool isNewCombo, int comboOffset)
+            Beatmap beatmap, bool isNewCombo, int comboOffset, int hitSoundInt)
         {
             // 判断是否真正开始新连击的条件：
             // 1. 这是第一个对象
@@ -231,6 +402,7 @@ namespace OsuVR
 
             // 创建点击圆圈对象
             HitCircle circle = new HitCircle(time, position, actuallyNewCombo, comboOffset);
+            circle.HitSound = (HitSoundType)hitSoundInt;
 
             // 如果有上一个对象，更新连击信息
             if (beatmap.HitObjects.Count > 0)
@@ -241,14 +413,94 @@ namespace OsuVR
             // 将对象添加到谱面
             beatmap.HitObjects.Add(circle);
 
-            // 解析音效信息（如果有）
+            // 2. 解析 SampleInfo (parts[5] 是 extras)
             if (parts.Length > 5 && !string.IsNullOrEmpty(parts[5]))
             {
-                // 使用冒号分割音效信息
-                string[] sampleParts = parts[5].Split(ColonSeparator);
-                ParseSampleInfo(circle, sampleParts);
+                ParseExtras(circle, parts[5]);
             }
         }
+
+        /// <summary>
+        /// 创建转盘
+        /// </summary>
+        private static void CreateSpinner(string[] parts, double time, Beatmap beatmap, bool isNewCombo, int hitSoundInt)
+        {
+            try
+            {
+                // 转盘格式: x,y,time,type,hitSound,endTime
+                if (parts.Length < 6)
+                {
+                    Debug.LogError($"转盘格式错误: 参数不足 ({parts.Length}/6)");
+                    return;
+                }
+
+                // 解析结束时间
+                double endTime = double.Parse(parts[5], System.Globalization.CultureInfo.InvariantCulture);
+
+                // 判断是否真正开始新连击
+                bool actuallyNewCombo = beatmap.HitObjects.Count == 0 ||
+                                       (beatmap.HitObjects.Count > 0 && beatmap.HitObjects[beatmap.HitObjects.Count - 1] is SpinnerObject) ||
+                                       isNewCombo;
+
+                // 创建转盘对象
+                SpinnerObject spinner = new SpinnerObject(time, endTime, actuallyNewCombo);
+
+
+                spinner.HitSound = (HitSoundType)hitSoundInt;
+
+                // 如果有上一个对象，更新连击信息
+                if (beatmap.HitObjects.Count > 0)
+                {
+                    spinner.UpdateComboInformation(beatmap.HitObjects[beatmap.HitObjects.Count - 1]);
+                }
+
+                // 解析音效信息（如果有）
+
+                if (parts.Length > 6) ParseExtras(spinner, parts[6]);
+
+                // 将转盘添加到谱面
+                beatmap.HitObjects.Add(spinner);
+
+                Debug.Log($"创建转盘: 开始时间={time}ms, 结束时间={endTime}ms, 持续时间={(endTime - time)}ms");
+            }
+            catch (FormatException e)
+            {
+                Debug.LogError($"解析转盘时格式错误: {e.Message}");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"创建转盘时发生错误: {e.Message}");
+            }
+        }
+
+        private static void CalculateSliderPath(SliderObject slider)
+        {
+            // 假设你项目里有 SliderPathCalculator
+            // 如果没有，请告诉我，我再给你补贝塞尔计算
+            List<Vector2> rawPoints = SliderPathCalculator.CalculatePoints(slider.CurveType, slider.ControlPoints);
+            slider.PathPoints = TrimPathToLength(rawPoints, slider.PixelLength);
+        }
+
+        /// <summary>
+        /// 解析 Extras 字符串 (SampleSet:AdditionSet:Index:Volume:Filename)
+        /// </summary>
+       private static void ParseExtras(HitObject obj, string extras)
+        {
+            if (string.IsNullOrEmpty(extras)) return;
+            string[] p = extras.Split(ColonSeparator);
+            
+            // 格式: sampleSet:addSet:index:volume:filename
+            if (p.Length > 0 && int.TryParse(p[0], out int ss)) obj.SampleSet = (SampleSet)ss;
+            if (p.Length > 1 && int.TryParse(p[1], out int ads)) obj.AdditionSet = (SampleSet)ads;
+            if (p.Length > 2 && int.TryParse(p[2], out int idx)) obj.CustomIndex = idx;
+            if (p.Length > 3 && float.TryParse(p[3], out float vol)) obj.SampleVolume = vol;
+            if (p.Length > 4) obj.AudioFilename = p[4];
+
+            // 兜底逻辑
+            if (obj.SampleSet == SampleSet.None) obj.SampleSet = SampleSet.Normal;
+            if (obj.AdditionSet == SampleSet.None) obj.AdditionSet = SampleSet.Normal;
+        }
+
         // [新增] 解析 [General]
         private static void ParseGeneral(string line, GeneralSection general)
         {
@@ -373,172 +625,7 @@ namespace OsuVR
                 }
             }
         }
-        /// <summary>
-        /// 创建滑条
-        /// </summary>
-        private static void CreateSlider(string[] parts, double time, Vector2 startPosition,
-               Beatmap beatmap, bool isNewCombo, int comboOffset)
-        {
-            try
-            {
-                // 检查是否有足够的滑条参数
-                if (parts.Length < 8)
-                {
-                    Debug.LogError($"滑条格式错误: 参数不足 ({parts.Length}/8)");
-                    return;
-                }
-
-                // 第5个参数是滑条曲线信息，格式如: "B|150:250|200:300"
-                string curveData = parts[5];
-
-                // 使用管道符分割曲线数据
-                string[] curveParts = curveData.Split(PipeSeparator, StringSplitOptions.RemoveEmptyEntries);
-
-                if (curveParts.Length < 2)
-                {
-                    Debug.LogError($"滑条曲线格式错误: {curveData}");
-                    return;
-                }
-
-                // 第一个部分是曲线类型（单个字符）
-                string curveTypeStr = curveParts[0];
-                CurveType curveType = ParseCurveType(curveTypeStr);
-
-                // 解析控制点（从第二个部分开始）
-                List<Vector2> controlPoints = new List<Vector2>();
-
-                // 第一个控制点是起点 (0, 0) - 相对于滑条起点
-                controlPoints.Add(Vector2.zero);
-
-                // 解析后续控制点
-                for (int i = 1; i < curveParts.Length; i++)
-                {
-                    string pointStr = curveParts[i];
-                    string[] coords = pointStr.Split(ColonSeparator);
-
-                    if (coords.Length < 2)
-                    {
-                        Debug.LogWarning($"控制点格式错误: {pointStr}");
-                        continue;
-                    }
-
-                    // 解析坐标
-                    float pointX = float.Parse(coords[0], System.Globalization.CultureInfo.InvariantCulture);
-                    float pointY = float.Parse(coords[1], System.Globalization.CultureInfo.InvariantCulture);
-
-                    // 控制点是相对于滑条起点的
-                    Vector2 controlPoint = new Vector2(pointX, pointY) - startPosition;
-                    controlPoints.Add(controlPoint);
-                }
-
-                // 解析重复次数（第6个参数）
-                int repeatCount = int.Parse(parts[6]);
-
-                // 解析滑条长度（第7个参数）
-                double pixelLength = Math.Max(0.0, double.Parse(parts[7], System.Globalization.CultureInfo.InvariantCulture));
-
-                // 判断是否真正开始新连击
-                bool actuallyNewCombo = beatmap.HitObjects.Count == 0 ||
-                                       (beatmap.HitObjects.Count > 0 && beatmap.HitObjects[beatmap.HitObjects.Count - 1] is SpinnerObject) ||
-                                       isNewCombo;
-
-                // 创建滑条对象
-                SliderObject slider = new SliderObject(
-                    startTime: time,
-                    position: startPosition,
-                    curveType: curveType,
-                    controlPoints: controlPoints,
-                    repeatCount: repeatCount,
-                    pixelLength: pixelLength,
-                    isNewCombo: actuallyNewCombo,
-                    comboOffset: comboOffset
-                );
-
-                // 更新连击信息
-                if (beatmap.HitObjects.Count > 0)
-                {
-                    slider.UpdateComboInformation(beatmap.HitObjects[beatmap.HitObjects.Count - 1]);
-                }
-
-                // 解析滑条节点音效
-                if (parts.Length > 8 && !string.IsNullOrEmpty(parts[8]))
-                {
-                    ParseSliderNodeSamples(slider, parts);
-                }
-
-                // --- 🔥 核心修复：计算滑条持续时间 (Timing Calculation) 🔥 ---
-
-                // 1. 获取当前的 BPM 信息 (红线)
-                var timingPoint = beatmap.GetTimingPointAt(time);
-
-                // 2. 获取当前的速度倍率 (绿线)
-                var diffPoint = beatmap.GetDifficultyPointAt(time);
-
-                // 3. 计算每拍滑行的像素距离 (osu! 标准速度公式)
-                // 速度 = 全局倍率 * 100 * 局部倍率
-                double pxPerBeat = beatmap.Difficulty.SliderMultiplier * 100.0 * diffPoint.SpeedMultiplier;
-
-                // 防止除以零保护
-                if (pxPerBeat < 0.001) pxPerBeat = 0.001;
-
-                // 4. 计算总拍数 = (长度 * 折返次数) / 每拍距离
-                double totalBeats = (pixelLength * repeatCount) / pxPerBeat;
-
-                // 5. 持续时间 = 拍数 * 每拍毫秒数
-                slider.Duration = totalBeats * timingPoint.MsPerBeat;
-                slider.EndTime = time + slider.Duration;
-
-                // --- 修复结束 ---
-
-                // 计算滑条路径点 (裁剪路径)
-                CalculateSliderPath(slider);
-
-                //计算滑条打点
-                slider.CalculateNestedHitObjects(beatmap.Difficulty.SliderTickRate, timingPoint.MsPerBeat);
-
-                // 将滑条添加到谱面
-                beatmap.HitObjects.Add(slider);
-
-                // Debug.Log($"创建滑条: 时间={time}ms, 持续={slider.Duration:F2}ms, 速度倍率={diffPoint.SpeedMultiplier:F2}");
-            }
-            catch (FormatException e)
-            {
-                Debug.LogError($"解析滑条时格式错误: {e.Message}");
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"创建滑条时发生错误: {e.Message}");
-            }
-        }
-
-        /// <summary>
-        /// 计算并裁剪滑条路径 (修复版)
-        /// </summary>
-        private static void CalculateSliderPath(SliderObject slider)
-        {
-            try
-            {
-                // 1. 计算原始路径 (由数学库生成)
-                List<Vector2> rawPoints = SliderPathCalculator.CalculatePoints(
-                    slider.CurveType,
-                    slider.ControlPoints
-                );
-
-                // 2. 🔥 关键修复：根据 PixelLength 裁剪路径
-                // osu!的滑条控制点生成的曲线通常比实际定义的 PixelLength 长
-                // 必须截取，否则滑条视觉会超长，时间也会对不上
-                slider.PathPoints = TrimPathToLength(rawPoints, slider.PixelLength);
-
-                // 3. 🔥 关键修复：赋值给对象 (之前被注释掉了)
-                // slider.PathPoints = pathPoints; // <-- AI 原来的代码注释掉了这行
-
-                Debug.Log($"计算滑条路径: 类型={slider.CurveType}, 最终点数={slider.PathPoints.Count}");
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"计算滑条路径时发生错误: {e.Message}");
-            }
-        }
+      
 
         /// <summary>
         /// 辅助函数：将路径裁剪到指定像素长度
@@ -654,58 +741,7 @@ namespace OsuVR
             }
         }
 
-        /// <summary>
-        /// 创建转盘
-        /// </summary>
-        private static void CreateSpinner(string[] parts, double time, Beatmap beatmap, bool isNewCombo)
-        {
-            try
-            {
-                // 转盘格式: x,y,time,type,hitSound,endTime
-                if (parts.Length < 6)
-                {
-                    Debug.LogError($"转盘格式错误: 参数不足 ({parts.Length}/6)");
-                    return;
-                }
-
-                // 解析结束时间
-                double endTime = double.Parse(parts[5], System.Globalization.CultureInfo.InvariantCulture);
-
-                // 判断是否真正开始新连击
-                bool actuallyNewCombo = beatmap.HitObjects.Count == 0 ||
-                                       (beatmap.HitObjects.Count > 0 && beatmap.HitObjects[beatmap.HitObjects.Count - 1] is SpinnerObject) ||
-                                       isNewCombo;
-
-                // 创建转盘对象
-                SpinnerObject spinner = new SpinnerObject(time, endTime, actuallyNewCombo);
-
-                // 如果有上一个对象，更新连击信息
-                if (beatmap.HitObjects.Count > 0)
-                {
-                    spinner.UpdateComboInformation(beatmap.HitObjects[beatmap.HitObjects.Count - 1]);
-                }
-
-                // 解析音效信息（如果有）
-                if (parts.Length > 6 && !string.IsNullOrEmpty(parts[6]))
-                {
-                    string[] sampleParts = parts[6].Split(ColonSeparator);
-                    ParseSampleInfo(spinner, sampleParts);
-                }
-
-                // 将转盘添加到谱面
-                beatmap.HitObjects.Add(spinner);
-
-                Debug.Log($"创建转盘: 开始时间={time}ms, 结束时间={endTime}ms, 持续时间={(endTime - time)}ms");
-            }
-            catch (FormatException e)
-            {
-                Debug.LogError($"解析转盘时格式错误: {e.Message}");
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"创建转盘时发生错误: {e.Message}");
-            }
-        }
+       
 
         /// <summary>
         /// 解析音效信息

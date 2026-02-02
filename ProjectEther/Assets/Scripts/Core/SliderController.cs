@@ -96,6 +96,8 @@ namespace OsuVR
 
         // 状态变量
         public bool isTracking = false;     // 当前帧是否被射线照射
+        private bool isTrackingAudioPlaying = false; // 是否正在播放跟踪音效
+        private bool isTrackingRightHand = true; // 当前跟踪的是右手还是左手
         private bool hasStarted = false;     // 滑条是否已经开始
         private bool headHit = false;        // 滑条头是否被击中
         private bool finished = false;       // 滑条是否结束
@@ -220,6 +222,8 @@ namespace OsuVR
             // 初始化组件
             if (!meshFilter) meshFilter = GetComponent<MeshFilter>();
             if (!meshRenderer) meshRenderer = GetComponent<MeshRenderer>();
+            if (!meshCollider) meshCollider = GetComponent<MeshCollider>();
+            if (!meshCollider) meshCollider = gameObject.AddComponent<MeshCollider>();
             if (sharedMaterial != null) meshRenderer.sharedMaterial = sharedMaterial;
             if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
 
@@ -250,7 +254,7 @@ namespace OsuVR
             isInitialized = true;
             isActive = true;
 
-            CreateDebugLabel();
+            //CreateDebugLabel();
         }
 
         /// <summary>
@@ -479,7 +483,7 @@ namespace OsuVR
                 float headScale = this.sliderWidth;
                 headInstance.transform.localScale = new Vector3(headScale, headScale, 0.02f);
 
-                headInstance.transform.localPosition -= Vector3.forward * 0.025f;
+                headInstance.transform.localPosition -= Vector3.forward * 0.01f;
                 headInstance.SetActive(true);
 
                 // 应用当前 Combo 颜色
@@ -814,11 +818,45 @@ namespace OsuVR
             // 1. 更新球体位置
             UpdateFollowBall();
 
+            // 只要射线指着 (isTracking) 且头还没被打中 (!headHit)
+            // 就每一帧都尝试去判定一下时间 (TryHitHead 内部会判断 offset)
+            if (isTracking && !headHit)
+            {
+                TryHitHead(isTrackingRightHand);
+            }
+
             // 2. 判定逻辑 (头判、Tick、尾判)
             UpdateJudgement();
 
             // 3. 视觉反馈
             UpdateVisuals();
+
+
+            if (isTracking && isActive)
+            {
+                // 1. 震动 (持续的微震)
+                if (HapticManager.Instance != null)
+                {
+                    // ✅ [修改] 使用 isTrackingRightHand 代替原来的 true
+                    HapticManager.Instance.PlayContinuous(isTrackingRightHand, HapticManager.Instance.profile.SliderSlideIntensity);
+                }
+
+                // 2. 音效 (保持不变，音效通常不分左右声道，或者由 AudioSource 3D 设置决定)
+                if (!isTrackingAudioPlaying && AudioManager.Instance != null)
+                {
+                    AudioManager.Instance.ToggleSliderLoop(true, sliderData.SampleSet, sliderData.CustomIndex);
+                    isTrackingAudioPlaying = true;
+                }
+            }
+            else
+            {
+                // 停止音效
+                if (isTrackingAudioPlaying && AudioManager.Instance != null)
+                {
+                    AudioManager.Instance.ToggleSliderLoop(false);
+                    isTrackingAudioPlaying = false;
+                }
+            }
 
         }
         void LateUpdate()
@@ -839,9 +877,14 @@ namespace OsuVR
         /// <summary>
         /// 被射线照射时调用 (由 LaserShooter 每帧调用)
         /// </summary>
-        public void OnRayStay()
+        public void OnRayStay(bool isRightHand)
         {
             isTracking = true;
+            isTrackingRightHand = isRightHand;
+            if (!headHit)
+            {
+                TryHitHead(isRightHand);
+            }
         }
         void OnDisable()
         {
@@ -851,7 +894,7 @@ namespace OsuVR
         /// <summary>
         /// 尝试击打滑条头 (由 LaserShooter 在按下/进入瞬间调用)
         /// </summary>
-        public void TryHitHead()
+        public void TryHitHead(bool isRightHand)
         {
             if (headHit) return;
 
@@ -860,14 +903,22 @@ namespace OsuVR
             double offset = currentMusicTimeCache - sliderData.StartTime;
 
             // [核心逻辑] 
-            // offset >= -20 : 只有缩圈几乎重合（只剩20ms）时才开始允许判定
+            // offset >= -10 : 只有缩圈几乎重合（只剩20ms）时才开始允许判定
             // offset <= 150 : 允许延迟 150ms
             if (offset >= -20 && offset <= 150)
             {
                 headHit = true;
+                isTrackingRightHand = isRightHand;
+                isTracking = true;
 
                 // 击中头，球体显示
                 if (followBall) followBall.SetActive(true);
+
+                if (AudioManager.Instance != null)
+                    AudioManager.Instance.PlayHitSound(sliderData); // 播放头部打击音
+
+                if (HapticManager.Instance != null)
+                    HapticManager.Instance.PlayHitHaptic(isRightHand, (int)sliderData.HitSound); // 震动对应手柄
 
                 Debug.Log($"<color=green>Slider Head HIT!</color> Offset: {offset:F2}ms");
             }
@@ -956,6 +1007,14 @@ namespace OsuVR
                                     break;
                                 }
                             }
+
+                            if (HapticManager.Instance != null)
+                                // ✅ [修改] 震动对应手柄
+                                HapticManager.Instance.PlaySliderTick(isTrackingRightHand);
+
+                            if (AudioManager.Instance != null)
+                                AudioManager.Instance.PlaySliderTick(sliderData.SampleSet, sliderData.CustomIndex, sliderData.SampleVolume / 100f);
+
                             // gameManager.AddScore(30); 
                             // gameManager.AddCombo();
                             Debug.Log("Tick Hit");
@@ -964,6 +1023,18 @@ namespace OsuVR
                         case SliderEventType.Repeat:
                             if (hit)
                             {
+                                if (AudioManager.Instance != null)
+                                {
+                                    // 这里的 nestedObject 是当前的 Repeat 点，它可能有自己的 HitSound
+                                    // 如果没有专门的，就用滑条本身的
+                                    AudioManager.Instance.PlayHitSound(sliderData);
+                                }
+
+                                if (HapticManager.Instance != null)
+                                {
+                                    // 震动！
+                                    HapticManager.Instance.PlayHitHaptic(isTrackingRightHand, (int)sliderData.HitSound);
+                                }
                                 Debug.Log("<color=cyan>Slider Repeat Hit</color>");
                                 // gameManager.AddScore(30); 
                                 // gameManager.AddCombo();
@@ -1016,6 +1087,9 @@ namespace OsuVR
                     // 如果你想简单点，只要 ticksGot > 0 就算 Hit，或者必须全中才算
                     if (ticksGot > 0)
                     {
+                        if (AudioManager.Instance != null) AudioManager.Instance.PlayHitSound(sliderData);
+                        if (HapticManager.Instance != null)
+                            HapticManager.Instance.PlayHitHaptic(isTrackingRightHand, (int)sliderData.HitSound);
                         // 提交给 Manager 进行销毁和加分
                         gameManager.OnNoteHit(sliderData, 0);
                     }

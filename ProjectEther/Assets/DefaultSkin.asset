@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c0e4fca118f0fdf4bbaaf4d025534433, type: 3}
+  m_Name: DefaultSkin
+  m_EditorClassIdentifier: 
+  normal_hitnormal: {fileID: 8300000, guid: ba6534da6fca0e54fb6b22fc642a71c9, type: 3}
+  normal_hitwhistle: {fileID: 8300000, guid: d29227ee80ec2a646bd960686b728d53, type: 3}
+  normal_hitfinish: {fileID: 8300000, guid: 57282e14b0c00bb44abea5e42effddad, type: 3}
+  normal_hitclap: {fileID: 8300000, guid: 1a2dae509e0977d4cbe9169749837627, type: 3}
+  normal_sliderslide: {fileID: 0}
+  normal_slidertick: {fileID: 8300000, guid: 4d4040375b3e2f045bccbe94afbd36e6, type: 3}
+  normal_sliderwhistle: {fileID: 0}
+  soft_hitnormal: {fileID: 8300000, guid: 17568478f44a84f4a9d261a0e73069d7, type: 3}
+  soft_hitwhistle: {fileID: 8300000, guid: 335dfc589f8488f45988ac9c4662c652, type: 3}
+  soft_hitfinish: {fileID: 8300000, guid: bcc3058cccf9dc44dbc6e6754a275637, type: 3}
+  soft_hitclap: {fileID: 8300000, guid: dfe030fc9999c0b4bab248214ca5712b, type: 3}
+  soft_sliderslide: {fileID: 0}
+  soft_slidertick: {fileID: 8300000, guid: 88882bb6bdd52f543bddd4387c29d76c, type: 3}
+  soft_sliderwhistle: {fileID: 0}
+  drum_hitnormal: {fileID: 8300000, guid: 81f120d82506a0b4d8783140624c4b56, type: 3}
+  drum_hitwhistle: {fileID: 8300000, guid: 9f3ff87ef9703964eb3055154dfb66ea, type: 3}
+  drum_hitfinish: {fileID: 8300000, guid: cccda68b71f37df449e8d2b14d938543, type: 3}
+  drum_hitclap: {fileID: 8300000, guid: 8bdbb4719f0171c4fb049721ed5e6d10, type: 3}
+  drum_sliderslide: {fileID: 0}
+  drum_slidertick: {fileID: 0}
+  drum_sliderwhistle: {fileID: 0}
