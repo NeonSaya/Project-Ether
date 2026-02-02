@@ -29,6 +29,8 @@ namespace OsuVR
         public bool hasBeenHit = false;
         public bool isHovered = false; // 当前帧是否被射线指着
 
+        private bool hoveringHandIsRight = true;
+
         [Header("视觉组件")]
         public Transform approachCircleObject;
 
@@ -45,6 +47,8 @@ namespace OsuVR
 
         // ✅ [优化] 缓存相机，杜绝 Update 里使用 Camera.main
         private static Camera _cachedMainCamera;
+        private float lastDebugTime = 0f;
+
         private Camera MainCamera
         {
             get
@@ -83,7 +87,17 @@ namespace OsuVR
             // 统一尺寸
             float finalSize = RhythmGameManager.CalculateVROsuSize(beatmapCS);
             transform.localScale = new Vector3(finalSize, finalSize, 0.02f);
-
+            // 确保有碰撞体
+            Collider col = GetComponent<Collider>();
+            if (col == null)
+            {
+                // 如果没有碰撞体，自动加一个球形碰撞体
+                SphereCollider sc = gameObject.AddComponent<SphereCollider>();
+                // 半径设为 0.5 (直径 1.0)，配合 transform.localScale 刚好匹配圆圈大小
+                sc.radius = 0.5f;
+                // 确保它是 Trigger 或者是普通碰撞体都可以，SphereCast 都能检测到
+                sc.isTrigger = true;
+            }
             // Stacking 堆叠偏移
             Vector3 stackedPos = targetPos;
             stackedPos.z -= hitObj.StackOrder * 0.01f;
@@ -228,10 +242,18 @@ namespace OsuVR
         private void CheckHitOrMiss()
         {
             if (hasBeenHit) return;
+            if (gameManager == null) return;
 
             // 计算时间偏差：当前时间 - 打击时间
             // 负数 = 提前 (Early), 正数 = 延迟 (Late)
-            double diff = currentMusicTimeMs - hitObject.StartTime;
+            double now = gameManager.GetCurrentMusicTimeMs();
+            double diff = now - hitObject.StartTime;
+
+            if (Time.time - lastDebugTime > 0.5f) // 每0.5秒只打印一次，防止刷屏
+            {
+                // Debug.Log($"[Check] Time: {currentMusicTimeMs:F0} | Start: {hitObject.StartTime:F0} | Diff: {diff:F0}ms");
+                lastDebugTime = Time.time;
+            }
 
             // --- HIT 判定 ---
             // 条件1: diff >= -20 (缩圈几乎重合，只允许提前20ms)
@@ -239,9 +261,10 @@ namespace OsuVR
             // 条件3: isHovered (被射线指着)
             if (diff >= -20 && diff <= hitWindow)
             {
-                if (isHovered)
+                if (isHovered) 
                 {
-                    OnHit(diff);
+                    Debug.Log($"✅ [Relax] 命中! Diff: {diff:F2}ms");
+                    OnHit(diff, hoveringHandIsRight);
                 }
             }
             // --- 保护逻辑 ---
@@ -262,20 +285,52 @@ namespace OsuVR
         /// <summary>
         /// 供 LaserShooter 调用的接口
         /// </summary>
-        public void OnRayHover()
+        public void OnRayHover(bool isRightHand)
         {
-          
             isHovered = true;
-
+            hoveringHandIsRight = isRightHand;
+            CheckHitOrMiss();
         }
 
         /// <summary>
         /// 击中逻辑
         /// </summary>
-        private void OnHit(double accuracy)
+        public void OnHit(double accuracy, bool isRightHand)
         {
+            Debug.Log("⚡ OnHit 被调用!"); // 必须看到这句话
             hasBeenHit = true;
             isActive = false;
+
+            // 1. 播放音效 
+            if (AudioManager.Instance == null)
+            {
+                Debug.LogError("❌ 【严重错误】AudioManager.Instance 为空！场景里没有挂载 AudioManager，或者它被销毁了！");
+            }
+            else
+            {
+                // 如果不为空，尝试播放
+                AudioManager.Instance.PlayHitSound(this.hitObject);
+            }
+
+            if (HapticManager.Instance == null)
+            {
+                Debug.LogError("❌ 【严重错误】HapticManager.Instance 为空！");
+            }
+            else
+            {
+                // 如果不为空，尝试震动
+                if (((int)hitObject.HitSound & 4) > 0)
+                {
+                    // 重击！双手震动
+                    HapticManager.Instance.PlayHitHapticBoth((int)hitObject.HitSound);
+                }
+                else
+                {
+                    // 普通打击，单手震动
+                    HapticManager.Instance.PlayHitHaptic(isRightHand, (int)hitObject.HitSound);
+                }
+            }
+
 
             // 通知管理器
             if (gameManager != null)
@@ -284,14 +339,8 @@ namespace OsuVR
             }
 
             // 播放消失动画（替代 LeanTween）
-            if (approachCircle != null)
-            {
-                StartCoroutine(HitEffectCoroutine());
-            }
-            else
-            {
-                Destroy(gameObject);
-            }
+            if (approachCircle != null) StartCoroutine(HitEffectCoroutine());
+            else ReturnToPool();
         }
 
         /// <summary>

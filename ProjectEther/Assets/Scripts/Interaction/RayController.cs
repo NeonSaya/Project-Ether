@@ -20,6 +20,9 @@ namespace OsuVR
         [Tooltip("当前控制模式")]
         public ControlMode currentMode = ControlMode.WristGain;
 
+        [Header("手柄设置")]
+        public bool isRightHand = true;
+
         [Header("OpenXR 输入设置")]
         [Tooltip("点击动作 (请绑定 <XRController>/triggerPressed)")]
         // ✅ [新增] 通用输入动作，支持所有 VR 手柄
@@ -91,14 +94,13 @@ namespace OsuVR
             {
                 if (IsHitting && lastHitObject != null)
                 {
-                    // ✅ [修改] 使用 GetComponentInParent 以防打到按钮上的文字
+                    // 只处理 UI 按钮
                     Button btn = lastHitObject.GetComponentInParent<Button>();
                     if (btn == null) btn = lastHitObject.GetComponentInChildren<Button>();
 
                     if (btn != null)
                     {
-                        btn.onClick.Invoke(); // 物理触发点击
-                        Debug.Log($"<color=green>OpenXR 点击按钮: {btn.name}</color>");
+                        btn.onClick.Invoke();
                     }
                 }
             }
@@ -219,14 +221,31 @@ namespace OsuVR
 
         private void NotifyHoverState(GameObject obj, bool state)
         {
-            var note = obj.GetComponentInParent<NoteController>();
-            if (note != null) note.isHovered = state;
+            // 只有当射线“指着”的时候才调用 (state == true)
+            // 离开的时候 (state == false) 不需要调用，因为 Controller 脚本会在 LateUpdate 自动重置
+            if (state)
+            {
+                // 1. 通知 Note (传入 isRightHand)
+                var note = obj.GetComponentInParent<NoteController>();
+                if (note != null)
+                {
+                    note.OnRayHover(this.isRightHand); // ✅ 改用方法调用
+                }
 
-            var slider = obj.GetComponentInParent<SliderController>();
-            if (slider != null) slider.isTracking = state;
+                // 2. 通知 Slider (传入 isRightHand)
+                var slider = obj.GetComponentInParent<SliderController>();
+                if (slider != null)
+                {
+                    slider.OnRayStay(this.isRightHand); // ✅ 改用方法调用
+                }
 
-            var spinner = obj.GetComponentInParent<SpinnerController>();
-            if (spinner != null) spinner.isHovered = state;
+                // 3. 通知 Spinner (传入 this，你原代码里好像已经处理了 UpdateRotation)
+                var spinner = obj.GetComponentInParent<SpinnerController>();
+                if (spinner != null)
+                {
+                    spinner.isHovered = true; // Spinner 暂时保持原样，或者你也给它加个 OnRayHover
+                }
+            }
         }
 
         public void SetMode(bool isLazyMode)

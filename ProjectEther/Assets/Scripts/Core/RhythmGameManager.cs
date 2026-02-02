@@ -78,6 +78,14 @@ namespace OsuVR
         [SerializeField]
         private double gameStartDspTime = 0;
 
+        [Header("校准设置")]
+        [Tooltip("全局偏移 (毫秒)：调整音画同步。正数表示Note出现得更晚，负数表示Note出现得更早")]
+        // VR设备通常有较大的音频延迟，建议初始值设为 -50 到 -100 左右试手感
+        public float universalOffsetMs = 0f;
+
+        // 内部变量，记录 Unity 音频系统的输出延迟
+        private double audioSystemLatency = 0;
+
         // 私有变量
         private List<HitObject> hitObjects = new List<HitObject>();
         private int nextNoteIndex = 0;
@@ -113,6 +121,15 @@ namespace OsuVR
         {
             Debug.Log($"开始初始化节奏游戏管理器...");
 
+            int bufferLength;
+            int numBuffers;
+            AudioSettings.GetDSPBufferSize(out bufferLength, out numBuffers);
+            // 单次缓冲区的长度 / 采样率 = 延迟秒数
+            // 通常 Unity 默认是 Best Latency，但也可能有 20-50ms
+            audioSystemLatency = (double)bufferLength / AudioSettings.outputSampleRate;
+
+            Debug.Log($"[Sync] 音频系统硬件延迟: {audioSystemLatency * 1000:F2} ms");
+
             // 检查必要组件
             if (hitCirclePrefab == null)
             {
@@ -132,16 +149,28 @@ namespace OsuVR
             // 初始化AudioSource
             InitializeAudioSource();
 
-            // 检查是否有选歌数据
-            if (GameContext.Instance != null && !string.IsNullOrEmpty(GameContext.Instance.SelectedBeatmapPath))
+            /// 获取选歌数据（如果有）
+            string selectedPath = null;
+            if (GameContext.Instance != null)
             {
-                // 有数据，加载选中的歌
-                LoadBeatmapFromPath(GameContext.Instance.SelectedBeatmapPath);
+                selectedPath = GameContext.Instance.SelectedBeatmapPath;
+                Debug.Log($"[Context] GameContext 存在，存储路径: '{selectedPath}'");
             }
             else
             {
-                // 没数据（直接运行场景时），加载默认
-                LoadBeatmap();
+                Debug.LogWarning("[Context] GameContext 为空！(你是直接运行的 GameScene 吗？请从 MenuScene 开始)");
+            }
+
+            // 根据选歌数据加载谱面
+            if (!string.IsNullOrEmpty(selectedPath))
+            {
+                Debug.Log("[RhythmGameManager] 检测到选歌数据，尝试加载选定谱面...");
+                LoadBeatmapFromPath(selectedPath);
+            }
+            else
+            {
+                Debug.Log("[RhythmGameManager] 无选歌数据，加载默认/测试谱面...");
+                LoadBeatmap(); // 加载 Inspector 里的 osuFileName
                 if (autoStart) Invoke("StartGame", 1.0f);
             }
         }
@@ -226,7 +255,7 @@ namespace OsuVR
                     countdownTime = preparationTime + (spawnOffsetMs / 1000.0) - elapsedBufferTime;
 
                     // 当前音乐时间为负的spawnOffset（倒计时）
-                    currentMusicTimeMs = -(spawnOffsetMs - (elapsedBufferTime * 1000));
+                    currentMusicTimeMs = ((currentDspTime - dspStartTime) * 1000.0) - universalOffsetMs;
                 }
                 else
                 {
@@ -240,7 +269,7 @@ namespace OsuVR
                 if (dspStartTime > 0)
                 {
                     double currentDspTime = AudioSettings.dspTime;
-                    currentMusicTimeMs = (currentDspTime - dspStartTime) * 1000.0;
+                    currentMusicTimeMs = ((currentDspTime - dspStartTime) * 1000.0) - universalOffsetMs;
 
                     // 检查音乐是否应该开始但还未开始
                     if (!isMusicPlaying && currentMusicTimeMs >= 0)
@@ -293,7 +322,9 @@ namespace OsuVR
             // dspStartTime = 当前DSP时间 + 准备时间 + spawnOffset（转换为秒）
             // 这样音乐会在准备时间 + spawnOffset秒后开始播放
             double currentDspTime = AudioSettings.dspTime;
-            dspStartTime = currentDspTime + preparationTime + (spawnOffsetMs / 1000.0);
+
+            double startTimeBuffer = System.Math.Max(preparationTime, 0.5);
+            dspStartTime = currentDspTime + startTimeBuffer;
 
             // 记录缓冲期开始时间（用于倒计时）
             bufferStartDspTime = currentDspTime;
@@ -339,7 +370,9 @@ namespace OsuVR
             // 1. 解析谱面
             if (!File.Exists(absoluteOsuFilePath))
             {
-                Debug.LogError($"文件不存在: {absoluteOsuFilePath}");
+                Debug.LogError($"[Load] 致命错误：文件不存在 -> {absoluteOsuFilePath}");
+                LoadBeatmap();
+                StartGame();
                 return;
             }
 
@@ -348,6 +381,9 @@ namespace OsuVR
                 currentBeatmap = OsuParser.Parse(absoluteOsuFilePath);
                 hitObjects = currentBeatmap.HitObjects;
                 totalNotes = hitObjects.Count;
+
+               
+
 
                 // 2. 颜色设置
                 if (currentBeatmap.ComboColors == null || currentBeatmap.ComboColors.Count == 0)
@@ -376,13 +412,22 @@ namespace OsuVR
                 // 5. 动态加载音频
                 // 获取音频文件的绝对路径
                 string folderPath = Path.GetDirectoryName(absoluteOsuFilePath);
-                string audioPath = Path.Combine(folderPath, currentBeatmap.General.AudioFilename);
+                string audioFileName = currentBeatmap.General.AudioFilename.Trim(); // 去除可能的首尾空格
+                string audioPath = Path.Combine(folderPath, audioFileName);
+
+                if (AudioManager.Instance != null)
+                {
+                    AudioManager.Instance.LoadBeatmapSamples(folderPath);
+                }
 
                 StartCoroutine(LoadAudioClip(audioPath));
             }
             catch (System.Exception e)
             {
                 Debug.LogError($"加载失败: {e.Message}\n{e.StackTrace}");
+                // 出错时回退到默认加载
+                LoadBeatmap();
+                StartGame();
             }
         }
 
@@ -393,6 +438,7 @@ namespace OsuVR
         {
             // Windows/Android 路径需要加 file:// 前缀，且要注意转义
             string url = "file://" + audioPath;
+            url = url.Replace("\\", "/");
 
             Debug.Log($"开始加载音频: {url}");
 
@@ -403,6 +449,10 @@ namespace OsuVR
                 if (www.result == UnityWebRequest.Result.ConnectionError || www.result == UnityWebRequest.Result.ProtocolError)
                 {
                     Debug.LogError($"音频加载错误: {www.error}");
+                    Debug.LogError($"[Audio] 尝试加载的路径是: {audioPath}");
+
+                    // 即使音频加载失败，也要强行开始游戏 (无声游玩)，否则会卡在黑屏
+                    StartGame();
                 }
                 else
                 {
@@ -412,10 +462,24 @@ namespace OsuVR
                     {
                         // 必须设置 name，否则 Unity 有时会报错
                         clip.name = Path.GetFileName(audioPath);
+                        clip.LoadAudioData();
                         musicSource.clip = clip;
                         musicClip = clip; // 同步引用
 
-                        Debug.Log($"🎵 音频加载完毕: {clip.name} (长度: {clip.length:F1}s)");
+                        Debug.Log("[Audio] 正在预热音频引擎...");
+
+                        musicSource.volume = 0; // 静音
+                        musicSource.Play();     // 播放
+
+                        // 让它空转 2 帧 (确保音频线程被唤醒)
+                        yield return null;
+                        yield return null;
+
+                        musicSource.Stop();     // 停止
+                        musicSource.time = 0;   // 倒带回开头
+                        musicSource.volume = 1; // 恢复音量
+
+                        Debug.Log($"[Audio] 预热完成: {clip.name} ({clip.length:F1}s)");
 
                         // 音频加载好后，自动开始游戏
                         StartGame();
@@ -423,6 +487,7 @@ namespace OsuVR
                     else
                     {
                         Debug.LogError("下载的 AudioClip 为空！");
+                        StartGame();
                     }
                 }
             }
@@ -1028,6 +1093,23 @@ namespace OsuVR
             // 无论 CS 多高，物件直径不能低于 7cm
             return Mathf.Max(finalSize, 0.07f);
         }
+
+        /// <summary>
+        /// 根据文件扩展名获取 AudioType
+        /// </summary>
+        private AudioType GetAudioTypeFromPath(string path)
+        {
+            string extension = Path.GetExtension(path).ToLower();
+            switch (extension)
+            {
+                case ".mp3": return AudioType.MPEG;
+                case ".ogg": return AudioType.OGGVORBIS;
+                case ".wav": return AudioType.WAV;
+                case ".aiff": return AudioType.AIFF;
+                default: return AudioType.UNKNOWN; // 让 Unity 自己猜
+            }
+        }
+
 
     }
 }

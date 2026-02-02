@@ -31,7 +31,12 @@ namespace OsuVR
         /// <summary>
         /// 连击颜色偏移（高4位）
         /// </summary>
-        ComboColorOffset = 112 // 二进制: 01110000
+        ComboColorOffset = 112,// 二进制: 01110000
+
+            /// <summary>
+            /// Mania 长按 (兼容性保留)
+            /// </summary>
+        Hold = 128
     }
 
     /// <summary>
@@ -87,16 +92,63 @@ namespace OsuVR
         Drum
     }
 
+
+
     /// <summary>
-    /// 音效类型
+    /// 音效采样集类型 (决定是用柔和音还是鼓点音)
+    /// </summary>
+    public enum SampleSet
+    {
+        /// <summary>
+        /// 自动/继承
+        /// </summary>
+        None = 0,
+
+        /// <summary>
+        /// 标准音 (Normal)
+        /// </summary>
+        Normal = 1,
+
+        /// <summary>
+        /// 柔和音 (Soft)
+        /// </summary>
+        Soft = 2,
+
+        /// <summary>
+        /// 鼓点音 (Drum)
+        /// </summary>
+        Drum = 3
+    }
+
+    /// <summary>
+    /// 打击音效类型 (位掩码，支持叠加)
     /// </summary>
     [Flags]
     public enum HitSoundType
     {
+        /// <summary>
+        /// 无额外音效
+        /// </summary>
         None = 0,
+
+        /// <summary>
+        /// 基础打击音
+        /// </summary>
         Normal = 1,
+
+        /// <summary>
+        /// 哨音 (Whistle)
+        /// </summary>
         Whistle = 2,
+
+        /// <summary>
+        /// 终结音 (Finish/镲片)
+        /// </summary>
         Finish = 4,
+
+        /// <summary>
+        /// 掌声 (Clap)
+        /// </summary>
         Clap = 8
     }
 }

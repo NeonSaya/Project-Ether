@@ -1,14 +1,14 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using UnityEngine;
 
 namespace OsuVR
 {
     /// <summary>
-    /// ±íÊ¾Ò»¸ö»÷´ò¶ÔÏó£¨»ùÀà£©
+    /// è¡¨ç¤ºä¸€ä¸ªå‡»æ‰“å¯¹è±¡ï¼ˆåŸºç±»ï¼‰
     /// </summary>
     public abstract class HitObject
     {
-        // ³£Á¿¶¨Òå
+        // å¸¸é‡å®šä¹‰
         public const float OBJECT_RADIUS = 64f;
         public const int CONTROL_POINT_LENIENCY = 5;
         public const double PREEMPT_MAX = 1800.0;
@@ -16,12 +16,12 @@ namespace OsuVR
         public const double PREEMPT_MIN = 450.0;
 
         /// <summary>
-        /// »÷´ò¶ÔÏó¿ªÊ¼µÄÊ±¼ä£¨ºÁÃë£©
+        /// å‡»æ‰“å¯¹è±¡å¼€å§‹çš„æ—¶é—´ï¼ˆæ¯«ç§’ï¼‰
         /// </summary>
         public readonly double StartTime;
 
         /// <summary>
-        /// »÷´ò¶ÔÏóµÄÎ»ÖÃ£¨osu!ÏñËØ×ø±ê£©
+        /// å‡»æ‰“å¯¹è±¡çš„ä½ç½®ï¼ˆosu!åƒç´ åæ ‡ï¼‰
         /// </summary>
         public Vector2 Position
         {
@@ -29,7 +29,7 @@ namespace OsuVR
             set
             {
                 _position = value;
-                // Î»ÖÃ¸Ä±äÊ±ĞèÒªË¢ĞÂ»º´æ
+                // ä½ç½®æ”¹å˜æ—¶éœ€è¦åˆ·æ–°ç¼“å­˜
                 _difficultyStackedPositionCache = null;
                 _gameplayStackedPositionCache = null;
             }
@@ -37,96 +37,133 @@ namespace OsuVR
         private Vector2 _position;
 
         /// <summary>
-        /// »÷´ò¶ÔÏóµÄÀàĞÍ
+        /// å‡»æ‰“å¯¹è±¡çš„ç±»å‹
         /// </summary>
         public HitObjectType ObjectType { get; protected set; }
 
         /// <summary>
-        /// ÊÇ·ñ¿ªÊ¼ĞÂÁ¬»÷
+        /// æ˜¯å¦å¼€å§‹æ–°è¿å‡»
         /// </summary>
         public readonly bool IsNewCombo;
 
         /// <summary>
-        /// Á¬»÷Æ«ÒÆÁ¿
+        /// è¿å‡»åç§»é‡
         /// </summary>
         public readonly int ComboOffset;
 
         /// <summary>
-        /// »÷´ò¶ÔÏóµÄ½áÊøÊ±¼ä£¨ĞéÄâÊôĞÔ£¬×ÓÀàĞèÒªÖØĞ´£©
+        /// å‡»æ‰“å¯¹è±¡çš„ç»“æŸæ—¶é—´ï¼ˆè™šæ‹Ÿå±æ€§ï¼Œå­ç±»éœ€è¦é‡å†™ï¼‰
         /// </summary>
         public virtual double EndTime => StartTime;
 
         /// <summary>
-        /// »÷´ò¶ÔÏóµÄ³ÖĞøÊ±¼ä£¨ºÁÃë£©
+        /// å‡»æ‰“å¯¹è±¡çš„æŒç»­æ—¶é—´ï¼ˆæ¯«ç§’ï¼‰
         /// </summary>
         public double Duration;
 
         /// <summary>
-        /// »÷´ò¶ÔÏóµÄ½áÊøÎ»ÖÃ£¨ĞéÄâÊôĞÔ£¬×ÓÀàĞèÒªÖØĞ´£©
+        /// å‡»æ‰“å¯¹è±¡çš„ç»“æŸä½ç½®ï¼ˆè™šæ‹Ÿå±æ€§ï¼Œå­ç±»éœ€è¦é‡å†™ï¼‰
         /// </summary>
         public virtual Vector2 EndPosition => Position;
 
         /// <summary>
-        /// ÔÚµ±Ç°Á¬»÷ÖĞµÄË÷Òı
+        /// åœ¨å½“å‰è¿å‡»ä¸­çš„ç´¢å¼•
         /// </summary>
         public int IndexInCurrentCombo { get; internal set; }
 
         /// <summary>
-        /// ÔÚÆ×ÃæÖĞµÄÁ¬»÷Ë÷Òı
+        /// åœ¨è°±é¢ä¸­çš„è¿å‡»ç´¢å¼•
         /// </summary>
         public int ComboIndex { get; internal set; }
 
         /// <summary>
-        /// Ó¦ÓÃÁËÆ«ÒÆºóµÄÁ¬»÷Ë÷Òı
+        /// âœ… [ä¿®å¤] å¿…é¡»å®šä¹‰ Color å±æ€§ï¼Œå¦åˆ™ OsuParser æ— æ³•èµ‹å€¼
+        /// </summary>
+        public Color Color { get; set; } = Color.white;
+
+        /// <summary>
+        /// åº”ç”¨äº†åç§»åçš„è¿å‡»ç´¢å¼•
         /// </summary>
         public int ComboIndexWithOffsets { get; internal set; }
 
         /// <summary>
-        /// ÊÇ·ñµ±Ç°Á¬»÷µÄ×îºóÒ»¸ö¶ÔÏó
+        /// æ˜¯å¦å½“å‰è¿å‡»çš„æœ€åä¸€ä¸ªå¯¹è±¡
         /// </summary>
         public bool IsLastInCombo { get; internal set; }
 
         /// <summary>
-        /// Ô²È¦³öÏÖÊ±¼ä£¨ºÁÃë£©
+        /// åœ†åœˆå‡ºç°æ—¶é—´ï¼ˆæ¯«ç§’ï¼‰
         /// </summary>
         public double TimePreempt = 600.0;
 
         /// <summary>
-        /// Ô²È¦µ­ÈëÊ±¼ä£¨ºÁÃë£©
+        /// åœ†åœˆæ·¡å…¥æ—¶é—´ï¼ˆæ¯«ç§’ï¼‰
         /// </summary>
         public double TimeFadeIn = 400.0;
 
         /// <summary>
-        /// »÷´òÊ±²¥·ÅµÄÒôĞ§ÁĞ±í
+        /// æ‰“å‡»éŸ³æ•ˆç±»å‹ (Normal/Whistle/Finish/Clap)
+        /// </summary>
+        public HitSoundType HitSound { get; set; }
+
+        /// <summary>
+        /// é‡‡æ ·é›† (Normal/Soft/Drum) - å†³å®šç”¨å“ªå¥—é¼“ç‚¹
+        /// </summary>
+        public SampleSet SampleSet { get; set; }
+
+        /// <summary>
+        /// é™„åŠ é‡‡æ ·é›† (ç”¨äº Whistle/Finish/Clap)
+        /// </summary>
+        public SampleSet AdditionSet { get; set; }
+
+        /// <summary>
+        /// è‡ªå®šä¹‰ç´¢å¼• (0=è‡ªåŠ¨, 1=é»˜è®¤, 2+=è‡ªå®šä¹‰æ–‡ä»¶)
+        /// å¯¹åº”æ–‡ä»¶å: soft-hitnormal2.wav
+        /// </summary>
+        public int CustomIndex { get; set; }
+
+        /// <summary>
+        /// éŸ³é‡ (0-100)
+        /// </summary>
+        public float SampleVolume { get; set; } = 100f;
+
+        /// <summary>
+        /// åŸå§‹éŸ³é¢‘æ–‡ä»¶å (å¦‚æœæœ‰çš„è¯)
+        /// </summary>
+        public string AudioFilename { get; set; }
+
+
+        /// <summary>
+        /// å‡»æ‰“æ—¶æ’­æ”¾çš„éŸ³æ•ˆåˆ—è¡¨
         /// </summary>
         public List<HitSampleInfo> Samples = new List<HitSampleInfo>();
 
         /// <summary>
-        /// ÈÎºÎ¿ÉÄÜ±»´Ë[»÷´ò¶ÔÏó]Ê¹ÓÃµÄ·Ç±ê×¼Ñù±¾
+        /// ä»»ä½•å¯èƒ½è¢«æ­¤[å‡»æ‰“å¯¹è±¡]ä½¿ç”¨çš„éæ ‡å‡†æ ·æœ¬
         /// </summary>
         public List<SequenceHitSampleInfo> AuxiliarySamples = new List<SequenceHitSampleInfo>();
 
         /// <summary>
-        /// ÊÇ·ñ´¦ÓÚKiaiÊ±¼ä
+        /// æ˜¯å¦å¤„äºKiaiæ—¶é—´
         /// </summary>
         public bool Kiai = false;
 
         /// <summary>
-        /// ÅĞ¶¨´°¿Ú
+        /// åˆ¤å®šçª—å£
         /// </summary>
         public HitWindow HitWindow;
 
         /// <summary>
-        /// ÊÇ·ñÆ×ÃæµÚÒ»¸öÒô·û
+        /// æ˜¯å¦è°±é¢ç¬¬ä¸€ä¸ªéŸ³ç¬¦
         /// </summary>
         public bool IsFirstNote => ComboIndex == 1 && IndexInCurrentCombo == 0;
 
         /// <summary>
-        /// ¶ÑµşË³Ğò±ê¼Ç
+        /// å †å é¡ºåºæ ‡è®°
         /// </summary>
         public int StackOrder { get; set; }
         /// <summary>
-        /// ¶ÑµşÆ«ÒÆ³ËÊı
+        /// å †å åç§»ä¹˜æ•°
         /// </summary>
         public float StackOffsetMultiplier
         {
@@ -136,7 +173,7 @@ namespace OsuVR
                 if (_stackOffsetMultiplier != value)
                 {
                     _stackOffsetMultiplier = value;
-                    // Ë¢ĞÂ»º´æ
+                    // åˆ·æ–°ç¼“å­˜
                     _difficultyStackOffsetCache = null;
                     _difficultyStackedPositionCache = null;
                     _gameplayStackOffsetCache = null;
@@ -146,19 +183,19 @@ namespace OsuVR
         }
         private float _stackOffsetMultiplier;
 
-        // ÄÑ¶È¼ÆËãÏà¹ØÊôĞÔ
+        // éš¾åº¦è®¡ç®—ç›¸å…³å±æ€§
         private int _difficultyStackHeight;
         private float _difficultyScale;
         private Vector2? _difficultyStackOffsetCache;
         private Vector2? _difficultyStackedPositionCache;
 
         /// <summary>
-        /// ÄÑ¶È¼ÆËãÖĞµÄ°ë¾¶
+        /// éš¾åº¦è®¡ç®—ä¸­çš„åŠå¾„
         /// </summary>
         public double DifficultyRadius => OBJECT_RADIUS * DifficultyScale;
 
         /// <summary>
-        /// ÄÑ¶È¼ÆËãÖĞµÄ¶ÑµşÆ«ÒÆ
+        /// éš¾åº¦è®¡ç®—ä¸­çš„å †å åç§»
         /// </summary>
         public Vector2 DifficultyStackOffset
         {
@@ -174,7 +211,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ÄÑ¶È¼ÆËãÖĞµÄ¶ÑµşÎ»ÖÃ
+        /// éš¾åº¦è®¡ç®—ä¸­çš„å †å ä½ç½®
         /// </summary>
         public virtual Vector2 DifficultyStackedPosition
         {
@@ -189,11 +226,11 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ÄÑ¶È¼ÆËãÖĞµÄ¶Ñµş½áÊøÎ»ÖÃ£¨ĞéÄâÊôĞÔ£¬×ÓÀàĞèÒªÖØĞ´£©
+        /// éš¾åº¦è®¡ç®—ä¸­çš„å †å ç»“æŸä½ç½®ï¼ˆè™šæ‹Ÿå±æ€§ï¼Œå­ç±»éœ€è¦é‡å†™ï¼‰
         /// </summary>
         public virtual Vector2 DifficultyStackedEndPosition => DifficultyStackedPosition;
 
-        // ÓÎÏ·Íæ·¨Ïà¹ØÊôĞÔ
+        // æ¸¸æˆç©æ³•ç›¸å…³å±æ€§
         private int _gameplayStackHeight;
         private float _gameplayScale;
         private Vector2? _gameplayStackOffsetCache;
@@ -201,22 +238,22 @@ namespace OsuVR
         private Vector2? _screenSpaceGameplayStackedPositionCache;
 
         /// <summary>
-        /// ÓÎÏ·Íæ·¨ÖĞµÄ°ë¾¶
+        /// æ¸¸æˆç©æ³•ä¸­çš„åŠå¾„
         /// </summary>
         public double GameplayRadius => OBJECT_RADIUS * GameplayScale;
 
         /// <summary>
-        /// ÆÁÄ»¿Õ¼äÖĞµÄÓÎÏ·Íæ·¨Ëõ·Å
+        /// å±å¹•ç©ºé—´ä¸­çš„æ¸¸æˆç©æ³•ç¼©æ”¾
         /// </summary>
-        public float ScreenSpaceGameplayScale => GameplayScale * 720f / 480f; // ¼ÙÉèÆÁÄ»¸ß¶È720
+        public float ScreenSpaceGameplayScale => GameplayScale * 720f / 480f; // å‡è®¾å±å¹•é«˜åº¦720
 
         /// <summary>
-        /// ÆÁÄ»¿Õ¼äÖĞµÄÓÎÏ·Íæ·¨°ë¾¶
+        /// å±å¹•ç©ºé—´ä¸­çš„æ¸¸æˆç©æ³•åŠå¾„
         /// </summary>
         public double ScreenSpaceGameplayRadius => OBJECT_RADIUS * ScreenSpaceGameplayScale;
 
         /// <summary>
-        /// ÓÎÏ·Íæ·¨ÖĞµÄ¶ÑµşÆ«ÒÆ
+        /// æ¸¸æˆç©æ³•ä¸­çš„å †å åç§»
         /// </summary>
         public Vector2 GameplayStackOffset
         {
@@ -232,7 +269,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ÓÎÏ·Íæ·¨ÖĞµÄ¶ÑµşÎ»ÖÃ
+        /// æ¸¸æˆç©æ³•ä¸­çš„å †å ä½ç½®
         /// </summary>
         public virtual Vector2 GameplayStackedPosition
         {
@@ -247,17 +284,17 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ÓÎÏ·Íæ·¨ÖĞµÄ¶Ñµş½áÊøÎ»ÖÃ£¨ĞéÄâÊôĞÔ£¬×ÓÀàĞèÒªÖØĞ´£©
+        /// æ¸¸æˆç©æ³•ä¸­çš„å †å ç»“æŸä½ç½®ï¼ˆè™šæ‹Ÿå±æ€§ï¼Œå­ç±»éœ€è¦é‡å†™ï¼‰
         /// </summary>
         public virtual Vector2 GameplayStackedEndPosition => GameplayStackedPosition;
 
         /// <summary>
-        /// ÆÁÄ»¿Õ¼äÖĞµÄÓÎÏ·Íæ·¨Î»ÖÃ
+        /// å±å¹•ç©ºé—´ä¸­çš„æ¸¸æˆç©æ³•ä½ç½®
         /// </summary>
         public Vector2 ScreenSpaceGameplayPosition => ConvertPositionToRealCoordinates(Position);
 
         /// <summary>
-        /// ÆÁÄ»¿Õ¼äÖĞµÄÓÎÏ·Íæ·¨¶ÑµşÎ»ÖÃ
+        /// å±å¹•ç©ºé—´ä¸­çš„æ¸¸æˆç©æ³•å †å ä½ç½®
         /// </summary>
         public virtual Vector2 ScreenSpaceGameplayStackedPosition
         {
@@ -272,11 +309,11 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ÆÁÄ»¿Õ¼äÖĞµÄÓÎÏ·Íæ·¨¶Ñµş½áÊøÎ»ÖÃ£¨ĞéÄâÊôĞÔ£¬×ÓÀàĞèÒªÖØĞ´£©
+        /// å±å¹•ç©ºé—´ä¸­çš„æ¸¸æˆç©æ³•å †å ç»“æŸä½ç½®ï¼ˆè™šæ‹Ÿå±æ€§ï¼Œå­ç±»éœ€è¦é‡å†™ï¼‰
         /// </summary>
         public virtual Vector2 ScreenSpaceGameplayStackedEndPosition => ScreenSpaceGameplayStackedPosition;
 
-        // ¹¹Ôìº¯Êı
+        // æ„é€ å‡½æ•°
         protected HitObject(double startTime, Vector2 position, HitObjectType type, bool isNewCombo, int comboOffset)
         {
             StartTime = startTime;
@@ -284,10 +321,15 @@ namespace OsuVR
             ObjectType = type;
             IsNewCombo = isNewCombo;
             ComboOffset = comboOffset;
+
+            SampleSet = SampleSet.Normal;
+            AdditionSet = SampleSet.Normal;
+            CustomIndex = 0;
+            SampleVolume = 100;
         }
 
         /// <summary>
-        /// ÄÑ¶È¼ÆËã¶Ñµş¸ß¶È
+        /// éš¾åº¦è®¡ç®—å †å é«˜åº¦
         /// </summary>
         public int DifficultyStackHeight
         {
@@ -304,7 +346,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ÄÑ¶È¼ÆËãËõ·Å
+        /// éš¾åº¦è®¡ç®—ç¼©æ”¾
         /// </summary>
         public float DifficultyScale
         {
@@ -321,7 +363,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ÓÎÏ·Íæ·¨¶Ñµş¸ß¶È
+        /// æ¸¸æˆç©æ³•å †å é«˜åº¦
         /// </summary>
         public int GameplayStackHeight
         {
@@ -338,7 +380,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ÓÎÏ·Íæ·¨Ëõ·Å
+        /// æ¸¸æˆç©æ³•ç¼©æ”¾
         /// </summary>
         public float GameplayScale
         {
@@ -356,12 +398,12 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// Ó¦ÓÃÄ¬ÈÏÉèÖÃ
+        /// åº”ç”¨é»˜è®¤è®¾ç½®
         /// </summary>
         public virtual void ApplyDefaults(GameMode mode)
         {
-            // ÕâÀï¿ÉÒÔÌí¼ÓÄ¬ÈÏÉèÖÃÂß¼­
-            // ¸ù¾İÄ£Ê½ÉèÖÃ¶ÑµşÆ«ÒÆ³ËÊı
+            // è¿™é‡Œå¯ä»¥æ·»åŠ é»˜è®¤è®¾ç½®é€»è¾‘
+            // æ ¹æ®æ¨¡å¼è®¾ç½®å †å åç§»ä¹˜æ•°
             StackOffsetMultiplier = mode switch
             {
                 GameMode.Droid => -4f,
@@ -371,7 +413,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ¸üĞÂÁ¬»÷ĞÅÏ¢
+        /// æ›´æ–°è¿å‡»ä¿¡æ¯
         /// </summary>
         public void UpdateComboInformation(HitObject lastObj)
         {
@@ -384,7 +426,7 @@ namespace OsuVR
                 IndexInCurrentCombo = 0;
                 ComboIndex++;
 
-                // Ğı×ªÔ²È¦²»Ó°ÏìÁ¬»÷ÑÕÉ«Æ«ÒÆ
+                // æ—‹è½¬åœ†åœˆä¸å½±å“è¿å‡»é¢œè‰²åç§»
                 if (!(this is SpinnerObject))
                 {
                     ComboIndexWithOffsets += ComboOffset + 1;
@@ -398,22 +440,22 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ½«osu!ÏñËØ×ø±ê×ª»»ÎªÕæÊµÆÁÄ»×ø±ê
+        /// å°†osu!åƒç´ åæ ‡è½¬æ¢ä¸ºçœŸå®å±å¹•åæ ‡
         /// </summary>
         protected Vector2 ConvertPositionToRealCoordinates(Vector2 position)
         {
-            // ½«Î»ÖÃËõ·Åµ½ÆÁÄ»ÉÏµÄÊµ¼ÊÓÎÍæÇøÓò´óĞ¡
-            float scaleX = 640f / 512f;  // ¼ÙÉèÊµ¼Ê¿í¶È640£¬Ô­Ê¼¿í¶È512
-            float scaleY = 480f / 384f;  // ¼ÙÉèÊµ¼Ê¸ß¶È480£¬Ô­Ê¼¸ß¶È384
+            // å°†ä½ç½®ç¼©æ”¾åˆ°å±å¹•ä¸Šçš„å®é™…æ¸¸ç©åŒºåŸŸå¤§å°
+            float scaleX = 640f / 512f;  // å‡è®¾å®é™…å®½åº¦640ï¼ŒåŸå§‹å®½åº¦512
+            float scaleY = 480f / 384f;  // å‡è®¾å®é™…é«˜åº¦480ï¼ŒåŸå§‹é«˜åº¦384
 
             Vector2 scaledPosition = new Vector2(
                 position.x * scaleX,
                 position.y * scaleY
             );
 
-            // ½«Î»ÖÃ¾ÓÖĞµ½ÆÁÄ»
-            float screenWidth = 1920f;  // ¼ÙÉèÆÁÄ»¿í¶È1920
-            float screenHeight = 1080f; // ¼ÙÉèÆÁÄ»¸ß¶È1080
+            // å°†ä½ç½®å±…ä¸­åˆ°å±å¹•
+            float screenWidth = 1920f;  // å‡è®¾å±å¹•å®½åº¦1920
+            float screenHeight = 1080f; // å‡è®¾å±å¹•é«˜åº¦1080
 
             Vector2 centeredPosition = new Vector2(
                 scaledPosition.x + (screenWidth - 640f) / 2f,
@@ -424,7 +466,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// »ñÈ¡»÷´ò¶ÔÏóµÄ×Ö·û´®±íÊ¾
+        /// è·å–å‡»æ‰“å¯¹è±¡çš„å­—ç¬¦ä¸²è¡¨ç¤º
         /// </summary>
         public override string ToString()
         {
@@ -433,7 +475,7 @@ namespace OsuVR
     }
 
     /// <summary>
-    /// ÅĞ¶¨´°¿Ú»ùÀà
+    /// åˆ¤å®šçª—å£åŸºç±»
     /// </summary>
     public abstract class HitWindow
     {
@@ -441,7 +483,7 @@ namespace OsuVR
     }
 
     /// <summary>
-    /// ÒôĞ§ĞÅÏ¢»ùÀà
+    /// éŸ³æ•ˆä¿¡æ¯åŸºç±»
     /// </summary>
     public abstract class HitSampleInfo
     {
@@ -456,11 +498,11 @@ namespace OsuVR
     }
 
     /// <summary>
-    /// Ä¬ÈÏÒôĞ§¿âĞÅÏ¢ (ĞŞ¸´¹¹Ôìº¯Êı°æ)
+    /// é»˜è®¤éŸ³æ•ˆåº“ä¿¡æ¯ (ä¿®å¤æ„é€ å‡½æ•°ç‰ˆ)
     /// </summary>
     public class BankHitSampleInfo : HitSampleInfo
     {
-        // ÕâÀïµÄ³£Á¿ÓÃÓÚ OsuParser ÖĞµÄÒıÓÃ
+        // è¿™é‡Œçš„å¸¸é‡ç”¨äº OsuParser ä¸­çš„å¼•ç”¨
         public const string HIT_NORMAL = "hitnormal";
         public const string HIT_WHISTLE = "hitwhistle";
         public const string HIT_FINISH = "hitfinish";
@@ -471,7 +513,7 @@ namespace OsuVR
         public int CustomSampleBank { get; set; }
         public int Volume { get; set; }
         public bool IsLayered { get; set; }
-        // ×¢Òâ×îºó²ÎÊı isLayered = false ÊÇÄ¬ÈÏÖµ£¬ÕâÑùÒ²¿ÉÒÔ¼æÈİ 4 ¸ö²ÎÊıµÄµ÷ÓÃ
+        // æ³¨æ„æœ€åå‚æ•° isLayered = false æ˜¯é»˜è®¤å€¼ï¼Œè¿™æ ·ä¹Ÿå¯ä»¥å…¼å®¹ 4 ä¸ªå‚æ•°çš„è°ƒç”¨
         public BankHitSampleInfo(string name, SampleBank bank, int customBank, int volume, bool isLayered = false)
         {
             Name = name;
@@ -482,7 +524,7 @@ namespace OsuVR
         }
     }
     /// <summary>
-    /// ĞòÁĞÒôĞ§ĞÅÏ¢
+    /// åºåˆ—éŸ³æ•ˆä¿¡æ¯
     /// </summary>
     public class SequenceHitSampleInfo : HitSampleInfo
     {

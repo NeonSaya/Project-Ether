@@ -78,6 +78,7 @@ namespace OsuVR
 
         public void Initialize(SpinnerObject data, RhythmGameManager manager, IObjectPool<GameObject> pool, Vector3 fixPosition)
         {
+            BoxCollider boxCol = GetComponent<BoxCollider>();
             this.spinnerData = data;
             this.gameManager = manager;
             this.myPool = pool;
@@ -109,6 +110,18 @@ namespace OsuVR
             rotationDeltaAccumulator = 0f;
 
             handStates.Clear();
+
+            if (boxCol == null)
+            {
+                // 销毁旧的 (如 SphereCollider)
+                Collider oldCol = GetComponent<Collider>();
+                if (oldCol != null) Destroy(oldCol);
+
+                // 添加新的 BoxCollider
+                boxCol = gameObject.AddComponent<BoxCollider>();
+            }
+            boxCol.size = new Vector3(20f, 20f, 0.01f);
+            boxCol.isTrigger = true;
 
             // UI 重置
             if (meterImage) { meterImage.fillAmount = 0f; meterImage.color = Color.white; }
@@ -170,6 +183,33 @@ namespace OsuVR
                 if (Progress >= 1f) meterImage.color = Color.cyan;
             }
 
+            // 反馈音效和震动
+            if (IsActive && AudioManager.Instance != null && HapticManager.Instance != null)
+            {
+                // 只有转起来才震动 (RPM > 50)
+                if (CurrentRPM > 50)
+                {
+                    // 强度随进度增加 (0.1 -> 1.0)
+                    float intensity = Mathf.Clamp01(Progress);
+
+                    // 1. 震动 (线性增强)
+                    float hapticStr = Mathf.Lerp(
+                        HapticManager.Instance.profile.SpinnerMinIntensity,
+                        HapticManager.Instance.profile.SpinnerMaxIntensity,
+                        intensity
+                    );
+                    HapticManager.Instance.PlayContinuous(true, hapticStr);
+
+                    // 2. 音效 (Spinning Loop)
+                    AudioManager.Instance.UpdateSpinnerLoop(true, intensity);
+                }
+                else
+                {
+                    AudioManager.Instance.UpdateSpinnerLoop(false, 0);
+                }
+            }
+
+            // 奖励判定
             if (totalRotationAngle > bonusThreshold)
             {
                 AddBonus();
@@ -343,6 +383,11 @@ namespace OsuVR
                 bonusText.text = (bonusCount * 1000).ToString();
                 bonusText.transform.localScale = Vector3.one * 1.5f;
             }
+
+            if (HapticManager.Instance != null)
+            {
+                HapticManager.Instance.PlayHapticBoth(0.4f, 0.05f);
+            }
         }
 
         private void FinishSpinner()
@@ -351,7 +396,16 @@ namespace OsuVR
             Progress = totalRotationAngle / angleRequirement;
 
             // 判定逻辑保持不变
-            if (Progress >= 1.0f) gameManager.OnNoteHit(spinnerData, 0);
+            if (Progress >= 1.0f)
+            {
+                if (AudioManager.Instance != null)
+                    AudioManager.Instance.PlayHitSound(spinnerData);
+
+                if (HapticManager.Instance != null)
+                    // 双手震动，因为转盘通常很激烈
+                    HapticManager.Instance.PlayHitHapticBoth((int)spinnerData.HitSound);
+                gameManager.OnNoteHit(spinnerData, 0);
+            }
             else if (Progress > 0.9f) gameManager.OnNoteHit(spinnerData, 1);
             else if (Progress > 0.5f) gameManager.OnNoteHit(spinnerData, 2);
             else gameManager.OnNoteMiss(spinnerData);
