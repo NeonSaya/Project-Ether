@@ -27,62 +27,74 @@
 
 #### 1. 核心系统 (Core System)
 
-- **全功能解析器 (Full .osu Parser)**:
-  - 基于 `osu-droid` 逻辑重构的 C# 解析核心。
-  - 完整支持 Metadata, General, Events, TimingPoints 等核心数据的解析。
-- **AR 自动计算**:
-  - 内置标准 osu! 算法，根据 `ApproachRate` 自动计算 `TimePreempt` (缩圈时间) 和 `SpawnOffset`。
-  - **数据修复**: 自动检测并修复滑条 Tick 的相对时间戳问题，确保逻辑与绝对时间轴严格对齐。
-- **空间映射算法 (Coordinate Mapping)**:
-  - 实现了 `CoordinateMapper`，将 osu! 原生 512x384 的 2D 像素坐标系，无损映射到 VR 玩家前方的 3D 扇形曲面空间中，保证手感还原。
+* **全功能解析器 (Full .osu Parser):**
+* 基于 osu-droid 逻辑重构的 C# 解析核心。
+* 完整支持 Metadata, General, Events, TimingPoints 等核心数据解析。
+* **[New]** 支持 `.osz` 压缩包的自动解压与目录管理。
 
-#### 2. 视觉表现 (Visuals & Rendering)
 
-- **高保真滑条渲染 (High-Fidelity Slider Rendering)**:
-  - **双层网格生成**: 实现了 osu! 风格的滑条外观，底层生成宽白边框 (Border)，顶层生成本体颜色 (Body)，单次绘制性能极高。
-  - **动态 Z 轴管理**: 精确控制 Note、Slider Body、Border 和 Approach Circle 的 Z 轴层级，彻底解决了 VR 环境下常见的 **Z-Fighting (闪烁)** 问题。
-- **原生风格组件**:
-  - **平面化缩圈 (Flat Approach Circles)**: 强制 Z 轴缩放锁定，在 VR 3D 环境中完美复刻 2D 原作的“纸片”缩圈视觉效果。
-  - **完整滑条组件**: 包含滑条球 (Follow Ball)、折返箭头 (Reverse Arrow) 以及根据 Span 动态显示的逻辑。
+* **AR 自动计算:** 内置标准 osu! 算法，自动计算 TimePreempt (缩圈时间) 和 SpawnOffset。
+* **空间映射算法 (Coordinate Mapping):** 实现了 CoordinateMapper，将 osu! 原生 2D 像素坐标系，无损映射到 VR 玩家前方的 3D 扇形曲面空间中。
+* **对象池系统 (Object Pooling):** 实现了 Note、Slider、Tick 的回收复用机制，有效避免了高频 Instantiate/Destroy 带来的 GC 卡顿。
 
-#### 3. 游戏机制 (Gameplay & Mechanics)
+#### 2. 交互与物理 (Interaction & Physics)
 
-- **Relax 模式交互 (Raycast Interaction)**:
-  - **悬停判定 (Hover Gameplay)**: 采用 osu! Relax 模式机制。无需物理按键，只需使用光剑/射线 (Laser) 持续指向音符即可触发判定。
-  - **双色激光**: 支持左手(蓝) / 右手(红) 独立射线检测。
-- **高精度判定逻辑 (Judgement Logic)**:
-  - **非对称判定窗口**: 实现了严格的判定保护（例如 -5ms 到 +HitWindow），有效防止缩圈未重合时的误触/早打 (Notelock prevention)。
-- **复杂滑条逻辑**:
-  - **不销毁机制**: 击中滑条头后保留物体，允许玩家继续跟随滑条球。
-  - **补救机制**: 即使漏掉滑条头，只要中途追上滑条球 (Tracking)，依然可以判定后续的 Tick 和 End。
-  - **Tick/Repeat 判定**: 完整支持滑条中间的 Tick 得分和折返点判定。
+* **Relax 模式交互 (Raycast Interaction):**
+* **悬停判定 (Hover Gameplay):** 采用 osu! Relax 机制。无需物理按键，只需射线 (Laser) 持续指向音符即可触发判定。
+* **时序保护:** 修复了脚本执行顺序导致的判定失效，实现了“指哪打哪”的瞬时响应。
 
-#### 4. 调试与工具 (Debug & Tools)
 
-- **可视化调试面板**: 实时显示谱面元数据 (CS/AR/OD)、当前 DSP 时间、已生成/活动音符数量。
-- **Gizmos 辅助**: 在编辑器 Scene 窗口中绘制射线检测范围和判定球范围，辅助开发。
+* **物理增强:**
+* **Note/Slider:** 自动生成 SphereCollider/MeshCollider，确保射线检测精准无误。
+* **Spinner:** 采用薄片化 BoxCollider 优化转盘判定，解决了球体碰撞体导致的射线视觉悬停误差。
 
-------
+
+* **双色激光:** 支持左手(蓝) / 右手(红) 独立射线检测与交互。
+
+#### 3. 听觉与触觉 (Audio & Haptics)
+
+* **动态音效反馈 (Dynamic Hitsounds):**
+* 完整解析 Beatmap 中的 HitSound (Normal, Whistle, Finish, Clap)。
+* 支持 SliderSlide 循环音效与 SpinnerSpin 音效。
+* 实现了 Slider Reverse (折返) 与 Spinner Bonus 的独立反馈音效。
+
+
+* **沉浸式震动 (Immersive Haptics):**
+* 基于 `XRNode` 的底层震动封装。
+* 实现了打击震动、滑条持续微震、Bonus 奖励震动等多级反馈。
+
+
+
+#### 4. 视觉表现 (Visuals & Rendering)
+
+* **高保真滑条渲染:**
+* **双层网格:** 实现了 Border (边框) 与 Body (本体) 的分离渲染。
+* **动态 Z 轴管理:** 彻底解决了 VR 环境下 Note/Slider 堆叠时的 Z-Fighting 闪烁问题。
+
+
+* **原生风格组件:** 平面化缩圈 (Flat Approach Circles)、滑条球 (Follow Ball)、折返箭头 (Reverse Arrow)。
+
+---
 
 ## 📅 近未来开发 To-Do List (Next Steps)
 
-### 1. 核心反馈 (Juice & Feel) - 🔥 优先级最高
+### 1. 视觉反馈 (Juice & Feedback) - 🔥 优先级最高
 
-- [ ] **打击音效 (Hitsounds)**: 在 NoteController 和 SliderController 的 `OnHit` / `HitHead` / `Tick` 处播放音效（Normal, Whistle, Finish）。
-- [ ] **手柄震动 (Haptics)**: 使用 Unity XR 的 `SendHapticImpulse`。当射线 `OnRayHover` 或判定成功时，给手柄提供短促有力的震动反馈。
-- [ ] **连击显示 (Combo Counter)**: 在视野前方制作悬浮 UI 显示当前 Combo，并在 Miss 时添加碎裂/变红动画。
-- [ ] **分数与准确率 (Score & Accuracy)**: 实现 `RhythmGameManager` 计分逻辑，并实时显示（300 / 100 / 50 / Miss）。
+* **判定弹窗 (Score Popups):** 在击打位置弹出 300 / 100 / 50 / Miss 图标，并添加飘动/淡出动画。
+* **连击计数 (Combo Counter):** 在视野前方制作悬浮 3D UI 显示当前 Combo，并在 Miss 时添加碎裂/变红动画。
+* **打击粒子 (Hit Particles):** 为不同类型的 HitSound (Whistle/Finish) 制作对应的粒子爆发效果，增强打击爽快感。
 
-### 2. 游戏逻辑补全
+### 2. 游戏流程闭环 (Game Loop)
 
-- [ ] **转盘 (Spinner) 修复**: 检查 `SpinnerController` 的 AR 时间计算与判定逻辑，确保与 Slider/Note 同步。
-- [ ] **生命值系统 (HP Drain)**: 实现掉血机制（Idle 掉血，Hit 回血，HP<=0 失败）。
-- [ ] **结算界面**: 歌曲结束或失败时弹出结算面板。
+* **选歌菜单完善 (Song Select Polish):** 优化目前的 UI 面板，显示封面图、难度星级，并实现数据传递到游戏场景。
+* **结算界面 (Results Screen):** 歌曲结束或失败时弹出结算面板 (Score, Accuracy, Rank)。
+* **暂停菜单 (Pause Menu):** 实现游戏中的暂停、继续与重试功能。
 
-### 3. 基础设施
+### 3. 沉浸感与特效 (Immersion & VFX) - 长期目标
 
-- [ ] **选歌菜单 (Song Select)**: 开发 UI 面板以读取本地文件夹，替代目前的硬编码加载。
-- [ ] **对象池 (Object Pooling)**: 实现 Note 和 Slider 的回收复用机制，解决 `Instantiate`/`Destroy` 带来的 GC 卡顿问题。
+* **Kiai Time 表现:** 解析谱面 Kiai 字段，在高潮段落触发场景泛光 (Bloom) 增强与粒子流速加快。
+* **音频响应环境 (Audio Reactive):** 引入 FFT 频谱分析，让背景环境随 Bass 鼓点律动。
+* **指挥家特效:** 为手柄射线添加能量拖尾 (Trail) 与流光效果。
 
 ---
 
