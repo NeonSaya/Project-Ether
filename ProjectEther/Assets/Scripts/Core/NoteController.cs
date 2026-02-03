@@ -41,6 +41,8 @@ namespace OsuVR
         private MeshRenderer circleRenderer;
         private Color originalColor;
         private MaterialPropertyBlock _propBlock;
+        private Renderer[] allRenderers;
+        public Vector3? nextNotePosition;
 
         // ✅ [优化] 缓存 Scaler 组件，避免每次 Initialize 都 Get
         private ApproachCircleScaler cachedScaler;
@@ -61,11 +63,27 @@ namespace OsuVR
         // 存池接口
         private IObjectPool<GameObject> myPool;
 
+
+        /// <summary>
+        /// ✅ [核心修复] 确保组件已缓存
+        /// 防止 Prefab 是隐藏状态导致 Awake 不执行，从而引发空引用
+        /// </summary>
+        private void EnsureComponentsCached()
+        {
+            if (_propBlock == null)
+                _propBlock = new MaterialPropertyBlock();
+
+            if (allRenderers == null || allRenderers.Length == 0)
+                allRenderers = GetComponentsInChildren<Renderer>(true);
+        }
+
         /// <summary>
         /// 初始化音符
         /// </summary>
-        public void Initialize(HitObject hitObj, Vector3 targetPos, float speed, float beatmapCS, Color comboColor, RhythmGameManager manager, IObjectPool<GameObject> pool)
+        public void Initialize(HitObject hitObj, Vector3 targetPos, float speed, float beatmapCS, Color comboColor, RhythmGameManager manager, IObjectPool<GameObject> pool, Vector3? nextPos = null)
         {
+            EnsureComponentsCached();
+
             // 存下池引用
             this.myPool = pool;
             ResetState();
@@ -80,9 +98,13 @@ namespace OsuVR
 
             // 存下原始颜色，供 Update 逻辑使用
             this.originalColor = comboColor;
+            this.originalColor.a = 1.0f;
+            ApplyColor(this.originalColor);
             if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
             // 正确引用渲染器
             this.circleRenderer = GetComponentInChildren<MeshRenderer>();
+            // 存下下一个音符位置
+            this.nextNotePosition = nextPos;
 
             // 统一尺寸
             float finalSize = RhythmGameManager.CalculateVROsuSize(beatmapCS);
@@ -209,16 +231,6 @@ namespace OsuVR
                 // [可选] 确保它朝向摄像机 (如果是 VR，这一步很重要，让圆圈始终正面朝你)
                 approachCircle.LookAt(Camera.main.transform);
             }
-
-            // 4. 更新颜色反馈 (被指着时变黄)
-            if (circleRenderer != null)
-            {
-                Color targetColor = originalColor;
-                circleRenderer.GetPropertyBlock(_propBlock);
-                _propBlock.SetColor("_Color", targetColor);
-                _propBlock.SetColor("_BaseColor", targetColor);
-                circleRenderer.SetPropertyBlock(_propBlock);
-            }
         }
 
         /// <summary>
@@ -231,7 +243,6 @@ namespace OsuVR
 
             CheckHitOrMiss();
 
-            // ⚠️ 关键：每一帧结束时重置悬停状态
             // 这样下一帧 LaserShooter 必须再次射中它，isHovered 才会变回 true
             isHovered = false;
         }
@@ -283,6 +294,29 @@ namespace OsuVR
         }
 
         /// <summary>
+        /// ✅ [核心修复] 安全染色方法
+        /// </summary>
+        private void ApplyColor(Color color)
+        {
+            // 双重保险：以防 Initialize 没调或者被直接调用
+            EnsureComponentsCached();
+
+            foreach (var r in allRenderers)
+            {
+                if (r == null) continue;
+
+                r.GetPropertyBlock(_propBlock); // 现在 _propBlock 绝对不为空
+                _propBlock.SetColor("_Color", color);
+                _propBlock.SetColor("_BaseColor", color);
+                _propBlock.SetColor("_TintColor", color);
+                _propBlock.SetColor("_EmissionColor", color);
+                r.SetPropertyBlock(_propBlock);
+            }
+        }
+
+
+
+        /// <summary>
         /// 供 LaserShooter 调用的接口
         /// </summary>
         public void OnRayHover(bool isRightHand)
@@ -297,20 +331,10 @@ namespace OsuVR
         /// </summary>
         public void OnHit(double accuracy, bool isRightHand)
         {
-            Debug.Log("⚡ OnHit 被调用!"); // 必须看到这句话
+            if (hasBeenHit || !isActive) return;
+             Debug.Log($" OnHit! Color: {originalColor}");
             hasBeenHit = true;
             isActive = false;
-
-            // 1. 播放音效 
-            if (AudioManager.Instance == null)
-            {
-                Debug.LogError("❌ 【严重错误】AudioManager.Instance 为空！场景里没有挂载 AudioManager，或者它被销毁了！");
-            }
-            else
-            {
-                // 如果不为空，尝试播放
-                AudioManager.Instance.PlayHitSound(this.hitObject);
-            }
 
             if (HapticManager.Instance == null)
             {
@@ -330,6 +354,27 @@ namespace OsuVR
                     HapticManager.Instance.PlayHitHaptic(isRightHand, (int)hitObject.HitSound);
                 }
             }
+            // 播放特效
+            if (CodeOnlyVFX.Instance != null)
+                CodeOnlyVFX.Instance.PlayHit(
+                    transform.position,
+                    transform.rotation,
+                    transform.localScale.x,
+                    originalColor,
+                    this.nextNotePosition
+                );
+
+            // 播放音效 
+            if (AudioManager.Instance == null)
+            {
+                Debug.LogError("❌ 【严重错误】AudioManager.Instance 为空！场景里没有挂载 AudioManager，或者它被销毁了！");
+            }
+            else
+            {
+                // 如果不为空，尝试播放
+                AudioManager.Instance.PlayHitSound(this.hitObject);
+            }
+
 
 
             // 通知管理器
@@ -348,6 +393,8 @@ namespace OsuVR
         /// </summary>
         private void OnMiss()
         {
+            if (hasBeenHit || !isActive) return;
+
             hasBeenHit = true;
             isActive = false;
 
@@ -443,5 +490,6 @@ namespace OsuVR
                 Destroy(gameObject); // 兜底：如果池子没了直接销毁
             }
         }
+
     }
 }
