@@ -135,12 +135,16 @@ namespace OsuVR
         // 用来控制视觉显隐的索引
         private int nextVisualIndex = 0;
 
+        // 记录下一个 Tick 位置的缓存（优化）
+        private Vector3? nextNotePosition;
+
+
         // 在 SliderController 类中添加这个列表，用来记录所有生成的子物体（Tick, 箭头等）
         private List<GameObject> garbageList = new List<GameObject>();
         /// <summary>
         /// 初始化滑条控制器 (对象池版)
         /// </summary>
-        public void Initialize(SliderObject sliderData, float beatmapCS, Color comboColor, RhythmGameManager manager, IObjectPool<GameObject> pool, IObjectPool<GameObject> tPool)
+        public void Initialize(SliderObject sliderData, float beatmapCS, Color comboColor, RhythmGameManager manager, IObjectPool<GameObject> pool, IObjectPool<GameObject> tPool, Vector3? nextPos = null)
         {
             CleanUpEverything();
 
@@ -179,6 +183,10 @@ namespace OsuVR
             this.sliderData = sliderData;
             this.gameManager = manager;
             this.currentComboColor = comboColor;
+
+            // 缓存下一个 Note 位置
+            this.nextNotePosition = nextPos;
+
             // 设置位置，考虑 Stack
             Vector3 startPos = CoordinateMapper.MapToWorld(sliderData.Position);
 
@@ -250,7 +258,9 @@ namespace OsuVR
             currentAlpha = 1f;
             UpdateMaterialAlpha();
             // 更新视觉
-            if (sliderData != null) UpdateVisuals();
+
+            UpdateVisuals();
+            
             isInitialized = true;
             isActive = true;
 
@@ -302,6 +312,9 @@ namespace OsuVR
                 Destroy(combinedMesh);
                 combinedMesh = null;
             }
+            // 6. 重置计数器
+            ticksGot = 0;
+            currentNestedIndex = 0;
         }
 
         /// <summary>
@@ -313,16 +326,17 @@ namespace OsuVR
 
             for (int i = 0; i < tickVisuals.Count; i++)
             {
-                if (tickVisuals[i].gameObject != null)
+                var obj = tickVisuals[i].gameObject;
+                if (obj != null)
                 {
-                    tickVisuals[i].gameObject.SetActive(false);
+                    obj.SetActive(false);
                     if (tickPool != null)
-                        tickPool.Release(tickVisuals[i].gameObject);
+                        tickPool.Release(obj);
                     else
-                        Destroy(tickVisuals[i].gameObject);
+                        Destroy(obj);
                 }
             }
-            tickVisuals.Clear(); // 清空列表
+            tickVisuals.Clear();
         }
 
 
@@ -534,6 +548,7 @@ namespace OsuVR
                         {
                             tickObj.transform.SetParent(transform);
                             tickObj.transform.localRotation = Quaternion.identity;
+
                             tickObj.SetActive(false); // 初始隐藏
 
                             float tickScale = this.sliderWidth * 0.3f;
@@ -920,6 +935,17 @@ namespace OsuVR
                 if (HapticManager.Instance != null)
                     HapticManager.Instance.PlayHitHaptic(isRightHand, (int)sliderData.HitSound); // 震动对应手柄
 
+                if (CodeOnlyVFX.Instance != null)
+                {
+                    CodeOnlyVFX.Instance.PlayHit(
+                        transform.position,     // 位置
+                        transform.rotation,     // 朝向
+                        this.sliderWidth,       // 大小 (CS)
+                        currentComboColor,      // 颜色
+                        this.nextNotePosition   // 下个 Note 位置 (避让用)
+                    );
+                }
+
                 Debug.Log($"<color=green>Slider Head HIT!</color> Offset: {offset:F2}ms");
             }
             else if (offset < -20)
@@ -929,6 +955,7 @@ namespace OsuVR
                 // 让玩家的手可以在那里等着缩圈到位
                 return;
             }
+            
         }
 
         /// <summary>
@@ -1103,28 +1130,6 @@ namespace OsuVR
             }
         }
 
-        /// <summary>
-        /// 击中滑条头 (修改版：不再销毁滑条)
-        /// </summary>
-        private void HitHead()
-        {
-            if (headHit) return;
-            headHit = true;
-
-            // 1. 视觉反馈
-            if (followBall) followBall.SetActive(true);
-            if (headInstance) headInstance.SetActive(false); // 隐藏头，显示球
-
-            Debug.Log($"<color=green>Slider Head HIT</color>");
-            ticksGot++;
-        }
-
-        private void PlayHitSound(SliderEventType type)
-        {
-            // 这里只是占位，你需要连接到你的 AudioManager
-            // Tick 声音比较轻，Repeat 和 Tail 声音比较重
-        }
-
         private void CalculateFinalScore()
         {
             // 简单的分数计算逻辑
@@ -1140,6 +1145,9 @@ namespace OsuVR
         private void UpdateVisuals()
         {
             if (tickVisuals == null || tickVisuals.Count == 0) return;
+
+            // 预取数据
+            double timePreempt = sliderData.TimePreempt;
 
             // 直接遍历 List，简单可靠
             for (int i = 0; i < tickVisuals.Count; i++)
@@ -1159,11 +1167,14 @@ namespace OsuVR
                 // 贪吃蛇逻辑
                 double timeOffset = tickInfo.data.Time - sliderData.StartTime;
                 double snakeDelay = timeOffset / 3.0;
+
                 if (snakeDelay > 400) snakeDelay = 400;
 
-                double appearTime = (sliderData.StartTime - sliderData.TimePreempt) + snakeDelay;
+                double appearTime = (sliderData.StartTime - timePreempt) + snakeDelay;
 
-                if (currentMusicTimeCache >= appearTime)
+                double forceShowTime = tickInfo.data.Time - (timePreempt * 0.5);
+
+                if (currentMusicTimeCache >= appearTime || currentMusicTimeCache >= forceShowTime)
                 {
                     tickInfo.gameObject.SetActive(true);
                 }
@@ -1256,6 +1267,7 @@ namespace OsuVR
             // 调用你现有的优化寻路
             return GetPositionOnPathOptimized((float)spanProgress);
         }
+
         /// <summary>
         /// [调试] 创建头顶的调试标签
         /// </summary>
@@ -1363,14 +1375,11 @@ namespace OsuVR
                         // 1. 隐藏物体
                         obj.SetActive(false);
 
-                        // 2. 归还父物体到 PoolManager 
-                        obj.transform.SetParent(NotePoolManager.Instance.transform); 
-
-                        // 3. 还给池子
+                        // 2. 还给池子
                         tickPool.Release(obj);
                     }
                 }
-                // 4. 彻底清空列表
+                // 3. 彻底清空列表
                 tickVisuals.Clear();
             }
 

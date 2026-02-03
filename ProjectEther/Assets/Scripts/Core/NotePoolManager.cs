@@ -74,7 +74,7 @@ namespace OsuVR
                 },
                 actionOnDestroy: (obj) => Destroy(obj),
                 collectionCheck: false, // 🚨 极限性能模式：关闭重复检查
-                defaultCapacity: 300,
+                defaultCapacity: 500,
                 maxSize: 2000
             );
 
@@ -94,8 +94,8 @@ namespace OsuVR
                 },
                 actionOnDestroy: (obj) => Destroy(obj),
                 collectionCheck: false,
-                defaultCapacity: 100,
-                maxSize: 500
+                defaultCapacity: 500,
+                maxSize: 2000
             );
 
             // 3. Spinner 池
@@ -114,8 +114,8 @@ namespace OsuVR
                 },
                 actionOnDestroy: (obj) => Destroy(obj),
                 collectionCheck: false,
-                defaultCapacity: 5,
-                maxSize: 50
+                defaultCapacity: 10,
+                maxSize: 100
             );
 
             // 4. Tick 池：应对每秒 30+ 个 Tick 的情况
@@ -130,7 +130,7 @@ namespace OsuVR
                 },
                 actionOnDestroy: (obj) => Destroy(obj),
                 collectionCheck: false,
-                defaultCapacity: 5000,
+                defaultCapacity: 10000,
                 maxSize: 100000 // Aspire 可能会有海量 Tick
             );
 

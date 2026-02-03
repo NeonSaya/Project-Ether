@@ -404,6 +404,12 @@ namespace OsuVR
                 if (HapticManager.Instance != null)
                     // 双手震动，因为转盘通常很激烈
                     HapticManager.Instance.PlayHitHapticBoth((int)spinnerData.HitSound);
+
+                if (CodeOnlyVFX.Instance != null)
+                {
+                    CodeOnlyVFX.Instance.PlaySpinnerClear(transform.position);
+                }
+
                 gameManager.OnNoteHit(spinnerData, 0);
             }
             else if (Progress > 0.9f) gameManager.OnNoteHit(spinnerData, 1);

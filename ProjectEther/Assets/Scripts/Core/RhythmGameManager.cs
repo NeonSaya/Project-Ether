@@ -705,7 +705,14 @@ namespace OsuVR
                 // 比较当前音乐时间（注意：在缓冲期 currentMusicTimeMs 是负数，这正好能对应上）
                 if (currentMusicTimeMs >= spawnTime)
                 {
-                    SpawnNoteByType(hitObject);
+                    HitObject nextObject = null;
+                    // 检查列表里是否还有下一个
+                    if (nextNoteIndex + 1 < hitObjects.Count)
+                    {
+                        nextObject = hitObjects[nextNoteIndex + 1];
+                    }
+
+                    SpawnNoteByType(hitObject, nextObject);
                     nextNoteIndex++;
                     spawnedNotes++;
                 }
@@ -716,7 +723,7 @@ namespace OsuVR
             }
         }
 
-        private void SpawnNoteByType(HitObject hitObject)
+        private void SpawnNoteByType(HitObject hitObject, HitObject nextHitObject = null)
         {
             // 1. 获取对象池管理器
             var poolMgr = NotePoolManager.Instance;
@@ -736,6 +743,14 @@ namespace OsuVR
                ? currentBeatmap.Difficulty.CircleSize
                : 5f;
 
+            // 3.5 . 下一个音符位置 (保持不变)
+            Vector3? nextNoteWorldPos = null;
+            if (nextHitObject != null)
+            {
+                // 只需要 X/Y 平面的方向，Z轴(Stacking)的微小差异对粒子方向影响不大，直接用 MapToWorld 即可
+                nextNoteWorldPos = CoordinateMapper.MapToWorld(nextHitObject.Position);
+            }
+
             // 4. 从池中获取对象 & 初始化
             // ------------------------------------------------------
             if (hitObject is HitCircle)
@@ -751,7 +766,7 @@ namespace OsuVR
                 if (controller != null)
                 {
                     Vector3 targetPosition = CoordinateMapper.MapToWorld(hitObject.Position);
-                    controller.Initialize(hitObject, targetPosition, noteSpeed, currentCS, comboColor, this, poolMgr.CirclePool);
+                    controller.Initialize(hitObject, targetPosition, noteSpeed, currentCS, comboColor, this, poolMgr.CirclePool,nextNoteWorldPos);
                 }
             }
             else if (hitObject is SliderObject)
@@ -765,7 +780,7 @@ namespace OsuVR
                 var controller = noteObject.GetComponent<SliderController>();
                 if (controller != null)
                 {
-                    controller.Initialize((SliderObject)hitObject, currentCS, comboColor, this, poolMgr.SliderPool, poolMgr.TickPool);
+                    controller.Initialize((SliderObject)hitObject, currentCS, comboColor, this, poolMgr.SliderPool, poolMgr.TickPool,nextNoteWorldPos);
                 }
             }
             else if (hitObject is SpinnerObject)
