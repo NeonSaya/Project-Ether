@@ -57,6 +57,8 @@ namespace OsuVR
         private bool isFirstFrame = true;
         private MeshRenderer bodyRenderer;
         private MeshRenderer overlayRenderer;
+        // 缓存光晕贴图
+        private static Texture2D cachedRingGlowTex;
 
         private Camera MainCamera
         {
@@ -70,6 +72,8 @@ namespace OsuVR
         // 存池接口
         private IObjectPool<GameObject> myPool;
 
+        // 光晕对象
+        private GameObject haloObject;
         /// <summary>
         /// 当物体被激活（或从池中取出）时调用
         /// </summary>
@@ -100,6 +104,70 @@ namespace OsuVR
         public void OnRayExit()
         {
             isHovered = false;
+        }
+
+
+        /// <summary>
+        /// 获取手绘光晕贴图
+        /// </summary>
+        private Texture2D GetGlowTexture()
+        {
+            if (cachedRingGlowTex != null) return cachedRingGlowTex;
+
+            int size = 128;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+
+            Color[] colors = new Color[size * size];
+            Vector2 center = new Vector2(size / 2f, size / 2f);
+            float maxRadius = size / 2f;
+
+            // Scale = 1.25, Note边缘在 0.8
+            float startRadius = 0.72f; //稍微往里缩一点，让淡入更深邃
+            float peakRadius = 0.80f;  // 物理边缘 (最亮)
+            float endRadius = 1.0f;    // 光晕边界
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dist = Vector2.Distance(new Vector2(x, y), center);
+                    float r = dist / maxRadius;
+                    float alpha = 0f;
+
+                    if (r < startRadius)
+                    {
+                        alpha = 0f; // 内部全黑
+                    }
+                    else if (r < peakRadius)
+                    {
+                        // 内部淡入：使用 SmoothStep 让过渡更丝滑
+                        float t = (r - startRadius) / (peakRadius - startRadius);
+                        alpha = t * t * (3f - 2f * t); // SmoothStep
+                    }
+                    else
+                    {
+                        // [核心修改] 外部衰减：模拟真实光照散落
+                        float t = (r - peakRadius) / (endRadius - peakRadius);
+                        float linear = 1f - Mathf.Clamp01(t);
+
+                        // ✨ 魔法在这里：三次方衰减 ✨
+                        // 线性(Linear)是: alpha = linear
+                        // 指数(Real)是:   alpha = linear * linear * linear
+                        // 这样会让光晕紧贴边缘很亮，远处很柔，不再像"边框"
+                        alpha = linear * linear * linear;
+                    }
+
+                    // 稍微提高一点基础不透明度，因为指数衰减会让整体变暗
+                    alpha *= 0.8f;
+
+                    colors[y * size + x] = new Color(1f, 1f, 1f, alpha);
+                }
+            }
+
+            tex.SetPixels(colors);
+            tex.Apply();
+            cachedRingGlowTex = tex;
+            return tex;
         }
 
         /// <summary>
@@ -244,8 +312,69 @@ namespace OsuVR
                 approachCircleObject.gameObject.SetActive(true);
             }
 
+            // 创建光晕
+            Renderer targetRenderer = transform.Find("Body")?.GetComponent<Renderer>();
+            if (targetRenderer == null) targetRenderer = this.circleRenderer;
+
+            if (targetRenderer != null)
+            {
+                CreateHalo(targetRenderer.gameObject, comboColor);
+            }
+
             // 手动调用一次 Update 确保初始大小正确
             Update();
+        }
+
+
+        /// <summary>
+        /// [修改版] 创建纯白发光光晕
+        /// </summary>
+        private void CreateHalo(GameObject target, Color baseColor)
+        {
+            if (haloObject != null) Destroy(haloObject);
+
+            haloObject = new GameObject("Halo_Glow");
+            haloObject.transform.SetParent(target.transform);
+
+            // 1. 强制使用 Quad (面片) 作为光晕
+            // 不再复制本体的 Mesh，防止本体是奇怪形状导致光晕变形
+            // 既然我们有了圆形贴图，用面片是最稳的
+            var dstFilter = haloObject.AddComponent<MeshFilter>();
+            GameObject tempQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            dstFilter.sharedMesh = tempQuad.GetComponent<MeshFilter>().sharedMesh;
+            Destroy(tempQuad); // 用完销毁临时物体
+
+            // 2. 创建材质
+            Shader shader = Shader.Find("Mobile/Particles/Additive");
+            if (!shader) shader = Shader.Find("Legacy Shaders/Particles/Additive");
+            Material haloMat = new Material(shader);
+
+            // 3. ✅ [关键修复] 强制使用手绘的圆形光斑贴图
+            haloMat.mainTexture = GetGlowTexture();
+
+            var dstRenderer = haloObject.AddComponent<MeshRenderer>();
+            dstRenderer.material = haloMat;
+
+            // 4. 调整姿态
+            haloObject.transform.localPosition = new Vector3(0, 0, 0.02f);
+            haloObject.transform.localRotation = Quaternion.identity;
+            // 稍微放大一点，因为是 Quad，需要大一点才能盖住球
+            haloObject.transform.localScale = Vector3.one * 1.25f;
+
+            // 5. 颜色
+            if (dstRenderer)
+            {
+                // 纯白高亮，透明度低一点
+                Color whiteGlow = new Color(2.5f, 2.5f, 2.5f, 0.75f);
+
+                if (haloMat.HasProperty("_TintColor"))
+                    haloMat.SetColor("_TintColor", whiteGlow);
+                else
+                    haloMat.SetColor("_Color", whiteGlow);
+
+                dstRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                dstRenderer.receiveShadows = false;
+            }
         }
 
         /// <summary>
