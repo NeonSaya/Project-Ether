@@ -97,3 +97,17 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# --- Project Ether 特有忽略 (避版权) ---
+
+# 忽略歌曲 (版权音乐)
+Assets/Songs/
+Assets/Songs.meta
+
+# 忽略皮肤 (他人美术资源)
+Assets/Skins/
+Assets/Skins.meta
+
+# 忽略 MMD 场景 (如果有)
+Assets/MMD_Stages/
+Assets/MMD_Stages.meta
