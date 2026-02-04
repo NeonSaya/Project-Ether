@@ -35,6 +35,10 @@ namespace OsuVR
         [Tooltip("跟踪球预制体")]
         public GameObject followBallPrefab;
 
+        [Header("判定设置")]
+        [Tooltip("跟随判定半径倍率 (osu!标准约为 2x CS半径)")]
+        public float followRadiusMultiplier = 2f; // [新增] 控制跟随判定的容错范围
+
         [Header("渐变效果")]
         [Tooltip("渐隐时间（秒）")]
         public float fadeOutDuration = 0.5f;
@@ -102,6 +106,9 @@ namespace OsuVR
         private bool headHit = false;        // 滑条头是否被击中
         private bool finished = false;       // 滑条是否结束
 
+        // [新增] 记录上一帧的击中位置，用于计算是否在球的半径内
+        private Vector3 lastHitPosition;
+
         // [新增] 避免每帧重复获取时间的缓存
         private double currentMusicTimeCache;
 
@@ -141,6 +148,23 @@ namespace OsuVR
 
         // 在 SliderController 类中添加这个列表，用来记录所有生成的子物体（Tick, 箭头等）
         private List<GameObject> garbageList = new List<GameObject>();
+
+
+
+
+        // =========================================================
+        // ✅ 新增：Slider 生命周期修复
+        // =========================================================
+
+        void OnEnable()
+        {
+            isActive = true;
+            isTracking = false;
+            headHit = false;
+            finished = false;
+        }
+
+
         /// <summary>
         /// 初始化滑条控制器 (对象池版)
         /// </summary>
@@ -874,9 +898,9 @@ namespace OsuVR
             }
 
         }
-        void LateUpdate()
+        public void OnRayExit()
         {
-            isTracking = false;
+            isTracking = false; // ✅ 只有当射线真的离开时才取消跟踪
         }
 
         // 确保销毁时清理 Mesh 内存
@@ -892,15 +916,18 @@ namespace OsuVR
         /// <summary>
         /// 被射线照射时调用 (由 LaserShooter 每帧调用)
         /// </summary>
-        public void OnRayStay(bool isRightHand)
+        public void OnRayStay(bool isRightHand, Vector3 hitPosition)
         {
             isTracking = true;
             isTrackingRightHand = isRightHand;
+            lastHitPosition = hitPosition; // 记录击中点
+
             if (!headHit)
             {
                 TryHitHead(isRightHand);
             }
         }
+
         void OnDisable()
         {
             // 当物体被隐藏/回收时，清理残留
@@ -917,8 +944,22 @@ namespace OsuVR
             // 负数 = 提前 (Early), 正数 = 延迟 (Late)
             double offset = currentMusicTimeCache - sliderData.StartTime;
 
+            // [核心修复] 计算击中点到 "滑条头中心" 的距离
+            // 注意：这里不能用 followBall，因为头判定时球可能还没生成或位置不对
+            Vector3 headWorldPos = transform.position; // 滑条挂载点即为起点
+            float distToHead = Vector3.Distance(lastHitPosition, headWorldPos);
+
+            // 允许的半径：滑条半径 * 宽松系数 (Relax可以稍微宽一点，比如 2.0x ~ 3.0x)
+            float allowedRadius = (sliderWidth * 0.5f) * 3.0f;
+
+            // 只有在半径内才允许判定
+            if (distToHead > allowedRadius)
+            {
+                return;
+            }
+
             // [核心逻辑] 
-            // offset >= -10 : 只有缩圈几乎重合（只剩20ms）时才开始允许判定
+            // offset >= -20 : 只有缩圈几乎重合（只剩20ms）时才开始允许判定
             // offset <= 150 : 允许延迟 150ms
             if (offset >= -20 && offset <= 150)
             {
@@ -969,7 +1010,7 @@ namespace OsuVR
 
             // 1. 头部判定 (Head)
             // 如果还没有击中头部，且时间还没超时，尝试自动判定 (Relax模式/VR特性)
-            if (!headHit)
+            if (!headHit && isTracking)
             {
                 double diff = currentMusicTimeCache - sliderData.StartTime;
 
@@ -977,6 +1018,7 @@ namespace OsuVR
                 // osu!droid: onSliderHeadHit
                 if (Mathf.Abs((float)diff) <= 150)
                 { 
+
                 }
                 // 超时 Miss
                 else if (diff > 150)
@@ -1004,10 +1046,20 @@ namespace OsuVR
                 }
 
                 // 时间到了，开始判定！
+                bool hit = false;
 
-                // 判定依据：当前帧是否 isTracking
-                // 注意：即使 Head Miss 了，只要现在按住了，Tick 依然算击中 (TicksGot++)
-                bool hit = isTracking;
+                if (isTracking && followBall != null)
+                {
+                    float allowedRadius = (sliderWidth * 0.5f) * followRadiusMultiplier;
+                    float dist = Vector3.Distance(lastHitPosition, followBall.transform.position);
+
+                    // 如果在范围内，直接算 Hit (Relax 不需要按键)
+                    if (dist <= allowedRadius)
+                    {
+                        hit = true;
+                    }
+                }
+
 
                 nestedObject.IsHit = hit;
 
@@ -1180,6 +1232,10 @@ namespace OsuVR
                 }
             }
             if (followBallRenderer == null) return;
+
+            float dist = Vector3.Distance(lastHitPosition, followBall.transform.position);
+            float allowedRadius = (sliderWidth * 0.5f) * followRadiusMultiplier;
+            bool isEffectiveTracking = isTracking && (dist <= allowedRadius);
 
             followBallRenderer.GetPropertyBlock(_propBlock);
 

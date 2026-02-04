@@ -48,7 +48,7 @@ namespace OsuVR
 
         [Header("检测增强")]
         [Tooltip("射线半径 (米)：把射线变粗，容错率更高 (建议 0.1 ~ 0.15)")]
-        public float rayRadius = 0.12f;
+        public float rayRadius = 0.13f;
 
         [Header("通用配置")]
         public float rayLength = 100f;
@@ -164,9 +164,11 @@ namespace OsuVR
 
             // 调试线
             Color debugColor = (currentMode == ControlMode.WristGain) ? Color.cyan : Color.red;
-            Debug.DrawRay(origin, direction * 10, debugColor);
+            Debug.DrawRay(origin, direction * 100, Color.red);
 
-            RaycastHit[] hits = Physics.SphereCastAll(ray, rayRadius, rayLength, noteLayer);
+            RaycastHit[] hits = Physics.SphereCastAll(ray, rayRadius, rayLength, noteLayer, QueryTriggerInteraction.Collide);
+
+            Dictionary<GameObject, Vector3> currentHitMap = new Dictionary<GameObject, Vector3>();
 
             HashSet<GameObject> currentHitObjects = new HashSet<GameObject>();
 
@@ -180,6 +182,11 @@ namespace OsuVR
             {
                 GameObject obj = hit.collider.gameObject;
                 currentHitObjects.Add(obj);
+
+                if (!currentHitMap.ContainsKey(obj))
+                {
+                    currentHitMap.Add(obj, hit.point);
+                }
 
                 // ✅ [修改] 传递 'this' 给 Spinner，支持多点触控
                 var spinner = obj.GetComponentInParent<SpinnerController>();
@@ -206,37 +213,37 @@ namespace OsuVR
             {
                 if (oldObj != null && !currentHitObjects.Contains(oldObj))
                 {
-                    NotifyHoverState(oldObj, false);
+                    NotifyHoverState(oldObj, false, Vector3.zero); // 离开时位置传 zero 即可
                 }
             }
 
             // 5. 处理进入/保持 (Enter/Stay)
-            foreach (var curObj in currentHitObjects)
+            foreach (var kvp in currentHitMap)
             {
-                NotifyHoverState(curObj, true);
+                    NotifyHoverState(kvp.Key, true, kvp.Value); // kvp.Value 就是 hit.point
             }
 
-            previousHitObjects = currentHitObjects;
+            previousHitObjects = new HashSet<GameObject>(currentHitMap.Keys);
+            
         }
 
-        private void NotifyHoverState(GameObject obj, bool state)
+        private void NotifyHoverState(GameObject obj, bool state, Vector3 hitPoint)
         {
-            // 只有当射线“指着”的时候才调用 (state == true)
-            // 离开的时候 (state == false) 不需要调用，因为 Controller 脚本会在 LateUpdate 自动重置
-            if (state)
-            {
+           
                 // 1. 通知 Note (传入 isRightHand)
                 var note = obj.GetComponentInParent<NoteController>();
                 if (note != null)
                 {
-                    note.OnRayHover(this.isRightHand); // ✅ 改用方法调用
+                    if (state) note.OnRayHover(this.isRightHand);
+                    else note.OnRayExit(); // ✅ 新增：需要去 NoteController 里加这个方法
                 }
 
-                // 2. 通知 Slider (传入 isRightHand)
+                // 2. 通知 Slider
                 var slider = obj.GetComponentInParent<SliderController>();
                 if (slider != null)
                 {
-                    slider.OnRayStay(this.isRightHand); // ✅ 改用方法调用
+                    if (state) slider.OnRayStay(this.isRightHand, hitPoint);
+                    else slider.OnRayExit();
                 }
 
                 // 3. 通知 Spinner (传入 this，你原代码里好像已经处理了 UpdateRotation)
@@ -246,7 +253,7 @@ namespace OsuVR
                     spinner.isHovered = true; // Spinner 暂时保持原样，或者你也给它加个 OnRayHover
                 }
             }
-        }
+       
 
         public void SetMode(bool isLazyMode)
         {

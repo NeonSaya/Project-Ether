@@ -416,7 +416,7 @@ namespace OsuVR
                         emitParams.startLifetime = Random.Range(0.4f, 0.6f);
 
                         // 5. 尺寸 (完全一致，不再放大了)
-                        emitParams.startSize = Random.Range(cubeSize * 1.0f, cubeSize * 1.6f);
+                        emitParams.startSize = Random.Range(cubeSize * 0.2f, cubeSize * 0.4f);
 
                         ps.Emit(emitParams, 1);
                     }

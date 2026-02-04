@@ -329,9 +329,9 @@ GameObject:
   - component: {fileID: 8290582419829039291}
   - component: {fileID: 4853651860894337067}
   - component: {fileID: 6597355342681302920}
-  - component: {fileID: 5177908724939746381}
   - component: {fileID: -1637953178495709404}
   - component: {fileID: -4500134418609693527}
+  - component: {fileID: 5177908724939746381}
   m_Layer: 6
   m_Name: HitCircle_Prefab
   m_TagString: Untagged
@@ -408,27 +408,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!135 &5177908724939746381
-SphereCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5026766453584379729}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 1
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Radius: 1
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &-1637953178495709404
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -450,6 +429,7 @@ MonoBehaviour:
   hasBeenHit: 0
   isHovered: 0
   approachCircleObject: {fileID: 4241342781259666631}
+  glowIntensity: 3.5
 --- !u!114 &-4500134418609693527
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -466,6 +446,27 @@ MonoBehaviour:
   hitTimingOffsetMs: -20
   missWindowMs: 150
   latchMemoryMs: 50
+--- !u!135 &5177908724939746381
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5026766453584379729}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Radius: 1
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &8704216868650899263
 GameObject:
   m_ObjectHideFlags: 0

@@ -34,6 +34,9 @@ namespace OsuVR
         [Header("视觉组件")]
         public Transform approachCircleObject;
 
+        [Header("视觉增强")]
+        public float glowIntensity = 2.3f;
+
         // 内部变量
         private double currentMusicTimeMs = 0;
         private double timeToHit = 0;
@@ -50,6 +53,10 @@ namespace OsuVR
         // ✅ [优化] 缓存相机，杜绝 Update 里使用 Camera.main
         private static Camera _cachedMainCamera;
         private float lastDebugTime = 0f;
+        // 添加一个变量来防止第一帧暴毙
+        private bool isFirstFrame = true;
+        private MeshRenderer bodyRenderer;
+        private MeshRenderer overlayRenderer;
 
         private Camera MainCamera
         {
@@ -63,6 +70,18 @@ namespace OsuVR
         // 存池接口
         private IObjectPool<GameObject> myPool;
 
+        /// <summary>
+        /// 当物体被激活（或从池中取出）时调用
+        /// </summary>
+        void OnEnable()
+        {
+            // 强制复活！防止从池里拿出来还是死的
+            isActive = true;
+            isHovered = false;
+            // 如果是从池里取出的，hasBeenHit 状态可能脏了，需要重置
+            // 但 Initialize 会再次重置它，这里兜个底
+            hasBeenHit = false;
+        }
 
         /// <summary>
         /// ✅ [核心修复] 确保组件已缓存
@@ -77,6 +96,12 @@ namespace OsuVR
                 allRenderers = GetComponentsInChildren<Renderer>(true);
         }
 
+        // ✅ 新增：对应 RayController 的离开调用
+        public void OnRayExit()
+        {
+            isHovered = false;
+        }
+
         /// <summary>
         /// 初始化音符
         /// </summary>
@@ -87,6 +112,7 @@ namespace OsuVR
             // 存下池引用
             this.myPool = pool;
             ResetState();
+            isFirstFrame = true;
 
             hitObject = hitObj;
             targetPosition = targetPos;
@@ -105,6 +131,62 @@ namespace OsuVR
             this.circleRenderer = GetComponentInChildren<MeshRenderer>();
             // 存下下一个音符位置
             this.nextNotePosition = nextPos;
+
+            // -----------------------------------------------------------
+            // 1. 获取 Body 和 Overlay 的 Renderer 引用 (如果是首次)
+            // -----------------------------------------------------------
+            if (bodyRenderer == null)
+            {
+                Transform bodyTr = transform.Find("Body");
+                // 如果找不到名为 Body 的子物体，就尝试用根物体（兼容旧Prefab结构）
+                if (bodyTr) bodyRenderer = bodyTr.GetComponent<MeshRenderer>();
+                else bodyRenderer = GetComponent<MeshRenderer>();
+            }
+
+            if (overlayRenderer == null)
+            {
+                Transform overlayTr = transform.Find("Overlay");
+                if (overlayTr) overlayRenderer = overlayTr.GetComponent<MeshRenderer>();
+            }
+
+            // -----------------------------------------------------------
+            // 2. 颜色与 HDR 发光计算
+            // -----------------------------------------------------------
+            this.originalColor = comboColor;
+            this.originalColor.a = 1.0f;
+
+            // 计算 HDR 高亮颜色 (RGB变亮，Alpha不变)
+            Color hdrColor = new Color(
+                originalColor.r * glowIntensity,
+                originalColor.g * glowIntensity,
+                originalColor.b * glowIntensity,
+                1.0f
+            );
+
+            // 准备属性块
+            if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
+
+            // A. 给 Body 设置发光颜色
+            if (bodyRenderer != null)
+            {
+                bodyRenderer.GetPropertyBlock(_propBlock);
+                _propBlock.SetColor("_Color", hdrColor);          // Standard / Particles
+                _propBlock.SetColor("_BaseColor", hdrColor);      // URP
+                _propBlock.SetColor("_EmissionColor", hdrColor);  // Emission
+                bodyRenderer.SetPropertyBlock(_propBlock);
+            }
+
+            // B. 给 Overlay 设置发光颜色 (通常是白色高亮)
+            if (overlayRenderer != null)
+            {
+                overlayRenderer.GetPropertyBlock(_propBlock);
+                // Overlay 通常保持白色，但也要乘亮度
+                Color overlayHdr = new Color(glowIntensity, glowIntensity, glowIntensity, 1f);
+
+                _propBlock.SetColor("_Color", overlayHdr);
+                _propBlock.SetColor("_BaseColor", overlayHdr);
+                overlayRenderer.SetPropertyBlock(_propBlock);
+            }
 
             // 统一尺寸
             float finalSize = RhythmGameManager.CalculateVROsuSize(beatmapCS);
@@ -242,9 +324,6 @@ namespace OsuVR
             if (!isActive) return;
 
             CheckHitOrMiss();
-
-            // 这样下一帧 LaserShooter 必须再次射中它，isHovered 才会变回 true
-            isHovered = false;
         }
 
         /// <summary>
@@ -253,17 +332,28 @@ namespace OsuVR
         private void CheckHitOrMiss()
         {
             if (hasBeenHit) return;
+
             if (gameManager == null) return;
 
-            // 计算时间偏差：当前时间 - 打击时间
-            // 负数 = 提前 (Early), 正数 = 延迟 (Late)
             double now = gameManager.GetCurrentMusicTimeMs();
             double diff = now - hitObject.StartTime;
 
-            if (Time.time - lastDebugTime > 0.5f) // 每0.5秒只打印一次，防止刷屏
+            // ✅ 调试日志：如果刚生成 diff 就很大，说明 Manager 的时间同步有问题
+            if (isFirstFrame)
             {
-                // Debug.Log($"[Check] Time: {currentMusicTimeMs:F0} | Start: {hitObject.StartTime:F0} | Diff: {diff:F0}ms");
-                lastDebugTime = Time.time;
+                isFirstFrame = false;
+                // 如果第一帧就延迟超过 100ms，打印警告
+                if (diff > 100)
+                {
+                    Debug.LogWarning($"[Timing Lag] 音符生成延迟！Diff: {diff:F2}ms (Window: {hitWindow})");
+                }
+
+                // ✅ 核心保护：如果是第一帧且判定为 Miss，强制不判 Miss，给它一次机会
+                // 这防止了“刚生成就立刻销毁”的问题
+                if (diff > hitWindow)
+                {
+                    return;
+                }
             }
 
             // --- HIT 判定 ---
@@ -274,7 +364,7 @@ namespace OsuVR
             {
                 if (isHovered) 
                 {
-                    Debug.Log($"✅ [Relax] 命中! Diff: {diff:F2}ms");
+                    Debug.Log($"[Check] Diff: {diff:F2} | Window: {hitWindow}");
                     OnHit(diff, hoveringHandIsRight);
                 }
             }
@@ -321,6 +411,8 @@ namespace OsuVR
         /// </summary>
         public void OnRayHover(bool isRightHand)
         {
+            Debug.Log($"[Note] 收到 Hover 信号！来自: {(isRightHand ? "右手" : "左手")}");
+
             isHovered = true;
             hoveringHandIsRight = isRightHand;
             CheckHitOrMiss();
@@ -490,6 +582,7 @@ namespace OsuVR
                 Destroy(gameObject); // 兜底：如果池子没了直接销毁
             }
         }
+
 
     }
 }
