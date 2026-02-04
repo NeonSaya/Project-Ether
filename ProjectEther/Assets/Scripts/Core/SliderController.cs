@@ -48,17 +48,20 @@ namespace OsuVR
 
         [Header("osu! 风格组件")]
         public GameObject sliderHeadPrefab;    // 拖入 VisualHitCircle Prefab
-        public GameObject reverseArrowPrefab;  // 拖入 ReverseArrow Prefab
         public GameObject sliderTickPrefab;
         private GameObject headInstance;       // 实例化的头
         private GameObject arrowInstance;      // 实例化的箭头
 
-
+       
         [Header("调试设置")]
         public bool showDebugLabel = true; // 开关
         public GameObject debugTextPrefab; // 需在 Inspector 拖入一个带 TextMeshPro 的 Prefab
         private TextMeshPro debugTextInstance; // 实例化的文本
 
+
+        // [新增] 折返粒子特效引用
+        private ParticleSystem headReversePS;
+        private ParticleSystem tailReversePS;
 
         // [新增] 这里的颜色用于生成 Vertex Colors
         public Color customBodyColor = new Color(0.2f, 0.6f, 1f, 0.9f); // 默认 osu! 蓝
@@ -151,11 +154,209 @@ namespace OsuVR
 
 
 
+        private static Texture2D cachedSoftDotTex;
 
-        // =========================================================
-        // ✅ 新增：Slider 生命周期修复
-        // =========================================================
+        /// <summary>
+        /// [新增] 生成实心柔光粒子贴图 (用于打击粒子和折返粒子)
+        /// </summary>
+        private Texture2D GetSoftDotTexture()
+        {
+            if (cachedSoftDotTex != null) return cachedSoftDotTex;
 
+            int size = 64; // 小粒子不需要太大
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            Color[] colors = new Color[size * size];
+            Vector2 center = new Vector2(size / 2f, size / 2f);
+            float maxRadius = size / 2f;
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dist = Vector2.Distance(new Vector2(x, y), center);
+                    float r = dist / maxRadius;
+                    float alpha = 0f;
+
+                    if (r <= 1.0f)
+                    {
+                        // 径向渐变：中心实心，边缘柔和
+                        // 使用 Cosine 曲线模拟光晕衰减
+                        float v = Mathf.Clamp01(1f - r);
+                        alpha = v * v; // 平方让边缘衰减更快，中心更亮
+                    }
+
+                    colors[y * size + x] = new Color(1f, 1f, 1f, alpha);
+                }
+            }
+
+            tex.SetPixels(colors);
+            tex.Apply();
+            cachedSoftDotTex = tex;
+            return tex;
+        }
+
+
+        private static Texture2D cachedSliderGlowTex;
+
+
+        /// <summary>
+        /// [新增] 生成和滑条融为一体的折返粒子特效
+        /// </summary>
+        private ParticleSystem CreateReverseParticle(Vector3 pos, Quaternion rot, Color color)
+        {
+            GameObject go = new GameObject("VFX_Reverse_Energy");
+            go.transform.SetParent(transform);
+            go.transform.position = pos;
+            go.transform.rotation = rot;
+
+            ParticleSystem ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+            var main = ps.main;
+            main.playOnAwake = false;
+
+            var emission = ps.emission;
+            var shape = ps.shape;
+            var noise = ps.noise; // ✅ [新增] 噪声模块
+            var colOL = ps.colorOverLifetime; // ✅ [新增] 颜色/透明度渐变
+            var limitVel = ps.limitVelocityOverLifetime; // ✅ [新增] 阻力模块
+            var renderer = go.GetComponent<ParticleSystemRenderer>();
+
+            // 1. 基础设置：彻底打乱
+            main.duration = 1.0f;
+            main.loop = true;
+
+            // ✅ [随机化] 寿命范围拉大 (0.3 ~ 0.6)
+            // 有的死得早(在内部)，有的死得晚(飘得远)，打破边缘整齐感
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.3f, 0.6f);
+
+            // ✅ [随机化] 速度极慢且差异大
+            // 模拟悬浮微尘，只有微弱的向外趋势
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.5f, 1.0f);
+            // 尺寸随机
+            float baseSize = sliderWidth * 0.12f;
+            main.startSize = new ParticleSystem.MinMaxCurve(baseSize * 0.5f, baseSize * 1.5f);
+
+            main.startColor = color;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+
+            // 2. 形状：体积填充
+            shape.shapeType = ParticleSystemShapeType.Circle;
+            shape.arc = 180f;
+            shape.radius = sliderWidth * 0.25f; // 稍微扩大一点范围
+
+            // ✅ [核心] 设为 1，确保粒子在半圆"内部"随机生成，而不是只在边缘
+            shape.radiusThickness = 1.0f;
+
+            // 3. 发射率：极高密度 (因为粒子很小且淡)
+            emission.rateOverTime = 400f;
+            emission.enabled = false;
+
+            // 4. ✅ [新增] 噪声模块：制造"朦胧"和"扰动"的关键
+            noise.enabled = true;
+            noise.strength = new ParticleSystem.MinMaxCurve(0.05f, 0.15f);
+            noise.frequency = 0.5f; // 扰动频率 (低频显得更像烟雾)
+            noise.scrollSpeed = 0.5f; // 噪声纹理滚动
+            noise.damping = true; // 阻尼，让乱动更柔和
+
+            // 5. ✅ [新增] 阻力 (关键！)
+            // 让粒子飞出来后迅速减速，停在半空中变成"散沙"
+            limitVel.enabled = true;
+            limitVel.limit = 0.1f; // 限制最大速度为 0.1 (几乎静止)
+            limitVel.dampen = 0.2f; // 阻尼系数 (0~1)，越大减速越快
+
+            // 5. ✅ [新增] 透明度渐变 (Fade In -> Fade Out)
+            // 这是消除"边缘感"的神器，让粒子在半空中慢慢消失
+            colOL.enabled = true;
+            Gradient grad = new Gradient();
+            grad.SetKeys(
+                new GradientColorKey[] { new GradientColorKey(Color.white, 0.0f), new GradientColorKey(Color.white, 1.0f) },
+                new GradientAlphaKey[] {
+                    new GradientAlphaKey(0f, 0f),    // 初始透明
+                    new GradientAlphaKey(1f, 0.2f),  // 迅速显现
+                    new GradientAlphaKey(1f, 0.6f),  // 保持可见
+                    new GradientAlphaKey(0f, 1.0f)   // 慢慢消失 (0透明度)
+                }
+            );
+            colOL.color = grad;
+
+            // 6. 渲染器
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+
+            Shader shader = Shader.Find("Mobile/Particles/Additive");
+            if (!shader) shader = Shader.Find("Legacy Shaders/Particles/Additive");
+            Material mat = new Material(shader);
+
+            mat.mainTexture = GetSoftDotTexture();
+
+            // 颜色亮度不用太高，因为现在有重叠且有淡入淡出
+            Color hdrColor = color * 3.0f;
+            if (mat.HasProperty("_TintColor")) mat.SetColor("_TintColor", hdrColor);
+            else if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", hdrColor);
+            else mat.SetColor("_Color", hdrColor);
+
+            renderer.material = mat;
+
+            go.SetActive(true);
+            garbageList.Add(go);
+
+            ps.Play();
+            return ps;
+        }
+
+        /// <summary>
+        /// [修复版] 完美匹配 1.25x 缩放的空心光环
+        /// </summary>
+        private Texture2D GetGlowTexture()
+        {
+            if (cachedSliderGlowTex != null) return cachedSliderGlowTex;
+
+            int size = 128;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+
+            Color[] colors = new Color[size * size];
+            Vector2 center = new Vector2(size / 2f, size / 2f);
+            float maxRadius = size / 2f;
+
+            float startRadius = 0.72f;
+            float peakRadius = 0.80f;
+            float endRadius = 1.0f;
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dist = Vector2.Distance(new Vector2(x, y), center);
+                    float r = dist / maxRadius;
+                    float alpha = 0f;
+
+                    if (r < startRadius) alpha = 0f;
+                    else if (r < peakRadius)
+                    {
+                        float t = (r - startRadius) / (peakRadius - startRadius);
+                        alpha = t * t * (3f - 2f * t);
+                    }
+                    else
+                    {
+                        // 外部三次方衰减
+                        float t = (r - peakRadius) / (endRadius - peakRadius);
+                        float linear = 1f - Mathf.Clamp01(t);
+                        alpha = linear * linear * linear;
+                    }
+
+                    alpha *= 0.8f;
+
+                    colors[y * size + x] = new Color(1f, 1f, 1f, alpha);
+                }
+            }
+
+            tex.SetPixels(colors);
+            tex.Apply();
+            cachedSliderGlowTex = tex;
+            return tex;
+        }
+
+        // Slider 生命周期修复
         void OnEnable()
         {
             isActive = true;
@@ -287,8 +488,6 @@ namespace OsuVR
             
             isInitialized = true;
             isActive = true;
-
-            //CreateDebugLabel();
         }
 
         /// <summary>
@@ -546,6 +745,48 @@ namespace OsuVR
                         arMs = gameManager.spawnOffsetMs;
                     scaler.Initialize(sliderData.StartTime, arMs);
                 }
+
+                // =========================================================
+                // ✅ [修改] 给滑条头加完美圆形光晕
+                // =========================================================
+                Transform bodyTr = headInstance.transform.Find("Body");
+                GameObject targetBody = bodyTr != null ? bodyTr.gameObject : headInstance;
+
+                GameObject headHalo = new GameObject("Head_Halo");
+                headHalo.transform.SetParent(targetBody.transform);
+                garbageList.Add(headHalo);
+
+                // 1. 强制使用 Quad Mesh
+                var dstMF = headHalo.AddComponent<MeshFilter>();
+                GameObject tempQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                dstMF.sharedMesh = tempQuad.GetComponent<MeshFilter>().sharedMesh;
+                Destroy(tempQuad);
+
+                // 2. 材质 + 贴图
+                Shader shader = Shader.Find("Mobile/Particles/Additive");
+                if (!shader) shader = Shader.Find("Legacy Shaders/Particles/Additive");
+                Material haloMat = new Material(shader);
+
+                // 强制赋图
+                haloMat.mainTexture = GetGlowTexture();
+
+                var dstMR = headHalo.AddComponent<MeshRenderer>();
+                dstMR.material = haloMat;
+
+                // 3. 变换
+                headHalo.transform.localPosition = new Vector3(0, 0, 0.02f);
+                headHalo.transform.localRotation = Quaternion.identity;
+                headHalo.transform.localScale = Vector3.one * 1.25f; // 大一点
+
+                // 4. 颜色
+                Color whiteGlow = new Color(2.5f, 2.5f, 2.5f, 0.75f);
+                if (haloMat.HasProperty("_TintColor"))
+                    haloMat.SetColor("_TintColor", whiteGlow);
+                else
+                    haloMat.SetColor("_Color", whiteGlow);
+
+                dstMR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                // =========================================================
             }
 
 
@@ -592,81 +833,97 @@ namespace OsuVR
                 }
             }
 
-            // 创建折返箭头 (Reverse Arrow)
-            // 只有当重复次数 > 1 时才需要箭头
-            if (reverseArrowPrefab != null && sliderData.RepeatCount > 1)
+            if (sliderData.RepeatCount > 1 && worldPathPoints.Count > 1)
             {
-                arrowInstance = Instantiate(reverseArrowPrefab, transform);
-                garbageList.Add(arrowInstance);
-                UpdateArrowTransform(0); // 初始化箭头位置 (第0跨度)
-                arrowInstance.SetActive(true);
+                // =========================================================
+                // ✅ [终极修复] 基于本地坐标的 2D 旋转计算
+                // =========================================================
+
+                // 1. 头部粒子 (位置：point[0])
+                // 计算本地流出方向 (从 p[1] -> p[0])
+                Vector3 headLocalDir = (worldPathPoints[0] - worldPathPoints[1]);
+
+                // 计算 2D 角度 (Atan2)
+                float headAngle = Mathf.Atan2(headLocalDir.y, headLocalDir.x) * Mathf.Rad2Deg;
+
+                // Unity 的 Circle Shape 0度默认指向右(X+)，且 Arc 居中需要偏移
+                // 如果 Arc 是 120度，它覆盖 -60 到 +60 度 (相对于 X+)
+                // 所以我们直接把 X+ 轴对准方向即可
+                Quaternion headRot = transform.rotation * Quaternion.Euler(0, 0, headAngle - 90f);
+                // 世界位置
+                Vector3 headWorldPos = transform.TransformPoint(worldPathPoints[0]);
+                headReversePS = CreateReverseParticle(headWorldPos, headRot, currentComboColor);
+
+
+                // 2. 尾部粒子 (位置：point[last])
+                int last = worldPathPoints.Count - 1;
+                // 计算本地流出方向 (从 p[last-1] -> p[last])
+                Vector3 tailLocalDir = (worldPathPoints[last] - worldPathPoints[last - 1]);
+
+                float tailAngle = Mathf.Atan2(tailLocalDir.y, tailLocalDir.x) * Mathf.Rad2Deg;
+
+                Quaternion tailRot = transform.rotation * Quaternion.Euler(0, 0, tailAngle - 90f);
+
+                Vector3 tailWorldPos = transform.TransformPoint(worldPathPoints[last]);
+                tailReversePS = CreateReverseParticle(tailWorldPos, tailRot, currentComboColor);
+
+                // 3. 初始激活
+                UpdateReverseVFX(1);
             }
         }
 
 
-        /// <summary>
-        /// 更新箭头的位置和旋转
-        /// spanIndex: 当前是第几段滑行
+        // <summary>
+        /// [修正版] 消除前摇，瞬时响应
         /// </summary>
-        private void UpdateArrowTransform(int spanIndex)
+        private void UpdateReverseVFX(int nextSpanIndex)
         {
-            if (arrowInstance == null || worldPathPoints.Count < 2) return;
-
-            // 逻辑：
-            // 如果是偶数跨度 (0: A->B)，箭头应该在 B 端，指向 A。
-            // 如果是奇数跨度 (1: B->A)，箭头应该在 A 端，指向 B。
-
-            // 还有几次折返？
-            int remainingSpans = sliderData.RepeatCount - spanIndex;
-
-            // 如果只剩最后一次滑行，不需要箭头了 (直接滑向终点)
-            if (remainingSpans <= 1)
+            // 1. 如果已经跑完了所有段落，立刻关闭所有
+            if (nextSpanIndex > sliderData.RepeatCount)
             {
-                arrowInstance.SetActive(false);
+                if (headReversePS) { var em = headReversePS.emission; em.enabled = false; }
+                if (tailReversePS) { var em = tailReversePS.emission; em.enabled = false; }
                 return;
             }
 
-            arrowInstance.SetActive(true);
+            // 2. 判断我们正在前往哪里 (目标点)
+            bool targetIsTail = (nextSpanIndex % 2 != 0);
 
-            float arrowScale = this.sliderWidth;
-            arrowInstance.transform.localScale = new Vector3(arrowScale, arrowScale, 0.02f);
+            // 3. 核心判断：目标点是否是"最终终点"？
+            bool isFinalTrip = (nextSpanIndex == sliderData.RepeatCount);
 
-            Vector3 position;
-            Vector3 direction;
+            // 目标需要显示的条件：是目标方向 且 不是最后一趟
+            bool showTail = targetIsTail && !isFinalTrip;
+            bool showHead = !targetIsTail && !isFinalTrip;
 
-            if (spanIndex % 2 == 0)
+            // --- 控制尾部 ---
+            if (tailReversePS)
             {
-                // 当前 A->B，箭头在 B (末端)，指向 A (内部)
-                position = worldPathPoints[worldPathPoints.Count - 1];
+                var em = tailReversePS.emission;
+                // 检查状态是否发生了改变 (从关 -> 开)
+                bool wasEnabled = em.enabled;
+                em.enabled = showTail;
 
-                // 计算末端切线：最后一个点 - 倒数第二个点
-                Vector3 tangent = worldPathPoints[worldPathPoints.Count - 1] - worldPathPoints[worldPathPoints.Count - 2];
-
-                // 箭头应该指向“回来”的方向，所以是切线的反方向
-                direction = -tangent.normalized;
-            }
-            else
-            {
-                // 当前 B->A，箭头在 A (起点)，指向 B (内部)
-                position = worldPathPoints[0];
-
-                // 计算起点切线：第二个点 - 第一个点
-                Vector3 tangent = worldPathPoints[1] - worldPathPoints[0];
-
-                // 箭头应该指向“回来”的方向 (即指向 B)，那就是切线方向
-                direction = tangent.normalized;
+                // ✅ [关键] 如果刚被开启，手动发射一波粒子，填补"前摇"
+                if (!wasEnabled && showTail)
+                {
+                    tailReversePS.Emit(30); // 瞬间生成30个粒子
+                }
             }
 
-            arrowInstance.transform.localPosition = position - Vector3.forward * 0.075f; // 防穿模
+            // --- 控制头部 ---
+            if (headReversePS)
+            {
+                var em = headReversePS.emission;
+                bool wasEnabled = em.enabled;
+                em.enabled = showHead;
 
-            // 设置旋转：让箭头的 "Up" (或 "Right") 对齐 direction
-            // 假设你的箭头图片是向上的，我们需要让它的 Up 轴指向 direction，同时保持 Forward 轴指向相机 (Vector3.back)
-            // 这样 VR 里看才是平面的
-            Quaternion baseRotation = Quaternion.LookRotation(Vector3.back, direction);
-
-
-            // 如果你的箭头贴图是向右的，可能需要额外的旋转，例如：
-            arrowInstance.transform.localRotation = baseRotation * Quaternion.Euler(-180, 0, -90);
+                // ✅ [关键] 同理，瞬间发射
+                if (!wasEnabled && showHead)
+                {
+                    headReversePS.Emit(30);
+                }
+            }
         }
 
 
@@ -818,8 +1075,15 @@ namespace OsuVR
             {
                 borderMeshRenderer.GetPropertyBlock(_propBlock);
                 Color bc = customBorderColor;
-                bc.a *= currentAlpha;
-                _propBlock.SetColor(ColorPropertyId, bc);
+
+                Color hdrBorder = new Color(bc.r * 2.0f, bc.g * 2.0f, bc.b * 2.0f, 1f);
+
+                hdrBorder.a = bc.a * currentAlpha;
+
+                _propBlock.SetColor(ColorPropertyId, hdrBorder);
+                // 确保兼容 URP/Unlit
+                _propBlock.SetColor("_BaseColor", hdrBorder);
+
                 borderMeshRenderer.SetPropertyBlock(_propBlock);
             }
 
@@ -897,6 +1161,34 @@ namespace OsuVR
                 }
             }
 
+            // 实时驱动折返特效 (0延迟的核心)
+            // -------------------------------------------------------------
+            if (sliderData != null && !finished)
+            {
+                // 计算单程持续时间
+                double totalDur = sliderData.EndTime - sliderData.StartTime;
+                double spanDur = totalDur / sliderData.RepeatCount;
+
+                // 计算当前时间相对于开始时间的进度
+                double timeSinceStart = currentMusicTimeCache - sliderData.StartTime;
+
+                // 如果还没开始 (负数)，就是第0段 (去往尾部)
+                // 如果已经开始，计算当前处于第几段 (0, 1, 2...)
+                int currentSpanIndex = 0;
+
+                if (timeSinceStart > 0)
+                {
+                    currentSpanIndex = (int)(timeSinceStart / spanDur);
+                }
+
+                // 下一段的索引 = 当前段 + 1
+                // 比如当前在跑第0段，目标就是第1个折返点
+                int nextTargetIndex = currentSpanIndex + 1;
+
+                // 实时更新特效
+                UpdateReverseVFX(nextTargetIndex);
+            }
+            // -------------------------------------------------------------
         }
         public void OnRayExit()
         {
@@ -1010,23 +1302,31 @@ namespace OsuVR
 
             // 1. 头部判定 (Head)
             // 如果还没有击中头部，且时间还没超时，尝试自动判定 (Relax模式/VR特性)
-            if (!headHit && isTracking)
+            if (!headHit)
             {
                 double diff = currentMusicTimeCache - sliderData.StartTime;
 
+                double spanDuration = (sliderData.EndTime - sliderData.StartTime) / sliderData.RepeatCount;
+
                 // 判定窗口 (这里用 150ms 举例，对应 OD5)
                 // osu!droid: onSliderHeadHit
-                if (Mathf.Abs((float)diff) <= 150)
+                if (isTracking && Mathf.Abs((float)diff) <= 150)
                 { 
 
                 }
                 // 超时 Miss
-                else if (diff > 150)
+                else if (diff > 150 || (diff > spanDuration && diff > 0))
                 {
-                    headHit = true; // 标记处理过，防止重复进入
+                    headHit = true;
                     Debug.Log($"<color=red>Slider Head MISS</color>");
+
+                    // 立即隐藏滑条头
+                    if (headInstance != null)
+                    {
+                        headInstance.SetActive(false);
+                    }
+
                     gameManager.OnNoteMiss(sliderData);
-                    // 注意：在 osu! 中，Miss 头会导致整个滑条断连，但滑条不会消失，还能打后面的 Tick
                 }
             }
 
@@ -1114,6 +1414,25 @@ namespace OsuVR
                                     // 震动！
                                     HapticManager.Instance.PlayHitHaptic(isTrackingRightHand, (int)sliderData.HitSound);
                                 }
+
+                                if (CodeOnlyVFX.Instance != null)
+                                {
+                                    // 计算位置：偶数次在尾，奇数次在头
+                                    bool atTail = (nestedObject.SpanIndex % 2 == 0);
+                                    Vector3 vfxLocalPos = atTail
+                                        ? worldPathPoints[worldPathPoints.Count - 1]
+                                        : worldPathPoints[0];
+                                    Vector3 vfxWorldPos = transform.TransformPoint(vfxLocalPos);
+
+                                    CodeOnlyVFX.Instance.PlayHit(
+                                        vfxWorldPos,                // 1. 精确的世界坐标
+                                        transform.rotation,         // 2. 朝向
+                                        this.sliderWidth,           // 3. 大小 (CS)
+                                        currentComboColor,          // 4. 颜色
+                                        this.nextNotePosition      // 5. 下个位置 (SliderController如果没这变量暂传null)
+                                    );
+                                }
+
                                 Debug.Log("<color=cyan>Slider Repeat Hit</color>");
                                 // gameManager.AddScore(30); 
                                 // gameManager.AddCombo();
@@ -1123,14 +1442,31 @@ namespace OsuVR
                                 Debug.Log($"<color=red>Slider Repeat MISS</color>");
                                 gameManager.OnNoteMiss(sliderData);
                             }
-                            
+
                             // 更新箭头位置到另一端
-                            UpdateArrowTransform(nestedObject.SpanIndex + 1);
+                            UpdateReverseVFX(nestedObject.SpanIndex + 1);                            
                             // 视觉：在这里可以做反转箭头的消失动画
                             break;
 
                         case SliderEventType.Tail:
                             Debug.Log("<color=green>Slider End Hit</color>");
+                            if (CodeOnlyVFX.Instance != null)
+                            {
+                                bool endsAtTail = (sliderData.RepeatCount % 2 != 0);
+                                Vector3 endLocalPos = endsAtTail
+                                    ? worldPathPoints[worldPathPoints.Count - 1]
+                                    : worldPathPoints[0];
+                                Vector3 endWorldPos = transform.TransformPoint(endLocalPos);
+
+                                CodeOnlyVFX.Instance.PlayHit(
+                                    endWorldPos,                // 1. 位置
+                                    transform.rotation,         // 2. 朝向
+                                    this.sliderWidth,           // 3. 大小
+                                    currentComboColor,          // 4. 颜色
+                                    this.nextNotePosition       // 5. 下个位置
+                                );
+                            }
+
                             // gameManager.AddScore(30); 
                             // gameManager.AddCombo(); // 尾部通常给 Combo
                             break;
@@ -1139,7 +1475,7 @@ namespace OsuVR
                 }
                 else
                 {
-                    UpdateArrowTransform(nestedObject.SpanIndex + 1);
+                    UpdateReverseVFX(nestedObject.SpanIndex + 1);
                     // Miss
                     // 只要跟丢了 Tick/Repeat/Tail 中的任何一个，都会触发 Miss (断连)
                     // Debug.Log($"<color=red>Slider {nestedObject.Type} MISS</color>");
@@ -1169,6 +1505,7 @@ namespace OsuVR
                         if (AudioManager.Instance != null) AudioManager.Instance.PlayHitSound(sliderData);
                         if (HapticManager.Instance != null)
                             HapticManager.Instance.PlayHitHaptic(isTrackingRightHand, (int)sliderData.HitSound);
+                        
                         // 提交给 Manager 进行销毁和加分
                         gameManager.OnNoteHit(sliderData, 0);
                     }
