@@ -11,6 +11,11 @@ namespace OsuVR
     /// </summary>
     public class RhythmGameManager : MonoBehaviour
     {
+
+        [Header("全局材质补丁")]
+        [Tooltip("拖入你做好的 Mat_Note_Glow，所有 Note 都会强制换成这个")]
+        public Material globalGlowMaterial;
+
         [Header("谱面配置")]
         [Tooltip("osu谱面文件名（.osu文件）")]
         public string osuFileName = "map.osu";
@@ -702,6 +707,15 @@ namespace OsuVR
                 // 计算生成时间（使用每个物件的TimePreempt作为提前量）
                 double spawnTime = hitObject.StartTime - hitObject.TimePreempt;
 
+                // 检查音符是否已经过期（超过250ms未生成则视为Miss）
+                if (currentMusicTimeMs > hitObject.StartTime + 250f)
+                {
+                    Debug.LogWarning($"[Manager] 丢弃过期音符: {hitObject.StartTime}ms (当前: {currentMusicTimeMs:F0})");
+                    OnNoteMiss(hitObject); // 直接算 Miss
+                    nextNoteIndex++;
+                    continue;
+                }
+
                 // 比较当前音乐时间（注意：在缓冲期 currentMusicTimeMs 是负数，这正好能对应上）
                 if (currentMusicTimeMs >= spawnTime)
                 {
@@ -762,6 +776,7 @@ namespace OsuVR
                 // 确保它是激活的
                 if (!noteObject.activeSelf) noteObject.SetActive(true);
 
+                PatchNoteVisuals(noteObject);
                 var controller = noteObject.GetComponent<NoteController>();
                 if (controller != null)
                 {
@@ -776,8 +791,16 @@ namespace OsuVR
                 if (noteObject == null) noteObject = Instantiate(poolMgr.sliderPrefab);
 
                 if (!noteObject.activeSelf) noteObject.SetActive(true);
-
                 var controller = noteObject.GetComponent<SliderController>();
+
+                if (globalGlowMaterial != null)
+                {
+                    controller.sharedMaterial = globalGlowMaterial;
+
+                    // 还要确保当前的 MeshRenderer 也换了 (如果是复用对象)
+                    PatchMaterial(noteObject);
+                }
+
                 if (controller != null)
                 {
                     controller.Initialize((SliderObject)hitObject, currentCS, comboColor, this, poolMgr.SliderPool, poolMgr.TickPool,nextNoteWorldPos);
@@ -1107,6 +1130,61 @@ namespace OsuVR
             // 4. 照顾 VR 下限
             // 无论 CS 多高，物件直径不能低于 7cm
             return Mathf.Max(finalSize, 0.07f);
+        }
+
+        /// <summary>
+        /// 材质补丁：强行把物体换成发光材质
+        /// </summary>
+        private void PatchMaterial(GameObject obj)
+        {
+            if (globalGlowMaterial == null || obj == null) return;
+
+            // 1. 尝试获取 MeshRenderer
+            MeshRenderer mr = obj.GetComponent<MeshRenderer>();
+
+            // 2. 如果有，且材质不对，就换掉
+            if (mr != null && mr.sharedMaterial != globalGlowMaterial)
+            {
+                mr.sharedMaterial = globalGlowMaterial;
+            }
+
+            // 3. (可选) 如果你的 Prefab 里有子物体也是 Mesh (比如 Slider 的 Tick)
+            Renderer[] renderers = obj.GetComponentsInChildren<Renderer>(true);
+            foreach (var r in renderers) r.sharedMaterial = globalGlowMaterial;
+        }
+
+        /// <summary>
+        /// 精确材质补丁：只替换 Body 和 Overlay，放过缩圈
+        /// </summary>
+        private void PatchNoteVisuals(GameObject noteRoot)
+        {
+            if (globalGlowMaterial == null || noteRoot == null) return;
+
+            // 1. 尝试查找名为 "Body" 的子物体
+            Transform bodyTrans = noteRoot.transform.Find("Body");
+            if (bodyTrans != null)
+            {
+                MeshRenderer mr = bodyTrans.GetComponent<MeshRenderer>();
+                if (mr != null) mr.sharedMaterial = globalGlowMaterial;
+            }
+            else
+            {
+                // 如果找不到 "Body" 子物体，可能根物体本身就是 Body
+                // 检查根物体是否有 Renderer，且不是 Slider (Slider是动态生成的)
+                MeshRenderer rootMr = noteRoot.GetComponent<MeshRenderer>();
+                if (rootMr != null) rootMr.sharedMaterial = globalGlowMaterial;
+            }
+
+            // 2. 尝试查找名为 "Overlay" 的子物体
+            Transform overlayTrans = noteRoot.transform.Find("Overlay");
+            if (overlayTrans != null)
+            {
+                MeshRenderer mr = overlayTrans.GetComponent<MeshRenderer>();
+                if (mr != null) mr.sharedMaterial = globalGlowMaterial;
+            }
+
+            // 3. 缩圈 (ApproachCircle) 和 文字 (Text) 
+            // 因为我们没去查找它们，所以它们会保持原样！安全！
         }
 
         /// <summary>

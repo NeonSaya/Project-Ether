@@ -41,6 +41,9 @@ namespace OsuVR
         [Tooltip("视觉平滑系数")]
         public float visualSmoothing = 20f;
 
+        [Header("视觉增强")]
+        public float glowIntensity = 2.5f; // 发光倍率
+
         // --- 状态变量 ---
         public bool IsActive { get; private set; } = true;
         public float CurrentRPM { get; private set; } = 0f;
@@ -52,6 +55,12 @@ namespace OsuVR
         private float currentVisualRotation = 0f;
         private float targetVisualRotation = 0f;
         private float angleRequirement = 0f;
+
+        // [新增] 缓存渲染器引用
+        private Renderer bgDiscRenderer;
+        private Renderer rotDiscRenderer;
+        private Renderer approachRingRenderer;
+        private MaterialPropertyBlock _propBlock;
 
         // RPM 计算
         private float rotationDeltaAccumulator = 0f;
@@ -86,6 +95,7 @@ namespace OsuVR
             transform.position = fixPosition;
             transform.rotation = Quaternion.LookRotation(transform.position - Camera.main.transform.position);
             transform.localScale = Vector3.one * scaleSize;
+            
 
             // 🔥 [难度提升] 计算目标角度
             float duration = (float)(data.EndTime - data.StartTime) / 1000f;
@@ -141,6 +151,96 @@ namespace OsuVR
                 }
                 trackerRing.gameObject.SetActive(false);
             }
+
+            // -------------------------------------------------------
+            // 1. 根据你的截图中层级查找物体
+            // -------------------------------------------------------
+
+            // 查找背景盘 (Visual_Container/Disc_Background)
+            if (bgDiscRenderer == null)
+            {
+                Transform t = transform.Find("Visual_Container/Disc_Background");
+                if (t) bgDiscRenderer = t.GetComponent<Renderer>();
+            }
+
+            // 查找旋转盘 (Visual_Container/Disc_Rotating)
+            if (rotDiscRenderer == null)
+            {
+                Transform t = transform.Find("Visual_Container/Disc_Rotating");
+                if (t) rotDiscRenderer = t.GetComponent<Renderer>();
+            }
+
+            // 查找缩圈 (ApproachCircle)
+            if (approachRingRenderer == null)
+            {
+                Transform t = transform.Find("ApproachCircle");
+                if (t) approachRingRenderer = t.GetComponent<Renderer>();
+            }
+
+            // -------------------------------------------------------
+            // 2. 计算 HDR 发光颜色
+            // -------------------------------------------------------
+
+            // 假设转盘是白色的或者跟随 Combo 颜色 (通常转盘是固定的颜色，或者白色)
+            // 如果你有专门的颜色变量，替换这里的 Color.white
+            Color baseColor = Color.white;
+
+            // 计算高亮色 (RGB 乘倍率)
+            Color hdrColor = new Color(
+                baseColor.r * glowIntensity,
+                baseColor.g * glowIntensity,
+                baseColor.b * glowIntensity,
+                1.0f
+            );
+
+            if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
+
+            // -------------------------------------------------------
+            // 3. 应用颜色到盘子
+            // -------------------------------------------------------
+
+            // 设置背景盘
+            if (bgDiscRenderer != null)
+            {
+                bgDiscRenderer.GetPropertyBlock(_propBlock);
+                // 稍微暗一点，做成底座的感觉
+                Color bgHdr = hdrColor * 0.5f;
+                _propBlock.SetColor("_TintColor", bgHdr); // Particle Shader 用 TintColor
+                _propBlock.SetColor("_Color", bgHdr);     // Standard 用 Color
+                _propBlock.SetColor("_BaseColor", bgHdr); // URP 用 BaseColor
+                bgDiscRenderer.SetPropertyBlock(_propBlock);
+            }
+
+            // 设置旋转盘 (最亮的核心)
+            if (rotDiscRenderer != null)
+            {
+                rotDiscRenderer.GetPropertyBlock(_propBlock);
+                _propBlock.SetColor("_TintColor", hdrColor);
+                _propBlock.SetColor("_Color", hdrColor);
+                _propBlock.SetColor("_BaseColor", hdrColor);
+                rotDiscRenderer.SetPropertyBlock(_propBlock);
+            }
+
+            // -------------------------------------------------------
+            // 4. 设置缩圈 (如果有)
+            // -------------------------------------------------------
+            if (approachRingRenderer != null)
+            {
+                approachRingRenderer.GetPropertyBlock(_propBlock);
+                // 缩圈通常用红色或者警告色，这里假设跟随 HDR 白
+                // 你也可以换成 Color.red * glowIntensity
+                _propBlock.SetColor("_TintColor", hdrColor);
+                _propBlock.SetColor("_Color", hdrColor);
+                approachRingRenderer.SetPropertyBlock(_propBlock);
+
+                // 别忘了初始化你的缩圈逻辑
+                var scaler = approachRingRenderer.GetComponent<ApproachCircleScaler>();
+                if (scaler != null)
+                {
+                    scaler.Initialize(spinnerData.StartTime, spinnerData.EndTime - spinnerData.StartTime);
+                }
+            }
+
         }
 
         void Update()

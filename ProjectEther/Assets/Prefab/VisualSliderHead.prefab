@@ -223,8 +223,8 @@ GameObject:
   - component: {fileID: 8290582419829039291}
   - component: {fileID: 4853651860894337067}
   - component: {fileID: 6597355342681302920}
-  - component: {fileID: 5177908724939746381}
   - component: {fileID: 7064309683155142989}
+  - component: {fileID: 5177908724939746381}
   m_Layer: 6
   m_Name: VisualSliderHead
   m_TagString: Untagged
@@ -300,6 +300,19 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &7064309683155142989
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5026766453584379729}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d73e5a0afded9b4084020d3ce171371, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetTransform: {fileID: 6969865038837308830}
 --- !u!135 &5177908724939746381
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -321,19 +334,6 @@ SphereCollider:
   serializedVersion: 3
   m_Radius: 0.8
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &7064309683155142989
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5026766453584379729}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1d73e5a0afded9b4084020d3ce171371, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  targetTransform: {fileID: 6969865038837308830}
 --- !u!1 &8704216868650899263
 GameObject:
   m_ObjectHideFlags: 0

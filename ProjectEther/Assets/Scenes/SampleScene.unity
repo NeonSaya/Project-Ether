@@ -123,6 +123,55 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &164930730
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 164930732}
+  - component: {fileID: 164930731}
+  m_Layer: 0
+  m_Name: Global Volume
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &164930731
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 164930730}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 172515602e62fb746b5d573b38a5fe58, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_IsGlobal: 1
+  priority: 0
+  blendDistance: 0
+  weight: 1
+  sharedProfile: {fileID: 11400000, guid: efc380e55ddabaf449b5f00b1af04643, type: 2}
+--- !u!4 &164930732
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 164930730}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.0959478, y: 2.1015918, z: 1.7820963}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &335348096
 GameObject:
   m_ObjectHideFlags: 0
@@ -455,7 +504,8 @@ MonoBehaviour:
     type: 3}
   spinnerPrefab: {fileID: 51600588370694526, guid: f5b2c6a9eeb2ecf418ee2cd230421d89,
     type: 3}
-  sliderTickPrefab: {fileID: 0}
+  sliderTickPrefab: {fileID: 8308767009617404742, guid: e9059b8a0fa3fab499ad85ae6d45b576,
+    type: 3}
 --- !u!4 &1090296221
 Transform:
   m_ObjectHideFlags: 0
@@ -592,6 +642,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 08a22671453431949a4a309b93f7d2dc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  globalGlowMaterial: {fileID: 2100000, guid: a0853bb720fe0bc4c8f32b7a408e9a8c, type: 2}
   osuFileName: test.osu
   musicSource: {fileID: 0}
   musicClip: {fileID: 8300000, guid: 95987a30f156585468825fc1fb915d7c, type: 3}
@@ -792,6 +843,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3588498708657264690, guid: b378079ab90e57e4aabe341ba7a3749f,
         type: 3}
+      propertyPath: rayRadius
+      value: 0.13
+      objectReference: {fileID: 0}
+    - target: {fileID: 3588498708657264690, guid: b378079ab90e57e4aabe341ba7a3749f,
+        type: 3}
       propertyPath: gainFactor
       value: 1.3
       objectReference: {fileID: 0}
@@ -820,10 +876,20 @@ PrefabInstance:
       propertyPath: laserColor.r
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 6120492380853372432, guid: b378079ab90e57e4aabe341ba7a3749f,
+        type: 3}
+      propertyPath: m_RenderPostProcessing
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 7162328023566560714, guid: b378079ab90e57e4aabe341ba7a3749f,
         type: 3}
       propertyPath: laserWidth
       value: 0.012
+      objectReference: {fileID: 0}
+    - target: {fileID: 7647497083426514023, guid: b378079ab90e57e4aabe341ba7a3749f,
+        type: 3}
+      propertyPath: rayRadius
+      value: 0.13
       objectReference: {fileID: 0}
     - target: {fileID: 7647497083426514023, guid: b378079ab90e57e4aabe341ba7a3749f,
         type: 3}
@@ -853,3 +919,4 @@ SceneRoots:
   - {fileID: 1852234776}
   - {fileID: 1090296221}
   - {fileID: 427527594}
+  - {fileID: 164930732}
