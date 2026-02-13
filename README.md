@@ -28,75 +28,68 @@
 #### 1. 核心系统 (Core System)
 
 * **全功能解析器 (Full .osu Parser):**
-* 基于 osu-droid 逻辑重构的 C# 解析核心。
-* 完整支持 Metadata, General, Events, TimingPoints 等核心数据解析。
-* **[New]** 支持 `.osz` 压缩包的自动解压与目录管理。
+* 基于 osu-droid 逻辑重构的 C# 解析核心，完整支持 Metadata, General, Events, TimingPoints 等核心数据。
+* 支持 `.osz` 压缩包的自动解压与目录管理。
 
 
-* **AR 自动计算:** 内置标准 osu! 算法，自动计算 TimePreempt (缩圈时间) 和 SpawnOffset。
-* **空间映射算法 (Coordinate Mapping):** 实现了 CoordinateMapper，将 osu! 原生 2D 像素坐标系，无损映射到 VR 玩家前方的 3D 扇形曲面空间中。
-* **对象池系统 (Object Pooling):** 实现了 Note、Slider、Tick 的回收复用机制，有效避免了高频 Instantiate/Destroy 带来的 GC 卡顿。
+* **Lazer 风格分数算法 (Lazer Scoring):**
+* **精准 Acc 计算:** 重写 `ScoreManager`，Slider Head/Tick/Repeat 均正确计入准确率权重，不再是单纯的 Bonus。
+* **转盘机制:** 实现了基于 OD (Overall Difficulty) 的转速上限与 Bonus 封顶逻辑，拒绝无限刷分。
+
+
+* **空间映射 (Coordinate Mapping):** 将 osu! 原生 2D 坐标无损映射到 VR 3D 扇形曲面空间。
 
 #### 2. 交互与物理 (Interaction & Physics)
 
-* **Relax 模式交互 (Raycast Interaction):**
-* **悬停判定 (Hover Gameplay):** 采用 osu! Relax 机制。无需物理按键，只需射线 (Laser) 持续指向音符即可触发判定。
-* **时序保护:** 修复了脚本执行顺序导致的判定失效，实现了“指哪打哪”的瞬时响应。
+* **Relax 模式交互:** 采用射线 (Raycast) 悬停判定机制，无需按键，实现“指哪打哪”的瞬时响应。
+* **智能滑条逻辑 (Smart Slider Logic):**
+* **容错机制:** 修复了“滑条自杀”Bug，支持 Slider Break (中途断连) 后续接，不会因为漏掉一个 Tick 而直接销毁整个滑条。
+* **真实结算:** 根据实际吃到的 Tick 比例计算最终准确率 (Accuracy)。
 
 
-* **物理增强:**
-* **Note/Slider:** 自动生成 SphereCollider/MeshCollider，确保射线检测精准无误。
-* **Spinner:** 采用薄片化 BoxCollider 优化转盘判定，解决了球体碰撞体导致的射线视觉悬停误差。
+* **物理增强:** 自动生成精准的碰撞体 (Collider)，Spinner 采用薄片化碰撞体优化判定精度。
+
+#### 3. 视觉表现 (Visuals & UI)
+
+* **沉浸式 HUD (Immersive HUD):**
+* **曲面 UI (Curved UI):** 编写了 `CurvedUIEffect`，通过顶点修改实现 UI 的圆柱面弯折，提升 VR 阅读舒适度。
+* **平滑跟随 (Smooth Follow):** `HUDFollower` 实现了类似 Beat Saber 的 UI 阻尼跟随，保持视线水平且不晕眩。
+* **动态面板:** 实现了分数的滚动动画 (Rolling Counter) 与 Combo 的弹跳反馈。
 
 
-* **双色激光:** 支持左手(蓝) / 右手(红) 独立射线检测与交互。
-
-#### 3. 听觉与触觉 (Audio & Haptics)
-
-* **动态音效反馈 (Dynamic Hitsounds):**
-* 完整解析 Beatmap 中的 HitSound (Normal, Whistle, Finish, Clap)。
-* 支持 SliderSlide 循环音效与 SpinnerSpin 音效。
-* 实现了 Slider Reverse (折返) 与 Spinner Bonus 的独立反馈音效。
+* **纯代码判定特效 (Code-driven VFX):**
+* **高性能渲染:** 抛弃 Prefab，使用 `JudgementVisualizer` 实时生成 Quad 网格与 TextMeshPro。
+* **Lazer 动效:** 使用非线性动画 (Elastic/Back Out) 实现 Great/Ok/Miss 的弹跳与光晕扩散。
+* **细节反馈:** 实现了滑条尾判丢失 (Tail Miss) 的独立视觉反馈 (小红叉)。
 
 
-* **沉浸式震动 (Immersive Haptics):**
-* 基于 `XRNode` 的底层震动封装。
-* 实现了打击震动、滑条持续微震、Bonus 奖励震动等多级反馈。
+* **高保真滑条:** 实现了 Border/Body 分离渲染，解决了 VR 环境下的 Z-Fighting 闪烁。
 
+#### 4. 性能优化 (Optimization)
 
-
-#### 4. 视觉表现 (Visuals & Rendering)
-
-* **高保真滑条渲染:**
-* **双层网格:** 实现了 Border (边框) 与 Body (本体) 的分离渲染。
-* **动态 Z 轴管理:** 彻底解决了 VR 环境下 Note/Slider 堆叠时的 Z-Fighting 闪烁问题。
-
-
-* **原生风格组件:** 平面化缩圈 (Flat Approach Circles)、滑条球 (Follow Ball)、折返箭头 (Reverse Arrow)。
+* **预热机制 (Pre-warming):** 针对粒子系统和判定特效实现了预热逻辑，彻底消除了游戏开始时的“首帧卡顿”。
+* **资源缓存 (Caching):** 实现了 Note/Slider 光晕网格 (Quad Mesh) 的静态缓存，大幅降低运行时 GC 与实例化开销。
+* **粒子系统修复:** 修复了高频触发下粒子系统状态机卡死导致的不播放问题。
 
 ---
 
-## 📅 近未来开发 To-Do List (Next Steps)
+## 📅 下一步计划 (To-Do List)
 
-### 1. 视觉反馈 (Juice & Feedback) - 🔥 优先级最高
+### 1. 游戏流程 (Game Flow) - 🔥 优先级最高
 
-* **判定弹窗 (Score Popups):** 在击打位置弹出 300 / 100 / 50 / Miss 图标，并添加飘动/淡出动画。
-* **连击计数 (Combo Counter):** 在视野前方制作悬浮 3D UI 显示当前 Combo，并在 Miss 时添加碎裂/变红动画。
-* **打击粒子 (Hit Particles):** 为不同类型的 HitSound (Whistle/Finish) 制作对应的粒子爆发效果，增强打击爽快感。
+* **结算界面 (Results Screen):** 歌曲结束后弹出面板，显示总分、最终 Acc、等级 (S/A/B/C) 以及详细的 300/100/50/Miss 数量。
+* **失败机制 (Fail System):** 引入 HP (Health) 系统，当 HP 归零时触发失败结算。
+* **音画同步 (Audio Sync):** 添加全局 Offset 调整功能，以适配不同 VR 串流环境的音频延迟。
 
-### 2. 游戏流程闭环 (Game Loop)
+### 2. 菜单与交互 (Menu & UX)
 
-* **选歌菜单完善 (Song Select Polish):** 优化目前的 UI 面板，显示封面图、难度星级，并实现数据传递到游戏场景。
-* **结算界面 (Results Screen):** 歌曲结束或失败时弹出结算面板 (Score, Accuracy, Rank)。
-* **暂停菜单 (Pause Menu):** 实现游戏中的暂停、继续与重试功能。
+* **选歌菜单优化:** 完善现有的选歌面板，增加封面图加载、难度星级显示。
+* **暂停菜单:** 实现游戏中的暂停、继续与重试 (Retry) 功能。
 
-### 3. 沉浸感与特效 (Immersion & VFX) - 长期目标
+### 3. 视觉打磨 (Polish)
 
-* **Kiai Time 表现:** 解析谱面 Kiai 字段，在高潮段落触发场景泛光 (Bloom) 增强与粒子流速加快。
-* **音频响应环境 (Audio Reactive):** 引入 FFT 频谱分析，让背景环境随 Bass 鼓点律动。
-* **指挥家特效:** 为手柄射线添加能量拖尾 (Trail) 与流光效果。
-
----
+* **Kiai Time:** 解析谱面 Kiai 段落，在副歌高潮时增强场景泛光 (Bloom) 与粒子流速。
+* **连击特效:** 当 Combo 达到一定数值 (100x, 300x) 时触发特殊的视觉提示。
 
 ## 🛠️ 技术架构 (Architecture)
 
