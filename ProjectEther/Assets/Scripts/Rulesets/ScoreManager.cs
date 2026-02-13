@@ -1,49 +1,40 @@
-using System;
+ï»¿using System;
 using System.Collections;
-using UnityEngine;
+using System.Collections.Generic;
 using TMPro;
+using UnityEngine;
 
 namespace OsuVR
 {
     public class ScoreManager : MonoBehaviour
     {
-        [Header("UI References (Lazer Style HUD)")]
-        public TextMeshPro textScore; // ÓÒ±ß
-        public TextMeshPro textCombo; // ÖĞ¼ä
-        public TextMeshPro textAcc;   // ×ó±ß
+        [Header("UI Controller")]
+        public ScoreBoardController boardController;
 
-        // --- Lazer Ô´Âë³£Á¿ ---
+        // --- Lazer æºç å¸¸é‡ ---
         private const double MAX_SCORE = 1000000;
-        private const double COMBO_EXPONENT = 0.5; // Ô´ÂëµÚ28ĞĞ
+        private const double COMBO_EXPONENT = 0.5;
 
-        // --- ÔËĞĞÊ±Êı¾İ ---
+        // --- è¿è¡Œæ—¶æ•°æ® ---
         private double _finalScore = 0;
         private int _currentCombo = 0;
         private int _maxComboReached = 0;
 
-        // Í³¼ÆÊı¾İ
-        private int _totalHitsPerformed = 0; // µ±Ç°´òÁË¼¸ÏÂ
-        private int _totalMapObjects = 0;    // Æ×Ãæ×ÜÎï¼şÊı (·ÖÄ¸)
+        // ç»Ÿè®¡æ•°æ®
+        private int _totalHitsPerformed = 0; // å½“å‰åˆ¤å®šæ¬¡æ•° (åˆ†å­éƒ¨åˆ†)
+        private int _totalMapJudgements = 0; // å…¨å›¾åˆ¤å®šæ€»æ•° (åˆ†æ¯éƒ¨åˆ†ï¼Œå«Tick/Repeat)
 
-        // --- ·ÖÊı¼ÆËãºËĞÄ±äÁ¿ (¶ÔÓ¦Ô´Âë ScoreProcessor ×Ö¶Î) ---
+        // --- åˆ†æ•°è®¡ç®—æ ¸å¿ƒå˜é‡ ---
+        private double _currentBaseScore = 0;      // åˆ†å­ï¼šå½“å‰å¾—åˆ† (300+10+30...)
+        private double _currentMaxBaseScore = 0;   // åˆ†æ¯ï¼šå½“å‰è¿›åº¦çš„ç†è®ºæ»¡åˆ†
 
-        // 1. ×¼È·ÂÊÏà¹Ø
-        private double _currentBaseScore = 0;      // Íæ¼Òµ±Ç°µÄÅĞ¶¨×Ü·Ö (300+100...)
-        private double _currentMaxBaseScore = 0;   // µ±Ç°½ø¶ÈµÄÀíÂÛ×î¸ß·Ö (300+300...)
+        private double _currentComboPortion = 0;   // åˆ†å­ï¼šè¿å‡»æƒé‡åˆ†
+        private double _maxComboPortionTotal = 0;  // åˆ†æ¯ï¼šå…¨å›¾ç†è®ºè¿å‡»æƒé‡åˆ†
 
-        // 2. Á¬»÷Ïà¹Ø
-        private double _currentComboPortion = 0;   // ·Ö×Ó£ºÍæ¼Òµ±Ç°µÄÁ¬»÷¼ÓÈ¨·Ö
-        private double _maxComboPortionTotal = 0;  // ·ÖÄ¸£ºÕûÊ×¸èÈ«Á¬µÄÀíÂÛÁ¬»÷¼ÓÈ¨·Ö (Ô¤¼ÆËã)
-
-        // 3. ½±Àø·Ö (Bonus)
-        private double _currentBonusScore = 0;     // ×ªÅÌµÈµÄ¶îÍâ·Ö
-
-        // ¶¯»­Ëõ·Å¼ÇÂ¼
-        private Vector3 _comboOriginalScale;
+        private double _currentBonusScore = 0;     // ä»…é™ Spinner Bonus (ä¸å½±å“ Acc)
 
         void Start()
         {
-            if (textCombo) _comboOriginalScale = textCombo.transform.localScale;
             ResetData();
         }
 
@@ -53,53 +44,95 @@ namespace OsuVR
             _currentCombo = 0;
             _maxComboReached = 0;
             _totalHitsPerformed = 0;
+            _totalMapJudgements = 0;
 
             _currentBaseScore = 0;
             _currentMaxBaseScore = 0;
             _currentComboPortion = 0;
             _currentBonusScore = 0;
 
-            UpdateUI(1.0f);
+            if (boardController) boardController.UpdateDashboard(0, 0, 1.0);
         }
 
         // ================================================================
-        // ²½Öè 1: Ô¤¼ÆËã (Pre-calculation)
-        // ¶ÔÓ¦ Lazer Ô´ÂëÖĞ Reset(true) ÀïµÄ MaximumResultCounts ¼ÆËãÂß¼­
+        // æ­¥éª¤ 1: é¢„è®¡ç®— (Pre-calculation)
+        // å¯¹åº” Lazer æºç ä¸­ Reset(true) é‡Œçš„ MaximumResultCounts è®¡ç®—é€»è¾‘
         // ================================================================
-        /// <summary>
-        /// ¡¾±ØĞëµ÷ÓÃ¡¿ÔÚ½âÎöÍêÆ×Ãæºó£¬¸æËß·ÖÊı¹ÜÀíÆ÷ÕâÊ×¸èÓĞ¶àÉÙ¸öÎï¼ş
-        /// </summary>
-        public void Initialize(int totalHitObjects)
+        public void Initialize(List<HitObject> allHitObjects)
         {
             ResetData();
-            _totalMapObjects = totalHitObjects;
-            _maxComboPortionTotal = 0;
 
-            // Ä£ÄâÒ»´ÎÍêÃÀµÄ Full Combo (È«ÊÇ 300)
-            // Lazer Âß¼­£ºGetComboScoreChange = 300 * Math.Pow(combo, 0.5)
-            for (int i = 1; i <= totalHitObjects; i++)
+            // æ¨¡æ‹Ÿä¸€æ¬¡å®Œç¾çš„ Full Combo (AutoPlay)
+            // ä»¥æ­¤è®¡ç®—å‡ºå‡†ç¡®çš„åˆ†æ¯ï¼š_maxComboPortionTotal å’Œ _totalMapJudgements
+
+            int simCombo = 0;
+            _maxComboPortionTotal = 0;
+            _totalMapJudgements = 0; // è¿™ä¸ªå°†ä½œä¸º Accuracy Progress çš„åˆ†æ¯
+
+            foreach (var obj in allHitObjects)
             {
-                // ¼ÙÉèÃ¿¸ö Note ¶¼ÄÜÄÃµ½ 300 »ù´¡·Ö
-                _maxComboPortionTotal += 300 * Math.Pow(i, COMBO_EXPONENT);
+                if (obj is HitCircle)
+                {
+                    // Circle: 1ä¸ªåˆ¤å®š, 300åˆ†
+                    SimulateHit(ref simCombo, 300);
+                }
+                else if (obj is SpinnerObject)
+                {
+                    // Spinner: ç»“æŸæ—¶1ä¸ªåˆ¤å®š, 300åˆ† (Bonusä¸è®¡å…¥åˆ†æ¯)
+                    SimulateHit(ref simCombo, 300);
+                }
+                else if (obj is SliderObject slider)
+                {
+                    // Slider: åŒ…å« Head, Ticks, Repeats, Tail
+
+                    // 1. Head (300åˆ†)
+                    SimulateHit(ref simCombo, 300);
+
+                    // 2. Nested Objects (Tick & Repeat)
+                    if (slider.NestedHitObjects != null)
+                    {
+                        foreach (var nested in slider.NestedHitObjects)
+                        {
+                            if (nested.Type == SliderEventType.Tick)
+                            {
+                                SimulateHit(ref simCombo, 10); // Tick 10åˆ†
+                            }
+                            else if (nested.Type == SliderEventType.Repeat)
+                            {
+                                SimulateHit(ref simCombo, 30); // Repeat 30åˆ†
+                            }
+                        }
+                    }
+
+                    // 3. Tail (300åˆ†)
+                    // æ³¨æ„ï¼šä½ çš„ SliderController é€»è¾‘é‡Œï¼ŒTail æ˜¯é€šè¿‡ OnNoteHit è§¦å‘çš„
+                    // æ‰€ä»¥å®ƒç®—ä½œä¸€æ¬¡æ ‡å‡†åˆ¤å®š
+                    SimulateHit(ref simCombo, 300);
+                }
             }
 
-            Debug.Log($"[Score] Lazer Algo Initialized. Max Combo Weight: {_maxComboPortionTotal:F2}");
+            Debug.Log($"[Score] åˆå§‹åŒ–å®Œæˆ. æ€»åˆ¤å®šæ•°: {_totalMapJudgements}, ç†è®ºComboæƒé‡: {_maxComboPortionTotal:F2}");
+        }
+
+
+        // æ¨¡æ‹Ÿå‡»æ‰“è¾…åŠ©å‡½æ•°
+        private void SimulateHit(ref int combo, int score)
+        {
+            combo++;
+            _totalMapJudgements++;
+            // Lazer å…¬å¼ï¼šåˆ†æ•° * Sqrt(Combo)
+            _maxComboPortionTotal += score * Math.Pow(combo, COMBO_EXPONENT);
         }
 
         // ================================================================
-        // ²½Öè 2: ÃüÖĞ´¦Àí (Runtime Processing)
-        // ¶ÔÓ¦ Lazer Ô´Âë ApplyResultInternal
+        // æ­¥éª¤ 2: å‘½ä¸­å¤„ç† (Runtime Processing)
+        // å¯¹åº” Lazer æºç  ApplyResultInternal
         // ================================================================
-
-        /// <summary>
-        /// ´¦ÀíÆÕÍ¨Îï¼şµã»÷ (Circle, SliderHead, SliderTail)
-        /// </summary>
-        /// <param name="scoreValue">300, 100, 50, 0(Miss)</param>
         public void RegisterHit(int scoreValue)
         {
             _totalHitsPerformed++;
 
-            // 1. ¸üĞÂ Combo
+            // 1. æ›´æ–° Combo
             if (scoreValue > 0)
             {
                 _currentCombo++;
@@ -107,28 +140,52 @@ namespace OsuVR
             }
             else
             {
-                _currentCombo = 0; // Miss ¶ÏÁ¬
+                _currentCombo = 0; // Miss æ–­è¿
             }
 
-            // 2. ¸üĞÂ»ù´¡·Ö (ÓÃÓÚËã×¼È·ÂÊ Accuracy)
+            // 2. æ›´æ–°åŸºç¡€åˆ† (ç”¨äºç®—å‡†ç¡®ç‡ Accuracy)
             _currentBaseScore += scoreValue;
-            _currentMaxBaseScore += 300; // ÎŞÂÛÍæ¼Ò´ò¶àÉÙ£¬ÀíÂÛÕâÒ»ÏÂ¶¼ÊÇ300
+            _currentMaxBaseScore += 300; // æ— è®ºç©å®¶æ‰“å¤šå°‘ï¼Œç†è®ºè¿™ä¸€ä¸‹éƒ½æ˜¯300
 
-            // 3. ¸üĞÂÁ¬»÷²¿·Ö·Ö (Combo Portion)
-            // Ô´Âë GetComboScoreChange: result * Pow(combo, 0.5)
+            // 3. æ›´æ–°è¿å‡»éƒ¨åˆ†åˆ† (Combo Portion)
+            // æºç  GetComboScoreChange: result * Pow(combo, 0.5)
             if (scoreValue > 0)
             {
                 _currentComboPortion += scoreValue * Math.Pow(_currentCombo, COMBO_EXPONENT);
             }
 
-            // 4. ¼ÆËã²¢¸üĞÂ UI
+            // 4. è®¡ç®—å¹¶æ›´æ–° UI
             ComputeScore();
-            if (scoreValue > 0) PunchCombo();
         }
 
         /// <summary>
-        /// ´¦Àí¶îÍâ½±Àø·Ö (±ÈÈç Spinner µÄĞı×ª¡¢Slider µÄ Tick)
-        /// Lazer ÖĞ Bonus ²»Ó°Ïì×¼È·ÂÊ·ÖÄ¸£¬Ö±½Ó¼ÓÔÚ BonusPortion ÉÏ
+        /// ä¸“é—¨å¤„ç†æ»‘æ¡çš„ Head, Tick, Repeat
+        /// </summary>
+        public void RegisterComboHit(int scoreValue)
+        {
+            _totalHitsPerformed++;
+
+            // 1. å¢åŠ  Combo
+            _currentCombo++;
+            if (_currentCombo > _maxComboReached) _maxComboReached = _currentCombo;
+
+            // 2. âœ… [å…³é”®ä¿®æ”¹] è®¡å…¥ Acc åˆ†å­å’Œåˆ†æ¯
+            // ä»¥å‰æ˜¯åŠ åˆ° Bonusï¼Œç°åœ¨åŠ åˆ° BaseScore
+            _currentBaseScore += scoreValue;
+
+            // åˆ†æ¯åŠ å¤šå°‘ï¼Ÿå¯¹äº Tick æ¥è¯´ï¼Œæ»¡åˆ†å°±æ˜¯ 10 åˆ†ï¼›Repeat æ»¡åˆ†å°±æ˜¯ 30
+            // æ‰€ä»¥åˆ†æ¯åŠ  scoreValue å³å¯ (å‡è®¾ç©å®¶æ‰“ä¸­äº†å°±æ˜¯æ»¡åˆ†)
+            _currentMaxBaseScore += scoreValue;
+
+            // 3. å¢åŠ  Combo æƒé‡
+            _currentComboPortion += scoreValue * Math.Pow(_currentCombo, COMBO_EXPONENT);
+
+            ComputeScore();
+        }
+
+        /// <summary>
+        /// å¤„ç†é¢å¤–å¥–åŠ±åˆ† (æ¯”å¦‚ Spinner çš„æ—‹è½¬ã€Slider çš„ Tick)
+        /// Lazer ä¸­ Bonus ä¸å½±å“å‡†ç¡®ç‡åˆ†æ¯ï¼Œç›´æ¥åŠ åœ¨ BonusPortion ä¸Š
         /// </summary>
         public void RegisterBonus(int bonusValue)
         {
@@ -136,81 +193,41 @@ namespace OsuVR
             ComputeScore();
         }
 
-        // ================================================================
-        // ²½Öè 3: ºËĞÄ¹«Ê½¼ÆËã
-        // ¶ÔÓ¦ Lazer Ô´Âë ComputeTotalScore
-        // ================================================================
+        /// <summary>
+        /// è®¡ç®—å…¬å¼
+        /// </summary>
         private void ComputeScore()
         {
-            // A. ¼ÆËãµ±Ç°×¼È·ÂÊ (Accuracy)
-            // Ô´Âë: currentBaseScore / currentMaximumBaseScore
+            // A. è®¡ç®—å½“å‰å‡†ç¡®ç‡ (Accuracy)
+            // æºç : currentBaseScore / currentMaximumBaseScore
             double accuracy = 1.0;
             if (_currentMaxBaseScore > 0)
                 accuracy = _currentBaseScore / _currentMaxBaseScore;
 
-            // B. ¼ÆËã Combo ½ø¶È (Combo Progress)
-            // Ô´Âë: currentComboPortion / maximumComboPortion
+            // B. è®¡ç®— Combo è¿›åº¦ (Combo Progress)
+            // æºç : currentComboPortion / maximumComboPortion
             double comboProgress = 0;
             if (_maxComboPortionTotal > 0)
                 comboProgress = _currentComboPortion / _maxComboPortionTotal;
 
-            // C. ¼ÆËã¸èÇú½ø¶È (Accuracy Progress)
-            // Ô´Âë: currentAccuracyJudgementCount / maximumAccuracyJudgementCount
+            // C. è®¡ç®—æ­Œæ›²è¿›åº¦ (Accuracy Progress)
+            // æºç : currentAccuracyJudgementCount / maximumAccuracyJudgementCount
             double accuracyProgress = 0;
-            if (_totalMapObjects > 0)
-                accuracyProgress = (double)_totalHitsPerformed / _totalMapObjects;
+            if (_totalMapJudgements > 0)
+                accuracyProgress = (double)_totalHitsPerformed / _totalMapJudgements;
 
-            // D. Ì×ÓÃ Lazer ÖÕ¼«¹«Ê½ (µÚ 225 ĞĞ)
-            // Total = (50Íò * Acc * ComboProg) + (50Íò * Acc^5 * AccProg) + Bonus
+            // D. å¥—ç”¨ Lazer ç»ˆæå…¬å¼ (ç¬¬ 225 è¡Œ)
+            // Total = (50ä¸‡ * Acc * ComboProg) + (50ä¸‡ * Acc^5 * AccProg) + Bonus
             double part1 = 500000 * accuracy * comboProgress;
             double part2 = 500000 * Math.Pow(accuracy, 5) * accuracyProgress;
 
             _finalScore = part1 + part2 + _currentBonusScore;
 
-            UpdateUI((float)accuracy);
-        }
-
-        // ================================================================
-        // UI ¸üĞÂÓë¶¯»­
-        // ================================================================
-        private void UpdateUI(float accuracy)
-        {
-            // 1. ·ÖÊı£º±ê×¼ Lazer ¸ñÊ½ (000,000)
-            if (textScore)
-                textScore.text = _finalScore.ToString("N0");
-
-            // 2. ×¼È·ÂÊ£º±ê×¼¸ñÊ½ (99.85%)
-            if (textAcc)
-                textAcc.text = $"{accuracy * 100:F2}%";
-
-            // 3. Á¬»÷£º±ê×¼¸ñÊ½ (124x)
-            if (textCombo)
-                textCombo.text = $"{_currentCombo}x";
-        }
-
-        private void PunchCombo()
-        {
-            if (textCombo)
+            // æ›´æ–° UI
+            if (boardController != null)
             {
-                StopAllCoroutines();
-                StartCoroutine(AnimateCombo());
+                boardController.UpdateDashboard((long)_finalScore, _currentCombo, accuracy);
             }
-        }
-
-        IEnumerator AnimateCombo()
-        {
-            // ¾­µäµÄµ¯ĞÔ¶¯»­
-            textCombo.transform.localScale = _comboOriginalScale * 1.25f; // Ë²¼ä·Å´ó
-
-            float t = 0;
-            while (t < 0.15f)
-            {
-                t += Time.deltaTime;
-                // ¿ìËÙ»Øµ¯
-                textCombo.transform.localScale = Vector3.Lerp(textCombo.transform.localScale, _comboOriginalScale, t * 15);
-                yield return null;
-            }
-            textCombo.transform.localScale = _comboOriginalScale;
         }
     }
 }

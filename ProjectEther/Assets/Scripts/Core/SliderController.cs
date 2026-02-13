@@ -59,6 +59,8 @@ namespace OsuVR
         private TextMeshPro debugTextInstance; // 实例化的文本
 
 
+        private bool headHitValid = false;
+
         // [新增] 折返粒子特效引用
         private ParticleSystem headReversePS;
         private ParticleSystem tailReversePS;
@@ -152,7 +154,8 @@ namespace OsuVR
         // 在 SliderController 类中添加这个列表，用来记录所有生成的子物体（Tick, 箭头等）
         private List<GameObject> garbageList = new List<GameObject>();
 
-
+        // 缓存滑条头部的空心光环 Mesh（如果需要的话）
+        private static Mesh cachedSliderHaloMesh;
 
         private static Texture2D cachedSoftDotTex;
 
@@ -758,9 +761,14 @@ namespace OsuVR
 
                 // 1. 强制使用 Quad Mesh
                 var dstMF = headHalo.AddComponent<MeshFilter>();
-                GameObject tempQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                dstMF.sharedMesh = tempQuad.GetComponent<MeshFilter>().sharedMesh;
-                Destroy(tempQuad);
+                if (cachedSliderHaloMesh == null)
+                {
+                    // 检查缓存，如果没有就创建一个临时 Quad 来获取 Mesh
+                    GameObject tempQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                    cachedSliderHaloMesh = tempQuad.GetComponent<MeshFilter>().sharedMesh;
+                    Destroy(tempQuad);
+                }
+                dstMF.sharedMesh = cachedSliderHaloMesh;
 
                 // 2. 材质 + 贴图
                 Shader shader = Shader.Find("Mobile/Particles/Additive");
@@ -1252,8 +1260,8 @@ namespace OsuVR
 
             // [核心逻辑] 
             // offset >= -20 : 只有缩圈几乎重合（只剩20ms）时才开始允许判定
-            // offset <= 150 : 允许延迟 150ms
-            if (offset >= -20 && offset <= 150)
+            // offset <= 250 : 允许延迟 250ms
+            if (offset >= -20 && offset <= 250)
             {
                 headHit = true;
                 isTrackingRightHand = isRightHand;
@@ -1278,7 +1286,13 @@ namespace OsuVR
                         this.nextNotePosition   // 下个 Note 位置 (避让用)
                     );
                 }
-
+                headHitValid = true;
+                ticksGot++; // 让 Head 也算一个 Tick，这样总数才对
+                if (gameManager != null && gameManager.scoreManager != null)
+                {
+                    // 注意：这里给 300 分，这符合 osu! 逻辑，Head 也是一个 HitCircle
+                    gameManager.scoreManager.RegisterComboHit(300);
+                }
                 Debug.Log($"<color=green>Slider Head HIT!</color> Offset: {offset:F2}ms");
             }
             else if (offset < -20)
@@ -1292,92 +1306,80 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 核心判定逻辑 (复刻 osu!droid)
+        /// 核心判定逻辑 (修复版：Miss不销毁，允许中途上车)
         /// </summary>
         private void UpdateJudgement()
         {
-            // 0. 前置检查：如果没有数据直接返回
+            // 0. 前置检查
             if (sliderData.NestedHitObjects == null) return;
 
-
+            // -------------------------------------------------------------
             // 1. 头部判定 (Head)
-            // 如果还没有击中头部，且时间还没超时，尝试自动判定 (Relax模式/VR特性)
+            // -------------------------------------------------------------
             if (!headHit)
             {
                 double diff = currentMusicTimeCache - sliderData.StartTime;
-
                 double spanDuration = (sliderData.EndTime - sliderData.StartTime) / sliderData.RepeatCount;
 
-                // 判定窗口 (这里用 150ms 举例，对应 OD5)
-                // osu!droid: onSliderHeadHit
-                if (isTracking && Mathf.Abs((float)diff) <= 150)
-                { 
-
+                // 判定窗口内，且被追踪 -> 在 TryHitHead 里处理 Hit
+                if (isTracking && Mathf.Abs((float)diff) <= 250)
+                {
+                    // 等待 TryHitHead 触发
                 }
                 // 超时 Miss
-                else if (diff > 150 || (diff > spanDuration && diff > 0))
+                else if (diff > 250 || (diff > spanDuration && diff > 0))
                 {
                     headHit = true;
                     Debug.Log($"<color=red>Slider Head MISS</color>");
 
-                    // 立即隐藏滑条头
-                    if (headInstance != null)
+                    // 1. 立即隐藏滑条头 (视觉上 Head 没了)
+                    if (headInstance != null) headInstance.SetActive(false);
+
+                    // 2. 绝对不要调用 gameManager.OnNoteMiss(sliderData)! 这会杀死滑条
+                    // 3. 而是告诉分数系统：断连了 (0分)
+                    if (gameManager != null && gameManager.scoreManager != null)
                     {
-                        headInstance.SetActive(false);
+                        gameManager.scoreManager.RegisterHit(0);
                     }
 
-                    gameManager.OnNoteMiss(sliderData);
+                    // 此时滑条本体还在，Update 还会继续跑，后面的 Tick 还能吃
                 }
             }
 
+            // -------------------------------------------------------------
             // 2. 嵌套物件判定 (Tick, Repeat, Tail)
-
-            // 遍历所有时间已经到达的嵌套物件
-            // 使用 while 循环是为了防止掉帧时漏掉中间的 Tick
+            // -------------------------------------------------------------
             while (currentNestedIndex < sliderData.NestedHitObjects.Count)
             {
                 var nestedObject = sliderData.NestedHitObjects[currentNestedIndex];
 
-                // 如果当前时间还没到这个物件的判定时间，停止循环
-                // 留一点点容错 (0.01ms) 避免浮点精度问题
-                if (currentMusicTimeCache < nestedObject.Time - 0.01)
-                {
-                    break;
-                }
+                // 时间没到，退出循环
+                if (currentMusicTimeCache < nestedObject.Time - 0.01) break;
 
-                // 时间到了，开始判定！
+                // --- 判定开始 ---
                 bool hit = false;
 
                 if (isTracking && followBall != null)
                 {
                     float allowedRadius = (sliderWidth * 0.5f) * followRadiusMultiplier;
                     float dist = Vector3.Distance(lastHitPosition, followBall.transform.position);
-
-                    // 如果在范围内，直接算 Hit (Relax 不需要按键)
-                    if (dist <= allowedRadius)
-                    {
-                        hit = true;
-                    }
+                    if (dist <= allowedRadius) hit = true;
                 }
-
 
                 nestedObject.IsHit = hit;
 
                 if (hit)
                 {
                     ticksGot++;
-                    // 播放音效 (需要在 SliderController 中实现 PlayHitSound)
-                    // PlayHitSound(nestedObject.Type);
 
-                    // 视觉反馈 & 分数
+                    // Hit 逻辑 (保持不变)
                     switch (nestedObject.Type)
                     {
                         case SliderEventType.Tick:
-                            // 1. 播放呼吸感动画
                             if (pulseCoroutine != null) StopCoroutine(pulseCoroutine);
                             StartCoroutine(FollowBallPulse());
 
-                            // 2. 隐藏场景里的这个 Tick (它被吃掉了)
+                            // 隐藏 Tick
                             for (int i = 0; i < tickVisuals.Count; i++)
                             {
                                 if (tickVisuals[i].data == nestedObject)
@@ -1387,130 +1389,97 @@ namespace OsuVR
                                 }
                             }
 
-                            if (HapticManager.Instance != null)
-                                // ✅ [修改] 震动对应手柄
-                                HapticManager.Instance.PlaySliderTick(isTrackingRightHand);
+                            if (HapticManager.Instance != null) HapticManager.Instance.PlaySliderTick(isTrackingRightHand);
+                            if (AudioManager.Instance != null) AudioManager.Instance.PlaySliderTick(sliderData.SampleSet, sliderData.CustomIndex, sliderData.SampleVolume / 100f);
 
-                            if (AudioManager.Instance != null)
-                                AudioManager.Instance.PlaySliderTick(sliderData.SampleSet, sliderData.CustomIndex, sliderData.SampleVolume / 100f);
-
-                            // gameManager.AddScore(30); 
-                            // gameManager.AddCombo();
-                            Debug.Log("Tick Hit");
+                            // ✅ 加分
+                            if (gameManager?.scoreManager != null) gameManager.scoreManager.RegisterComboHit(10);
                             break;
 
                         case SliderEventType.Repeat:
-                            if (hit)
+                            if (AudioManager.Instance != null) AudioManager.Instance.PlayHitSound(sliderData);
+                            if (HapticManager.Instance != null) HapticManager.Instance.PlayHitHaptic(isTrackingRightHand, (int)sliderData.HitSound);
+
+                            if (CodeOnlyVFX.Instance != null)
                             {
-                                if (AudioManager.Instance != null)
-                                {
-                                    // 这里的 nestedObject 是当前的 Repeat 点，它可能有自己的 HitSound
-                                    // 如果没有专门的，就用滑条本身的
-                                    AudioManager.Instance.PlayHitSound(sliderData);
-                                }
-
-                                if (HapticManager.Instance != null)
-                                {
-                                    // 震动！
-                                    HapticManager.Instance.PlayHitHaptic(isTrackingRightHand, (int)sliderData.HitSound);
-                                }
-
-                                if (CodeOnlyVFX.Instance != null)
-                                {
-                                    // 计算位置：偶数次在尾，奇数次在头
-                                    bool atTail = (nestedObject.SpanIndex % 2 == 0);
-                                    Vector3 vfxLocalPos = atTail
-                                        ? worldPathPoints[worldPathPoints.Count - 1]
-                                        : worldPathPoints[0];
-                                    Vector3 vfxWorldPos = transform.TransformPoint(vfxLocalPos);
-
-                                    CodeOnlyVFX.Instance.PlayHit(
-                                        vfxWorldPos,                // 1. 精确的世界坐标
-                                        transform.rotation,         // 2. 朝向
-                                        this.sliderWidth,           // 3. 大小 (CS)
-                                        currentComboColor,          // 4. 颜色
-                                        this.nextNotePosition      // 5. 下个位置 (SliderController如果没这变量暂传null)
-                                    );
-                                }
-
-                                Debug.Log("<color=cyan>Slider Repeat Hit</color>");
-                                // gameManager.AddScore(30); 
-                                // gameManager.AddCombo();
-                            }
-                            else
-                            {
-                                Debug.Log($"<color=red>Slider Repeat MISS</color>");
-                                gameManager.OnNoteMiss(sliderData);
+                                bool atTail = (nestedObject.SpanIndex % 2 == 0);
+                                Vector3 vfxLocalPos = atTail ? worldPathPoints[worldPathPoints.Count - 1] : worldPathPoints[0];
+                                CodeOnlyVFX.Instance.PlayHit(transform.TransformPoint(vfxLocalPos), transform.rotation, this.sliderWidth, currentComboColor, this.nextNotePosition);
                             }
 
-                            // 更新箭头位置到另一端
-                            UpdateReverseVFX(nestedObject.SpanIndex + 1);                            
-                            // 视觉：在这里可以做反转箭头的消失动画
+                            // ✅ 加分
+                            if (gameManager?.scoreManager != null) gameManager.scoreManager.RegisterComboHit(30);
+
+                            UpdateReverseVFX(nestedObject.SpanIndex + 1);
                             break;
 
                         case SliderEventType.Tail:
-                            Debug.Log("<color=green>Slider End Hit</color>");
+                            // Tail 只是视觉和声音，真正的结算在下面的 EndTime
                             if (CodeOnlyVFX.Instance != null)
                             {
                                 bool endsAtTail = (sliderData.RepeatCount % 2 != 0);
-                                Vector3 endLocalPos = endsAtTail
-                                    ? worldPathPoints[worldPathPoints.Count - 1]
-                                    : worldPathPoints[0];
-                                Vector3 endWorldPos = transform.TransformPoint(endLocalPos);
-
-                                CodeOnlyVFX.Instance.PlayHit(
-                                    endWorldPos,                // 1. 位置
-                                    transform.rotation,         // 2. 朝向
-                                    this.sliderWidth,           // 3. 大小
-                                    currentComboColor,          // 4. 颜色
-                                    this.nextNotePosition       // 5. 下个位置
-                                );
+                                Vector3 endLocalPos = endsAtTail ? worldPathPoints[worldPathPoints.Count - 1] : worldPathPoints[0];
+                                CodeOnlyVFX.Instance.PlayHit(transform.TransformPoint(endLocalPos), transform.rotation, this.sliderWidth, currentComboColor, this.nextNotePosition);
                             }
-
-                            // gameManager.AddScore(30); 
-                            // gameManager.AddCombo(); // 尾部通常给 Combo
                             break;
-
                     }
                 }
                 else
                 {
-                    UpdateReverseVFX(nestedObject.SpanIndex + 1);
-                    // Miss
-                    // 只要跟丢了 Tick/Repeat/Tail 中的任何一个，都会触发 Miss (断连)
-                    // Debug.Log($"<color=red>Slider {nestedObject.Type} MISS</color>");
-                    gameManager.OnNoteMiss(sliderData);
+                    // --- MISS 处理 (修复版) ---
+
+                    // 视觉更新 (如果是折返 Miss 了，箭头还是得变)
+                    if (nestedObject.Type == SliderEventType.Repeat)
+                    {
+                        UpdateReverseVFX(nestedObject.SpanIndex + 1);
+                    }
+
+                    // 如果是尾巴 Miss 了 (Slider End Miss)，显示小红叉
+                    if (nestedObject.Type == SliderEventType.Tail)
+                    {
+                        if (JudgementVisualizer.Instance != null)
+                        {
+                            // 计算尾巴位置
+                            bool endsAtTail = (sliderData.RepeatCount % 2 != 0);
+                            Vector3 endLocalPos = endsAtTail ? worldPathPoints[worldPathPoints.Count - 1] : worldPathPoints[0];
+                            JudgementVisualizer.Instance.ShowTailMiss(transform.TransformPoint(endLocalPos));
+                        }
+                    }
+
+                    // 只是断连
+                    if (gameManager != null && gameManager.scoreManager != null)
+                    {
+                        gameManager.scoreManager.RegisterHit(0); // 断连，Combo归零
+                    }
                 }
 
-                // 移动到下一个物件
                 currentNestedIndex++;
             }
 
-            // 3. 结束检查
-            // 只要时间超过了 EndTime，无论嵌套物件是否全部判定完（防止极少数情况下的死循环），都强制结束
+            // -------------------------------------------------------------
+            // 3. 结束检查 (End Time Reached)
+            // -------------------------------------------------------------
             if (currentMusicTimeCache > sliderData.EndTime)
             {
                 if (!finished)
                 {
                     finished = true;
 
-                    // 计算最终分数
-                    CalculateFinalScore();
+                    // ✅ [修改 1] 获取真实的完成度比例
+                    float finalAcc = CalculateFinalScore();
 
-                    // ✅ 只有在这里，当时间彻底走完，才告诉 Manager "这个滑条结束了"
-                    // 根据 ticksGot 计算是否全连/Miss，然后提交
-                    // 如果你想简单点，只要 ticksGot > 0 就算 Hit，或者必须全中才算
+                    // ✅ [修改 2] 只要吃到了东西，就提交判定，但分数由 finalAcc 决定
                     if (ticksGot > 0)
                     {
                         if (AudioManager.Instance != null) AudioManager.Instance.PlayHitSound(sliderData);
-                        if (HapticManager.Instance != null)
-                            HapticManager.Instance.PlayHitHaptic(isTrackingRightHand, (int)sliderData.HitSound);
-                        
-                        // 提交给 Manager 进行销毁和加分
-                        gameManager.OnNoteHit(sliderData, 0);
+                        if (HapticManager.Instance != null) HapticManager.Instance.PlayHitHaptic(isTrackingRightHand, (int)sliderData.HitSound);
+
+                        // 提交给 Manager，Manager 会根据 finalAcc 决定是给 300(>0.9), 100(>0.5) 还是 50
+                        gameManager.OnNoteHit(sliderData, finalAcc);
                     }
                     else
                     {
+                        // 彻底没打中 (ticksGot == 0)，才算 Miss
                         gameManager.OnNoteMiss(sliderData);
                     }
 
@@ -1519,13 +1488,20 @@ namespace OsuVR
             }
         }
 
-        private void CalculateFinalScore()
+        /// <summary>
+        /// 计算滑条的最终完成度 (0.0 ~ 1.0)
+        /// </summary>
+        private float CalculateFinalScore()
         {
-            // 简单的分数计算逻辑
-            int totalTicks = sliderData.NestedHitObjects.Count + 1; // +1 是因为包含 Head
-            float percentage = (float)ticksGot / totalTicks;
+            // 总判定点 = Head + 所有嵌套物件 (Tick + Repeat + Tail)
+            // NestedHitObjects 列表里已经包含了 Tail
+            int totalJudgements = sliderData.NestedHitObjects.Count + 1;
 
-            // Debug.Log($"Slider Finished. Ticks: {ticksGot}/{totalTicks}");
+            // 计算命中率
+            float accuracy = (float)ticksGot / totalJudgements;
+
+            // 钳制在 0~1 之间 (防止逻辑溢出)
+            return Mathf.Clamp01(accuracy);
         }
 
         /// <summary>

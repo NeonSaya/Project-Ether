@@ -54,6 +54,10 @@ namespace OsuVR
         [Tooltip("是否自动开始游戏")]
         public bool autoStart = true;
 
+        [Header("系统引用")]
+        [Tooltip("拖入挂载了 ScoreManager 脚本的物体")]
+        public ScoreManager scoreManager; // <--- 新增这个
+
         [Header("游戏状态")]
         [Tooltip("当前音乐时间（毫秒）")]
         public double currentMusicTimeMs = 0;
@@ -317,7 +321,21 @@ namespace OsuVR
                 Debug.LogError("无法开始游戏：AudioSource或音乐文件未设置！");
                 return;
             }
+            if (scoreManager != null)
+            {
+                scoreManager.Initialize(hitObjects);
+                Debug.Log($"[RhythmGame] 分数系统已初始化");
+            }
+            else
+            {
+                Debug.LogWarning("[RhythmGame] ⚠️ ScoreManager 未赋值！分数将不会计算。");
+            }
 
+            if (JudgementVisualizer.Instance != null)
+            {
+                Debug.Log("[RhythmGame] 正在预热判定特效...");
+                JudgementVisualizer.Instance.Prewarm();
+            }
             Debug.Log("开始游戏设置...");
 
             // 重置游戏状态
@@ -711,7 +729,7 @@ namespace OsuVR
                 if (currentMusicTimeMs > hitObject.StartTime + 250f)
                 {
                     Debug.LogWarning($"[Manager] 丢弃过期音符: {hitObject.StartTime}ms (当前: {currentMusicTimeMs:F0})");
-                    OnNoteMiss(hitObject); // 直接算 Miss
+                    if (scoreManager != null) scoreManager.RegisterHit(0);
                     nextNoteIndex++;
                     continue;
                 }
@@ -818,10 +836,11 @@ namespace OsuVR
                 Vector3 worldCenter = CoordinateMapper.MapToWorld(osuCenter);
 
                 noteObject.transform.position = worldCenter;
+                float od = (currentBeatmap != null && currentBeatmap.Difficulty != null) ? currentBeatmap.Difficulty.OverallDifficulty: 5f;
                 var controller = noteObject.GetComponent<SpinnerController>();
                 if (controller != null)
                 {
-                    controller.Initialize((SpinnerObject)hitObject, this, poolMgr.SpinnerPool, worldCenter);
+                    controller.Initialize((SpinnerObject)hitObject, this, poolMgr.SpinnerPool, worldCenter,od);
                 }
             }
             else
@@ -911,20 +930,59 @@ namespace OsuVR
         /// <summary>
         /// 当音符被击打时调用
         /// </summary>
-        public void OnNoteHit(HitObject hitObject, double accuracy)
+        public void OnNoteHit(HitObject hitObject, double timeDiff)
         {
             if (activeNoteObjects.ContainsKey(hitObject))
             {
                 GameObject noteObject = activeNoteObjects[hitObject];
                 activeNoteObjects.Remove(hitObject);
                 activeNotes = activeNoteObjects.Count;
+                // ✅ [新增] 视觉反馈
+                // 1. 确定判定位置 (使用物体位置)
+                Vector3 hitPos = noteObject.transform.position;
+                // 2. 确定颜色
+                Color comboColor = (currentBeatmap.ComboColors != null && currentBeatmap.ComboColors.Count > 0)
+                    ? currentBeatmap.ComboColors[hitObject.ComboIndex % currentBeatmap.ComboColors.Count]
+                    : Color.white;
 
-                // 播放击打效果
-                // 这里可以添加击打特效
 
+                if (scoreManager != null)
+                {
+                    // ✅ [修复核心]：将毫秒误差转换为 0-1 的准确率
+                    // 1.0 = 完美 (0ms误差), 0.0 = 极限 (250ms误差)
+                    double maxWindow = 250.0; // 对应 NoteController 的 hitWindow
+                    double absDiff = System.Math.Abs(timeDiff);
+
+                    // 计算公式：1 - (误差 / 最大宽容度)
+                    double accuracy01 = 1.0 - (absDiff / maxWindow);
+
+                    // 钳制范围，防止负数
+                    accuracy01 = System.Math.Clamp(accuracy01, 0.0, 1.0);
+
+                    // 特殊情况：如果是滑条或转盘，它们传进来的本身就是百分比 (0~1 或 状态码)，直接信任
+                    if (hitObject is SliderObject || hitObject is SpinnerObject)
+                    {
+                        accuracy01 = timeDiff;
+                    }
+
+                    // 现在传入的是正确的 0~1 值，可以正确计分了
+                    int scoreValue = CalculateScoreFromAccuracy(accuracy01);
+                    if (scoreManager != null)
+                    {
+                        scoreManager.RegisterHit(scoreValue);
+                    }
+
+                    if (JudgementVisualizer.Instance != null)
+                    {
+                        // 显示判定！
+                        JudgementVisualizer.Instance.ShowJudgement(hitPos, scoreValue, comboColor);
+                    }
+
+
+
+                }
                 Destroy(noteObject);
-
-                Debug.Log($"击打音符: 时间={hitObject.StartTime}ms, 准确度={accuracy:F1}ms");
+                Debug.Log($"击打音符: 误差={timeDiff:F1}ms, 转换后Acc={timeDiff:F2}");
             }
         }
 
@@ -933,12 +991,33 @@ namespace OsuVR
         /// </summary>
         public void OnNoteMiss(HitObject hitObject)
         {
-            Debug.Log($"错过音符: 时间={hitObject.StartTime}ms");
-
             if (activeNoteObjects.ContainsKey(hitObject))
             {
+                // 1. 移除对象
+                GameObject obj = activeNoteObjects[hitObject];
                 activeNoteObjects.Remove(hitObject);
                 activeNotes = activeNoteObjects.Count;
+                Vector3 missPos = obj.transform.position;
+
+                // 2. 销毁物体 (如果还没销毁)
+                if (obj != null) Destroy(obj);
+
+                // 3. 只有在这里才通知 ScoreManager 记 Miss
+                if (scoreManager != null)
+                {
+                    scoreManager.RegisterHit(0);
+                }
+                // 4. 显示 Miss 判定
+                if (JudgementVisualizer.Instance != null)
+                {
+                    JudgementVisualizer.Instance.ShowJudgement(missPos, 0, Color.red);
+                }
+            }
+            else
+            {
+                // 如果列表里没有，说明已经被打中了(Hit)，或者是重复调用
+                // 这种情况下，什么都不做！绝对不能判 Miss！
+                Debug.LogWarning("拦截了一次无效的 Miss 判定 (对象已不在活动列表)");
             }
         }
 
@@ -954,6 +1033,27 @@ namespace OsuVR
                 activeNoteObjects.Remove(spinnerObject);
                 activeNotes = activeNoteObjects.Count;
             }
+
+            if (scoreManager != null)
+            {
+                scoreManager.RegisterHit(300);
+                // 如果你想加额外分：scoreManager.RegisterBonus(1000);
+            }
+
+        }
+
+        public static int CalculateScoreFromAccuracy(double accuracy01)
+        {
+            // accuracy01: 1.0 是完美重合，0.0 是判定边缘
+            // 相当于：
+            // > 0.8 (误差 < 50ms) -> 300
+            // > 0.6 (误差 < 100ms) -> 100
+            // > 0.2 (误差 < 200ms) -> 50
+
+            if (accuracy01 >= 0.8f) return 300;
+            if (accuracy01 >= 0.6f) return 100;
+            if (accuracy01 >= 0.01f) return 50; // 只要不是 0，至少给 50 分
+            return 0; // 只有真的是 0 (误差 > 250ms) 才判 Miss
         }
 
         /// <summary>

@@ -59,6 +59,7 @@ namespace OsuVR
         private MeshRenderer overlayRenderer;
         // 缓存光晕贴图
         private static Texture2D cachedRingGlowTex;
+        private static Mesh cachedQuadMesh;
 
         private Camera MainCamera
         {
@@ -327,53 +328,56 @@ namespace OsuVR
 
 
         /// <summary>
-        /// [修改版] 创建纯白发光光晕
+        /// [优化版] 创建/复用纯白发光光晕
         /// </summary>
         private void CreateHalo(GameObject target, Color baseColor)
         {
-            if (haloObject != null) Destroy(haloObject);
-
-            haloObject = new GameObject("Halo_Glow");
-            haloObject.transform.SetParent(target.transform);
-
-            // 1. 强制使用 Quad (面片) 作为光晕
-            // 不再复制本体的 Mesh，防止本体是奇怪形状导致光晕变形
-            // 既然我们有了圆形贴图，用面片是最稳的
-            var dstFilter = haloObject.AddComponent<MeshFilter>();
-            GameObject tempQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            dstFilter.sharedMesh = tempQuad.GetComponent<MeshFilter>().sharedMesh;
-            Destroy(tempQuad); // 用完销毁临时物体
-
-            // 2. 创建材质
-            Shader shader = Shader.Find("Mobile/Particles/Additive");
-            if (!shader) shader = Shader.Find("Legacy Shaders/Particles/Additive");
-            Material haloMat = new Material(shader);
-
-            // 3. ✅ [关键修复] 强制使用手绘的圆形光斑贴图
-            haloMat.mainTexture = GetGlowTexture();
-
-            var dstRenderer = haloObject.AddComponent<MeshRenderer>();
-            dstRenderer.material = haloMat;
-
-            // 4. 调整姿态
-            haloObject.transform.localPosition = new Vector3(0, 0, 0.02f);
-            haloObject.transform.localRotation = Quaternion.identity;
-            // 稍微放大一点，因为是 Quad，需要大一点才能盖住球
-            haloObject.transform.localScale = Vector3.one * 1.25f;
-
-            // 5. 颜色
-            if (dstRenderer)
+            // 1. 对象复用：如果光晕已经存在，直接复活，不要销毁重建！
+            if (haloObject != null)
             {
-                // 纯白高亮，透明度低一点
-                Color whiteGlow = new Color(2.5f, 2.5f, 2.5f, 0.75f);
+                haloObject.SetActive(true);
+            }
+            else
+            {
+                haloObject = new GameObject("Halo_Glow");
+                haloObject.transform.SetParent(target.transform);
 
-                if (haloMat.HasProperty("_TintColor"))
-                    haloMat.SetColor("_TintColor", whiteGlow);
-                else
-                    haloMat.SetColor("_Color", whiteGlow);
+                // 2. 网格缓存：只在第一次运行时创建 Quad，之后全部复用
+                var dstFilter = haloObject.AddComponent<MeshFilter>();
+                if (cachedQuadMesh == null)
+                {
+                    GameObject tempQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                    cachedQuadMesh = tempQuad.GetComponent<MeshFilter>().sharedMesh;
+                    Destroy(tempQuad); // 销毁临时物体，保留 Mesh 数据
+                }
+                dstFilter.sharedMesh = cachedQuadMesh;
 
+                // 3. 材质创建 (保持原样)
+                Shader shader = Shader.Find("Mobile/Particles/Additive");
+                if (!shader) shader = Shader.Find("Legacy Shaders/Particles/Additive");
+                Material haloMat = new Material(shader);
+                haloMat.mainTexture = GetGlowTexture();
+
+                var dstRenderer = haloObject.AddComponent<MeshRenderer>();
+                dstRenderer.material = haloMat;
                 dstRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 dstRenderer.receiveShadows = false;
+            }
+
+            // 4. 重置姿态 (每次都要做，因为复用时位置可能变了)
+            haloObject.transform.localPosition = new Vector3(0, 0, 0.02f);
+            haloObject.transform.localRotation = Quaternion.identity;
+            haloObject.transform.localScale = Vector3.one * 1.25f;
+
+            // 5. 更新颜色
+            MeshRenderer r = haloObject.GetComponent<MeshRenderer>();
+            if (r != null)
+            {
+                Color whiteGlow = new Color(2.5f, 2.5f, 2.5f, 0.75f);
+                if (r.material.HasProperty("_TintColor"))
+                    r.material.SetColor("_TintColor", whiteGlow);
+                else
+                    r.material.SetColor("_Color", whiteGlow);
             }
         }
 
@@ -540,7 +544,6 @@ namespace OsuVR
         /// </summary>
         public void OnRayHover(bool isRightHand)
         {
-            Debug.Log($"[Note] 收到 Hover 信号！来自: {(isRightHand ? "右手" : "左手")}");
 
             isHovered = true;
             hoveringHandIsRight = isRightHand;
@@ -553,7 +556,6 @@ namespace OsuVR
         public void OnHit(double accuracy, bool isRightHand)
         {
             if (hasBeenHit || !isActive) return;
-             Debug.Log($" OnHit! Color: {originalColor}");
             hasBeenHit = true;
             isActive = false;
 

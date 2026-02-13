@@ -59,8 +59,8 @@ namespace OsuVR
                 actionOnGet: OnGetItem,
                 actionOnRelease: OnReleaseItem,
                 actionOnDestroy: (ps) => { if (ps) Destroy(ps.gameObject); },
-                defaultCapacity: 40,
-                maxSize: 150
+                defaultCapacity: 50,
+                maxSize: 300
             );
         }
 
@@ -113,6 +113,7 @@ namespace OsuVR
             main.duration = 1.0f;
             main.loop = false; // 预设不循环
             main.playOnAwake = false;
+            main.stopAction = ParticleSystemStopAction.None;
 
             root.GetComponent<ParticleSystemRenderer>().enabled = false;
 
@@ -227,112 +228,94 @@ namespace OsuVR
             ps.gameObject.SetActive(false);
         }
 
+
         /// <summary>
-        /// 播放打击特效 (智能避让版)
+        /// 播放打击特效 (防卡顿/防丢失终极版)
         /// </summary>
-        /// <param name="pos">当前 Note 位置</param>
-        /// <param name="rot">当前 Note 朝向</param>
-        /// <param name="size">Note 大小</param>
-        /// <param name="color">Combo 颜色</param>
-        /// <param name="avoidPos">【新增】下个 Note 的位置 (可选)</param>
         public void PlayHit(Vector3 pos, Quaternion rot, float size, Color color, Vector3? avoidPos = null)
         {
+            // 1. 从池中获取
             ParticleSystem rootPS = pool.Get();
 
-            rootPS.transform.position = pos;
-            rootPS.transform.rotation = rot;
+            // 🛑 [保险措施 1] 确保物体是激活的，否则协程和粒子都不工作
+            if (!rootPS.gameObject.activeSelf) rootPS.gameObject.SetActive(true);
 
-            // 🛑 [核心修复 1] 强制父物体 Scale 为 1
-            // 这样 12.0 的重力才是真实的地球重力，而不是被缩小了 10 倍的月球重力
-            rootPS.transform.localScale = Vector3.one;
+            // 🛑 [保险措施 2] 暴力重置状态
+            // Stop: 停止播放
+            // Clear: 清除残留粒子
+            // time=0: 强制时间归零
+            rootPS.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            rootPS.Clear(true);
+            rootPS.time = 0f;
 
-            // 提前计算避让逻辑
+            // 设置位置
+            Transform rootTrans = rootPS.transform;
+            rootTrans.SetPositionAndRotation(pos, rot);
+            rootTrans.localScale = Vector3.one;
+
+            // 2. 避让概率计算
             float leftProbability = 0.5f;
             if (avoidPos.HasValue)
             {
                 Vector3 toNext = (avoidPos.Value - pos).normalized;
                 Vector3 localToNext = Quaternion.Inverse(rot) * toNext;
                 if (localToNext.x > 0.1f) leftProbability = 0.8f;
-                else if (localToNext.x < -0.1f) leftProbability = 0.2f;
+                else if (localToNext.normalized.x < -0.1f) leftProbability = 0.2f;
             }
 
             Color hdrColor = new Color(color.r * hdrIntensity, color.g * hdrIntensity, color.b * hdrIntensity, 1.0f);
 
-            ParticleSystem[] children = rootPS.GetComponentsInChildren<ParticleSystem>();
-            foreach (var ps in children)
+            // 3. 配置子粒子系统 (直接获取，零GC)
+            // 索引 0: Burst_Floating (主爆破)
+            ParticleSystem psFloating = rootTrans.GetChild(0).GetComponent<ParticleSystem>();
+            var mainFloating = psFloating.main;
+            mainFloating.startColor = hdrColor;
+            mainFloating.startSize = new ParticleSystem.MinMaxCurve(cubeSize * size, cubeSize * size * 1.2f);
+
+            var shapeFloating = psFloating.shape;
+            shapeFloating.radius = burstRadius * size;
+
+            // 设置爆破数量
+            var emFloating = psFloating.emission;
+            short burstCount = (short)Random.Range(burstCountMin, burstCountMax);
+            emFloating.SetBurst(0, new ParticleSystem.Burst(0f, burstCount));
+
+            // 索引 1: Burst_Debris (残渣)
+            ParticleSystem psDebris = rootTrans.GetChild(1).GetComponent<ParticleSystem>();
+            // 残渣不需要设置 Emission，全靠手动 Emit
+
+            // 🛑 [保险措施 3] 启动播放
+            // 必须先 Play，让系统进入"运行态"，随后的 Emit 才会生效
+            rootPS.Play(true);
+
+            // 4. 手动发射残渣
+            int debrisCount = Random.Range(debrisMin, debrisMax + 1);
+            var emitParams = new ParticleSystem.EmitParams();
+            emitParams.startColor = hdrColor;
+
+            for (int i = 0; i < debrisCount; i++)
             {
-                var main = ps.main;
-                main.loop = false;
-                ps.Clear();
+                float dirX = (Random.value < leftProbability) ? -1f : 1f;
+                dirX += Random.Range(-0.25f, 0.25f);
+                float dirZ = Random.Range(0.1f, 0.6f);
+                float dirY = Random.Range(-0.15f, 0.15f);
 
-                if (ps == rootPS) continue;
+                Vector3 localDir = new Vector3(dirX, dirY, dirZ).normalized;
+                Vector3 baseVelocity = rot * localDir;
+                float finalSpeed = Random.Range(horizontalSpeed * 0.8f, horizontalSpeed * 1.2f);
+                Vector3 subtleNoise = Random.insideUnitSphere * 0.5f;
 
-                // 主爆破
-                if (ps.name == "Burst_Floating")
-                {
-                    main.startColor = hdrColor;
+                emitParams.velocity = (baseVelocity * finalSpeed) + subtleNoise;
+                emitParams.startLifetime = Random.Range(0.4f, 0.6f);
+                emitParams.startSize = Random.Range(cubeSize * size * 1.0f, cubeSize * size * 1.6f);
 
-                    // ✅ [手动应用尺寸] 因为父物体不缩放了，我们需要手动把 Note 的大小乘进去
-                    main.startSize = new ParticleSystem.MinMaxCurve(cubeSize * size, cubeSize * size * 1.2f); // 粒子大小
-
-                    var shape = ps.shape;
-                    shape.radius = burstRadius * size; // 发射圈大小也要乘 size
-
-                    var em = ps.emission;
-                    short count = (short)Random.Range(burstCountMin, burstCountMax);
-                    em.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0f, count) });
-                    ps.Play();
-                }
-                // 残渣
-                else if (ps.name == "Burst_Debris")
-                {
-                    int count = Random.Range(debrisMin, debrisMax + 1);
-                    var emitParams = new ParticleSystem.EmitParams();
-                    emitParams.startColor = hdrColor;
-
-                    for (int i = 0; i < count; i++)
-                    {
-                        // 1. 本地坐标系方向 (相对于 Note 表面)
-                        // X轴: 左右 (稍微加大一点点随机范围)
-                        float dirX = (Random.value < leftProbability) ? -1f : 1f;
-                        dirX += Random.Range(-0.25f, 0.25f);
-
-                        // Z轴: 前后 (指向深处，不糊脸)
-                        float dirZ = Random.Range(0.1f, 0.6f);
-
-                        // ✅ [新增] Y轴: 厚度方向的微小扰动
-                        // 之前是 0f，现在允许它在 Note 表面的上下有轻微跳动，打破纯平面感
-                        float dirY = Random.Range(-0.15f, 0.15f);
-
-                        // 组合本地方向
-                        Vector3 localDir = new Vector3(dirX, dirY, dirZ).normalized;
-
-                        // 2. 转换到世界方向 (跟随 Note 倾斜)
-                        Vector3 baseVelocity = rot * localDir;
-
-                        // 3. 计算基础速度模长
-                        float finalSpeed = Random.Range(horizontalSpeed * 0.8f, horizontalSpeed * 1.2f);
-
-                        // ✅ [新增] 世界空间的微量噪声
-                        // 在最终速度上叠加一个非常小的球形随机向量 (幅度 0.5 很小，但足够打破完美感)
-                        Vector3 subtleNoise = Random.insideUnitSphere * 0.5f;
-
-                        // 最终速度 = (基础方向 * 速度) + 微量噪声
-                        emitParams.velocity = (baseVelocity * finalSpeed) + subtleNoise;
-
-                        // 4. 寿命 & 尺寸ngyao手动应用尺寸)
-                        emitParams.startLifetime = Random.Range(0.4f, 0.6f);
-                        emitParams.startSize = Random.Range(cubeSize * size * 1.0f, cubeSize * size * 1.6f);
-
-                        ps.Emit(emitParams, 1);
-                    }
-                    ps.Play();
-                }
+                psDebris.Emit(emitParams, 1);
             }
 
-            rootPS.Play();
-            StartCoroutine(ForceRecycle(rootPS, 2.0f));
+            // 5. 快速回收
+            StartCoroutine(ForceRecycle(rootPS, 1.0f));
         }
+
 
         /// <summary>
         /// 播放转盘完成时的白色破碎特效 (完美复刻 Note 手感版)
@@ -425,7 +408,7 @@ namespace OsuVR
             }
 
             rootPS.Play();
-            StartCoroutine(ForceRecycle(rootPS, 2.0f));
+            StartCoroutine(ForceRecycle(rootPS, 1.0f));
         }
 
         /// <summary>
