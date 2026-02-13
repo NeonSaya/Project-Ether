@@ -70,6 +70,9 @@ namespace OsuVR
 
         private IObjectPool<GameObject> myPool;
 
+        // [新增] 指环对象池（如果你想重用指环视觉而不是每次都销毁重建）
+        private Queue<Transform> ringPool = new Queue<Transform>();
+
         // ✅ [数据结构升级] 
         // 记录: <手柄, (上一帧角度, 上次时间, 虚拟圆心位置)>
         private Dictionary<RayController, HandState> handStates = new Dictionary<RayController, HandState>();
@@ -84,8 +87,13 @@ namespace OsuVR
             public Transform ringInstance;
             public TrailRenderer trail; // 是否刚进入
         }
+        // [新增] 记录最大允许旋转角度（分数上限）
+        private float maxPossibleRotation = 0f;
+        // [新增] 下一次获得 Bonus 的阈值
+        private float nextBonusThreshold = 0f;
 
-        public void Initialize(SpinnerObject data, RhythmGameManager manager, IObjectPool<GameObject> pool, Vector3 fixPosition)
+
+        public void Initialize(SpinnerObject data, RhythmGameManager manager, IObjectPool<GameObject> pool, Vector3 fixPosition, float od)
         {
             BoxCollider boxCol = GetComponent<BoxCollider>();
             this.spinnerData = data;
@@ -95,20 +103,45 @@ namespace OsuVR
             transform.position = fixPosition;
             transform.rotation = Quaternion.LookRotation(transform.position - Camera.main.transform.position);
             transform.localScale = Vector3.one * scaleSize;
-            
 
-            // 🔥 [难度提升] 计算目标角度
+
+
+
+            // -------------------------------------------------------------
+            // 🔥 [核心修改] Lazer 转盘算法
+            // -------------------------------------------------------------
+
+            // 1. 计算持续时间 (秒)
             float duration = (float)(data.EndTime - data.StartTime) / 1000f;
 
-            // 公式：需要转的总圈数 = 时长 * 每秒目标圈数
-            // 例如：时长5秒，要求每秒转4圈 -> 总共需要转 20 圈
-            float requiredRotations = duration * rotationsPerSecond;
+            // 2. 根据 OD 计算理论最大转速 (RPM)
+            float maxRPM = CalculateMaxRPM(od);
 
-            // [可选] 极短转盘的低保：防止时长 0.1秒 这种算出来只需转 0.2 圈太容易
-            // 这里设置至少要转 1 圈才能通关 (你可以根据需求改成 0.5f 或其他值)
-            requiredRotations = Mathf.Max(requiredRotations, 1f);
+            // 3. 计算分数上限 (Max Angle)
+            // 公式：最大总角度 = 持续时间 * (RPM / 60) * 360
+            this.maxPossibleRotation = duration * (maxRPM / 60f) * 360f;
 
-            this.angleRequirement = requiredRotations * 360f;
+            // 4. 计算 "通关" (Hit 300) 所需的角度
+            // 在 osu! 中，通关通常比满分容易得多。
+            // 一般通关只需要达到最大值的 60% ~ 75% 即可 (这里设为 70%)
+            this.angleRequirement = this.maxPossibleRotation * 0.7f;
+
+            // [VR 特供修正]
+            // 考虑到 VR 里抡胳膊比鼠标画圈累，我们可以加一个 "VR 难度系数"
+            // 如果觉得太累，把这个系数调低 (比如 0.8f)
+            float vrDifficultyFactor = 1.2f;
+            this.maxPossibleRotation *= vrDifficultyFactor;
+            this.angleRequirement *= vrDifficultyFactor;
+
+            // 保底机制：极短的转盘至少要转 1 圈
+            this.angleRequirement = Mathf.Max(this.angleRequirement, 360f);
+
+            // 5. 初始化 Bonus
+            // 只有转过了 angleRequirement 才能开始拿 Bonus
+            // Bonus 每转一圈 (360度) 给一次
+            this.nextBonusThreshold = this.angleRequirement + 360f;
+
+            // -------------------------------------------------------------
 
             // 重置状态
             IsActive = true;
@@ -310,7 +343,7 @@ namespace OsuVR
             }
 
             // 奖励判定
-            if (totalRotationAngle > bonusThreshold)
+            if (totalRotationAngle >= nextBonusThreshold)
             {
                 AddBonus();
             }
@@ -341,20 +374,25 @@ namespace OsuVR
                 // 只有当模板存在时才克隆
                 if (trackerRing)
                 {
-                    // 克隆一个新的指环
-                    newRing = Instantiate(trackerRing, transform);
-                    newRing.gameObject.SetActive(true); // 确保克隆体是显示的
+                    // 优先从池里拿一个，如果没有才实例化新对象
+                    if (ringPool.Count > 0)
+                    {
+                        newRing = ringPool.Dequeue();
+                        newRing.gameObject.SetActive(true);
+                    }
+                    else
+                    {
+                        newRing = Instantiate(trackerRing, transform);
+                    }
 
                     newTrail = newRing.GetComponent<TrailRenderer>();
                     if (newTrail != null)
                     {
                         newTrail.Clear();       // 清除旧数据
                         newTrail.emitting = true; // 开始发射
-
-                        // ✅ [关键] 代码强制把拖尾变细
                         newTrail.startWidth = 0.015f; // 起始宽度 (非常细，约1.5厘米)
                         newTrail.endWidth = 0f;       // 结束宽度 (尖尾)
-                        newTrail.time = 0.25f;        // 持续时间 (0.25秒消失)
+                        newTrail.time = 0.2f;        // 持续时间 (0.2秒消失)
                     }
                 }
 
@@ -440,6 +478,7 @@ namespace OsuVR
 
             foreach (var kvp in handStates)
             {
+                // 超时判断
                 if (currentTime - kvp.Value.lastTime > 0.1f)
                 {
                     if (toRemove == null) toRemove = new List<RayController>();
@@ -451,11 +490,11 @@ namespace OsuVR
             {
                 foreach (var hand in toRemove)
                 {
-                    // ✅ [新增] 销毁这只手对应的指环物体
                     var state = handStates[hand];
                     if (state.ringInstance != null)
                     {
-                        Destroy(state.ringInstance.gameObject);
+                        state.ringInstance.gameObject.SetActive(false);
+                        ringPool.Enqueue(state.ringInstance);
                     }
                     handStates.Remove(hand);
                 }
@@ -473,20 +512,56 @@ namespace OsuVR
             }
         }
 
+        // [新增] 计算 RPM 的辅助函数
+        float CalculateMaxRPM(float od)
+        {
+            if (od < 5) return 250f + (od * 26f); // (380-250)/5 = 26
+            return 380f + ((od - 5f) * 10f);      // (430-380)/5 = 10
+        }
+
         private void AddBonus()
         {
-            bonusCount++;
-            bonusThreshold += 360f;
-            if (bonusText)
-            {
-                bonusText.gameObject.SetActive(true);
-                bonusText.text = (bonusCount * 1000).ToString();
-                bonusText.transform.localScale = Vector3.one * 1.5f;
-            }
+            // 1. 推进阈值，确保下一圈还能触发
+            nextBonusThreshold += 360f;
 
+            // 2. 震动反馈 (始终保留，保持手感)
             if (HapticManager.Instance != null)
             {
                 HapticManager.Instance.PlayHapticBoth(0.4f, 0.05f);
+            }
+
+            // 3. 判断是否已达到分数上限
+            bool isCapped = totalRotationAngle > maxPossibleRotation;
+
+            // 4. 更新 UI 和 分数
+            if (isCapped)
+            {
+                // --- 达到上限状态 ---
+                if (bonusText)
+                {
+                    bonusText.gameObject.SetActive(true);
+                    bonusText.text = "MAX"; // 显示 MAX
+                    bonusText.color = Color.yellow;
+                    bonusText.transform.localScale = Vector3.one * 1.5f;
+                }
+            }
+            else
+            {
+                // --- 正常加分状态 ---
+                bonusCount++;
+                if (bonusText)
+                {
+                    bonusText.gameObject.SetActive(true);
+                    bonusText.text = $"{bonusCount * 50}";
+                    bonusText.color = Color.white;
+                    bonusText.transform.localScale = Vector3.one * 1.5f;
+                }
+
+                // ✅ 加分
+                if (gameManager != null && gameManager.scoreManager != null)
+                {
+                    gameManager.scoreManager.RegisterBonus(50);
+                }
             }
         }
 
@@ -510,10 +585,10 @@ namespace OsuVR
                     CodeOnlyVFX.Instance.PlaySpinnerClear(transform.position);
                 }
 
-                gameManager.OnNoteHit(spinnerData, 0);
+                gameManager.OnNoteHit(spinnerData, 1.0f);
             }
-            else if (Progress > 0.9f) gameManager.OnNoteHit(spinnerData, 1);
-            else if (Progress > 0.5f) gameManager.OnNoteHit(spinnerData, 2);
+            else if (Progress > 0.8f) gameManager.OnNoteHit(spinnerData, 0.7f);
+            else if (Progress > 0.5f) gameManager.OnNoteHit(spinnerData, 0.3f);
             else gameManager.OnNoteMiss(spinnerData);
 
             if (myPool != null) myPool.Release(gameObject);
