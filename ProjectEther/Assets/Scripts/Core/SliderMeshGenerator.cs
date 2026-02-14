@@ -31,19 +31,25 @@ namespace OsuVR
                 osuShader = Shader.Find("Standard");
             }
 
-            // 3. 配置 Body 材质 (底层，先渲染)
+            // ✅ 核心法则：越早出现的物件 stencilID 越小，算出来的 Queue 越大 (画在最顶层)
+            // 乘以 10 是为了给头尾预留插队空间
+            int baseQueue = 3000 - (stencilID * 10);
+
+            // 3. 配置 Body 材质 (局部底层)
             Material bodyMaterial = new Material(osuShader);
             bodyMaterial.SetColor("_Color", bodyColor);
             bodyMaterial.SetInt("_StencilID", stencilID);
-            // 渲染队列设为 3000 (Transparent 默认值)，保证先画
-            bodyMaterial.renderQueue = 2980;
+            bodyMaterial.SetInt("_StencilComp", 8); // Always
+            bodyMaterial.SetInt("_StencilOp", 2);   // Replace
+            bodyMaterial.renderQueue = baseQueue;   // ✅ 垫底
 
-            // 4. 配置 Border 材质 (顶层，后渲染)
+            // 4. 配置 Border 材质 (局部中层)
             Material borderMaterial = new Material(osuShader);
             borderMaterial.SetColor("_Color", borderColor);
             borderMaterial.SetInt("_StencilID", stencilID);
-            // 只有这样，Shader 里的 Stencil NotEqual 才能生效（Border 会避开 Body 的区域）
-            borderMaterial.renderQueue = 2981;
+            borderMaterial.SetInt("_StencilComp", 6); // NotEqual
+            borderMaterial.SetInt("_StencilOp", 0);   // Keep
+            borderMaterial.renderQueue = baseQueue + 1; // ✅ 盖在本体上
 
             return (border, body, borderMaterial, bodyMaterial);
         }

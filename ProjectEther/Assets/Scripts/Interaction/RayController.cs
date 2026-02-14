@@ -243,8 +243,8 @@ namespace OsuVR
                 if (slider != null)
                 {
                     if (state) slider.OnRayStay(this.isRightHand, hitPoint);
-                    else slider.OnRayExit();
-                }
+                    else slider.OnRayExit(this.isRightHand); // ✅ 修复：必须告诉滑条，是哪只手离开了！
+            }
 
                 // 3. 通知 Spinner (传入 this，你原代码里好像已经处理了 UpdateRotation)
                 var spinner = obj.GetComponentInParent<SpinnerController>();

@@ -142,7 +142,7 @@ namespace OsuVR
         private Color currentComboColor;
 
         // 全局唯一的 Stencil ID 计数器
-        private static int globalStencilIdCounter = 1;
+        private int currentStencilId = 1;
 
         // 用来控制视觉显隐的索引
         private int nextVisualIndex = 0;
@@ -637,8 +637,7 @@ namespace OsuVR
             if (worldPathPoints.Count < 2) return;
 
             // 0. 先清理旧的边框物体，防止重复
-            Transform oldBorder = transform.Find("SliderBorder");
-            if (oldBorder != null) DestroyImmediate(oldBorder.gameObject);
+            CleanUpMeshes();
 
             // 1. 计算尺寸
             // radius: 本体半径 (宽度的一半)
@@ -648,17 +647,18 @@ namespace OsuVR
             // 假设你的 borderWidth 是滑条的总宽度 (包含边框)，那么单边厚度 = (总宽 - 本体宽) / 2
             float borderThickness = (borderWidth - sliderWidth) * 0.5f;
 
-            // 2. 生成唯一的 Stencil ID
-            int uniqueStencilId = (globalStencilIdCounter++ % 255) + 1;
 
-            // 调用生成器，传入 uniqueStencilId
+            // 2. 生成唯一的 Stencil ID
+            currentStencilId = (NoteController.GlobalRenderOrder++ % 50) + 1;
+
+            // 调用生成器，传入 currentStencilId
             var (borderMesh, bodyMesh, borderMat, bodyMat) = SliderMeshGenerator.GeneratePhysicalSlider(
                     worldPathPoints,
                     radius,
                     borderThickness,
                     customBorderColor,
                     customBodyColor,
-                    uniqueStencilId
+                    currentStencilId
             );
 
             // 3. 渲染主体网格
@@ -732,6 +732,9 @@ namespace OsuVR
                 headInstance.transform.localPosition -= Vector3.forward * 0.01f;
                 headInstance.SetActive(true);
 
+                // 计算这根滑条的基准层级
+                int baseQueue = 3500 - (currentStencilId * 5);
+
                 // 应用当前 Combo 颜色
                 Renderer[] headRenderers = headInstance.GetComponentsInChildren<Renderer>();
                 MaterialPropertyBlock headMbp = new MaterialPropertyBlock();
@@ -739,6 +742,7 @@ namespace OsuVR
                 foreach (var r in headRenderers)
                 {
                     if (r == null) continue;
+                    r.material.renderQueue = baseQueue + 2;
                     r.GetPropertyBlock(headMbp);
                     headMbp.SetColor("_Color", currentComboColor);
                     headMbp.SetColor("_BaseColor", currentComboColor); // 兼容 URP
@@ -796,8 +800,9 @@ namespace OsuVR
 
                 var dstMR = headHalo.AddComponent<MeshRenderer>();
 
-                // ✅ 核心修复：必须使用 sharedMaterial 赋值，坚决不用 .material ！
-                dstMR.sharedMaterial = cachedHaloMat;
+                // 必须用 .material 实例化修改，让光晕也盖在边框之上
+                dstMR.material = cachedHaloMat;
+                dstMR.material.renderQueue = baseQueue + 2;
 
                 // 3. 变换
                 headHalo.transform.localPosition = new Vector3(0, 0, 0.02f);
@@ -1209,9 +1214,15 @@ namespace OsuVR
             }
             // -------------------------------------------------------------
         }
-        public void OnRayExit()
+        public void OnRayExit(bool isRightHand)
         {
-            isTracking = false; // ✅ 只有当射线真的离开时才取消跟踪
+            // ✅ 核心防干扰：如果离开的射线，根本不是当初打中滑条头的那只手，直接无视它！
+            if (headHit && isTrackingRightHand != isRightHand) return;
+
+            isTracking = false;
+
+            // 下面保留你原有的视觉隐藏代码，比如：
+            // if (followBall != null) followBall.SetActive(false);
         }
 
         // 确保销毁时清理 Mesh 内存
@@ -1729,6 +1740,9 @@ namespace OsuVR
         /// </summary>
         private void CleanUpEverything()
         {
+            // 0. 首先清理动态 Mesh 和 Material，防止显存泄漏导致物体消失
+            CleanUpMeshes();
+
             // 1. 清理垃圾桶 (Head, Arrow)
             // 倒序遍历，方便移除
             for (int i = garbageList.Count - 1; i >= 0; i--)
@@ -1765,6 +1779,41 @@ namespace OsuVR
             // 3. 重置变量 (防止 CreateVisuals 误用)
             headInstance = null;
             arrowInstance = null;
+        }
+
+        /// <summary>
+        /// 彻底清理动态生成的 Mesh 和 Material，防止显存泄漏导致物体消失！
+        /// </summary>
+        private void CleanUpMeshes()
+        {
+            // 1. 清理本体的 Mesh 和 Material
+            if (combinedMesh != null)
+            {
+                Destroy(combinedMesh);
+                combinedMesh = null;
+            }
+            if (meshRenderer != null && meshRenderer.sharedMaterial != null)
+            {
+                // 只销毁代码 new 出来的材质，绝不误删预制体自带的 sharedMaterial
+                if (meshRenderer.sharedMaterial != sharedMaterial)
+                {
+                    Destroy(meshRenderer.sharedMaterial);
+                }
+                meshRenderer.sharedMaterial = null;
+            }
+
+            // 2. 清理边框的 Mesh 和 Material
+            Transform oldBorder = transform.Find("SliderBorder");
+            if (oldBorder != null)
+            {
+                MeshFilter mf = oldBorder.GetComponent<MeshFilter>();
+                if (mf != null && mf.sharedMesh != null) Destroy(mf.sharedMesh);
+
+                MeshRenderer mr = oldBorder.GetComponent<MeshRenderer>();
+                if (mr != null && mr.sharedMaterial != null) Destroy(mr.sharedMaterial);
+
+                Destroy(oldBorder.gameObject);
+            }
         }
     }
 }
