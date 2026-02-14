@@ -128,6 +128,20 @@ namespace OsuVR
         // 步骤 2: 命中处理 (Runtime Processing)
         // 对应 Lazer 源码 ApplyResultInternal
         // ================================================================
+
+        // 专门处理 Miss 的方法，支持传入它本该有的满分
+        public void RegisterMiss(int maxScoreValue)
+        {
+            _totalHitsPerformed++;
+            _currentCombo = 0; // Miss 断连
+
+            // 基础分+0，但分母精确加上它本该拿到的满分 (Tick是10，大圈是300)
+            _currentBaseScore += 0;
+            _currentMaxBaseScore += maxScoreValue;
+
+            ComputeScore();
+        }
+
         public void RegisterHit(int scoreValue)
         {
             _totalHitsPerformed++;

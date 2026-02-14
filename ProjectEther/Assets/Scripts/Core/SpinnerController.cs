@@ -493,6 +493,12 @@ namespace OsuVR
                     var state = handStates[hand];
                     if (state.ringInstance != null)
                     {
+                        if (state.trail != null)
+                        {
+                            state.trail.emitting = false;
+                            state.trail.Clear();
+                        }
+
                         state.ringInstance.gameObject.SetActive(false);
                         ringPool.Enqueue(state.ringInstance);
                     }
@@ -570,7 +576,11 @@ namespace OsuVR
             IsActive = false;
             Progress = totalRotationAngle / angleRequirement;
 
-            // 判定逻辑保持不变
+            if (AudioManager.Instance != null) AudioManager.Instance.UpdateSpinnerLoop(false, 0);
+            if (HapticManager.Instance != null) HapticManager.Instance.PlayContinuous(true, 0f);
+            if (HapticManager.Instance != null) HapticManager.Instance.PlayContinuous(false, 0f);
+
+            // 判定逻辑
             if (Progress >= 1.0f)
             {
                 if (AudioManager.Instance != null)
