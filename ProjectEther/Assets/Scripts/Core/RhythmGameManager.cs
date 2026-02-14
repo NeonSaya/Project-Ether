@@ -729,7 +729,7 @@ namespace OsuVR
                 if (currentMusicTimeMs > hitObject.StartTime + 250f)
                 {
                     Debug.LogWarning($"[Manager] 丢弃过期音符: {hitObject.StartTime}ms (当前: {currentMusicTimeMs:F0})");
-                    if (scoreManager != null) scoreManager.RegisterHit(0);
+                    if (scoreManager != null) scoreManager.RegisterMiss(300);
                     nextNoteIndex++;
                     continue;
                 }
@@ -972,8 +972,13 @@ namespace OsuVR
                         scoreManager.RegisterHit(scoreValue);
                     }
 
-                    if (JudgementVisualizer.Instance != null)
+                    if (JudgementVisualizer.Instance != null && !(hitObject is SliderObject))
                     {
+                        if (currentBeatmap != null && currentBeatmap.ComboColors != null && currentBeatmap.ComboColors.Count > 0)
+                        {
+                            comboColor = currentBeatmap.ComboColors[hitObject.ComboIndex % currentBeatmap.ComboColors.Count];
+                        }
+
                         // 显示判定！
                         JudgementVisualizer.Instance.ShowJudgement(hitPos, scoreValue, comboColor);
                     }
@@ -981,7 +986,6 @@ namespace OsuVR
 
 
                 }
-                Destroy(noteObject);
                 Debug.Log($"击打音符: 误差={timeDiff:F1}ms, 转换后Acc={timeDiff:F2}");
             }
         }
@@ -999,16 +1003,14 @@ namespace OsuVR
                 activeNotes = activeNoteObjects.Count;
                 Vector3 missPos = obj.transform.position;
 
-                // 2. 销毁物体 (如果还没销毁)
-                if (obj != null) Destroy(obj);
 
-                // 3. 只有在这里才通知 ScoreManager 记 Miss
-                if (scoreManager != null)
+                // 2. 只有在这里才通知 ScoreManager 记 Miss
+                if (scoreManager != null && !(hitObject is SliderObject))
                 {
-                    scoreManager.RegisterHit(0);
+                    scoreManager.RegisterMiss(300);
                 }
-                // 4. 显示 Miss 判定
-                if (JudgementVisualizer.Instance != null)
+                // 3. 显示 Miss 判定
+                if (JudgementVisualizer.Instance != null && !(hitObject is SliderObject))
                 {
                     JudgementVisualizer.Instance.ShowJudgement(missPos, 0, Color.red);
                 }
@@ -1036,8 +1038,7 @@ namespace OsuVR
 
             if (scoreManager != null)
             {
-                scoreManager.RegisterHit(300);
-                // 如果你想加额外分：scoreManager.RegisterBonus(1000);
+                
             }
 
         }
@@ -1233,24 +1234,27 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 材质补丁：强行把物体换成发光材质
+        /// 材质补丁：强行把物体换成发光材质 (已修复暴力替换导致的白块Bug)
         /// </summary>
         private void PatchMaterial(GameObject obj)
         {
             if (globalGlowMaterial == null || obj == null) return;
 
-            // 1. 尝试获取 MeshRenderer
+            // 1. 尝试获取 MeshRenderer (替换滑条本体)
             MeshRenderer mr = obj.GetComponent<MeshRenderer>();
-
-            // 2. 如果有，且材质不对，就换掉
             if (mr != null && mr.sharedMaterial != globalGlowMaterial)
             {
                 mr.sharedMaterial = globalGlowMaterial;
             }
 
-            // 3. (可选) 如果你的 Prefab 里有子物体也是 Mesh (比如 Slider 的 Tick)
-            Renderer[] renderers = obj.GetComponentsInChildren<Renderer>(true);
-            foreach (var r in renderers) r.sharedMaterial = globalGlowMaterial;
+            // 2. ✅ 双重保险：不要用 GetComponentsInChildren(true) 暴力替换！
+            // 因为 SliderBorder 是由代码动态生成的子物体，我们精准查找到它并替换即可，放过 Tick。
+            Transform border = obj.transform.Find("SliderBorder");
+            if (border != null)
+            {
+                Renderer borderRenderer = border.GetComponent<Renderer>();
+                if (borderRenderer != null) borderRenderer.sharedMaterial = globalGlowMaterial;
+            }
         }
 
         /// <summary>

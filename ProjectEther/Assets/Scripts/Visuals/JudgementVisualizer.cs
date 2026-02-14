@@ -28,10 +28,14 @@ namespace OsuVR
         private ObjectPool<JudgementItem> pool;
         private Mesh quadMesh;
         private Material flashMat;
+        private Material overlayFontMat;
+        private Material missMat;
         private bool isPrewarmed = false;
 
         // 专门存放特效的父容器
+        private Texture2D _softDotTex;
         private Transform poolContainer;
+        private MaterialPropertyBlock _propBlock;
 
         void Awake()
         {
@@ -94,6 +98,9 @@ namespace OsuVR
                 Destroy(temp);
             }
 
+            if (_softDotTex == null) _softDotTex = GenerateSoftDotTexture();
+
+            // 1. 准备发光材质 (用于 Great/Ok 闪光)
             if (flashMat == null)
             {
                 Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
@@ -105,12 +112,43 @@ namespace OsuVR
                 flashMat.SetFloat("_Blend", 0);
                 flashMat.SetInt("_ZWrite", 0);
 
-                Texture2D tex = GenerateSoftDotTexture();
-                flashMat.mainTexture = tex;
-                if (flashMat.HasProperty("_BaseMap")) flashMat.SetTexture("_BaseMap", tex);
+                // ✅ 彻底置顶三板斧
+                flashMat.SetInt("_ZTest", 8); // 8 = Always (无视深度遮挡)
+                flashMat.SetInt("_Cull", 0);  // 0 = Off (双面渲染，绝不会因为背面朝向而隐形)
+                flashMat.renderQueue = 4000;  // 4000 = Overlay (最后渲染，凌驾于所有物体之上)
 
-                if (flashMat.HasProperty("_Color")) flashMat.SetColor("_Color", Color.white);
-                if (flashMat.HasProperty("_BaseColor")) flashMat.SetColor("_BaseColor", Color.white);
+                flashMat.mainTexture = _softDotTex;
+                if (flashMat.HasProperty("_BaseMap")) flashMat.SetTexture("_BaseMap", _softDotTex);
+            }
+
+            // 2. 准备 Miss 专属材质 (实心、正常透明度混合、永远置顶)
+            if (missMat == null)
+            {
+                missMat = new Material(flashMat.shader);
+                missMat.SetFloat("_Surface", 1);
+                missMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                missMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                missMat.SetInt("_ZWrite", 0);
+
+                // ✅ 彻底置顶三板斧 (红叉专属)
+                missMat.SetInt("_ZTest", 8);
+                missMat.SetInt("_Cull", 0);
+                missMat.renderQueue = 4000;
+
+                missMat.mainTexture = Texture2D.whiteTexture;
+                if (missMat.HasProperty("_BaseMap")) missMat.SetTexture("_BaseMap", Texture2D.whiteTexture);
+            }
+
+            // 3. 准备置顶的字体材质
+            if (overlayFontMat == null && mainFont != null)
+            {
+                overlayFontMat = new Material(mainFont.material);
+
+                // ✅ 字体置顶
+                overlayFontMat.SetInt("_ZTestMode", 8);
+                overlayFontMat.SetInt("unity_GUIZTestMode", 8);
+                overlayFontMat.SetInt("_ZTest", 8);
+                overlayFontMat.renderQueue = 4000;
             }
         }
 
@@ -140,7 +178,6 @@ namespace OsuVR
         private JudgementItem CreateItem()
         {
             GameObject root = new GameObject("Judgement_Instance");
-            // ✅ 改动：放入专门的容器里
             root.transform.SetParent(poolContainer);
             root.layer = 0;
 
@@ -153,23 +190,28 @@ namespace OsuVR
             TextMeshPro tmp = textObj.AddComponent<TextMeshPro>();
             RectTransform rect = textObj.GetComponent<RectTransform>();
 
-            // ✅ 改动：加大容器尺寸
-            rect.sizeDelta = new Vector2(25, 10);
+            // ✅ 改动 1：加大容器尺寸以容纳大字
+            rect.sizeDelta = new Vector2(120, 30);
 
             tmp.alignment = TextAlignmentOptions.Center;
-            // ✅ 改动：加大字体
-            tmp.fontSize = 12;
+            // ✅ 改动 2：基础字号直接拉到 100，这样 globalScale 就可以填 1.0 了
+            tmp.fontSize = 100;
             tmp.fontStyle = FontStyles.Bold;
             tmp.enableWordWrapping = false;
 
+            // 开启额外对齐方式，保证字距散开时始终居中
+            tmp.horizontalAlignment = HorizontalAlignmentOptions.Center;
+
             if (mainFont != null) tmp.font = mainFont;
+            if (overlayFontMat != null) tmp.fontSharedMaterial = overlayFontMat;
 
             // --- 闪光 ---
             GameObject flashObj = new GameObject("Flash");
             flashObj.transform.SetParent(root.transform);
             flashObj.transform.localPosition = new Vector3(0, 0, 0.05f);
             flashObj.layer = 0;
-            // ✅ 改动：加大闪光片
+
+            // 闪光片基础大小微调
             flashObj.transform.localScale = Vector3.one * 1.5f;
 
             MeshFilter mf = flashObj.AddComponent<MeshFilter>();
@@ -186,16 +228,16 @@ namespace OsuVR
             GameObject bar1 = new GameObject("Bar1");
             bar1.transform.SetParent(xObj.transform);
             bar1.AddComponent<MeshFilter>().sharedMesh = quadMesh;
-            bar1.AddComponent<MeshRenderer>().sharedMaterial = flashMat;
-            bar1.transform.localScale = new Vector3(0.2f, 0.8f, 1f); // 加粗加大
+            bar1.AddComponent<MeshRenderer>().sharedMaterial = missMat;
+            bar1.transform.localScale = new Vector3(0.3f, 2.0f, 1f);
             bar1.transform.localRotation = Quaternion.Euler(0, 0, 45);
             bar1.layer = 0;
 
             GameObject bar2 = new GameObject("Bar2");
             bar2.transform.SetParent(xObj.transform);
             bar2.AddComponent<MeshFilter>().sharedMesh = quadMesh;
-            bar2.AddComponent<MeshRenderer>().sharedMaterial = flashMat;
-            bar2.transform.localScale = new Vector3(0.2f, 0.8f, 1f); // 加粗加大
+            bar2.AddComponent<MeshRenderer>().sharedMaterial = missMat;
+            bar2.transform.localScale = new Vector3(0.3f, 2.0f, 1f);
             bar2.transform.localRotation = Quaternion.Euler(0, 0, -45);
             bar2.layer = 0;
 
@@ -214,11 +256,6 @@ namespace OsuVR
                 item.Root.transform.position = pos;
                 item.Root.transform.rotation = Quaternion.LookRotation(item.Root.transform.position - Camera.main.transform.position);
             }
-            else
-            {
-                item.Root.transform.position = pos;
-                item.Root.transform.rotation = Quaternion.identity;
-            }
 
             string text = "";
             Color mainColor = Color.white;
@@ -236,24 +273,21 @@ namespace OsuVR
             item.Tmp.color = mainColor;
             item.Tmp.gameObject.SetActive(true);
 
+            Color flashCol = Color.clear;
             if (score > 0)
             {
                 item.FlashRenderer.gameObject.SetActive(true);
-                Color flashCol = Color.Lerp(comboColor, mainColor, 0.5f);
+                flashCol = Color.Lerp(comboColor, mainColor, 0.5f);
                 flashCol.a = 0.6f;
-                if (item.FlashRenderer.material.HasProperty("_TintColor"))
-                    item.FlashRenderer.material.SetColor("_TintColor", flashCol);
-                else if (item.FlashRenderer.material.HasProperty("_BaseColor"))
-                    item.FlashRenderer.material.SetColor("_BaseColor", flashCol);
-                else
-                    item.FlashRenderer.material.SetColor("_Color", flashCol);
+                SetRendererColor(item.FlashRenderer, flashCol);
             }
             else
             {
                 item.FlashRenderer.gameObject.SetActive(false);
             }
 
-            StartCoroutine(AnimateJudgement(item, score == 0, scaleMult));
+            // 把 flashCol 传进协程
+            StartCoroutine(AnimateJudgement(item, score == 0, scaleMult, flashCol));
         }
 
         public void ShowTailMiss(Vector3 pos)
@@ -264,7 +298,11 @@ namespace OsuVR
             if (Camera.main != null)
             {
                 item.Root.transform.position = pos;
-                item.Root.transform.rotation = Quaternion.LookRotation(item.Root.transform.position - Camera.main.transform.position);
+                Vector3 dir = item.Root.transform.position - Camera.main.transform.position;
+                item.Root.transform.rotation = Quaternion.LookRotation(dir);
+
+                // ✅ 防穿模：稍微往玩家方向拉近 0.05 米，防止陷进滑条模型里看不见
+                item.Root.transform.position -= dir.normalized * 0.05f;
             }
 
             item.Tmp.gameObject.SetActive(false);
@@ -280,43 +318,70 @@ namespace OsuVR
 
         private void SetRendererColor(Renderer r, Color c)
         {
-            if (r.material.HasProperty("_TintColor")) r.material.SetColor("_TintColor", c);
-            else if (r.material.HasProperty("_BaseColor")) r.material.SetColor("_BaseColor", c);
-            else r.material.SetColor("_Color", c);
+            if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
+
+            r.GetPropertyBlock(_propBlock);
+
+            // 注意：这里用 sharedMaterial 判断，绝不产生新实例
+            if (r.sharedMaterial.HasProperty("_TintColor")) _propBlock.SetColor("_TintColor", c);
+            else if (r.sharedMaterial.HasProperty("_BaseColor")) _propBlock.SetColor("_BaseColor", c);
+            else _propBlock.SetColor("_Color", c);
+
+            r.SetPropertyBlock(_propBlock);
         }
 
-        IEnumerator AnimateJudgement(JudgementItem item, bool isMiss, float scaleMult)
+        // 注意：加了 flashCol 参数
+        IEnumerator AnimateJudgement(JudgementItem item, bool isMiss, float scaleMult, Color flashCol)
         {
-            float duration = 0.5f;
+            float duration = isMiss ? 0.7f : 0.6f;
             float time = 0f;
             Vector3 startPos = item.Root.transform.position;
-            Vector3 endPos = startPos + Vector3.up * 0.3f; // 加大上浮距离
-            if (isMiss) endPos = startPos - Vector3.up * 0.5f; // 加大下坠距离
+            Vector3 endPos = isMiss ? startPos - Vector3.up * 0.6f : startPos;
 
             item.Root.transform.localScale = Vector3.zero;
+
+            float startSpacing = -10f;
+            float endSpacing = 30f;
 
             while (time < duration)
             {
                 time += Time.deltaTime;
                 float t = time / duration;
 
-                float scaleT = isMiss ? EaseOutBack(t * 2f) : EaseOutElastic(t * 2f);
-
-                // ✅ 改动：使用 globalScale 变量控制整体大小
-                item.Root.transform.localScale = Vector3.one * (scaleT * scaleMult * globalScale);
-
-                if (!isMiss && item.FlashRenderer.gameObject.activeSelf)
+                if (!isMiss)
                 {
-                    float flashScale = 1.0f + t * 1.5f;
-                    item.FlashRenderer.transform.localScale = new Vector3(flashScale, flashScale, 1f);
-                    Color c = item.FlashRenderer.material.HasProperty("_BaseColor") ? item.FlashRenderer.material.GetColor("_BaseColor") : item.FlashRenderer.material.color;
-                    c.a = Mathf.Lerp(0.6f, 0f, t * 2.5f);
-                    SetRendererColor(item.FlashRenderer, c);
+                    // --- HIT ---
+                    float scaleT = EaseOutCubic(Mathf.Clamp01(t * 3f));
+                    item.Root.transform.localScale = Vector3.one * (scaleT * scaleMult * globalScale);
+
+                    float spreadT = EaseOutCubic(t);
+                    item.Tmp.characterSpacing = Mathf.Lerp(startSpacing, endSpacing, spreadT);
+                    item.Root.transform.position = startPos;
+
+                    if (item.FlashRenderer.gameObject.activeSelf)
+                    {
+                        float flashScale = 1.0f + t * 1.5f;
+                        item.FlashRenderer.transform.localScale = new Vector3(flashScale, flashScale, 1f);
+
+                        // ✅ 修复卡顿：直接操作传进来的颜色，不要 GetColor()，且用无泄漏的 SetRendererColor
+                        flashCol.a = Mathf.Lerp(0.6f, 0f, t * 2.5f);
+                        SetRendererColor(item.FlashRenderer, flashCol);
+                    }
+                }
+                else
+                {
+                    // --- MISS ---
+                    float scaleT = EaseOutBack(Mathf.Clamp01(t * 5f));
+                    item.Root.transform.localScale = Vector3.one * (scaleT * scaleMult * globalScale);
+
+                    float fallProgress = Mathf.Clamp01((t - 0.25f) / 0.75f);
+                    float gravityT = EaseInCubic(fallProgress);
+
+                    item.Tmp.transform.localRotation = Quaternion.Euler(0, 0, Mathf.Lerp(0, -90f, gravityT));
+                    item.Root.transform.position = Vector3.Lerp(startPos, endPos, gravityT);
                 }
 
-                item.Root.transform.position = Vector3.Lerp(startPos, endPos, t);
-
-                if (t > 0.6f) item.Tmp.alpha = 1f - (t - 0.6f) * 2.5f;
+                if (t > 0.5f) item.Tmp.alpha = 1f - (t - 0.5f) * 2f;
 
                 yield return null;
             }
@@ -325,15 +390,20 @@ namespace OsuVR
 
         IEnumerator AnimateTailMiss(JudgementItem item)
         {
-            float duration = 0.4f;
+            float duration = 0.5f;
             float time = 0f;
+
+            // ✅ 必须初始为 0
+            item.XRoot.transform.localScale = Vector3.zero;
+
             while (time < duration)
             {
                 time += Time.deltaTime;
                 float t = time / duration;
-                // ✅ 改动：小红叉也受 globalScale 影响
-                float scale = EaseOutBack(t * 3f) * globalScale * 0.8f;
-                item.XRoot.transform.localScale = Vector3.one * scale;
+
+                // ✅ 核心修复：加上 Mathf.Clamp01，防止曲线数值突破天际！
+                float scaleT = EaseOutBack(Mathf.Clamp01(t * 4f));
+                item.XRoot.transform.localScale = Vector3.one * (scaleT * globalScale * 4.0f);
                 if (t > 0.5f)
                 {
                     Color c = colorMiss;
@@ -346,9 +416,11 @@ namespace OsuVR
             pool.Release(item);
         }
 
+        // ================= 缓动函数库 =================
         float EaseOutElastic(float x) => x == 0 ? 0 : x >= 1 ? 1 : Mathf.Pow(2, -10 * x) * Mathf.Sin((x * 10 - 0.75f) * ((2 * Mathf.PI) / 3)) + 1;
         float EaseOutBack(float x) => 1 + 2.70158f * Mathf.Pow(x - 1, 3) + 1.70158f * Mathf.Pow(x - 1, 2);
-
+        float EaseOutCubic(float x) => 1 - Mathf.Pow(1 - x, 3);
+        float EaseInCubic(float x) => x * x * x;
         private class JudgementItem
         {
             public GameObject Root;
@@ -365,10 +437,19 @@ namespace OsuVR
 
             public void ResetState()
             {
+                Root.transform.localScale = Vector3.one;
+
                 Tmp.alpha = 1f;
+                Tmp.characterSpacing = -10f;
                 Tmp.transform.localPosition = new Vector3(0, 0, -0.05f);
+                Tmp.transform.localRotation = Quaternion.identity;
+
                 FlashRenderer.transform.localScale = Vector3.one;
                 XRoot.transform.localRotation = Quaternion.identity;
+                // 确保所有组件都从干净状态开始
+                Tmp.gameObject.SetActive(false);
+                FlashRenderer.gameObject.SetActive(false);
+                XRoot.SetActive(false);
             }
         }
     }

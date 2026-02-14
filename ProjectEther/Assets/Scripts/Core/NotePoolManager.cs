@@ -126,7 +126,11 @@ namespace OsuVR
                     if (obj != null) obj.SetActive(true);
                 },
                 actionOnRelease: (obj) => {
-                    if (obj != null) obj.SetActive(false);
+                    if (obj != null)
+                    {
+                        obj.SetActive(false);
+                        obj.transform.SetParent(transform);
+                    }
                 },
                 actionOnDestroy: (obj) => Destroy(obj),
                 collectionCheck: false,

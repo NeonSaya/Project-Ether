@@ -158,6 +158,9 @@ namespace OsuVR
         private static Mesh cachedSliderHaloMesh;
 
         private static Texture2D cachedSoftDotTex;
+        // 缓存用于折返粒子的柔光圆点贴图
+        private static Material cachedHaloMat;
+        private static Material cachedReverseMat;
 
         /// <summary>
         /// [新增] 生成实心柔光粒子贴图 (用于打击粒子和折返粒子)
@@ -286,19 +289,22 @@ namespace OsuVR
             // 6. 渲染器
             renderer.renderMode = ParticleSystemRenderMode.Billboard;
 
-            Shader shader = Shader.Find("Mobile/Particles/Additive");
-            if (!shader) shader = Shader.Find("Legacy Shaders/Particles/Additive");
-            Material mat = new Material(shader);
+            if (cachedReverseMat == null)
+            {
+                Shader shader = Shader.Find("Mobile/Particles/Additive");
+                if (!shader) shader = Shader.Find("Legacy Shaders/Particles/Additive");
+                cachedReverseMat = new Material(shader);
+                cachedReverseMat.mainTexture = GetSoftDotTexture();
 
-            mat.mainTexture = GetSoftDotTexture();
+                // 粒子系统会自带颜色，所以材质颜色设为纯白高亮即可
+                Color hdrColor = Color.white * 3.0f;
+                if (cachedReverseMat.HasProperty("_TintColor")) cachedReverseMat.SetColor("_TintColor", hdrColor);
+                else if (cachedReverseMat.HasProperty("_BaseColor")) cachedReverseMat.SetColor("_BaseColor", hdrColor);
+                else cachedReverseMat.SetColor("_Color", hdrColor);
+            }
 
-            // 颜色亮度不用太高，因为现在有重叠且有淡入淡出
-            Color hdrColor = color * 3.0f;
-            if (mat.HasProperty("_TintColor")) mat.SetColor("_TintColor", hdrColor);
-            else if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", hdrColor);
-            else mat.SetColor("_Color", hdrColor);
-
-            renderer.material = mat;
+            // 使用 sharedMaterial
+            renderer.sharedMaterial = cachedReverseMat;
 
             go.SetActive(true);
             garbageList.Add(go);
@@ -750,7 +756,7 @@ namespace OsuVR
                 }
 
                 // =========================================================
-                // ✅ [修改] 给滑条头加完美圆形光晕
+                // 给滑条头加完美圆形光晕 (已修复材质内存泄漏)
                 // =========================================================
                 Transform bodyTr = headInstance.transform.Find("Body");
                 GameObject targetBody = bodyTr != null ? bodyTr.gameObject : headInstance;
@@ -770,28 +776,33 @@ namespace OsuVR
                 }
                 dstMF.sharedMesh = cachedSliderHaloMesh;
 
-                // 2. 材质 + 贴图
-                Shader shader = Shader.Find("Mobile/Particles/Additive");
-                if (!shader) shader = Shader.Find("Legacy Shaders/Particles/Additive");
-                Material haloMat = new Material(shader);
+                // 2. 材质 + 贴图 (核心修复：使用静态缓存材质，保证全游戏只 new 一次)
+                if (cachedHaloMat == null)
+                {
+                    Shader shader = Shader.Find("Mobile/Particles/Additive");
+                    if (!shader) shader = Shader.Find("Legacy Shaders/Particles/Additive");
 
-                // 强制赋图
-                haloMat.mainTexture = GetGlowTexture();
+                    cachedHaloMat = new Material(shader);
+                    cachedHaloMat.mainTexture = GetGlowTexture();
+
+                    Color whiteGlow = new Color(2.5f, 2.5f, 2.5f, 0.75f);
+                    if (cachedHaloMat.HasProperty("_TintColor"))
+                        cachedHaloMat.SetColor("_TintColor", whiteGlow);
+                    else if (cachedHaloMat.HasProperty("_BaseColor"))
+                        cachedHaloMat.SetColor("_BaseColor", whiteGlow); // 兼容 URP
+                    else
+                        cachedHaloMat.SetColor("_Color", whiteGlow);
+                }
 
                 var dstMR = headHalo.AddComponent<MeshRenderer>();
-                dstMR.material = haloMat;
+
+                // ✅ 核心修复：必须使用 sharedMaterial 赋值，坚决不用 .material ！
+                dstMR.sharedMaterial = cachedHaloMat;
 
                 // 3. 变换
                 headHalo.transform.localPosition = new Vector3(0, 0, 0.02f);
                 headHalo.transform.localRotation = Quaternion.identity;
                 headHalo.transform.localScale = Vector3.one * 1.25f; // 大一点
-
-                // 4. 颜色
-                Color whiteGlow = new Color(2.5f, 2.5f, 2.5f, 0.75f);
-                if (haloMat.HasProperty("_TintColor"))
-                    haloMat.SetColor("_TintColor", whiteGlow);
-                else
-                    haloMat.SetColor("_Color", whiteGlow);
 
                 dstMR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 // =========================================================
@@ -1258,51 +1269,51 @@ namespace OsuVR
                 return;
             }
 
-            // [核心逻辑] 
-            // offset >= -20 : 只有缩圈几乎重合（只剩20ms）时才开始允许判定
-            // offset <= 250 : 允许延迟 250ms
             if (offset >= -20 && offset <= 250)
             {
+                // ✅ 1. 立即锁定状态，防止下一帧重复触发
                 headHit = true;
                 isTrackingRightHand = isRightHand;
                 isTracking = true;
 
-                // 击中头，球体显示
+                // 2. 视觉与触觉反馈
                 if (followBall) followBall.SetActive(true);
+                if (AudioManager.Instance != null) AudioManager.Instance.PlayHitSound(sliderData);
+                if (HapticManager.Instance != null) HapticManager.Instance.PlayHitHaptic(isRightHand, (int)sliderData.HitSound);
+                if (CodeOnlyVFX.Instance != null) CodeOnlyVFX.Instance.PlayHit(transform.position, transform.rotation, this.sliderWidth, currentComboColor, this.nextNotePosition);
 
-                if (AudioManager.Instance != null)
-                    AudioManager.Instance.PlayHitSound(sliderData); // 播放头部打击音
-
-                if (HapticManager.Instance != null)
-                    HapticManager.Instance.PlayHitHaptic(isRightHand, (int)sliderData.HitSound); // 震动对应手柄
-
-                if (CodeOnlyVFX.Instance != null)
-                {
-                    CodeOnlyVFX.Instance.PlayHit(
-                        transform.position,     // 位置
-                        transform.rotation,     // 朝向
-                        this.sliderWidth,       // 大小 (CS)
-                        currentComboColor,      // 颜色
-                        this.nextNotePosition   // 下个 Note 位置 (避让用)
-                    );
-                }
                 headHitValid = true;
-                ticksGot++; // 让 Head 也算一个 Tick，这样总数才对
+                ticksGot++;
+
+                // 3. 计算动态分数 (300/100/50)
+                double maxWindow = 250.0;
+                double absDiff = System.Math.Abs(offset);
+                double accuracy01 = 1.0 - (absDiff / maxWindow);
+                accuracy01 = System.Math.Clamp(accuracy01, 0.0, 1.0);
+
+                int headScore = RhythmGameManager.CalculateScoreFromAccuracy(accuracy01);
+                if (headScore == 0) headScore = 50; // 只要接住就给保底 50 分
+
+                // 4. 提交分数
                 if (gameManager != null && gameManager.scoreManager != null)
                 {
-                    // 注意：这里给 300 分，这符合 osu! 逻辑，Head 也是一个 HitCircle
-                    gameManager.scoreManager.RegisterComboHit(300);
+                    gameManager.scoreManager.RegisterHit(headScore);
                 }
-                Debug.Log($"<color=green>Slider Head HIT!</color> Offset: {offset:F2}ms");
+
+                // ✅ 5. 确保只有这里有唯一的一次 ShowJudgement 调用！
+                if (JudgementVisualizer.Instance != null)
+                {
+                    JudgementVisualizer.Instance.ShowJudgement(transform.position, headScore, currentComboColor);
+                }
+
+                Debug.Log($"<color=green>Slider Head HIT!</color> Offset: {offset:F2}ms, Score: {headScore}");
             }
             else if (offset < -20)
             {
-                // [保护逻辑] 打太早了（比如提前了 100ms）
-                // 此时直接 Return，不要让它算作 Miss，也不要算 Hit
-                // 让玩家的手可以在那里等着缩圈到位
+                // 打太早，等待
                 return;
             }
-            
+
         }
 
         /// <summary>
@@ -1339,9 +1350,13 @@ namespace OsuVR
                     // 3. 而是告诉分数系统：断连了 (0分)
                     if (gameManager != null && gameManager.scoreManager != null)
                     {
-                        gameManager.scoreManager.RegisterHit(0);
+                        gameManager.scoreManager.RegisterMiss(300);
                     }
 
+                    if (JudgementVisualizer.Instance != null)
+                    {
+                        JudgementVisualizer.Instance.ShowJudgement(transform.position, 0, Color.red);
+                    }
                     // 此时滑条本体还在，Update 还会继续跑，后面的 Tick 还能吃
                 }
             }
@@ -1372,14 +1387,13 @@ namespace OsuVR
                 {
                     ticksGot++;
 
-                    // Hit 逻辑 (保持不变)
+                    // Hit 逻辑
                     switch (nestedObject.Type)
                     {
                         case SliderEventType.Tick:
                             if (pulseCoroutine != null) StopCoroutine(pulseCoroutine);
                             StartCoroutine(FollowBallPulse());
 
-                            // 隐藏 Tick
                             for (int i = 0; i < tickVisuals.Count; i++)
                             {
                                 if (tickVisuals[i].data == nestedObject)
@@ -1392,8 +1406,9 @@ namespace OsuVR
                             if (HapticManager.Instance != null) HapticManager.Instance.PlaySliderTick(isTrackingRightHand);
                             if (AudioManager.Instance != null) AudioManager.Instance.PlaySliderTick(sliderData.SampleSet, sliderData.CustomIndex, sliderData.SampleVolume / 100f);
 
-                            // ✅ 加分
                             if (gameManager?.scoreManager != null) gameManager.scoreManager.RegisterComboHit(10);
+
+                            // 🚫 绝对不要在这里加 ShowJudgement！Tick 不弹字！
                             break;
 
                         case SliderEventType.Repeat:
@@ -1407,14 +1422,12 @@ namespace OsuVR
                                 CodeOnlyVFX.Instance.PlayHit(transform.TransformPoint(vfxLocalPos), transform.rotation, this.sliderWidth, currentComboColor, this.nextNotePosition);
                             }
 
-                            // ✅ 加分
                             if (gameManager?.scoreManager != null) gameManager.scoreManager.RegisterComboHit(30);
-
                             UpdateReverseVFX(nestedObject.SpanIndex + 1);
                             break;
 
                         case SliderEventType.Tail:
-                            // Tail 只是视觉和声音，真正的结算在下面的 EndTime
+                            // 尾巴只发爆破粒子
                             if (CodeOnlyVFX.Instance != null)
                             {
                                 bool endsAtTail = (sliderData.RepeatCount % 2 != 0);
@@ -1426,33 +1439,33 @@ namespace OsuVR
                 }
                 else
                 {
-                    // --- MISS 处理 (修复版) ---
-
-                    // 视觉更新 (如果是折返 Miss 了，箭头还是得变)
+                    // --- MISS 处理 ---
                     if (nestedObject.Type == SliderEventType.Repeat)
                     {
                         UpdateReverseVFX(nestedObject.SpanIndex + 1);
                     }
-
-                    // 如果是尾巴 Miss 了 (Slider End Miss)，显示小红叉
-                    if (nestedObject.Type == SliderEventType.Tail)
+                    else if (nestedObject.Type == SliderEventType.Tail)
                     {
+                        // ✅ [正确逻辑] 只有尾巴漏了，才在尾巴的真实坐标显示小红叉！
                         if (JudgementVisualizer.Instance != null)
                         {
-                            // 计算尾巴位置
                             bool endsAtTail = (sliderData.RepeatCount % 2 != 0);
                             Vector3 endLocalPos = endsAtTail ? worldPathPoints[worldPathPoints.Count - 1] : worldPathPoints[0];
                             JudgementVisualizer.Instance.ShowTailMiss(transform.TransformPoint(endLocalPos));
                         }
                     }
 
-                    // 只是断连
+
                     if (gameManager != null && gameManager.scoreManager != null)
                     {
-                        gameManager.scoreManager.RegisterHit(0); // 断连，Combo归零
+                        // 精准扣分：Tick 漏打加 10，Repeat 加 30，Tail 加 300
+                        int maxScore = 300;
+                        if (nestedObject.Type == SliderEventType.Tick) maxScore = 10;
+                        else if (nestedObject.Type == SliderEventType.Repeat) maxScore = 30;
+
+                        gameManager.scoreManager.RegisterMiss(maxScore);
                     }
                 }
-
                 currentNestedIndex++;
             }
 
@@ -1464,11 +1477,8 @@ namespace OsuVR
                 if (!finished)
                 {
                     finished = true;
-
-                    // ✅ [修改 1] 获取真实的完成度比例
                     float finalAcc = CalculateFinalScore();
 
-                    // ✅ [修改 2] 只要吃到了东西，就提交判定，但分数由 finalAcc 决定
                     if (ticksGot > 0)
                     {
                         if (AudioManager.Instance != null) AudioManager.Instance.PlayHitSound(sliderData);
