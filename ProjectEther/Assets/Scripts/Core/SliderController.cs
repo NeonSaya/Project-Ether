@@ -97,6 +97,8 @@ namespace OsuVR
         private Coroutine pulseCoroutine;
         // [新增] 嵌套物件判定索引
         private int currentNestedIndex = 0;
+        private int nextVisualIndex = 0;
+
         // [新增] 记录获得了多少个 Tick (用于计算最终分数)
         private int ticksGot = 0;
 
@@ -152,7 +154,7 @@ namespace OsuVR
         private int currentStencilId = 1;
 
         // 用来控制视觉显隐的索引
-        private int nextVisualIndex = 0;
+        private int myRenderIndex = 0;
 
         // 记录下一个 Tick 位置的缓存（优化）
         private Vector3? nextNotePosition;
@@ -388,9 +390,11 @@ namespace OsuVR
         /// <summary>
         /// 初始化滑条控制器 (对象池版)
         /// </summary>
-        public void Initialize(SliderObject sliderData, float beatmapCS, Color comboColor, RhythmGameManager manager, IObjectPool<GameObject> pool, IObjectPool<GameObject> tPool, Vector3? nextPos = null)
+        public void Initialize(SliderObject sliderData, float beatmapCS, Color comboColor, RhythmGameManager manager, IObjectPool<GameObject> pool, IObjectPool<GameObject> tPool, int renderIndex, Vector3? nextPos = null)
         {
             CleanUpEverything();
+
+            this.myRenderIndex = renderIndex;
 
             // 1. 检查滑条头 (headInstance)
             // 如果它在 Unity 引擎层被销毁了 (Equals(null))，但在 C# 里还留着引用
@@ -663,30 +667,29 @@ namespace OsuVR
             // 假设你的 borderWidth 是滑条的总宽度 (包含边框)，那么单边厚度 = (总宽 - 本体宽) / 2
             float borderThickness = (borderWidth - sliderWidth) * 0.5f;
 
+            // ✅ [终极层级公式] 与 NoteController 采用完全相同的数学逻辑！
+            int activeOrder = this.myRenderIndex % 300;
+            currentStencilId = (this.myRenderIndex % 254) + 1;
 
-            // 2. 生成唯一的 Stencil ID
-            currentStencilId = (NoteController.GlobalRenderOrder++ % 50) + 1;
+            // 本体和边框的基础队列
+            int baseQueue = 3900 - (this.myRenderIndex * 3);
 
-            // 调用生成器，传入 currentStencilId
             var (borderMesh, bodyMesh, borderMat, bodyMat) = SliderMeshGenerator.GeneratePhysicalSlider(
-                    worldPathPoints,
-                    radius,
-                    borderThickness,
-                    customBorderColor,
-                    customBodyColor,
-                    currentStencilId
-            );
+                    worldPathPoints, radius, borderThickness, customBorderColor, customBodyColor, currentStencilId);
+
+            bodyMesh.RecalculateBounds();
+            borderMesh.RecalculateBounds();
+            Bounds safeBounds = bodyMesh.bounds;
+            safeBounds.Expand(15f); // 强行扩充 15 米的视野范围
+            bodyMesh.bounds = safeBounds;
+            borderMesh.bounds = safeBounds;
 
             // 3. 渲染主体网格
             combinedMesh = bodyMesh;
             if (meshFilter) meshFilter.mesh = combinedMesh;
-            if (combinedMesh != null)
-            {
-                combinedMesh.RecalculateBounds();
-                combinedMesh.RecalculateNormals(); // 顺便重计算法线，解决光照奇怪的问题
-            }
             if (meshRenderer)
             {
+                bodyMat.renderQueue = baseQueue; // ✅ 本体在最下面
                 meshRenderer.sharedMaterial = bodyMat;
             }
 
@@ -698,6 +701,8 @@ namespace OsuVR
 
             MeshFilter borderMeshFilter = borderObject.AddComponent<MeshFilter>();
             borderMeshFilter.mesh = borderMesh;
+
+            borderMat.renderQueue = baseQueue + 1;
 
             borderMeshRenderer = borderObject.AddComponent<MeshRenderer>();
             borderMeshRenderer.sharedMaterial = borderMat;
@@ -754,7 +759,7 @@ namespace OsuVR
                 headInstance.SetActive(true);
 
                 // 计算这根滑条的基准层级
-                int baseQueue = 3500 - (currentStencilId * 5);
+                int baseQueue = 3900 - (this.myRenderIndex * 3);
 
                 // 应用当前 Combo 颜色
                 Renderer[] headRenderers = headInstance.GetComponentsInChildren<Renderer>();
