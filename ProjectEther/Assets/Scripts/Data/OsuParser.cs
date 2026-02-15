@@ -18,7 +18,12 @@ namespace OsuVR
         private static readonly char[] ColonSeparator = { ':' };
         private static readonly char[] PipeChar = { '|' };
 
-
+        // [新增] 内部结构：用于存储时间点和对应的数值（例如 BPM 或速度倍率）
+        private struct VolumePoint
+        {
+            public double Time;
+            public int Volume;
+        }
 
         // [新增] 用于标记当前解析段落的枚举
         private enum Section
@@ -138,6 +143,8 @@ namespace OsuVR
                     slider.EndTime = slider.StartTime + slider.Duration;
                 }
             }
+            ApplyControlPointSettings(beatmap);
+
             StackingProcessor.ApplyStacking(beatmap);
 
             ProcessCombos(beatmap);
@@ -588,6 +595,9 @@ namespace OsuVR
 
             double time = double.Parse(parts[0], CultureInfo.InvariantCulture);
             double beatLength = double.Parse(parts[1], CultureInfo.InvariantCulture);
+            int volume = 100; // 默认 100
+            if (parts.Length > 5) int.TryParse(parts[5], out volume);
+
             // 第7个参数决定是否继承 (1=Red Line/BPM变化, 0=Green Line/速度倍率变化)
             bool uninherited = parts.Length <= 6 || parts[6] == "1";
 
@@ -595,14 +605,77 @@ namespace OsuVR
             {
                 // 红线 (BPM Change)
                 int timeSignature = parts.Length > 2 ? int.Parse(parts[2]) : 4;
-                controlPoints.Timing.Add(new TimingPoint(time, beatLength, timeSignature));
+                var tp = new TimingPoint(time, beatLength, timeSignature);
+                tp.Volume = volume;
+                controlPoints.Timing.Add(tp);
             }
             else
             {
                 // 绿线 (Velocity Change)
-                // beatLength 为负数百分比，例如 -100 = 1.0x, -50 = 2.0x, -200 = 0.5x
                 double speedMultiplier = beatLength < 0 ? 100.0 / -beatLength : 1.0;
-                controlPoints.Difficulty.Add(new DifficultyPoint(time, speedMultiplier));
+                var dp = new DifficultyPoint(time, speedMultiplier);
+                dp.Volume = volume;
+                controlPoints.Difficulty.Add(dp);
+            }
+        }
+
+        // 新增：应用控制点设置 (音量继承)
+        private static void ApplyControlPointSettings(Beatmap beatmap)
+        {
+            // 1. 将所有控制点（红线和绿线）合并按时间排序，因为它们都可能改变音量
+            var allPoints = new List<VolumePoint>();
+
+            // 假设你的 TimingPoint 和 DifficultyPoint 类现在都有 Volume 属性
+            foreach (var tp in beatmap.ControlPoints.Timing)
+                allPoints.Add(new VolumePoint { Time = tp.Time, Volume = tp.Volume });
+
+            foreach (var dp in beatmap.ControlPoints.Difficulty)
+                allPoints.Add(new VolumePoint { Time = dp.Time, Volume = dp.Volume });
+
+            // 按时间排序
+            var sortedPoints = allPoints.OrderBy(p => p.Time).ToList();
+
+            // 2. 遍历所有 HitObject
+            foreach (var obj in beatmap.HitObjects)
+            {
+                // 查找当前对象时间点生效的最后一个控制点
+                // 默认音量 100
+                int currentVolume = 100;
+
+                // 找到时间 <= obj.StartTime 的最后一个点
+                int foundIndex = sortedPoints.FindLastIndex(p => p.Time <= obj.StartTime);
+                if (foundIndex != -1)
+                {
+                    currentVolume = sortedPoints[foundIndex].Volume;
+                }
+
+                // 3. 如果对象自身音量为 0 (未设置)，则使用 TimingPoint 的音量
+                if (obj.SampleVolume <= 0.01f) // 考虑到 float 精度，判断接近0
+                {
+                    obj.SampleVolume = currentVolume;
+                }
+
+                // 4. 特殊处理：滑条的节点音量 (Slider Nodes)
+                if (obj is SliderObject slider)
+                {
+                    // 滑条的节点通常在 ParseSliderNodeSamples 中解析
+                    // 如果那里也没解析出音量（也是0），也需要赋值
+                    if (slider.NodeSamples != null)
+                    {
+                        foreach (var nodeSampleList in slider.NodeSamples)
+                        {
+                            foreach (var sample in nodeSampleList)
+                            {
+                                // 注意：FileHitSampleInfo 和 BankHitSampleInfo 可能结构不同，需根据你的定义调整
+                                var bankSample = sample as BankHitSampleInfo;
+                                if (bankSample != null && bankSample.Volume == 0)
+                                {
+                                    bankSample.Volume = currentVolume;
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 

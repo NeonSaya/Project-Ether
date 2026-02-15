@@ -1317,7 +1317,9 @@ namespace OsuVR
                 // 2. 视觉与触觉反馈
                 if (followBall) followBall.SetActive(true);
                 if (AudioManager.Instance != null) AudioManager.Instance.PlayHitSound(sliderData);
-                if (HapticManager.Instance != null) HapticManager.Instance.PlayHitHaptic(isRightHand, (int)sliderData.HitSound);
+                float vol = sliderData.SampleVolume / 100f;
+
+                if (HapticManager.Instance != null) HapticManager.Instance.PlayHitHaptic(isRightHand, (int)sliderData.HitSound, vol);
                 if (CodeOnlyVFX.Instance != null) CodeOnlyVFX.Instance.PlayHit(transform.position, transform.rotation, this.sliderWidth, currentComboColor, this.nextNotePosition);
 
                 headHitValid = true;
@@ -1467,9 +1469,10 @@ namespace OsuVR
                             if (HapticManager.Instance != null)
                             {
                                 // [修复] 双手独立震动
+                                float vol = sliderData.SampleVolume / 100f;
                                 int soundType = (int)sliderData.HitSound;
-                                if (isRightHandTracking) HapticManager.Instance.PlayHitHaptic(true, soundType);
-                                if (isLeftHandTracking) HapticManager.Instance.PlayHitHaptic(false, soundType);
+                                if (isRightHandTracking) HapticManager.Instance.PlayHitHaptic(true, soundType, vol);
+                                if (isLeftHandTracking) HapticManager.Instance.PlayHitHaptic(false, soundType, vol);
                             }
 
                             if (CodeOnlyVFX.Instance != null)
@@ -1542,9 +1545,10 @@ namespace OsuVR
                         if (HapticManager.Instance != null)
                         {
                             // [修复] 双手独立震动
+                            float vol = sliderData.SampleVolume / 100f;
                             int soundType = (int)sliderData.HitSound;
-                            if (isRightHandTracking) HapticManager.Instance.PlayHitHaptic(true, soundType);
-                            if (isLeftHandTracking) HapticManager.Instance.PlayHitHaptic(false, soundType);
+                            if (isRightHandTracking) HapticManager.Instance.PlayHitHaptic(true, soundType, vol);
+                            if (isLeftHandTracking) HapticManager.Instance.PlayHitHaptic(false, soundType, vol);
                         }
 
                         // 提交给 Manager，Manager 会根据 finalAcc 决定是给 300(>0.9), 100(>0.5) 还是 50

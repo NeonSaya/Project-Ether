@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace OsuVR
 {
@@ -117,9 +118,13 @@ namespace OsuVR
         public double Time;
         public double MsPerBeat; // 60000 / BPM
         public int TimeSignature;
-        public TimingPoint(double time, double msPerBeat, int timeSignature)
+        public int Volume;
+        public TimingPoint(double time, double msPerBeat, int timeSignature, int volume = 100)
         {
-            Time = time; MsPerBeat = msPerBeat; TimeSignature = timeSignature;
+            Time = time;
+            MsPerBeat = msPerBeat;
+            TimeSignature = timeSignature;
+            Volume = volume;
         }
     }
 
@@ -127,9 +132,11 @@ namespace OsuVR
     {
         public double Time;
         public double SpeedMultiplier; // 1.0 = normal, 0.5 = half speed (inherited timing point)
-        public DifficultyPoint(double time, double speedMultiplier)
+        public int Volume;
+
+        public DifficultyPoint(double time, double speedMultiplier, int volume = 100)
         {
-            Time = time; SpeedMultiplier = speedMultiplier;
+            Time = time; SpeedMultiplier = speedMultiplier; Volume = volume;
         }
     }
 }

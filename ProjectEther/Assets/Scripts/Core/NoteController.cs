@@ -574,6 +574,8 @@ namespace OsuVR
             hasBeenHit = true;
             isActive = false;
 
+            float vol = hitObject.SampleVolume / 100f;
+
             if (HapticManager.Instance == null)
             {
                 Debug.LogError("❌ 【严重错误】HapticManager.Instance 为空！");
@@ -583,13 +585,13 @@ namespace OsuVR
                 // 如果不为空，尝试震动
                 if (((int)hitObject.HitSound & 4) > 0)
                 {
-                    // 重击！双手震动
-                    HapticManager.Instance.PlayHitHapticBoth((int)hitObject.HitSound);
+                    // [修复] 传入音量 vol
+                    HapticManager.Instance.PlayHitHapticBoth((int)hitObject.HitSound, vol);
                 }
                 else
                 {
-                    // 普通打击，单手震动
-                    HapticManager.Instance.PlayHitHaptic(isRightHand, (int)hitObject.HitSound);
+                    // [修复] 传入音量 vol
+                    HapticManager.Instance.PlayHitHaptic(isRightHand, (int)hitObject.HitSound, vol);
                 }
             }
             // 播放特效

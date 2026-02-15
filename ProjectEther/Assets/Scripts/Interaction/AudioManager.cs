@@ -126,8 +126,10 @@ namespace OsuVR
             {
                 soundType = HitSoundType.Normal;
             }
+            float finalVolume = hitObject.SampleVolume / 100f;
+            if (finalVolume <= 0f) finalVolume = 1.0f; // 最后的兜底
 
-            Debug.Log($"[Audio] 收到播放请求: {soundType} (原始: {hitObject.HitSound})");
+            Debug.Log($"[Audio] 收到播放请求: {soundType} (原始: {hitObject.HitSound}) 音量:{finalVolume*100}%");
 
             // 2. 获取基础信息
             SampleSet set = hitObject.SampleSet;
@@ -139,22 +141,18 @@ namespace OsuVR
             if (additionSet == SampleSet.None) additionSet = set;
 
             int customIndex = hitObject.CustomIndex;
-            float volume = hitObject.SampleVolume / 100f;
-            if (volume <= 0.01f) volume = 1.0f; // 兜底音量
-
+            
             // 3. 播放逻辑
             // 始终播放 Base Hit (Normal) - 除非你只想听纯哨子，否则通常都会叠加一个底鼓声
-            PlaySpecificSample(set, HitSoundType.Normal, customIndex, volume);
+            PlaySpecificSample(set, HitSoundType.Normal, hitObject.CustomIndex, finalVolume);
 
             // 4. 叠加音效 (使用修正后的 soundType 进行判断)
             if ((soundType & HitSoundType.Whistle) != 0)
-                PlaySpecificSample(set, HitSoundType.Whistle, customIndex, volume);
-
+                PlaySpecificSample(set, HitSoundType.Whistle, hitObject.CustomIndex, finalVolume);
             if ((soundType & HitSoundType.Finish) != 0)
-                PlaySpecificSample(set, HitSoundType.Finish, customIndex, volume);
-
+                PlaySpecificSample(set, HitSoundType.Finish, hitObject.CustomIndex, finalVolume);
             if ((soundType & HitSoundType.Clap) != 0)
-                PlaySpecificSample(set, HitSoundType.Clap, customIndex, volume);
+                PlaySpecificSample(set, HitSoundType.Clap, hitObject.CustomIndex, finalVolume);
         }
 
         private void PlaySpecificSample(SampleSet set, HitSoundType type, int index, float volume)
@@ -221,8 +219,9 @@ namespace OsuVR
 
         public void PlaySliderTick(SampleSet set, int index, float volume)
         {
+            float finalVol = volume * masterVolume;
             AudioClip clip = GetClip(set, HitSoundType.Normal, index, false, true); // isTick = true
-            if (clip) PlayOneShot(clip, volume * masterVolume);
+            if (clip) PlayOneShot(clip, finalVol);
         }
 
         public void ToggleSliderLoop(bool isPlaying, SampleSet set = SampleSet.Normal, int index = 0)
