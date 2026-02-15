@@ -70,19 +70,24 @@ namespace OsuVR
         /// <summary>
         /// 根据 Osu 音效类型触发单手震动
         /// </summary>
-        public void PlayHitHaptic(bool isRightHand, int hitSoundType)
+        /// <param name="volume">0.0 ~ 1.0 的音量倍率</param>
+        public void PlayHitHaptic(bool isRightHand, int hitSoundType, float volume)
         {
-            // 1. 根据 HitSound 类型选择震动强度
-            // 优先级：Finish > Clap > Whistle > Normal
+            // 1. 获取基础配置
             HapticProfile.HapticData data = profile.NormalHit;
+            if ((hitSoundType & 4) > 0) data = profile.FinishHit;
+            else if ((hitSoundType & 8) > 0) data = profile.ClapHit;
+            else if ((hitSoundType & 2) > 0) data = profile.WhistleHit;
 
-            if ((hitSoundType & 4) > 0) data = profile.FinishHit;      // Finish (Bit 2)
-            else if ((hitSoundType & 8) > 0) data = profile.ClapHit;   // Clap (Bit 3)
-            else if ((hitSoundType & 2) > 0) data = profile.WhistleHit;// Whistle (Bit 1)
+            // 2. 根据音量计算最终强度 (音量越小震动越弱，但不仅是线性，可以用平方让小声音更柔和)
+            float finalIntensity = data.intensity * Mathf.Clamp01(volume);
 
-            // 2. 发送
+            // 设定一个最小震动阈值，避免有声音却没震动 (可选)
+            if (volume > 0.05f && finalIntensity < 0.1f) finalIntensity = 0.1f;
+
+            // 3. 发送
             XRNode node = isRightHand ? XRNode.RightHand : XRNode.LeftHand;
-            SendHaptic(node, data.intensity, data.duration);
+            SendHaptic(node, finalIntensity, data.duration);
         }
 
         /// <summary>
@@ -128,9 +133,9 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 双手同时播放打击震动 (用于 Finish 大音符等)
+        /// [修复] 双手同时播放打击震动，现在支持音量参数
         /// </summary>
-        public void PlayHitHapticBoth(int hitSoundType)
+        public void PlayHitHapticBoth(int hitSoundType, float volume)
         {
             HapticProfile.HapticData data = profile.NormalHit;
 
@@ -138,7 +143,13 @@ namespace OsuVR
             else if ((hitSoundType & 8) > 0) data = profile.ClapHit;
             else if ((hitSoundType & 2) > 0) data = profile.WhistleHit;
 
-            PlayHapticBoth(data.intensity, data.duration);
+            // [新增] 应用音量计算
+            float finalIntensity = data.intensity * Mathf.Clamp01(volume);
+
+            // 最小阈值防止无法感知
+            if (volume > 0.05f && finalIntensity < 0.1f) finalIntensity = 0.1f;
+
+            PlayHapticBoth(finalIntensity, data.duration);
         }
     }
 }

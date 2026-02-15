@@ -1,19 +1,18 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using UnityEngine;
 
 namespace OsuVR
 {
     /// <summary>
-    /// ¶Ñµş´¦ÀíÆ÷£º×¨ÃÅ¸ºÔğ¼ÆËã Note µÄ¶Ñµş²ã¼¶ (Stacking)
-    /// Âß¼­ÒÆÖ²×Ô osu! ¹Ù·½/osudroid Ëã·¨
+    /// å †å å¤„ç†å™¨ï¼šåŸºäº osu! stable ç®—æ³•
     /// </summary>
     public static class StackingProcessor
     {
-        // osu! ±ê×¼×ø±êÏµÏÂµÄ¶Ñµş¾àÀëãĞÖµ (3 osu!pixels)
+        // osu! æ ‡å‡†ï¼šå¦‚æœä¸¤ä¸ª Note è·ç¦»å°äº 3 åƒç´ ï¼Œè§†ä¸ºé‡å 
         private const float STACK_DISTANCE_THRESHOLD = 3.0f;
 
         /// <summary>
-        /// ¶ÔÕû¸öÆ×ÃæÓ¦ÓÃ¶Ñµş´¦Àí
+        /// å¯¹æ•´ä¸ªè°±é¢åº”ç”¨å †å å¤„ç† (ä¿®æ”¹ HitObject çš„åŸå§‹åæ ‡)
         /// </summary>
         public static void ApplyStacking(Beatmap beatmap)
         {
@@ -23,76 +22,118 @@ namespace OsuVR
             List<HitObject> hitObjects = beatmap.HitObjects;
             int count = hitObjects.Count;
 
-            // 1. ¼ÆËã¶ÑµşÊ±¼ä´°¿Ú
-            // StackLeniency (¶Ñµş¿íÈİ¶È) Í¨³£ÔÚÆ×Ãæ General ¶ÎÂä¶¨Òå£¬Ä¬ÈÏ 0.7
-            // ÕâÀïÎÒÃÇĞèÒª¼ÆËã AR (Approach Rate) ¶ÔÓ¦µÄ TimePreempt
+            // ---------------------------------------------------------
+            // 1. è®¡ç®—å †å å‚æ•°
+            // ---------------------------------------------------------
             float ar = beatmap.Difficulty.ApproachRate;
-            float timePreempt = CalculateTimePreempt(ar);
-            float stackThreshold = timePreempt * beatmap.General.StackLeniency;
+            float cs = beatmap.Difficulty.CircleSize;
 
-            // 2. ÖØÖÃËùÓĞ StackOrder
+            // è¿™é‡Œå¿…é¡»ç”¨ double æ¥æ”¶ï¼Œå› ä¸º Manager è¿”å›çš„æ˜¯ double
+            double timePreempt = RhythmGameManager.CalculateTimePreempt(ar);
+
+            // StackLeniency å‚ä¸è®¡ç®—ï¼Œç»“æœä¹Ÿåº”è¯¥æ˜¯ double
+            double stackThreshold = timePreempt * beatmap.General.StackLeniency;
+
+            // ---------------------------------------------------------
+            // 2. é‡ç½®æ‰€æœ‰ StackHeight
+            // ---------------------------------------------------------
             foreach (var obj in hitObjects)
             {
+                // StackHeight (æˆ–è€…å« StackOrder) å½’é›¶
+                // æ³¨æ„ï¼šä½ çš„ HitObject ç±»é‡Œå« StackOrderï¼ŒåŸç‰ˆå« StackHeightï¼Œè¿™é‡Œç»Ÿä¸€ç”¨ä½ çš„å˜é‡å
                 obj.StackOrder = 0;
             }
 
-            // 3. Ö´ĞĞ¶ÑµşËã·¨ (·´Ïò±éÀú)
-            // Âß¼­£ºÈç¹û Note[i] ÔÚ Note[n] Ö®Ç°£¬ÇÒ×ø±êÖØµş¡¢Ê±¼äÏà½ü
-            // ÄÇÃ´ Note[i] Ó¦¸ÃµşÔÚ Note[n] "ÉÏÃæ" (ZÖá¸ü¿¿Ç°)
-            // ËùÒÔÎÒÃÇ´ÓºóÍùÇ°Ëã£¬Èç¹û·¢ÏÖÖØµş£¬µ±Ç° Note µÄ²ã¼¶ = ºóÒ»¸ö Note ²ã¼¶ + 1
+            // ---------------------------------------------------------
+            // 3. æ ¸å¿ƒç®—æ³•ï¼šåå‘éå†è®¡ç®—å±‚çº§
+            // ---------------------------------------------------------
+            // é€»è¾‘ï¼šä»æœ€åä¸€ä¸ª Note å¾€å‰çœ‹ã€‚
+            // å¦‚æœ Note i å’Œ Note i+1 é‡å ï¼Œé‚£ä¹ˆ Note i å¿…é¡»"æµ®"åœ¨ Note i+1 ä¸Šé¢ã€‚
+            // æ‰€ä»¥ Note i çš„å±‚çº§ = Note i+1 çš„å±‚çº§ + 1ã€‚
 
-            // À©Õ¹ËÑË÷·¶Î§£¬·ÀÖ¹Á¬Ğø¶Ñµş±»´ò¶Ï
-            int searchLimit = count - 1;
+            // ä¸ºäº†é˜²æ­¢æ— é™æœç´¢ï¼Œè®¾ç½®ä¸€ä¸ªæœç´¢èŒƒå›´é™åˆ¶ï¼ˆè™½ç„¶åŸç‰ˆæ˜¯å…¨æœï¼Œä½†é€šå¸¸ä¸éœ€è¦å¤ªè¿œï¼‰
+            int searchLimit = count;
 
             for (int i = count - 1; i >= 0; i--)
             {
                 var currentObj = hitObjects[i];
 
-                // ×ªÅÌ (Spinner) ²»²ÎÓë¶Ñµş
+                // è½¬ç›˜ä¸å‚ä¸å †å ï¼ŒStackOrder ä¿æŒ 0
                 if (currentObj is SpinnerObject) continue;
 
+                // å¾€åæ‰¾ï¼Œçœ‹æœ‰æ²¡æœ‰è°å‹ç€æˆ‘
                 for (int n = i + 1; n < count; n++)
                 {
                     var nextObj = hitObjects[n];
 
-                    // Èç¹û×ªÅÌ£¬Ìø¹ıµ«²»´ò¶ÏËÑË÷Á´
+                    // å¦‚æœæ‰¾åˆ°è½¬ç›˜ï¼Œè·³è¿‡å®ƒï¼Œç»§ç»­å¾€åæ‰¾ï¼ˆè½¬ç›˜ä¸ä¼šæ‰“æ–­å †å é“¾ï¼‰
                     if (nextObj is SpinnerObject) continue;
 
-                    // A. Ê±¼ä¼ì²é£ºÈç¹ûÁ½¸ö Note ¼ä¸ôÌ«¾Ã£¬ËµÃ÷ÕâÒ»×é¶Ñµş½áÊøÁË
+                    // A. æ—¶é—´æ£€æŸ¥ï¼šå¦‚æœä¸¤ä¸ª Note é—´éš”å¤ªä¹…ï¼Œè¯´æ˜è¿™ä¸€ç»„å †å ç»“æŸäº†
                     if (nextObj.StartTime - currentObj.StartTime > stackThreshold)
                     {
+                        // é“¾æ¡æ–­è£‚ï¼Œåœæ­¢æœç´¢
                         break;
                     }
 
-                    // B. ¿Õ¼ä¼ì²é£º¾àÀëÊÇ·ñ×ã¹»½ü (osu!pixel ×ø±êÏµ)
-                    // ×¢Òâ£ºÕâÀïÖ»¼ì²éÍ·²¿Î»ÖÃ¡£Èç¹ûÒÔºóÒªÖ§³Ö»¬ÌõÎ²²¿¶Ñµş£¬Âß¼­»á¸ü¸´ÔÓ
+                    // B. ç©ºé—´æ£€æŸ¥ï¼šè·ç¦»æ˜¯å¦è¶³å¤Ÿè¿‘ (3 osu!pixels)
                     if (Vector2.Distance(currentObj.Position, nextObj.Position) < STACK_DISTANCE_THRESHOLD)
                     {
-                        // ÃüÖĞ¶Ñµş£¡
-                        // µ±Ç°(½ÏÔç)Îï¼şµÄ²ã¼¶ = ÏÂÒ»¸ö(½ÏÍí)Îï¼şµÄ²ã¼¶ + 1
+                        // âœ… å‘½ä¸­ï¼æˆ‘è¢«åé¢çš„ Note å‹ä½äº†ï¼
+                        // æˆ‘çš„å±‚çº§ = å‹ç€æˆ‘çš„é‚£ä¸ª Note çš„å±‚çº§ + 1
                         currentObj.StackOrder = nextObj.StackOrder + 1;
 
-                        // ÕÒµ½ÁËÒÀÀµ¶ÔÏóºó£¬¾Í²»ÓÃ¼ÌĞøÍùºóÕÒÁË£¬ÒòÎª nextObj ÒÑ¾­°üº¬ÁËËüºóÃæµÄ²ã¼¶ĞÅÏ¢
+                        // æ‰¾åˆ°äº†ç›´æ¥ä¾èµ–å¯¹è±¡åï¼Œåœæ­¢æœç´¢
                         break;
                     }
                 }
             }
 
-            Debug.Log($"[StackingProcessor] ¶Ñµş´¦ÀíÍê³É£¬AR: {ar}, ãĞÖµ: {stackThreshold}ms");
+            // ---------------------------------------------------------
+            // 4. åº”ç”¨åæ ‡åç§» (è¿™æ˜¯ä¹‹å‰ç¼ºå¤±çš„å…³é”®æ­¥éª¤ï¼)
+            // ---------------------------------------------------------
+
+            // è®¡ç®—åç§»æ¯”ä¾‹ (Based on CS)
+            // å…¬å¼æ¥æºï¼šosu! source code
+            // CS 5 = 1.0 (æ— ç¼©æ”¾)
+            // CS 2 = ç¼©æ”¾å˜å¤§ -> åç§»å˜å¤§
+            // CS 7 = ç¼©æ”¾å˜å° -> åç§»å˜å°
+            float scale = (1.0f - 0.7f * (cs - 5f) / 5f);
+
+            // osu! æ ‡å‡†åç§»é‡æ˜¯ -6.4 åƒç´  (å‘å·¦ä¸Šè§’åç§»)
+            // è¿™ä¸ªå€¼æ˜¯ç»è¿‡ Scale è°ƒæ•´çš„
+            float offsetBase = -6.4f * scale;
+            Vector2 stackOffsetVector = new Vector2(offsetBase, offsetBase);
+
+            foreach (var obj in hitObjects)
+            {
+                if (obj.StackOrder > 0)
+                {
+                    // ç›´æ¥ä¿®æ”¹åŸå§‹æ•°æ®ä¸­çš„ Position
+                    // æ¯”å¦‚ StackOrder æ˜¯ 2ï¼Œå°±å‘å·¦ä¸Šè§’åç§» 2 * 6.4 åƒç´ 
+                    // è¿™æ ·å½“ CoordinateMapper æŠŠ (x,y) è½¬æˆä¸–ç•Œåæ ‡æ—¶ï¼Œå°±å·²ç»å¸¦ä¸Šåç§»äº†
+
+                    Vector2 finalOffset = stackOffsetVector * obj.StackOrder;
+                    obj.Position += finalOffset;
+
+                    // å¦‚æœæ˜¯æ»‘æ¡ï¼Œä¸ä»…å¤´è¦åŠ¨ï¼Œæ•´ä¸ªè·¯å¾„éƒ½è¦åŠ¨å—ï¼Ÿ
+                    // åœ¨ osu! æ•°æ®ç»“æ„é‡Œï¼Œæ»‘æ¡çš„ä½ç½®å°±æ˜¯å®ƒçš„å¤´çš„ä½ç½®ã€‚
+                    // æ”¹å˜ Position å±æ€§ä¼šè‡ªåŠ¨ä½œä¸ºæ‰€æœ‰æ§åˆ¶ç‚¹çš„å‚è€ƒåŸç‚¹ï¼ˆå¦‚æœæ˜¯ç›¸å¯¹åæ ‡ï¼‰
+                    // ä½†å¦‚æœæ˜¯ç»å¯¹åæ ‡è·¯å¾„ï¼Œéœ€è¦é¢å¤–å¤„ç†ã€‚
+                    // å‡è®¾ä½ çš„ SliderObject åœ¨ GenerateSliderPath æ—¶æ˜¯åŸºäº Position è®¡ç®—çš„ï¼Œ
+                    // é‚£ä¹ˆè¿™é‡Œä¿®æ”¹ Position å°±è¶³å¤Ÿäº†ã€‚
+                }
+            }
+
+            Debug.Log($"[Stacking] å¤„ç†å®Œæˆ. CS:{cs} AR:{ar} Offset:{offsetBase:F2}px. MaxStack:{GetMaxStack(hitObjects)}");
         }
 
-        /// <summary>
-        /// ¸ù¾İ AR ¼ÆËã Note ÔÚÆÁÄ»ÉÏµÄÍ£ÁôÊ±¼ä (TimePreempt)
-        /// ¹«Ê½Ô´×Ô osu! wiki
-        /// </summary>
-        private static float CalculateTimePreempt(float ar)
+        // è¾…åŠ©è°ƒè¯•ï¼šæŸ¥çœ‹æœ€å¤§å †å å±‚æ•°
+        private static int GetMaxStack(List<HitObject> list)
         {
-            if (ar < 5)
-                return 1200f + 120f * (5f - ar);
-            else if (ar > 5)
-                return 1200f - 150f * (ar - 5f);
-            else
-                return 1200f;
+            int max = 0;
+            foreach (var o in list) if (o.StackOrder > max) max = o.StackOrder;
+            return max;
         }
     }
 }

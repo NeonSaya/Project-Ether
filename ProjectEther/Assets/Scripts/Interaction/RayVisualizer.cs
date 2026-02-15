@@ -1,55 +1,54 @@
-using Unity.VisualScripting;
-using UnityEngine;
+ï»¿using UnityEngine;
 
 namespace OsuVR
 {
     /// <summary>
-    /// ÉäÏßÊÓ¾õ³ÊÏÖÆ÷£º¸´¿Ì¾É°æ LaserShooter µÄÊÓ¾õÅäÖÃÌåÑé
-    /// ×Ô¶¯¹ÜÀí LineRenderer£¬Ö§³Ö×Ô¶¨ÒåÑÕÉ«¡¢¿í¶È
+    /// å°„çº¿è§†è§‰å‘ˆç°å™¨ï¼šå¤åˆ»æ—§ç‰ˆ LaserShooter çš„è§†è§‰é…ç½®ä½“éªŒ
+    /// è‡ªåŠ¨ç®¡ç† LineRendererï¼Œæ”¯æŒè‡ªå®šä¹‰é¢œè‰²ã€å®½åº¦
     /// </summary>
     [RequireComponent(typeof(LineRenderer))]
     public class RayVisualizer : MonoBehaviour
     {
-        [Header("ºËĞÄÒıÓÃ")]
-        [Tooltip("Èç¹û²»Ìî£¬»á×Ô¶¯ÔÚ¸¸ÎïÌåÉÏÕÒ RayController")]
+        [Header("æ ¸å¿ƒå¼•ç”¨")]
+        [Tooltip("å¦‚æœä¸å¡«ï¼Œä¼šè‡ªåŠ¨åœ¨çˆ¶ç‰©ä½“ä¸Šæ‰¾ RayController")]
         public RayController rayController;
 
-        [Header("ÊÓ¾õÅäÖÃ (¸´¿Ì¾É°æ)")]
-        public Color laserColor = Color.cyan;   // ³£Ì¬ÑÕÉ«
-        public Color hitColor = Color.yellow;   // »÷ÖĞÑÕÉ«
-        public float laserWidth = 0.01f;        // ÏßÌõ´ÖÏ¸
+        [Header("è§†è§‰é…ç½® (å¤åˆ»æ—§ç‰ˆ)")]
+        public Color laserColor = Color.cyan;   // å¸¸æ€é¢œè‰²
+        public Color hitColor = Color.yellow;   // å‡»ä¸­é¢œè‰²
+        public float laserWidth = 0.01f;        // çº¿æ¡ç²—ç»†
 
-        [Header("¸ß¼¶ÌØĞ§")]
-        public Material rayMaterial;            // ÉäÏß²ÄÖÊ (¿ÉÑ¡)
+        [Header("é«˜çº§ç‰¹æ•ˆ")]
+        public Material rayMaterial;            // å°„çº¿æè´¨ (å¯é€‰)
 
         private LineRenderer lineRenderer;
 
         void Start()
         {
-            // 1. ×Ô¶¯»ñÈ¡ RayController
+            // 1. è‡ªåŠ¨è·å– RayController
             if (rayController == null)
             {
                 rayController = GetComponentInParent<RayController>();
             }
 
-            // 2. ³õÊ¼»¯ LineRenderer (¾ÍÏñÒÔÇ°Ò»Ñù)
+            // 2. åˆå§‹åŒ– LineRenderer (å°±åƒä»¥å‰ä¸€æ ·)
             lineRenderer = GetComponent<LineRenderer>();
-            lineRenderer.useWorldSpace = true;       // ±ØĞëÓÃÊÀ½ç×ø±ê
+            lineRenderer.useWorldSpace = true;       // å¿…é¡»ç”¨ä¸–ç•Œåæ ‡
             lineRenderer.startWidth = laserWidth;
             lineRenderer.endWidth = laserWidth;
             lineRenderer.positionCount = 2;
 
-            // 3. ×Ô¶¯ÉèÖÃ²ÄÖÊ (·ÀÖ¹±ä³É×ÏÉ«·½¿é)
+            // 3. è‡ªåŠ¨è®¾ç½®æè´¨ (é˜²æ­¢å˜æˆç´«è‰²æ–¹å—)
             if (lineRenderer.sharedMaterial == null)
             {
-                // Èç¹ûÄãÓĞÖ¸¶¨µÄ²ÄÖÊ¾ÍÓÃ£¬Ã»ÓĞ¾ÍĞÂ½¨Ò»¸öÄ¬ÈÏµÄ
+                // å¦‚æœä½ æœ‰æŒ‡å®šçš„æè´¨å°±ç”¨ï¼Œæ²¡æœ‰å°±æ–°å»ºä¸€ä¸ªé»˜è®¤çš„
                 if (rayMaterial != null)
                 {
                     lineRenderer.material = rayMaterial;
                 }
                 else
                 {
-                    // ´´½¨Ò»¸ö¼òµ¥µÄ Shader ²ÄÖÊ£¬·ÀÖ¹±ä×Ï
+                    // åˆ›å»ºä¸€ä¸ªç®€å•çš„ Shader æè´¨ï¼Œé˜²æ­¢å˜ç´«
                     Material defaultMat = new Material(Shader.Find("Legacy Shaders/Particles/Alpha Blended"));
                     lineRenderer.material = defaultMat;
                 }
@@ -60,35 +59,35 @@ namespace OsuVR
         {
             if (rayController == null || rayController.visualRay == null) return;
 
-            // --- ºËĞÄ£º¸ú×Å RayController µÄÂß¼­Öá¶¯ ---
-            // RayController ÒÑ¾­¼ÆËãºÃÁË Wrist-Gain Ğı×ª£¬¸³¸øÁË visualRay
-            // ÎÒÃÇÖ»ĞèÒª°ÑÏß»­ÔÚ visualRay µÄÎ»ÖÃºÍ·½ÏòÉÏ
+            // --- æ ¸å¿ƒï¼šè·Ÿç€ RayController çš„é€»è¾‘è½´åŠ¨ ---
+            // RayController å·²ç»è®¡ç®—å¥½äº† Wrist-Gain æ—‹è½¬ï¼Œèµ‹ç»™äº† visualRay
+            // æˆ‘ä»¬åªéœ€è¦æŠŠçº¿ç”»åœ¨ visualRay çš„ä½ç½®å’Œæ–¹å‘ä¸Š
             Transform source = rayController.visualRay;
 
             Vector3 startPos = source.position;
             Vector3 endPos;
 
-            // 1. ¾ö¶¨ÑÕÉ«ºÍÖÕµã
+            // 1. å†³å®šé¢œè‰²å’Œç»ˆç‚¹
             if (rayController.IsHitting)
             {
-                // ´òÖĞ£º±ä»Æ£¬ÖÕµãÎü¸½ÔÚÎïÌå±íÃæ
+                // æ‰“ä¸­ï¼šå˜é»„ï¼Œç»ˆç‚¹å¸é™„åœ¨ç‰©ä½“è¡¨é¢
                 lineRenderer.startColor = hitColor;
                 lineRenderer.endColor = hitColor;
                 endPos = rayController.CurrentHitPoint;
             }
             else
             {
-                // Ã»´òÖĞ£º±äÇà£¬ÉäÏòÎŞÏŞÔ¶
+                // æ²¡æ‰“ä¸­ï¼šå˜é’ï¼Œå°„å‘æ— é™è¿œ
                 lineRenderer.startColor = laserColor;
                 lineRenderer.endColor = laserColor;
                 endPos = startPos + source.forward * rayController.rayLength;
             }
 
-            // 2. ¸üĞÂÏßÌõÎ»ÖÃ
+            // 2. æ›´æ–°çº¿æ¡ä½ç½®
             lineRenderer.SetPosition(0, startPos);
             lineRenderer.SetPosition(1, endPos);
 
-            // ÊµÊ±¸üĞÂ¿í¶È (·½±ãÔËĞĞÍ¨¹ı Inspector µ÷½Ú)
+            // å®æ—¶æ›´æ–°å®½åº¦ (æ–¹ä¾¿è¿è¡Œé€šè¿‡ Inspector è°ƒèŠ‚)
             lineRenderer.startWidth = laserWidth;
             lineRenderer.endWidth = laserWidth;
         }

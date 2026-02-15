@@ -574,12 +574,18 @@ namespace OsuVR
         private void FinishSpinner()
         {
             IsActive = false;
-            Progress = totalRotationAngle / angleRequirement;
+            if (angleRequirement > 0)
+                Progress = totalRotationAngle / angleRequirement;
+            else
+                Progress = 1.0f;
 
             if (AudioManager.Instance != null) AudioManager.Instance.UpdateSpinnerLoop(false, 0);
-            if (HapticManager.Instance != null) HapticManager.Instance.PlayContinuous(true, 0f);
-            if (HapticManager.Instance != null) HapticManager.Instance.PlayContinuous(false, 0f);
-
+            if (HapticManager.Instance != null)
+            {
+                HapticManager.Instance.PlayContinuous(true, 0f);
+                HapticManager.Instance.PlayContinuous(false, 0f);
+            }
+            float vol = spinnerData.SampleVolume / 100f;
             // 判定逻辑
             if (Progress >= 1.0f)
             {
@@ -588,7 +594,7 @@ namespace OsuVR
 
                 if (HapticManager.Instance != null)
                     // 双手震动，因为转盘通常很激烈
-                    HapticManager.Instance.PlayHitHapticBoth((int)spinnerData.HitSound);
+                    HapticManager.Instance.PlayHitHapticBoth((int)spinnerData.HitSound, vol);
 
                 if (CodeOnlyVFX.Instance != null)
                 {

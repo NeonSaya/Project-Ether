@@ -61,6 +61,11 @@ namespace OsuVR
         private static Texture2D cachedRingGlowTex;
         private static Mesh cachedQuadMesh;
 
+        // ✅ [新增] 记录自身的渲染层级
+        private int myRenderQueue = 3000;
+        // ✅ [新增] 全局唯一计数器，统管圈圈和滑条的遮挡关系！
+        public static int GlobalRenderOrder = 1;
+
         private Camera MainCamera
         {
             get
@@ -201,6 +206,10 @@ namespace OsuVR
             // 存下下一个音符位置
             this.nextNotePosition = nextPos;
 
+            // ✅ [核心修复] 获取全局排序，越早生成的 Queue 越大，画在最上层！
+            int orderId = (GlobalRenderOrder++ % 50) + 1;
+            this.myRenderQueue = 3500 - (orderId * 5);
+
             // -----------------------------------------------------------
             // 1. 获取 Body 和 Overlay 的 Renderer 引用 (如果是首次)
             // -----------------------------------------------------------
@@ -282,6 +291,11 @@ namespace OsuVR
             Renderer[] renderers = GetComponentsInChildren<Renderer>();
             foreach (var r in renderers)
             {
+                if (r == null) continue;
+
+                // 强行修改材质队列，让先生成的圈圈永远盖在后面生成的物件上
+                r.material.renderQueue = this.myRenderQueue;
+
                 r.GetPropertyBlock(_propBlock);
                 _propBlock.SetColor("_Color", comboColor);
                 _propBlock.SetColor("_BaseColor", comboColor); // 兼容 URP
@@ -373,6 +387,7 @@ namespace OsuVR
             MeshRenderer r = haloObject.GetComponent<MeshRenderer>();
             if (r != null)
             {
+                r.material.renderQueue = this.myRenderQueue;
                 Color whiteGlow = new Color(2.5f, 2.5f, 2.5f, 0.75f);
                 if (r.material.HasProperty("_TintColor"))
                     r.material.SetColor("_TintColor", whiteGlow);
@@ -559,6 +574,8 @@ namespace OsuVR
             hasBeenHit = true;
             isActive = false;
 
+            float vol = hitObject.SampleVolume / 100f;
+
             if (HapticManager.Instance == null)
             {
                 Debug.LogError("❌ 【严重错误】HapticManager.Instance 为空！");
@@ -568,13 +585,13 @@ namespace OsuVR
                 // 如果不为空，尝试震动
                 if (((int)hitObject.HitSound & 4) > 0)
                 {
-                    // 重击！双手震动
-                    HapticManager.Instance.PlayHitHapticBoth((int)hitObject.HitSound);
+                    // [修复] 传入音量 vol
+                    HapticManager.Instance.PlayHitHapticBoth((int)hitObject.HitSound, vol);
                 }
                 else
                 {
-                    // 普通打击，单手震动
-                    HapticManager.Instance.PlayHitHaptic(isRightHand, (int)hitObject.HitSound);
+                    // [修复] 传入音量 vol
+                    HapticManager.Instance.PlayHitHaptic(isRightHand, (int)hitObject.HitSound, vol);
                 }
             }
             // 播放特效
@@ -606,6 +623,8 @@ namespace OsuVR
                 gameManager.OnNoteHit(hitObject, accuracy);
             }
 
+            if (haloObject != null) haloObject.SetActive(false);
+
             // 播放消失动画（替代 LeanTween）
             if (approachCircle != null) StartCoroutine(HitEffectCoroutine());
             else ReturnToPool();
@@ -634,24 +653,30 @@ namespace OsuVR
         // --- 简单的原生动画协程 (替代插件) ---
 
         /// <summary>
-        /// 击中效果：圆环瞬间变大并透明
+        /// 击中效果：圆环瞬间变大并透明，光晕同步淡出
         /// </summary>
         IEnumerator HitEffectCoroutine()
         {
             float timer = 0f;
-            float duration = 0.2f;
+            float duration = 0.2f; // 缩短一点淡出时间让反馈更利落
             Vector3 startScale = approachCircle.localScale;
-            Color startColor = originalColor; // 使用存下的颜色
+
+            // 准备颜色
+            Color startColor = originalColor;
             Color endColor = startColor;
             endColor.a = 0f;
+
+         
 
             while (timer < duration)
             {
                 timer += Time.deltaTime;
                 float t = timer / duration;
+
+                // 1. 缩圈变大
                 approachCircle.localScale = Vector3.Lerp(startScale, startScale * 1.5f, t);
 
-                // 更新透明度
+                // 2. 本体变透明
                 if (circleRenderer != null)
                 {
                     circleRenderer.GetPropertyBlock(_propBlock);
@@ -660,10 +685,11 @@ namespace OsuVR
                     _propBlock.SetColor("_BaseColor", c);
                     circleRenderer.SetPropertyBlock(_propBlock);
                 }
+
                 yield return null;
             }
 
-            ReturnToPool(); // 替换 Destroy(gameObject)
+            ReturnToPool();
         }
 
         /// <summary>

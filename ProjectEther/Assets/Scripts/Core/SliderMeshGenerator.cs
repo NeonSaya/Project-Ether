@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using UnityEngine.Rendering;
 using UnityEngine;
 
 namespace OsuVR
@@ -31,19 +32,25 @@ namespace OsuVR
                 osuShader = Shader.Find("Standard");
             }
 
-            // 3. 配置 Body 材质 (底层，先渲染)
+            // ✅ 核心法则：越早出现的物件 stencilID 越小，算出来的 Queue 越大 (画在最顶层)
+            // 乘以 10 是为了给头尾预留插队空间
+            int baseQueue = 3100 - (stencilID * 10);
+
+            // 3. 配置 Body 材质 (局部底层)
             Material bodyMaterial = new Material(osuShader);
             bodyMaterial.SetColor("_Color", bodyColor);
             bodyMaterial.SetInt("_StencilID", stencilID);
-            // 渲染队列设为 3000 (Transparent 默认值)，保证先画
-            bodyMaterial.renderQueue = 2980;
+            bodyMaterial.SetInt("_StencilComp", 8); // Always
+            bodyMaterial.SetInt("_StencilOp", 2);   // Replace
+            bodyMaterial.renderQueue = baseQueue;   // ✅ 垫底
 
-            // 4. 配置 Border 材质 (顶层，后渲染)
+            // 4. 配置 Border 材质 (局部中层)
             Material borderMaterial = new Material(osuShader);
             borderMaterial.SetColor("_Color", borderColor);
             borderMaterial.SetInt("_StencilID", stencilID);
-            // 只有这样，Shader 里的 Stencil NotEqual 才能生效（Border 会避开 Body 的区域）
-            borderMaterial.renderQueue = 2981;
+            borderMaterial.SetInt("_StencilComp", 6); // NotEqual
+            borderMaterial.SetInt("_StencilOp", 0);   // Keep
+            borderMaterial.renderQueue = baseQueue + 1; // ✅ 盖在本体上
 
             return (border, body, borderMaterial, bodyMaterial);
         }
@@ -51,25 +58,39 @@ namespace OsuVR
         private static Mesh BuildSausageMesh(List<Vector3> path, float w, string name)
         {
             Mesh m = new Mesh { name = name };
+            m.indexFormat = IndexFormat.UInt32;
             List<Vector3> v = new List<Vector3>();
             List<int> t = new List<int>();
             Vector3 up = Vector3.back; // 假设滑条是平铺在 XY 平面，背向 Z 轴
 
             for (int i = 0; i < path.Count; i++)
             {
+                Vector3 curr = path[i];
                 // 添加节点处的圆形盖帽
-                AddCircle(v, t, path[i], w);
+                AddCircle(v, t, curr, w);
 
                 // 添加两点之间的连接矩形
                 if (i < path.Count - 1)
                 {
-                    Vector3 curr = path[i];
                     Vector3 next = path[i + 1];
+                    Vector3 diff = next - curr;
 
-                    // 计算侧向向量，构建带状网格
-                    Vector3 dir = (next - curr).normalized;
+                    // 如果两点距离太近（重合），归一化会产生 NaN，导致整个 Mesh 消失
+                    if (diff.sqrMagnitude < 0.000001f)
+                    {
+                        continue; // 跳过这段无效路径
+                    }
+
+                    // 计算侧向向量
+                    Vector3 dir = diff.normalized; // 现在这里安全了
                     Vector3 side = Vector3.Cross(dir, up).normalized;
 
+                    // 如果 dir 和 up 平行（极其罕见但存在），Cross 结果为 0，normalized 也会变成 0 或 NaN
+                    if (side.sqrMagnitude < 0.001f)
+                    {
+                        // 兜底方案：使用默认右向量
+                        side = Vector3.right;
+                    }
                     int b = v.Count;
                     v.Add(curr - side * w);
                     v.Add(curr + side * w);

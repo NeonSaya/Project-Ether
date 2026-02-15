@@ -48,6 +48,14 @@ namespace OsuVR
         public float noteLifetime = 3.0f;
 
         [Header("游戏设置")]
+
+        [Header("AutoPlay 设置")]
+        [Tooltip("开启后，游戏将由 AI 自动游玩")]
+        public bool useAutoPlay = false;
+
+        [Tooltip("指向场景中的 AutoPlayManager 脚本")]
+        public AutoPlayManager autoPlayManager;
+
         [Tooltip("准备时间缓冲（秒），音乐开始前给玩家的准备时间")]
         public float preparationTime = 2.0f;
 
@@ -402,6 +410,8 @@ namespace OsuVR
             try
             {
                 currentBeatmap = OsuParser.Parse(absoluteOsuFilePath);
+                StackingProcessor.ApplyStacking(currentBeatmap);
+
                 hitObjects = currentBeatmap.HitObjects;
                 totalNotes = hitObjects.Count;
 
@@ -531,6 +541,12 @@ namespace OsuVR
             // 重置下一个音符索引
             nextNoteIndex = 0;
 
+            if (useAutoPlay && autoPlayManager != null)
+            {
+                autoPlayManager.enabled = true;
+                Debug.Log("<color=cyan>[AutoPlay] AI 已接管控制权</color>");
+            }
+
             Debug.Log($"游戏正式开始，总音符数: {totalNotes}");
         }
 
@@ -607,6 +623,7 @@ namespace OsuVR
             {
                 // 使用新的 OsuParser.Parse 静态方法解析整个文件
                 currentBeatmap = OsuParser.Parse(filePath);
+                StackingProcessor.ApplyStacking(currentBeatmap);
 
                 // 获取 HitObjects 列表用于游戏逻辑
                 hitObjects = currentBeatmap.HitObjects;
@@ -1175,6 +1192,11 @@ namespace OsuVR
             if (musicSource.isPlaying)
             {
                 musicSource.Stop();
+            }
+
+            if (autoPlayManager != null)
+            {
+                autoPlayManager.enabled = false;
             }
 
             ClearAllNotes();
