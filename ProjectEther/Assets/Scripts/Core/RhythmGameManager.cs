@@ -410,6 +410,8 @@ namespace OsuVR
             try
             {
                 currentBeatmap = OsuParser.Parse(absoluteOsuFilePath);
+                StackingProcessor.ApplyStacking(currentBeatmap);
+
                 hitObjects = currentBeatmap.HitObjects;
                 totalNotes = hitObjects.Count;
 
@@ -621,6 +623,7 @@ namespace OsuVR
             {
                 // 使用新的 OsuParser.Parse 静态方法解析整个文件
                 currentBeatmap = OsuParser.Parse(filePath);
+                StackingProcessor.ApplyStacking(currentBeatmap);
 
                 // 获取 HitObjects 列表用于游戏逻辑
                 hitObjects = currentBeatmap.HitObjects;

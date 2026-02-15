@@ -34,7 +34,7 @@ namespace OsuVR
 
             // ✅ 核心法则：越早出现的物件 stencilID 越小，算出来的 Queue 越大 (画在最顶层)
             // 乘以 10 是为了给头尾预留插队空间
-            int baseQueue = 3300 - (stencilID * 10);
+            int baseQueue = 3100 - (stencilID * 10);
 
             // 3. 配置 Body 材质 (局部底层)
             Material bodyMaterial = new Material(osuShader);
