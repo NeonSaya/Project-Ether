@@ -41,7 +41,7 @@ namespace OsuVR
 
         [Header("渐变效果")]
         [Tooltip("渐隐时间（秒）")]
-        public float fadeOutDuration = 0.5f;
+        public float fadeOutDuration = 0.1f;
 
         [Tooltip("是否启用渐隐效果")]
         public bool enableFadeOut = true;
@@ -104,15 +104,22 @@ namespace OsuVR
         private SphereCollider ballCollider; // 用于射线的碰撞体
 
         // 状态变量
-        public bool isTracking = false;     // 当前帧是否被射线照射
+      
         private bool isTrackingAudioPlaying = false; // 是否正在播放跟踪音效
-        private bool isTrackingRightHand = true; // 当前跟踪的是右手还是左手
+
         private bool hasStarted = false;     // 滑条是否已经开始
         private bool headHit = false;        // 滑条头是否被击中
         private bool finished = false;       // 滑条是否结束
 
-        // [新增] 记录上一帧的击中位置，用于计算是否在球的半径内
-        private Vector3 lastHitPosition;
+        // [重构] 双手独立跟踪状态
+        private bool isLeftHandTracking = false;
+        private bool isRightHandTracking = false;
+        private Vector3 leftHandPos;
+        private Vector3 rightHandPos;
+
+        // [新增] 辅助属性：只要有一只手在跟踪，就视为有效（替换原来的 isTracking）
+        public bool isTracking => isLeftHandTracking || isRightHandTracking;
+
 
         // [新增] 避免每帧重复获取时间的缓存
         private double currentMusicTimeCache;
@@ -369,7 +376,10 @@ namespace OsuVR
         void OnEnable()
         {
             isActive = true;
-            isTracking = false;
+            // [修复] 重置具体的双手状态
+            isLeftHandTracking = false;
+            isRightHandTracking = false;
+
             headHit = false;
             finished = false;
         }
@@ -486,11 +496,11 @@ namespace OsuVR
             currentMusicTimeCache = gameManager.GetCurrentMusicTimeMs();
 
             ticksGot = 0;
-            isTracking = false;
             headHit = false;
             finished = false;
             currentAlpha = 1f;
             UpdateMaterialAlpha();
+            if (combinedMesh != null) combinedMesh.RecalculateBounds();
             // 更新视觉
 
             UpdateVisuals();
@@ -516,8 +526,14 @@ namespace OsuVR
             isFadingOut = false;
             isActive = true;
             currentAlpha = 1f;
+            if (_propBlock != null) _propBlock.Clear();
+
             headHit = false;
             finished = false;
+
+            // [新增] 重置双手状态
+            isLeftHandTracking = false;
+            isRightHandTracking = false;
 
             // 4. 处理子物体
             if (headInstance) headInstance.SetActive(false);
@@ -664,6 +680,11 @@ namespace OsuVR
             // 3. 渲染主体网格
             combinedMesh = bodyMesh;
             if (meshFilter) meshFilter.mesh = combinedMesh;
+            if (combinedMesh != null)
+            {
+                combinedMesh.RecalculateBounds();
+                combinedMesh.RecalculateNormals(); // 顺便重计算法线，解决光照奇怪的问题
+            }
             if (meshRenderer)
             {
                 meshRenderer.sharedMaterial = bodyMat;
@@ -1091,6 +1112,7 @@ namespace OsuVR
                 Color c = customBodyColor;
                 c.a *= currentAlpha; // 结合自定义颜色的初始透明度
                 _propBlock.SetColor(ColorPropertyId, c);
+                _propBlock.SetColor("_BaseColor", c);
                 meshRenderer.SetPropertyBlock(_propBlock);
             }
 
@@ -1145,13 +1167,6 @@ namespace OsuVR
             // 1. 更新球体位置
             UpdateFollowBall();
 
-            // 只要射线指着 (isTracking) 且头还没被打中 (!headHit)
-            // 就每一帧都尝试去判定一下时间 (TryHitHead 内部会判断 offset)
-            if (isTracking && !headHit)
-            {
-                TryHitHead(isTrackingRightHand);
-            }
-
             // 2. 判定逻辑 (头判、Tick、尾判)
             UpdateJudgement();
 
@@ -1164,8 +1179,12 @@ namespace OsuVR
                 // 1. 震动 (持续的微震)
                 if (HapticManager.Instance != null)
                 {
-                    // ✅ [修改] 使用 isTrackingRightHand 代替原来的 true
-                    HapticManager.Instance.PlayContinuous(isTrackingRightHand, HapticManager.Instance.profile.SliderSlideIntensity);
+                    // [修改] 谁在摸就震谁
+                    if (isRightHandTracking)
+                        HapticManager.Instance.PlayContinuous(true, HapticManager.Instance.profile.SliderSlideIntensity);
+
+                    if (isLeftHandTracking)
+                        HapticManager.Instance.PlayContinuous(false, HapticManager.Instance.profile.SliderSlideIntensity);
                 }
 
                 // 2. 音效 (保持不变，音效通常不分左右声道，或者由 AudioSource 3D 设置决定)
@@ -1216,13 +1235,11 @@ namespace OsuVR
         }
         public void OnRayExit(bool isRightHand)
         {
-            // ✅ 核心防干扰：如果离开的射线，根本不是当初打中滑条头的那只手，直接无视它！
-            if (headHit && isTrackingRightHand != isRightHand) return;
-
-            isTracking = false;
-
-            // 下面保留你原有的视觉隐藏代码，比如：
-            // if (followBall != null) followBall.SetActive(false);
+            // [重构] 只重置对应手柄的状态，绝不干扰另一只手
+            if (isRightHand)
+                isRightHandTracking = false;
+            else
+                isLeftHandTracking = false;
         }
 
         // 确保销毁时清理 Mesh 内存
@@ -1240,13 +1257,22 @@ namespace OsuVR
         /// </summary>
         public void OnRayStay(bool isRightHand, Vector3 hitPosition)
         {
-            isTracking = true;
-            isTrackingRightHand = isRightHand;
-            lastHitPosition = hitPosition; // 记录击中点
+            // [重构] 独立记录每只手的位置和状态
+            if (isRightHand)
+            {
+                isRightHandTracking = true;
+                rightHandPos = hitPosition;
+            }
+            else
+            {
+                isLeftHandTracking = true;
+                leftHandPos = hitPosition;
+            }
 
+            // 尝试判定滑条头 (传入当前这只手的位置)
             if (!headHit)
             {
-                TryHitHead(isRightHand);
+                TryHitHead(isRightHand, hitPosition);
             }
         }
 
@@ -1258,7 +1284,7 @@ namespace OsuVR
         /// <summary>
         /// 尝试击打滑条头 (由 LaserShooter 在按下/进入瞬间调用)
         /// </summary>
-        public void TryHitHead(bool isRightHand)
+        public void TryHitHead(bool isRightHand, Vector3 hitPos)
         {
             if (headHit) return;
 
@@ -1269,7 +1295,7 @@ namespace OsuVR
             // [核心修复] 计算击中点到 "滑条头中心" 的距离
             // 注意：这里不能用 followBall，因为头判定时球可能还没生成或位置不对
             Vector3 headWorldPos = transform.position; // 滑条挂载点即为起点
-            float distToHead = Vector3.Distance(lastHitPosition, headWorldPos);
+            float distToHead = Vector3.Distance(hitPos, headWorldPos);
 
             // 允许的半径：滑条半径 * 宽松系数 (Relax可以稍微宽一点，比如 2.0x ~ 3.0x)
             float allowedRadius = (sliderWidth * 0.5f) * 3.0f;
@@ -1284,8 +1310,9 @@ namespace OsuVR
             {
                 // ✅ 1. 立即锁定状态，防止下一帧重复触发
                 headHit = true;
-                isTrackingRightHand = isRightHand;
-                isTracking = true;
+                // [修复] 根据传入的手更新独立状态
+                if (isRightHand) isRightHandTracking = true;
+                else isLeftHandTracking = true;
 
                 // 2. 视觉与触觉反馈
                 if (followBall) followBall.SetActive(true);
@@ -1385,11 +1412,19 @@ namespace OsuVR
                 // --- 判定开始 ---
                 bool hit = false;
 
-                if (isTracking && followBall != null)
+                if (isTracking && followBall != null) // isTracking 现在是属性，只要任意手在即为 true
                 {
                     float allowedRadius = (sliderWidth * 0.5f) * followRadiusMultiplier;
-                    float dist = Vector3.Distance(lastHitPosition, followBall.transform.position);
-                    if (dist <= allowedRadius) hit = true;
+                    float minDist = float.MaxValue;
+
+                    // 计算离球最近的那只手的距离
+                    if (isLeftHandTracking)
+                        minDist = Mathf.Min(minDist, Vector3.Distance(leftHandPos, followBall.transform.position));
+
+                    if (isRightHandTracking)
+                        minDist = Mathf.Min(minDist, Vector3.Distance(rightHandPos, followBall.transform.position));
+
+                    if (minDist <= allowedRadius) hit = true;
                 }
 
                 nestedObject.IsHit = hit;
@@ -1414,7 +1449,12 @@ namespace OsuVR
                                 }
                             }
 
-                            if (HapticManager.Instance != null) HapticManager.Instance.PlaySliderTick(isTrackingRightHand);
+                            if (HapticManager.Instance != null)
+                            {
+                                // [修复] 双手独立震动
+                                if (isRightHandTracking) HapticManager.Instance.PlaySliderTick(true);
+                                if (isLeftHandTracking) HapticManager.Instance.PlaySliderTick(false);
+                            }
                             if (AudioManager.Instance != null) AudioManager.Instance.PlaySliderTick(sliderData.SampleSet, sliderData.CustomIndex, sliderData.SampleVolume / 100f);
 
                             if (gameManager?.scoreManager != null) gameManager.scoreManager.RegisterComboHit(10);
@@ -1424,7 +1464,13 @@ namespace OsuVR
 
                         case SliderEventType.Repeat:
                             if (AudioManager.Instance != null) AudioManager.Instance.PlayHitSound(sliderData);
-                            if (HapticManager.Instance != null) HapticManager.Instance.PlayHitHaptic(isTrackingRightHand, (int)sliderData.HitSound);
+                            if (HapticManager.Instance != null)
+                            {
+                                // [修复] 双手独立震动
+                                int soundType = (int)sliderData.HitSound;
+                                if (isRightHandTracking) HapticManager.Instance.PlayHitHaptic(true, soundType);
+                                if (isLeftHandTracking) HapticManager.Instance.PlayHitHaptic(false, soundType);
+                            }
 
                             if (CodeOnlyVFX.Instance != null)
                             {
@@ -1493,7 +1539,13 @@ namespace OsuVR
                     if (ticksGot > 0)
                     {
                         if (AudioManager.Instance != null) AudioManager.Instance.PlayHitSound(sliderData);
-                        if (HapticManager.Instance != null) HapticManager.Instance.PlayHitHaptic(isTrackingRightHand, (int)sliderData.HitSound);
+                        if (HapticManager.Instance != null)
+                        {
+                            // [修复] 双手独立震动
+                            int soundType = (int)sliderData.HitSound;
+                            if (isRightHandTracking) HapticManager.Instance.PlayHitHaptic(true, soundType);
+                            if (isLeftHandTracking) HapticManager.Instance.PlayHitHaptic(false, soundType);
+                        }
 
                         // 提交给 Manager，Manager 会根据 finalAcc 决定是给 300(>0.9), 100(>0.5) 还是 50
                         gameManager.OnNoteHit(sliderData, finalAcc);
@@ -1567,9 +1619,11 @@ namespace OsuVR
             }
             if (followBallRenderer == null) return;
 
-            float dist = Vector3.Distance(lastHitPosition, followBall.transform.position);
+            float minDist = float.MaxValue;
+            if (isLeftHandTracking) minDist = Mathf.Min(minDist, Vector3.Distance(leftHandPos, followBall.transform.position));
+            if (isRightHandTracking) minDist = Mathf.Min(minDist, Vector3.Distance(rightHandPos, followBall.transform.position));
             float allowedRadius = (sliderWidth * 0.5f) * followRadiusMultiplier;
-            bool isEffectiveTracking = isTracking && (dist <= allowedRadius);
+            bool isEffectiveTracking = isTracking && (minDist <= allowedRadius);
 
             followBallRenderer.GetPropertyBlock(_propBlock);
 
@@ -1751,7 +1805,7 @@ namespace OsuVR
 
                 if (obj != null)
                 {
-                    Destroy(obj);
+                    DestroyImmediate(obj);
                 }
             }
             garbageList.Clear(); // 清空列表，断开所有“尸体”引用
@@ -1789,17 +1843,21 @@ namespace OsuVR
             // 1. 清理本体的 Mesh 和 Material
             if (combinedMesh != null)
             {
-                Destroy(combinedMesh);
+                DestroyImmediate(combinedMesh);
                 combinedMesh = null;
             }
-            if (meshRenderer != null && meshRenderer.sharedMaterial != null)
+            if (meshRenderer != null)
             {
-                // 只销毁代码 new 出来的材质，绝不误删预制体自带的 sharedMaterial
-                if (meshRenderer.sharedMaterial != sharedMaterial)
+                meshRenderer.SetPropertyBlock(null);
+
+                if (meshRenderer.sharedMaterial != null)
                 {
-                    Destroy(meshRenderer.sharedMaterial);
+                    if (meshRenderer.sharedMaterial != sharedMaterial)
+                    {
+                        DestroyImmediate(meshRenderer.sharedMaterial);
+                    }
+                    meshRenderer.sharedMaterial = null;
                 }
-                meshRenderer.sharedMaterial = null;
             }
 
             // 2. 清理边框的 Mesh 和 Material
@@ -1807,12 +1865,20 @@ namespace OsuVR
             if (oldBorder != null)
             {
                 MeshFilter mf = oldBorder.GetComponent<MeshFilter>();
-                if (mf != null && mf.sharedMesh != null) Destroy(mf.sharedMesh);
+                if (mf != null && mf.sharedMesh != null) DestroyImmediate(mf.sharedMesh); // [修复] 立即销毁
+
 
                 MeshRenderer mr = oldBorder.GetComponent<MeshRenderer>();
-                if (mr != null && mr.sharedMaterial != null) Destroy(mr.sharedMaterial);
+                if (mr != null)
+                {
+                    // ✅ [新增] 边框也要洗干净
+                    mr.SetPropertyBlock(null);
 
-                Destroy(oldBorder.gameObject);
+                    if (mr.sharedMaterial != null)
+                        DestroyImmediate(mr.sharedMaterial);
+                }
+
+                DestroyImmediate(oldBorder.gameObject);
             }
         }
     }

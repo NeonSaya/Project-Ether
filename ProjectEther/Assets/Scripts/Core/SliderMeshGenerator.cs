@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using UnityEngine.Rendering;
 using UnityEngine;
 
 namespace OsuVR
@@ -33,7 +34,7 @@ namespace OsuVR
 
             // ✅ 核心法则：越早出现的物件 stencilID 越小，算出来的 Queue 越大 (画在最顶层)
             // 乘以 10 是为了给头尾预留插队空间
-            int baseQueue = 3000 - (stencilID * 10);
+            int baseQueue = 3300 - (stencilID * 10);
 
             // 3. 配置 Body 材质 (局部底层)
             Material bodyMaterial = new Material(osuShader);
@@ -57,25 +58,39 @@ namespace OsuVR
         private static Mesh BuildSausageMesh(List<Vector3> path, float w, string name)
         {
             Mesh m = new Mesh { name = name };
+            m.indexFormat = IndexFormat.UInt32;
             List<Vector3> v = new List<Vector3>();
             List<int> t = new List<int>();
             Vector3 up = Vector3.back; // 假设滑条是平铺在 XY 平面，背向 Z 轴
 
             for (int i = 0; i < path.Count; i++)
             {
+                Vector3 curr = path[i];
                 // 添加节点处的圆形盖帽
-                AddCircle(v, t, path[i], w);
+                AddCircle(v, t, curr, w);
 
                 // 添加两点之间的连接矩形
                 if (i < path.Count - 1)
                 {
-                    Vector3 curr = path[i];
                     Vector3 next = path[i + 1];
+                    Vector3 diff = next - curr;
 
-                    // 计算侧向向量，构建带状网格
-                    Vector3 dir = (next - curr).normalized;
+                    // 如果两点距离太近（重合），归一化会产生 NaN，导致整个 Mesh 消失
+                    if (diff.sqrMagnitude < 0.000001f)
+                    {
+                        continue; // 跳过这段无效路径
+                    }
+
+                    // 计算侧向向量
+                    Vector3 dir = diff.normalized; // 现在这里安全了
                     Vector3 side = Vector3.Cross(dir, up).normalized;
 
+                    // 如果 dir 和 up 平行（极其罕见但存在），Cross 结果为 0，normalized 也会变成 0 或 NaN
+                    if (side.sqrMagnitude < 0.001f)
+                    {
+                        // 兜底方案：使用默认右向量
+                        side = Vector3.right;
+                    }
                     int b = v.Count;
                     v.Add(curr - side * w);
                     v.Add(curr + side * w);

@@ -621,6 +621,8 @@ namespace OsuVR
                 gameManager.OnNoteHit(hitObject, accuracy);
             }
 
+            if (haloObject != null) haloObject.SetActive(false);
+
             // 播放消失动画（替代 LeanTween）
             if (approachCircle != null) StartCoroutine(HitEffectCoroutine());
             else ReturnToPool();
@@ -662,21 +664,7 @@ namespace OsuVR
             Color endColor = startColor;
             endColor.a = 0f;
 
-            // 获取光晕的Renderer (如果存在)
-            MeshRenderer haloRenderer = null;
-            Color haloStartColor = Color.white;
-            if (haloObject != null)
-            {
-                haloRenderer = haloObject.GetComponent<MeshRenderer>();
-                if (haloRenderer != null && haloRenderer.sharedMaterial != null)
-                {
-                    // 尝试获取当前光晕颜色，优先取 _TintColor (Legacy Particles)，否则取 _Color
-                    if (haloRenderer.sharedMaterial.HasProperty("_TintColor"))
-                        haloStartColor = haloRenderer.sharedMaterial.GetColor("_TintColor");
-                    else
-                        haloStartColor = haloRenderer.sharedMaterial.GetColor("_Color");
-                }
-            }
+         
 
             while (timer < duration)
             {
@@ -694,20 +682,6 @@ namespace OsuVR
                     _propBlock.SetColor("_Color", c);
                     _propBlock.SetColor("_BaseColor", c);
                     circleRenderer.SetPropertyBlock(_propBlock);
-                }
-
-                // 3. 光晕变透明 (新增逻辑)
-                if (haloRenderer != null)
-                {
-                    haloRenderer.GetPropertyBlock(_propBlock);
-                    Color targetHalo = Color.Lerp(haloStartColor, new Color(haloStartColor.r, haloStartColor.g, haloStartColor.b, 0f), t);
-
-                    // 同时设置两个属性以防万一
-                    _propBlock.SetColor("_TintColor", targetHalo);
-                    _propBlock.SetColor("_Color", targetHalo);
-                    _propBlock.SetColor("_BaseColor", targetHalo); // URP兼容
-
-                    haloRenderer.SetPropertyBlock(_propBlock);
                 }
 
                 yield return null;
