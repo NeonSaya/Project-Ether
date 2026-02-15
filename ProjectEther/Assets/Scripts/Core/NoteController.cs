@@ -61,10 +61,8 @@ namespace OsuVR
         private static Texture2D cachedRingGlowTex;
         private static Mesh cachedQuadMesh;
 
-        // ✅ [新增] 记录自身的渲染层级
         private int myRenderQueue = 3000;
-        // ✅ [新增] 全局唯一计数器，统管圈圈和滑条的遮挡关系！
-        public static int GlobalRenderOrder = 1;
+
 
         private Camera MainCamera
         {
@@ -179,7 +177,7 @@ namespace OsuVR
         /// <summary>
         /// 初始化音符
         /// </summary>
-        public void Initialize(HitObject hitObj, Vector3 targetPos, float speed, float beatmapCS, Color comboColor, RhythmGameManager manager, IObjectPool<GameObject> pool, Vector3? nextPos = null)
+        public void Initialize(HitObject hitObj, Vector3 targetPos, float speed, float beatmapCS, Color comboColor, RhythmGameManager manager, IObjectPool<GameObject> pool, int renderIndex, Vector3? nextPos = null)
         {
             EnsureComponentsCached();
 
@@ -207,8 +205,9 @@ namespace OsuVR
             this.nextNotePosition = nextPos;
 
             // ✅ [核心修复] 获取全局排序，越早生成的 Queue 越大，画在最上层！
-            int orderId = (GlobalRenderOrder++ % 50) + 1;
-            this.myRenderQueue = 3500 - (orderId * 5);
+            int baseQueue = 3900 - (renderIndex * 3);
+
+            this.myRenderQueue = baseQueue + 2;
 
             // -----------------------------------------------------------
             // 1. 获取 Body 和 Overlay 的 Renderer 引用 (如果是首次)
@@ -658,7 +657,7 @@ namespace OsuVR
         IEnumerator HitEffectCoroutine()
         {
             float timer = 0f;
-            float duration = 0.2f; // 缩短一点淡出时间让反馈更利落
+            float duration = 0.1f; // 缩短一点淡出时间让反馈更利落
             Vector3 startScale = approachCircle.localScale;
 
             // 准备颜色

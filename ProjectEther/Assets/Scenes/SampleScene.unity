@@ -512,12 +512,12 @@ MonoBehaviour:
   burstRadius: 0.3
   cubeSize: 0.035
   debrisMin: 3
-  debrisMax: 5
+  debrisMax: 6
   horizontalSpeed: 1
   dropSpeed: 12
   hoverTimeFraction: 0.3
   gravityScale: 12
-  hdrIntensity: 2.3
+  hdrIntensity: 2
 --- !u!1 &451060309
 GameObject:
   m_ObjectHideFlags: 0
@@ -1727,7 +1727,7 @@ MonoBehaviour:
   textCombo: {fileID: 2068999477}
   textAcc: {fileID: 1000172090}
   comboGroup: {fileID: 404525933}
-  scoreScrollSpeed: 3.5
+  scoreScrollSpeed: 4
   punchScale: 1.2
   comboBreakColor: {r: 1, g: 0, b: 0, a: 1}
 --- !u!114 &1721318862
@@ -1911,8 +1911,8 @@ MonoBehaviour:
     type: 3}
   noteSpeed: 3
   spawnOffsetMs: 2000
-  noteLifetime: 3
-  useAutoPlay: 1
+  noteLifetime: 2.5
+  useAutoPlay: 0
   autoPlayManager: {fileID: 1397690894}
   preparationTime: 2
   autoStart: 1
@@ -1926,7 +1926,7 @@ MonoBehaviour:
   activeNotes: 0
   dspStartTime: 0
   gameStartDspTime: 0
-  universalOffsetMs: 20
+  universalOffsetMs: 15
 --- !u!4 &2066471133
 Transform:
   m_ObjectHideFlags: 0
