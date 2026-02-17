@@ -5,6 +5,10 @@ using TMPro;
 
 namespace OsuVR
 {
+    /// <summary>
+    /// Mod 选择界面 UI 控制器
+    /// 管理 Mod 按钮的生成、交互和显示
+    /// </summary>
     public class ModSelectionUI : MonoBehaviour
     {
         [Header("UI 引用")]
@@ -30,8 +34,13 @@ namespace OsuVR
         private ModSelection modSelection;
         private Dictionary<ModType, ModButtonController> buttonControllers = new Dictionary<ModType, ModButtonController>();
 
+        // =========================================================
+        // 生命周期
+        // =========================================================
+
         void Awake()
         {
+            // 获取全局 Mod 选择实例
             if (GameContext.Instance != null)
             {
                 modSelection = GameContext.Instance.SelectedMods;
@@ -72,6 +81,14 @@ namespace OsuVR
             }
         }
 
+        // =========================================================
+        // 按钮生成
+        // =========================================================
+
+        /// <summary>
+        /// 生成所有 Mod 按钮
+        /// 按分类顺序生成，清除现有按钮
+        /// </summary>
         private void GenerateModButtons()
         {
             if (modButtonContainer == null || modButtonPrefab == null)
@@ -80,16 +97,17 @@ namespace OsuVR
                 return;
             }
 
+            // 清除现有按钮
             foreach (Transform child in modButtonContainer)
             {
                 Destroy(child.gameObject);
             }
             buttonControllers.Clear();
 
+            // 按分类顺序生成按钮
             var categories = new[] {
                 ModCategory.Difficulty,
                 ModCategory.Automation,
-                ModCategory.Challenge,
                 ModCategory.Speed,
                 ModCategory.Visual
             };
@@ -104,6 +122,9 @@ namespace OsuVR
             }
         }
 
+        /// <summary>
+        /// 创建单个 Mod 按钮
+        /// </summary>
         private void CreateModButton(ModInfo modInfo)
         {
             GameObject buttonObj = Instantiate(modButtonPrefab, modButtonContainer);
@@ -123,18 +144,31 @@ namespace OsuVR
             buttonControllers[modInfo.type] = controller;
         }
 
+        // =========================================================
+        // 事件处理
+        // =========================================================
+
+        /// <summary>
+        /// Mod 按钮点击回调
+        /// </summary>
         private void OnModButtonClicked(ModType modType)
         {
             modSelection.ToggleMod(modType);
         }
 
+        /// <summary>
+        /// Mod 状态变化回调
+        /// 更新按钮视觉状态，处理互斥 Mod
+        /// </summary>
         private void OnModChanged(ModType mod, bool enabled)
         {
+            // 更新当前 Mod 按钮状态
             if (buttonControllers.TryGetValue(mod, out var controller))
             {
                 controller.SetSelected(enabled);
             }
 
+            // 更新互斥 Mod 按钮状态 (强制取消选中)
             var incompatible = ModDatabase.GetIncompatibleMods(mod);
             foreach (var incompMod in incompatible)
             {
@@ -147,16 +181,27 @@ namespace OsuVR
             UpdateUI();
         }
 
+        /// <summary>
+        /// 清除所有按钮点击回调
+        /// </summary>
         private void OnClearAllClicked()
         {
             modSelection.Clear();
             UpdateUI();
         }
 
+        // =========================================================
+        // UI 更新
+        // =========================================================
+
+        /// <summary>
+        /// 更新分数倍率和 Mod 显示文本
+        /// </summary>
         private void UpdateUI()
         {
             float multiplier = modSelection.GetTotalScoreMultiplier();
 
+            // 更新分数倍率显示
             if (multiplierText != null)
             {
                 if (multiplier == 0f)
@@ -167,10 +212,12 @@ namespace OsuVR
                 else
                 {
                     multiplierText.text = $"{multiplier:F2}x";
+                    // 倍率 >=1 显示绿色，<1 显示红色
                     multiplierText.color = multiplier >= 1f ? new Color(0.3f, 1f, 0.5f) : new Color(1f, 0.5f, 0.3f);
                 }
             }
 
+            // 更新已选 Mod 显示
             if (activeModsText != null)
             {
                 string modString = modSelection.GetModString();
@@ -187,11 +234,19 @@ namespace OsuVR
             }
         }
 
+        // =========================================================
+        // 公开接口
+        // =========================================================
+
+        /// <summary>
+        /// 设置 Mod 选择实例
+        /// </summary>
         public void SetModSelection(ModSelection selection)
         {
             modSelection = selection ?? new ModSelection();
             modSelection.OnModChanged += OnModChanged;
 
+            // 同步所有按钮状态
             foreach (var kvp in buttonControllers)
             {
                 kvp.Value.SetSelected(modSelection.HasMod(kvp.Key));
@@ -200,12 +255,19 @@ namespace OsuVR
             UpdateUI();
         }
 
+        /// <summary>
+        /// 获取当前 Mod 选择
+        /// </summary>
         public ModSelection GetModSelection()
         {
             return modSelection;
         }
     }
 
+    /// <summary>
+    /// 单个 Mod 按钮控制器
+    /// 处理按钮的视觉状态和点击事件
+    /// </summary>
     public class ModButtonController : MonoBehaviour
     {
         [Header("UI 组件")]
@@ -219,7 +281,14 @@ namespace OsuVR
         private Color normalColor = new Color(0.2f, 0.2f, 0.25f);
         private Color selectedColor = new Color(0.3f, 0.6f, 0.9f);
 
+        /// <summary>
+        /// 按钮点击事件
+        /// </summary>
         public event System.Action<ModType> OnModClicked;
+
+        // =========================================================
+        // 生命周期
+        // =========================================================
 
         void Awake()
         {
@@ -239,6 +308,13 @@ namespace OsuVR
                 button.onClick.RemoveListener(OnButtonClicked);
         }
 
+        // =========================================================
+        // 初始化与状态更新
+        // =========================================================
+
+        /// <summary>
+        /// 初始化按钮
+        /// </summary>
         public void Initialize(ModInfo info, bool selected)
         {
             modInfo = info;
@@ -253,17 +329,27 @@ namespace OsuVR
             UpdateVisual();
         }
 
+        /// <summary>
+        /// 设置选中状态
+        /// </summary>
         public void SetSelected(bool selected)
         {
             isSelected = selected;
             UpdateVisual();
         }
 
+        /// <summary>
+        /// 按钮点击回调
+        /// </summary>
         private void OnButtonClicked()
         {
             OnModClicked?.Invoke(modInfo.type);
         }
 
+        /// <summary>
+        /// 更新视觉状态
+        /// 选中时显示 Mod 主题色，未选中时显示默认灰色
+        /// </summary>
         private void UpdateVisual()
         {
             if (backgroundImage != null)

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -90,18 +90,17 @@ namespace OsuVR
         // ================================================================
         // Mod 信息
         // ================================================================
-        private bool _isAutoPlay = false;               // 自动游玩
-        private bool _isRelax = false;                  // Relax (默认模式)
-        private bool _isHardRock = false;               // 增加难度
-        private bool _isDoubleTime = false;             // 加速
-        private bool _isHalfTime = false;               // 减速
-        private bool _isHidden = false;                 // 隐藏音符
-        private bool _isSuddenDeath = false;            // 突然死亡
-        private bool _isPerfect = false;                // 完美判定
-        private bool _isEasy = false;                   // 简单模式
+        private bool _isAutoPlay = false;
+        private bool _isRelax = false;
+        private bool _isHardRock = false;
+        private bool _isDoubleTime = false;
+        private bool _isHalfTime = false;
+        private bool _isHidden = false;
+        private bool _isFlashlight = false;
+        private bool _isEasy = false;
 
-        private ModEffectsApplier _modEffects;          // Mod 效果应用器
-        private float _scoreMultiplier = 1f;            // 分数倍率
+        private ModEffectsApplier _modEffects;
+        private float _scoreMultiplier = 1f;
 
         void Start()
         {
@@ -225,9 +224,6 @@ namespace OsuVR
             _isHidden = hidden;
         }
 
-        /// <summary>
-        /// 设置当前使用的 Mod (新版接口，使用 ModSelection)
-        /// </summary>
         public void SetModsFromSelection(ModSelection selection)
         {
             if (selection == null)
@@ -237,8 +233,7 @@ namespace OsuVR
                 _isDoubleTime = false;
                 _isHalfTime = false;
                 _isHidden = false;
-                _isSuddenDeath = false;
-                _isPerfect = false;
+                _isFlashlight = false;
                 _isEasy = false;
                 _scoreMultiplier = 1f;
                 _modEffects = null;
@@ -251,35 +246,15 @@ namespace OsuVR
             _isDoubleTime = selection.HasMod(ModType.DoubleTime);
             _isHalfTime = selection.HasMod(ModType.HalfTime);
             _isHidden = selection.HasMod(ModType.Hidden);
-            _isSuddenDeath = selection.HasMod(ModType.SuddenDeath);
-            _isPerfect = selection.HasMod(ModType.Perfect);
+            _isFlashlight = selection.HasMod(ModType.Flashlight);
 
             _modEffects = new ModEffectsApplier(selection);
             _scoreMultiplier = _modEffects.ScoreMultiplier;
         }
 
-        /// <summary>
-        /// 获取 Mod 效果应用器
-        /// </summary>
         public ModEffectsApplier GetModEffects()
         {
             return _modEffects;
-        }
-
-        /// <summary>
-        /// 检查是否应该因为 Miss 而失败 (SD/PF)
-        /// </summary>
-        public bool ShouldFailOnMiss()
-        {
-            return _isSuddenDeath || _isPerfect;
-        }
-
-        /// <summary>
-        /// 检查是否应该因为非300判定而失败 (PF)
-        /// </summary>
-        public bool ShouldFailOnNon300()
-        {
-            return _isPerfect;
         }
 
 
@@ -485,10 +460,6 @@ namespace OsuVR
             };
         }
 
-        /// <summary>
-        /// 构建 Mod 显示字符串
-        /// 注意：Relax (RX) 是默认模式，不显示
-        /// </summary>
         private string BuildModString()
         {
             var mods = new System.Text.StringBuilder();
@@ -496,8 +467,6 @@ namespace OsuVR
             if (_isAutoPlay) mods.Append("AT ");
             if (_isEasy) mods.Append("EZ ");
             if (_isHardRock) mods.Append("HR ");
-            if (_isSuddenDeath) mods.Append("SD ");
-            if (_isPerfect) mods.Append("PF ");
             if (_isDoubleTime) mods.Append("DT ");
             if (_isHalfTime) mods.Append("HT ");
             if (_isHidden) mods.Append("HD ");

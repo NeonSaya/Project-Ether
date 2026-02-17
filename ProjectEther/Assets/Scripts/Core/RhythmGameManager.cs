@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -623,7 +623,7 @@ namespace OsuVR
 
                 Debug.Log($"[Mod] 已应用 Mod 效果: {modEffects.GetModString()}");
                 Debug.Log($"[Mod] 速度倍率: {speedMultiplier}x, 分数倍率: {modEffects.ScoreMultiplier}x");
-                Debug.Log($"[Mod] AutoPlay: {useAutoPlay}, SuddenDeath: {modEffects.IsSuddenDeath}, Perfect: {modEffects.IsPerfect}");
+                Debug.Log($"[Mod] AutoPlay: {useAutoPlay}");
             }
             else
             {
@@ -639,6 +639,74 @@ namespace OsuVR
         public ModEffectsApplier GetModEffects()
         {
             return modEffects;
+        }
+
+        /// <summary>
+        /// 应用 Mod 效果到谱面难度参数
+        /// </summary>
+        private void ApplyModEffectsToBeatmap()
+        {
+            if (modEffects == null || currentBeatmap == null || currentBeatmap.Difficulty == null)
+                return;
+
+            var diff = currentBeatmap.Difficulty;
+
+            // 应用 CS/AR 修改 (OD 固定为 250ms 判定窗口，不修改)
+            diff.CircleSize = modEffects.GetModifiedCS(diff.CircleSize);
+            diff.ApproachRate = modEffects.GetModifiedAR(diff.ApproachRate);
+
+            Debug.Log($"[Mod] 已应用难度修改: CS={diff.CircleSize:F1}, AR={diff.ApproachRate:F1}");
+        }
+
+        /// <summary>
+        /// HR Mod: Y轴镜像翻转所有物件位置
+        /// </summary>
+        private void ApplyHardRockMirror()
+        {
+            if (hitObjects == null) return;
+
+            const float OSU_HEIGHT = 384f;
+            const float CENTER_Y = OSU_HEIGHT / 2f;
+
+            foreach (var obj in hitObjects)
+            {
+                // 镜像翻转 Y 坐标: newY = 2 * centerY - originalY
+                Vector2 pos = obj.Position;
+                pos.y = 2f * CENTER_Y - pos.y;
+                obj.Position = pos;
+
+                // Slider 还需要翻转终点位置
+                if (obj is SliderObject slider)
+                {
+                    Vector2 endPos = slider.EndPosition;
+                    endPos.y = 2f * CENTER_Y - endPos.y;
+                    // Slider 的 EndPosition 是计算属性，需要通过 PathPoints 重新计算
+                    // 这里简化处理，在 SliderController 初始化时会重新计算路径
+                }
+            }
+
+            Debug.Log($"[Mod] HR Y轴镜像翻转完成，共处理 {hitObjects.Count} 个物件");
+        }
+
+        /// <summary>
+        /// 获取当前应用的 CS (考虑 Mod)
+        /// </summary>
+        public float GetCurrentCS()
+        {
+            if (currentBeatmap == null || currentBeatmap.Difficulty == null)
+                return 5f;
+
+            float baseCS = currentBeatmap.Difficulty.CircleSize;
+            return modEffects != null ? modEffects.GetModifiedCS(baseCS) : baseCS;
+        }
+
+        /// <summary>
+        /// 获取固定判定窗口 (250ms)
+        /// </summary>
+        public static double GetFixedHitWindow()
+        {
+            // OD 固定为 250ms 判定窗口
+            return 250.0;
         }
 
         /// <summary>
@@ -769,9 +837,14 @@ namespace OsuVR
                 // 根据谱面中的AR设置计算spawnOffsetMs
                 if (currentBeatmap != null && currentBeatmap.Difficulty != null)
                 {
-                    spawnOffsetMs = (float)CalculateTimePreempt(currentBeatmap.Difficulty.ApproachRate);
+                    // 应用 Mod 效果到难度参数
+                    ApplyModEffectsToBeatmap();
 
-                    Debug.Log($"[AR System] Loaded AR: {currentBeatmap.Difficulty.ApproachRate}, TimePreempt: {spawnOffsetMs}ms");
+                    float baseAR = currentBeatmap.Difficulty.ApproachRate;
+                    float modifiedAR = modEffects != null ? modEffects.GetModifiedAR(baseAR) : baseAR;
+                    spawnOffsetMs = (float)CalculateTimePreempt(modifiedAR);
+
+                    Debug.Log($"[AR System] Base AR: {baseAR}, Modified AR: {modifiedAR}, TimePreempt: {spawnOffsetMs}ms");
                 }
                 // [新增/核心修复] 2. 立即将 AR 时间应用到所有音符
                 // 这样 SpawnNotes 里的 (StartTime - TimePreempt) 才能算出正确的生成时间
@@ -783,6 +856,13 @@ namespace OsuVR
                         obj.TimePreempt = spawnOffsetMs;
                     }
                 }
+
+                // HR Mod: Y轴镜像翻转
+                if (modEffects != null && modEffects.IsHardRock)
+                {
+                    ApplyHardRockMirror();
+                }
+
                 Debug.Log($"✅ 谱面加载完成: {currentBeatmap.Metadata.Title} - {currentBeatmap.Metadata.Version}");
                 Debug.Log($"  Audio: {currentBeatmap.General.AudioFilename}");
                 Debug.Log($"  CS:{currentBeatmap.Difficulty.CircleSize} AR:{currentBeatmap.Difficulty.ApproachRate}");
@@ -912,10 +992,8 @@ namespace OsuVR
                 comboColor = currentBeatmap.ComboColors[hitObject.ComboIndex % currentBeatmap.ComboColors.Count];
             }
 
-            // 3. CS 计算 (保持不变)
-            float currentCS = (currentBeatmap != null && currentBeatmap.Difficulty != null)
-               ? currentBeatmap.Difficulty.CircleSize
-               : 5f;
+            // 3. CS 计算 (使用 Mod 修改后的 CS)
+            float currentCS = GetCurrentCS();
 
             // 3.5 . 下一个音符位置 (保持不变)
             Vector3? nextNoteWorldPos = null;
