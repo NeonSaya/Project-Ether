@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -6,32 +6,96 @@ using UnityEngine;
 
 namespace OsuVR
 {
+    /// <summary>
+    /// 分数管理器：基于 osu! Lazer 源码实现的分数计算系统
+    /// 
+    /// 分数公式：
+    /// Total = (50万 * Acc * ComboProg) + (50万 * Acc^5 * AccProg) + Bonus
+    /// 
+    /// 其中：
+    /// - Acc = currentBaseScore / currentMaxBaseScore (准确率)
+    /// - ComboProg = currentComboPortion / maxComboPortion (连击进度)
+    /// - AccProg = totalHitsPerformed / totalMapJudgements (判定进度)
+    /// - Bonus = Spinner 奖励分 (不影响 Acc)
+    /// </summary>
     public class ScoreManager : MonoBehaviour
     {
         [Header("UI Controller")]
         public ScoreBoardController boardController;
 
-        // --- Lazer 源码常量 ---
-        private const double MAX_SCORE = 1000000;
-        private const double COMBO_EXPONENT = 0.5;
+        // ================================================================
+        // Lazer 源码常量
+        // ================================================================
+        private const double MAX_SCORE = 1000000;       // 理论满分
+        private const double COMBO_EXPONENT = 0.5;      // 连击指数 (Sqrt)
 
-        // --- 运行时数据 ---
-        private double _finalScore = 0;
-        private int _currentCombo = 0;
-        private int _maxComboReached = 0;
+        // ================================================================
+        // 运行时数据
+        // ================================================================
+        private double _finalScore = 0;                 // 最终分数
+        private int _currentCombo = 0;                  // 当前连击
+        private int _maxComboReached = 0;               // 最大连击
 
-        // 统计数据
-        private int _totalHitsPerformed = 0; // 当前判定次数 (分子部分)
-        private int _totalMapJudgements = 0; // 全图判定总数 (分母部分，含Tick/Repeat)
+        // 判定统计
+        private int _totalHitsPerformed = 0;            // 当前判定次数 (分子部分)
+        private int _totalMapJudgements = 0;            // 全图判定总数 (分母部分，含Tick/Repeat)
 
-        // --- 分数计算核心变量 ---
-        private double _currentBaseScore = 0;      // 分子：当前得分 (300+10+30...)
-        private double _currentMaxBaseScore = 0;   // 分母：当前进度的理论满分
+        // ================================================================
+        // 分数计算核心变量
+        // ================================================================
+        private double _currentBaseScore = 0;           // 分子：当前得分 (300+10+30...)
+        private double _currentMaxBaseScore = 0;        // 分母：当前进度的理论满分
 
-        private double _currentComboPortion = 0;   // 分子：连击权重分
-        private double _maxComboPortionTotal = 0;  // 分母：全图理论连击权重分
+        private double _currentComboPortion = 0;        // 分子：连击权重分
+        private double _maxComboPortionTotal = 0;       // 分母：全图理论连击权重分
 
-        private double _currentBonusScore = 0;     // 仅限 Spinner Bonus (不影响 Acc)
+        private double _currentBonusScore = 0;          // 仅限 Spinner Bonus (不影响 Acc)
+
+        // ================================================================
+        // 判定统计 (用于结算界面)
+        // ================================================================
+        private int _hit300 = 0;                        // 300 判定数 (完美)
+        private int _hit100 = 0;                        // 100 判定数 (良好)
+        private int _hit50 = 0;                         // 50 判定数 (一般)
+        private int _hitMiss = 0;                       // Miss 判定数
+
+        // ================================================================
+        // 滑条统计
+        // ================================================================
+        private int _totalSliders = 0;                  // 总滑条数
+        private int _slidersPerfect = 0;                // 完美滑条数
+        private int _slidersOk = 0;                     // 良好滑条数
+        private int _slidersMiss = 0;                   // 失败滑条数
+
+        // ================================================================
+        // Tick 统计
+        // ================================================================
+        private int _totalTicks = 0;                    // 总 Tick 数
+        private int _ticksHit = 0;                      // 命中的 Tick 数
+
+        // ================================================================
+        // Spinner 统计
+        // ================================================================
+        private int _spinnerBonus = 0;                  // 转盘奖励分
+
+        // ================================================================
+        // 谱面信息 (用于结算)
+        // ================================================================
+        private string _songTitle = "";
+        private string _songArtist = "";
+        private string _difficultyName = "";
+        private string _mapperName = "";
+        private int _totalNoteCount = 0;
+
+        // ================================================================
+        // Mod 信息
+        // ================================================================
+        private bool _isAutoPlay = false;               // 自动游玩
+        private bool _isRelax = false;                  // Relax (默认模式)
+        private bool _isHardRock = false;               // 增加难度
+        private bool _isDoubleTime = false;             // 加速
+        private bool _isHalfTime = false;               // 减速
+        private bool _isHidden = false;                 // 隐藏音符
 
         void Start()
         {
@@ -50,6 +114,22 @@ namespace OsuVR
             _currentMaxBaseScore = 0;
             _currentComboPortion = 0;
             _currentBonusScore = 0;
+
+            _hit300 = 0;
+            _hit100 = 0;
+            _hit50 = 0;
+            _hitMiss = 0;
+
+            _totalSliders = 0;
+            _slidersPerfect = 0;
+            _slidersOk = 0;
+            _slidersMiss = 0;
+
+            _totalTicks = 0;
+            _ticksHit = 0;
+
+            _spinnerBonus = 0;
+            _totalNoteCount = 0;
 
             if (boardController) boardController.UpdateDashboard(0, 0, 1.0);
         }
@@ -95,7 +175,8 @@ namespace OsuVR
                         {
                             if (nested.Type == SliderEventType.Tick)
                             {
-                                SimulateHit(ref simCombo, 10); // Tick 10分
+                                _totalTicks++;
+                                SimulateHit(ref simCombo, 10);
                             }
                             else if (nested.Type == SliderEventType.Repeat)
                             {
@@ -112,6 +193,36 @@ namespace OsuVR
             }
 
             Debug.Log($"[Score] 初始化完成. 总判定数: {_totalMapJudgements}, 理论Combo权重: {_maxComboPortionTotal:F2}");
+        }
+
+        /// <summary>
+        /// 设置谱面信息 (用于结算界面显示)
+        /// </summary>
+        public void SetBeatmapInfo(string title, string artist, string difficulty, string mapper)
+        {
+            _songTitle = title ?? "";
+            _songArtist = artist ?? "";
+            _difficultyName = difficulty ?? "";
+            _mapperName = mapper ?? "";
+        }
+
+        /// <summary>
+        /// 设置当前使用的 Mod
+        /// </summary>
+        /// <param name="autoPlay">AutoPlay (自动游玩)</param>
+        /// <param name="relax">Relax (默认模式，无需点击)</param>
+        /// <param name="hardRock">HardRock (增加难度)</param>
+        /// <param name="doubleTime">DoubleTime (加速)</param>
+        /// <param name="halfTime">HalfTime (减速)</param>
+        /// <param name="hidden">Hidden (隐藏音符)</param>
+        public void SetMods(bool autoPlay, bool relax, bool hardRock, bool doubleTime, bool halfTime, bool hidden)
+        {
+            _isAutoPlay = autoPlay;
+            _isRelax = relax;
+            _isHardRock = hardRock;
+            _isDoubleTime = doubleTime;
+            _isHalfTime = halfTime;
+            _isHidden = hidden;
         }
 
 
@@ -133,9 +244,9 @@ namespace OsuVR
         public void RegisterMiss(int maxScoreValue)
         {
             _totalHitsPerformed++;
-            _currentCombo = 0; // Miss 断连
+            _currentCombo = 0;
+            _hitMiss++;
 
-            // 基础分+0，但分母精确加上它本该拿到的满分 (Tick是10，大圈是300)
             _currentBaseScore += 0;
             _currentMaxBaseScore += maxScoreValue;
 
@@ -146,7 +257,23 @@ namespace OsuVR
         {
             _totalHitsPerformed++;
 
-            // 1. 更新 Combo
+            if (scoreValue >= 300)
+            {
+                _hit300++;
+            }
+            else if (scoreValue >= 100)
+            {
+                _hit100++;
+            }
+            else if (scoreValue >= 50)
+            {
+                _hit50++;
+            }
+            else
+            {
+                _hitMiss++;
+            }
+
             if (scoreValue > 0)
             {
                 _currentCombo++;
@@ -179,31 +306,35 @@ namespace OsuVR
         {
             _totalHitsPerformed++;
 
-            // 1. 增加 Combo
+            if (scoreValue == 10)
+            {
+                _ticksHit++;
+            }
+
             _currentCombo++;
             if (_currentCombo > _maxComboReached) _maxComboReached = _currentCombo;
 
             // 2. ✅ [关键修改] 计入 Acc 分子和分母
             // 以前是加到 Bonus，现在加到 BaseScore
             _currentBaseScore += scoreValue;
-
-            // 分母加多少？对于 Tick 来说，满分就是 10 分；Repeat 满分就是 30
-            // 所以分母加 scoreValue 即可 (假设玩家打中了就是满分)
             _currentMaxBaseScore += scoreValue;
 
-            // 3. 增加 Combo 权重
             _currentComboPortion += scoreValue * Math.Pow(_currentCombo, COMBO_EXPONENT);
 
             ComputeScore();
         }
 
-        /// <summary>
-        /// 处理额外奖励分 (比如 Spinner 的旋转、Slider 的 Tick)
-        /// Lazer 中 Bonus 不影响准确率分母，直接加在 BonusPortion 上
-        /// </summary>
+        public void RegisterSliderResult(bool isPerfect, bool isOk)
+        {
+            if (isPerfect) _slidersPerfect++;
+            else if (isOk) _slidersOk++;
+            else _slidersMiss++;
+        }
+
         public void RegisterBonus(int bonusValue)
         {
             _currentBonusScore += bonusValue;
+            _spinnerBonus += bonusValue;
             ComputeScore();
         }
 
@@ -237,11 +368,121 @@ namespace OsuVR
 
             _finalScore = part1 + part2 + _currentBonusScore;
 
-            // 更新 UI
             if (boardController != null)
             {
                 boardController.UpdateDashboard((long)_finalScore, _currentCombo, accuracy);
             }
+        }
+
+        /// <summary>
+        /// 获取结算数据：生成完整的成绩信息用于结算界面显示
+        /// </summary>
+        /// <returns>包含所有成绩数据的 ResultData 对象</returns>
+        public ResultData GetResultData()
+        {
+            // 计算最终准确率
+            double accuracy = 1.0;
+            if (_currentMaxBaseScore > 0)
+                accuracy = _currentBaseScore / _currentMaxBaseScore;
+
+            // 判断是否全连 / 完美游玩
+            bool isFullCombo = _hitMiss == 0;
+            bool isPerfectPlay = isFullCombo && _hit300 == _totalNoteCount && _hit100 == 0 && _hit50 == 0;
+
+            // 计算评级
+            string rank = ResultData.CalculateRank(accuracy, isPerfectPlay, isFullCombo);
+
+            // 构建 Mod 字符串
+            string modString = BuildModString();
+
+            return new ResultData
+            {
+                songTitle = _songTitle,
+                songArtist = _songArtist,
+                difficultyName = _difficultyName,
+                mapperName = _mapperName,
+                finalScore = (long)_finalScore,
+                accuracy = accuracy,
+                maxCombo = _maxComboReached,
+                isFullCombo = isFullCombo,
+                isPerfectPlay = isPerfectPlay,
+                totalNotes = _totalNoteCount,
+                hit300 = _hit300,
+                hit100 = _hit100,
+                hit50 = _hit50,
+                hitMiss = _hitMiss,
+                totalTicks = _totalTicks,
+                ticksHit = _ticksHit,
+                totalSliders = _totalSliders,
+                slidersPerfect = _slidersPerfect,
+                slidersOk = _slidersOk,
+                slidersMiss = _slidersMiss,
+                spinnerBonus = _spinnerBonus,
+                totalJudgements = _totalMapJudgements,
+                perfectJudgements = _hit300,
+                rank = rank,
+                playDate = DateTime.Now,
+                modString = modString
+            };
+        }
+
+        /// <summary>
+        /// 构建 Mod 显示字符串
+        /// 注意：Relax (RX) 是默认模式，不显示
+        /// </summary>
+        private string BuildModString()
+        {
+            var mods = new System.Text.StringBuilder();
+
+            if (_isAutoPlay) mods.Append("AT ");
+            if (_isHardRock) mods.Append("HR ");
+            if (_isDoubleTime) mods.Append("DT ");
+            if (_isHalfTime) mods.Append("HT ");
+            if (_isHidden) mods.Append("HD ");
+
+            return mods.ToString().Trim();
+        }
+
+        /// <summary>
+        /// 检查游戏是否完成 (所有判定已执行)
+        /// </summary>
+        public bool IsGameComplete()
+        {
+            return _totalHitsPerformed >= _totalMapJudgements && _totalMapJudgements > 0;
+        }
+
+        /// <summary>
+        /// 获取当前准确率
+        /// </summary>
+        public double GetAccuracy()
+        {
+            if (_currentMaxBaseScore > 0)
+                return _currentBaseScore / _currentMaxBaseScore;
+            return 1.0;
+        }
+
+        /// <summary>
+        /// 获取当前分数
+        /// </summary>
+        public long GetCurrentScore()
+        {
+            return (long)_finalScore;
+        }
+
+        /// <summary>
+        /// 获取当前连击数
+        /// </summary>
+        public int GetCurrentCombo()
+        {
+            return _currentCombo;
+        }
+
+        /// <summary>
+        /// 获取最大连击数
+        /// </summary>
+        public int GetMaxCombo()
+        {
+            return _maxComboReached;
         }
     }
 }
