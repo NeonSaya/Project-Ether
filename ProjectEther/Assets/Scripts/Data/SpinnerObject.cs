@@ -1,54 +1,54 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 namespace OsuVR
 {
     /// <summary>
-    /// ±íÊ¾Ò»¸ö×ªÅÌ
+    /// è¡¨ç¤ºä¸€ä¸ªè½¬ç›˜
     /// </summary>
     public class SpinnerObject : HitObject
     {
         /// <summary>
-        /// ×ªÅÌ½áÊøÊ±¼ä
+        /// è½¬ç›˜ç»“æŸæ—¶é—´
         /// </summary>
         private readonly double _endTime;
 
         /// <summary>
-        /// ×ªÅÌ½áÊøÊ±¼ä
+        /// è½¬ç›˜ç»“æŸæ—¶é—´
         /// </summary>
         public override double EndTime => _endTime;
 
         /// <summary>
-        /// ÄÑ¶È¼ÆËãÖĞµÄ¶ÑµşÎ»ÖÃ£¨×ªÅÌ×ÜÊÇÔÚÖĞĞÄ£©
+        /// éš¾åº¦è®¡ç®—ä¸­çš„å †å ä½ç½®ï¼ˆè½¬ç›˜æ€»æ˜¯åœ¨ä¸­å¿ƒï¼‰
         /// </summary>
         public override Vector2 DifficultyStackedPosition => Position;
 
         /// <summary>
-        /// ÄÑ¶È¼ÆËãÖĞµÄ¶Ñµş½áÊøÎ»ÖÃ£¨×ªÅÌ×ÜÊÇÔÚÖĞĞÄ£©
+        /// éš¾åº¦è®¡ç®—ä¸­çš„å †å ç»“æŸä½ç½®ï¼ˆè½¬ç›˜æ€»æ˜¯åœ¨ä¸­å¿ƒï¼‰
         /// </summary>
         public override Vector2 DifficultyStackedEndPosition => Position;
 
         /// <summary>
-        /// ÓÎÏ·Íæ·¨ÖĞµÄ¶ÑµşÎ»ÖÃ£¨×ªÅÌ×ÜÊÇÔÚÖĞĞÄ£©
+        /// æ¸¸æˆç©æ³•ä¸­çš„å †å ä½ç½®ï¼ˆè½¬ç›˜æ€»æ˜¯åœ¨ä¸­å¿ƒï¼‰
         /// </summary>
         public override Vector2 GameplayStackedPosition => Position;
 
         /// <summary>
-        /// ÓÎÏ·Íæ·¨ÖĞµÄ¶Ñµş½áÊøÎ»ÖÃ£¨×ªÅÌ×ÜÊÇÔÚÖĞĞÄ£©
+        /// æ¸¸æˆç©æ³•ä¸­çš„å †å ç»“æŸä½ç½®ï¼ˆè½¬ç›˜æ€»æ˜¯åœ¨ä¸­å¿ƒï¼‰
         /// </summary>
         public override Vector2 GameplayStackedEndPosition => Position;
 
         /// <summary>
-        /// ÆÁÄ»¿Õ¼äÖĞµÄÓÎÏ·Íæ·¨¶ÑµşÎ»ÖÃ£¨×ªÅÌ×ÜÊÇÔÚÖĞĞÄ£©
+        /// å±å¹•ç©ºé—´ä¸­çš„æ¸¸æˆç©æ³•å †å ä½ç½®ï¼ˆè½¬ç›˜æ€»æ˜¯åœ¨ä¸­å¿ƒï¼‰
         /// </summary>
         public override Vector2 ScreenSpaceGameplayStackedPosition => ScreenSpaceGameplayPosition;
 
         /// <summary>
-        /// ÆÁÄ»¿Õ¼äÖĞµÄÓÎÏ·Íæ·¨¶Ñµş½áÊøÎ»ÖÃ£¨×ªÅÌ×ÜÊÇÔÚÖĞĞÄ£©
+        /// å±å¹•ç©ºé—´ä¸­çš„æ¸¸æˆç©æ³•å †å ç»“æŸä½ç½®ï¼ˆè½¬ç›˜æ€»æ˜¯åœ¨ä¸­å¿ƒï¼‰
         /// </summary>
         public override Vector2 ScreenSpaceGameplayStackedEndPosition => ScreenSpaceGameplayPosition;
 
         /// <summary>
-        /// ¹¹Ôìº¯Êı
+        /// æ„é€ å‡½æ•°
         /// </summary>
         public SpinnerObject(double startTime, double endTime, bool isNewCombo)
             : base(startTime, new Vector2(256f, 192f), HitObjectType.Spinner, isNewCombo, 0)
@@ -57,32 +57,32 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// »ñÈ¡×ªÅÌĞèÒªĞı×ªµÄ½Ç¶È£¨»ùÓÚÊ±¼ä½ø¶È£©
+        /// è·å–è½¬ç›˜éœ€è¦æ—‹è½¬çš„è§’åº¦ï¼ˆåŸºäºæ—¶é—´è¿›åº¦ï¼‰
         /// </summary>
-        /// <param name="currentTime">µ±Ç°Ê±¼ä</param>
-        /// <returns>ËùĞèĞı×ª½Ç¶È£¨¶È£©</returns>
+        /// <param name="currentTime">å½“å‰æ—¶é—´</param>
+        /// <returns>æ‰€éœ€æ—‹è½¬è§’åº¦ï¼ˆåº¦ï¼‰</returns>
         public float GetRequiredRotation(double currentTime)
         {
             if (currentTime < StartTime)
                 return 0f;
 
             if (currentTime > EndTime)
-                return 1080f; // Íê³É3È¦
+                return 1080f; // å®Œæˆ3åœˆ
 
             double progress = (currentTime - StartTime) / Duration;
-            return (float)(progress * 1080f); // 3È¦ = 1080¶È
+            return (float)(progress * 1080f); // 3åœˆ = 1080åº¦
         }
 
         /// <summary>
-        /// ¼ì²éÊÇ·ñÍê³É×ªÅÌ
+        /// æ£€æŸ¥æ˜¯å¦å®Œæˆè½¬ç›˜
         /// </summary>
-        /// <param name="totalRotation">Íæ¼ÒÀÛ¼ÆĞı×ª½Ç¶È</param>
-        /// <param name="currentTime">µ±Ç°Ê±¼ä</param>
-        /// <returns>ÊÇ·ñÍê³É</returns>
+        /// <param name="totalRotation">ç©å®¶ç´¯è®¡æ—‹è½¬è§’åº¦</param>
+        /// <param name="currentTime">å½“å‰æ—¶é—´</param>
+        /// <returns>æ˜¯å¦å®Œæˆ</returns>
         public bool IsCompleted(float totalRotation, double currentTime)
         {
             if (currentTime > EndTime)
-                return false; // ³¬Ê±
+                return false; // è¶…æ—¶
 
             return totalRotation >= GetRequiredRotation(currentTime);
         }

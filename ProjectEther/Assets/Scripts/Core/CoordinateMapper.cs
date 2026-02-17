@@ -1,61 +1,61 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 namespace OsuVR
 {
     /// <summary>
-    /// ×ø±êÓ³Éä¹¤¾ßÀà£º½«osuµÄ2D×ø±êÓ³Éäµ½VR¿Õ¼äÖĞµÄ3DÎ»ÖÃ
+    /// åæ ‡æ˜ å°„å·¥å…·ç±»ï¼šå°†osuçš„2Dåæ ‡æ˜ å°„åˆ°VRç©ºé—´ä¸­çš„3Dä½ç½®
     /// </summary>
     public static class CoordinateMapper
     {
-        // OsuÓÎÏ·ÇøÓòµÄÔ­Ê¼³ß´ç
+        // Osuæ¸¸æˆåŒºåŸŸçš„åŸå§‹å°ºå¯¸
         private const float OSURegionWidth = 512f;
         private const float OSURegionHeight = 384f;
 
-        // Ä¿±ê3DÆ½ÃæµÄ³ß´ç£¨VRÖĞÊÊºÏ»ÓÊÖ·¶Î§£©
-        private const float TargetWidth = 1.5f;    // 1.5Ã×¿í
-        private const float TargetHeight = 1.1f;   // 1.1Ã×¸ß
+        // ç›®æ ‡3Då¹³é¢çš„å°ºå¯¸ï¼ˆVRä¸­é€‚åˆæŒ¥æ‰‹èŒƒå›´ï¼‰
+        private const float TargetWidth = 1.5f;    // 1.5ç±³å®½
+        private const float TargetHeight = 1.1f;   // 1.1ç±³é«˜
 
-        // Ä¿±êÆ½ÃæÔÚÍæ¼ÒÇ°·½µÄÎ»ÖÃ£¨ZÖá¾àÀë£©
+        // ç›®æ ‡å¹³é¢åœ¨ç©å®¶å‰æ–¹çš„ä½ç½®ï¼ˆZè½´è·ç¦»ï¼‰
         private const float TargetDistance = 2.0f;
 
-        // Osu×ø±êÖĞĞÄµã¶ÔÓ¦µÄÊÀ½ç×ø±ê£¨Íæ¼ÒÑÛ¾¦¸ß¶ÈÇ°·½£©
+        // Osuåæ ‡ä¸­å¿ƒç‚¹å¯¹åº”çš„ä¸–ç•Œåæ ‡ï¼ˆç©å®¶çœ¼ç›é«˜åº¦å‰æ–¹ï¼‰
         private static readonly Vector3 TargetCenter = new Vector3(0f, 1.6f, TargetDistance);
 
-        // ¼ÆËãËõ·Å±ÈÀı
+        // è®¡ç®—ç¼©æ”¾æ¯”ä¾‹
         private static readonly float ScaleX = TargetWidth / OSURegionWidth;
         private static readonly float ScaleY = TargetHeight / OSURegionHeight;
 
         /// <summary>
-        /// ½«osuµÄ2D×ø±êÓ³Éäµ½VR¿Õ¼äÖĞµÄ3DÎ»ÖÃ
+        /// å°†osuçš„2Dåæ ‡æ˜ å°„åˆ°VRç©ºé—´ä¸­çš„3Dä½ç½®
         /// </summary>
-        /// <param name="osuPos">osu×ø±ê (0-512, 0-384)</param>
-        /// <returns>UnityÊÀ½ç¿Õ¼äÖĞµÄ3D×ø±ê</returns>
+        /// <param name="osuPos">osuåæ ‡ (0-512, 0-384)</param>
+        /// <returns>Unityä¸–ç•Œç©ºé—´ä¸­çš„3Dåæ ‡</returns>
         public static Vector3 MapToWorld(Vector2 osuPos)
         {
-            // ²½Öè1£º½«osu×ø±ê¹éÒ»»¯µ½[-0.5, 0.5]·¶Î§£¨Ïà¶ÔÓÚÖĞĞÄ£©
+            // æ­¥éª¤1ï¼šå°†osuåæ ‡å½’ä¸€åŒ–åˆ°[-0.5, 0.5]èŒƒå›´ï¼ˆç›¸å¯¹äºä¸­å¿ƒï¼‰
             float normalizedX = (osuPos.x / OSURegionWidth) - 0.5f;
             float normalizedY = (osuPos.y / OSURegionHeight) - 0.5f;
 
-            // ²½Öè2£ºÓ¦ÓÃËõ·Åµ½Ä¿±ê³ß´ç
-            // ×¢Òâ£ºUnityÖĞYÖáÊÇÏòÉÏµÄ£¬ËùÒÔ±£³ÖY×ø±ê²»±ä
-            // µ«ÊÇosuµÄYÖáÊÇÏòÏÂµÄ£¬ÎÒÃÇĞèÒª·´×ªYÖá£¨ÕâÑùÏòÉÏÒÆ¶¯ÔÚUnityÖĞÒ²ÊÇÏòÉÏ£©
+            // æ­¥éª¤2ï¼šåº”ç”¨ç¼©æ”¾åˆ°ç›®æ ‡å°ºå¯¸
+            // æ³¨æ„ï¼šUnityä¸­Yè½´æ˜¯å‘ä¸Šçš„ï¼Œæ‰€ä»¥ä¿æŒYåæ ‡ä¸å˜
+            // ä½†æ˜¯osuçš„Yè½´æ˜¯å‘ä¸‹çš„ï¼Œæˆ‘ä»¬éœ€è¦åè½¬Yè½´ï¼ˆè¿™æ ·å‘ä¸Šç§»åŠ¨åœ¨Unityä¸­ä¹Ÿæ˜¯å‘ä¸Šï¼‰
             float worldX = normalizedX * TargetWidth;
-            float worldY = -normalizedY * TargetHeight; // ·´×ªYÖá
+            float worldY = -normalizedY * TargetHeight; // åè½¬Yè½´
 
-            // ²½Öè3£º½«×ø±êÆ½ÒÆµ½Ä¿±êÖĞĞÄµã
+            // æ­¥éª¤3ï¼šå°†åæ ‡å¹³ç§»åˆ°ç›®æ ‡ä¸­å¿ƒç‚¹
             Vector3 worldPosition = TargetCenter + new Vector3(worldX, worldY, 0f);
 
-            // Èç¹û¾õµÃ»¹ÒªÌ§Í·£¬¾Í¼õĞ¡Õâ¸öÖµ£»Èç¹û¾õµÃ»¹ÒªµÍÍ·£¬¾ÍÔö´óÕâ¸öÖµ
+            // å¦‚æœè§‰å¾—è¿˜è¦æŠ¬å¤´ï¼Œå°±å‡å°è¿™ä¸ªå€¼ï¼›å¦‚æœè§‰å¾—è¿˜è¦ä½å¤´ï¼Œå°±å¢å¤§è¿™ä¸ªå€¼
             worldPosition.y += 0.5f;
 
             return worldPosition;
         }
 
         /// <summary>
-        /// ÅúÁ¿Ó³Éä¶à¸öosu×ø±êµ½ÊÀ½ç×ø±ê
+        /// æ‰¹é‡æ˜ å°„å¤šä¸ªosuåæ ‡åˆ°ä¸–ç•Œåæ ‡
         /// </summary>
-        /// <param name="osuPositions">osu×ø±êÊı×é</param>
-        /// <returns>ÊÀ½ç×ø±êÊı×é</returns>
+        /// <param name="osuPositions">osuåæ ‡æ•°ç»„</param>
+        /// <returns>ä¸–ç•Œåæ ‡æ•°ç»„</returns>
         public static Vector3[] MapMultipleToWorld(Vector2[] osuPositions)
         {
             Vector3[] worldPositions = new Vector3[osuPositions.Length];
@@ -69,26 +69,26 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// »ñÈ¡Ä¿±êÆ½ÃæµÄ±ß½ç¿ò£¨ÓÃÓÚµ÷ÊÔ»òÅö×²¼ì²â£©
+        /// è·å–ç›®æ ‡å¹³é¢çš„è¾¹ç•Œæ¡†ï¼ˆç”¨äºè°ƒè¯•æˆ–ç¢°æ’æ£€æµ‹ï¼‰
         /// </summary>
-        /// <returns>Æ½ÃæÖĞĞÄ¡¢¿í¶È¡¢¸ß¶È</returns>
+        /// <returns>å¹³é¢ä¸­å¿ƒã€å®½åº¦ã€é«˜åº¦</returns>
         public static (Vector3 center, float width, float height) GetTargetPlaneInfo()
         {
             return (TargetCenter, TargetWidth, TargetHeight);
         }
 
         /// <summary>
-        /// ¼ÆËã´Óµ±Ç°Î»ÖÃµ½Ä¿±êÆ½ÃæµÄ·½ÏòÏòÁ¿£¨ÓÃÓÚÒô·ûÒÆ¶¯£©
+        /// è®¡ç®—ä»å½“å‰ä½ç½®åˆ°ç›®æ ‡å¹³é¢çš„æ–¹å‘å‘é‡ï¼ˆç”¨äºéŸ³ç¬¦ç§»åŠ¨ï¼‰
         /// </summary>
-        /// <param name="currentPosition">µ±Ç°Î»ÖÃ</param>
-        /// <returns>³¯ÏòÄ¿±êÆ½ÃæµÄ±ê×¼»¯·½Ïò</returns>
+        /// <param name="currentPosition">å½“å‰ä½ç½®</param>
+        /// <returns>æœå‘ç›®æ ‡å¹³é¢çš„æ ‡å‡†åŒ–æ–¹å‘</returns>
         public static Vector3 GetDirectionToPlane(Vector3 currentPosition)
         {
-            // ·½ÏòÊÇ´Óµ±Ç°Î»ÖÃÖ¸ÏòÄ¿±êÆ½Ãæ
+            // æ–¹å‘æ˜¯ä»å½“å‰ä½ç½®æŒ‡å‘ç›®æ ‡å¹³é¢
             Vector3 direction = TargetCenter - currentPosition;
 
-            // ±£³ÖÏàÍ¬µÄXºÍY£¬µ«Ö»¿¼ÂÇZÖá·½Ïò£¨ÈÃÒô·ûÕı¶Ô×ÅÍæ¼Ò·ÉÀ´£©
-            // Ò²¿ÉÒÔÖ±½Ó±ê×¼»¯Õû¸öÏòÁ¿
+            // ä¿æŒç›¸åŒçš„Xå’ŒYï¼Œä½†åªè€ƒè™‘Zè½´æ–¹å‘ï¼ˆè®©éŸ³ç¬¦æ­£å¯¹ç€ç©å®¶é£æ¥ï¼‰
+            // ä¹Ÿå¯ä»¥ç›´æ¥æ ‡å‡†åŒ–æ•´ä¸ªå‘é‡
             direction.Normalize();
 
             return direction;

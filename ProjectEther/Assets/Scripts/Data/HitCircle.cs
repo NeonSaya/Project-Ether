@@ -1,14 +1,14 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 namespace OsuVR
 {
     /// <summary>
-    /// ±íÊ¾Ò»¸öµã»÷Ô²È¦
+    /// è¡¨ç¤ºä¸€ä¸ªç‚¹å‡»åœ†åœˆ
     /// </summary>
     public class HitCircle : HitObject
     {
         /// <summary>
-        /// ¹¹Ôìº¯Êı
+        /// æ„é€ å‡½æ•°
         /// </summary>
         public HitCircle(double startTime, Vector2 position, bool isNewCombo, int comboOffset)
             : base(startTime, position, HitObjectType.Circle, isNewCombo, comboOffset)
@@ -16,7 +16,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// »ñÈ¡Ô²È¦µÄ´óĞ¡£¨»ùÓÚËõ·Å£©
+        /// è·å–åœ†åœˆçš„å¤§å°ï¼ˆåŸºäºç¼©æ”¾ï¼‰
         /// </summary>
         public float GetCircleSize()
         {

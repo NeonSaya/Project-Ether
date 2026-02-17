@@ -523,11 +523,17 @@ namespace OsuVR
         // =========================================================
 
         /// <summary>
-        /// 重试按钮点击：重新游玩同一张谱面
+        /// 重试按钮点击：停止音乐，重新游玩同一张谱面
         /// </summary>
         private void OnRetryClicked()
         {
             if (isAnimating) return;
+
+            // 停止跨场景音乐
+            if (MusicManager.Instance != null)
+            {
+                MusicManager.Instance.StopAndDestroy();
+            }
 
             if (GameContext.Instance != null)
             {
@@ -541,11 +547,17 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 返回菜单按钮点击：清除数据并返回选歌界面
+        /// 返回菜单按钮点击：停止音乐，清除数据，返回选歌界面
         /// </summary>
         private void OnBackToMenuClicked()
         {
             if (isAnimating) return;
+
+            // 停止跨场景音乐
+            if (MusicManager.Instance != null)
+            {
+                MusicManager.Instance.StopAndDestroy();
+            }
 
             if (GameContext.Instance != null)
             {

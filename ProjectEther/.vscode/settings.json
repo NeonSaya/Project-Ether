@@ -56,5 +56,9 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "ProjectEther.sln"
+    "dotnet.defaultSolution": "ProjectEther.sln",
+    "dotnet.enableXamlTools": false,
+    "csharp.experimental.debug.hotReload": false,
+    "dotnet.backgroundAnalysis.analyzerDiagnosticsScope": "openFiles",
+    "dotnet.backgroundAnalysis.compilerDiagnosticsScope": "openFiles"
 }

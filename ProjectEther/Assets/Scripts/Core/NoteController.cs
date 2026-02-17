@@ -47,10 +47,10 @@ namespace OsuVR
         private Renderer[] allRenderers;
         public Vector3? nextNotePosition;
 
-        // ✅ [优化] 缓存 Scaler 组件，避免每次 Initialize 都 Get
+        // [优化] 缓存 Scaler 组件，避免每次 Initialize 都 Get
         private ApproachCircleScaler cachedScaler;
 
-        // ✅ [优化] 缓存相机，杜绝 Update 里使用 Camera.main
+        // [优化] 缓存相机，杜绝 Update 里使用 Camera.main
         private static Camera _cachedMainCamera;
         private float lastDebugTime = 0f;
         // 添加一个变量来防止第一帧暴毙
