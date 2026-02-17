@@ -1921,12 +1921,13 @@ MonoBehaviour:
   isPlaying: 0
   isMusicPlaying: 0
   countdownTime: 0
+  isGameEnded: 0
   totalNotes: 0
   spawnedNotes: 0
   activeNotes: 0
   dspStartTime: 0
   gameStartDspTime: 0
-  universalOffsetMs: 15
+  universalOffsetMs: 0
 --- !u!4 &2066471133
 Transform:
   m_ObjectHideFlags: 0
