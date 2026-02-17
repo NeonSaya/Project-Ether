@@ -7,6 +7,9 @@ using UnityEngine.XR.Interaction.Toolkit;
 
 namespace OsuVR
 {
+    // [修复] 确保在 RayController 之前执行，这样手移动到位后射线检测能立即检测到
+    // RayController 默认顺序为 0，所以这里设为 -100 确保先执行
+    [DefaultExecutionOrder(-100)]
     public class AutoPlayManager : MonoBehaviour
     {
         [Header("核心引用")]
@@ -35,6 +38,9 @@ namespace OsuVR
             public Vector3 restAnchor;
 
             public List<MonoBehaviour> disabledComponents = new List<MonoBehaviour>();
+
+            // [修复] 记录已触发判定的音符，防止重复触发
+            public HashSet<HitObject> triggeredNotes = new HashSet<HitObject>();
         }
 
         private AutoHand leftHand;
@@ -108,7 +114,10 @@ namespace OsuVR
             hand.disabledComponents.Clear();
         }
 
-        void LateUpdate()
+        // [修复] 使用 Update 而不是 LateUpdate
+        // 这样手的位置会在 RayController.Update() 射线检测之前更新
+        // 确保手移动到位后能立即被检测到，不会错过判定窗口
+        void Update()
         {
             if (Camera.main != null && Camera.main.transform.localPosition.y < 0.1f && simulatedHeadHeight > 0.01f)
                 Camera.main.transform.localPosition = new Vector3(0, simulatedHeadHeight, 0);
@@ -341,6 +350,59 @@ namespace OsuVR
                 hand.transform.position = Vector3.Lerp(hand.transform.position, targetPos, Time.deltaTime * 120f);
                 hand.transform.rotation = Quaternion.Slerp(hand.transform.rotation, targetRot, Time.deltaTime * 120f);
             }
+
+            // [修复] AutoPlay 直接触发判定，确保音效播放
+            // 只有手移动到位才会触发（位置判定仍然生效）
+            TryTriggerHit(hand, time);
+        }
+
+        /// <summary>
+        /// [修复] AutoPlay 直接触发判定
+        /// 在精确的时间点直接调用 OnHit，确保音效播放
+        /// 位置判定仍然生效：只有手移动到位才会触发（因为 TryTriggerHit 在 UpdateHandMotion 之后调用）
+        /// </summary>
+        private void TryTriggerHit(AutoHand hand, double time)
+        {
+            if (hand.currentTask == null) return;
+
+            double timeUntilHit = hand.currentTask.StartTime - time;
+
+            // [修复] 扩大判定窗口到 ±50ms，确保不会因为帧率不稳定而错过判定
+ // 之前 ±5ms 太窄了
+            if (timeUntilHit >= -50 && timeUntilHit <= 50)
+            {
+                // 检查是否已经触发过
+                if (hand.triggeredNotes == null) hand.triggeredNotes = new HashSet<HitObject>();
+                if (hand.triggeredNotes.Contains(hand.currentTask)) return;
+
+                // 获取活跃对象
+                if (_activeObjectsRef == null || !_activeObjectsRef.TryGetValue(hand.currentTask, out GameObject obj) || obj == null) return;
+
+                bool isRightHand = hand.controller.isRightHand;
+
+                // HitCircle：直接调用 OnHit
+                if (hand.currentTask is HitCircle)
+                {
+                    var noteCtrl = obj.GetComponent<NoteController>();
+                    if (noteCtrl != null && !noteCtrl.hasBeenHit && noteCtrl.isActive)
+                    {
+                        hand.triggeredNotes.Add(hand.currentTask);
+                        noteCtrl.OnHit(0, isRightHand); // 0 = 完美判定
+                        Debug.Log($"[AutoPlay] 直接触发 HitCircle 判定: {hand.currentTask.StartTime}");
+                    }
+                }
+                // Slider：直接调用 TryHitHead
+                else if (hand.currentTask is SliderObject)
+                {
+                    var sliderCtrl = obj.GetComponent<SliderController>();
+                    if (sliderCtrl != null && !sliderCtrl.IsHeadHit)
+                    {
+                        hand.triggeredNotes.Add(hand.currentTask);
+                        sliderCtrl.TryHitHead(isRightHand, Vector3.zero); // 参数：(isRightHand, hitPos)
+                        Debug.Log($"[AutoPlay] 直接触发 Slider Head 判定: {hand.currentTask.StartTime}");
+                    }
+                }
+            }
         }
 
         // ==========================================
@@ -446,6 +508,10 @@ namespace OsuVR
                 _allNotes = currentNotes.OrderBy(n => n.StartTime).ToList();
                 _noteStartIndex = 0;
                 _assignedNotes.Clear(); // ✅ 铺面重置时，清空生死簿
+
+                // [修复] 谱面重置时，清空已触发判定的音符记录
+                if (leftHand != null && leftHand.triggeredNotes != null) leftHand.triggeredNotes.Clear();
+                if (rightHand != null && rightHand.triggeredNotes != null) rightHand.triggeredNotes.Clear();
             }
             if (_allNotes.Count == 0) return;
 

@@ -113,6 +113,9 @@ namespace OsuVR
         private bool headHit = false;        // 滑条头是否被击中
         private bool finished = false;       // 滑条是否结束
 
+        // [新增] 公共属性：供 AutoPlayManager 访问
+        public bool IsHeadHit => headHit;
+
         // [重构] 双手独立跟踪状态
         private bool isLeftHandTracking = false;
         private bool isRightHandTracking = false;
@@ -1311,7 +1314,12 @@ namespace OsuVR
                 return;
             }
 
-            if (offset >= -20 && offset <= 250)
+            // AutoPlay 模式：判定时间固定为 0ms，但位置判定仍然生效
+            // 正常模式：最早判定区间为 -13ms (osu! 标准的提前判定窗口)
+            bool isAutoPlay = gameManager != null && gameManager.useAutoPlay;
+            double earlyWindow = isAutoPlay ? 0 : -13;
+
+            if (offset >= earlyWindow && offset <= 250)
             {
                 // ✅ 1. 立即锁定状态，防止下一帧重复触发
                 headHit = true;
@@ -1332,8 +1340,10 @@ namespace OsuVR
                 ticksGot++;
 
                 // 3. 计算动态分数 (300/100/50)
+                // AutoPlay 模式：强制判定时间为 0ms
+                double effectiveOffset = isAutoPlay ? 0 : offset;
                 double maxWindow = 250.0;
-                double absDiff = System.Math.Abs(offset);
+                double absDiff = System.Math.Abs(effectiveOffset);
                 double accuracy01 = 1.0 - (absDiff / maxWindow);
                 accuracy01 = System.Math.Clamp(accuracy01, 0.0, 1.0);
 
@@ -1354,7 +1364,7 @@ namespace OsuVR
 
                 Debug.Log($"<color=green>Slider Head HIT!</color> Offset: {offset:F2}ms, Score: {headScore}");
             }
-            else if (offset < -20)
+            else if (offset < earlyWindow)
             {
                 // 打太早，等待
                 return;
@@ -1370,6 +1380,10 @@ namespace OsuVR
             // 0. 前置检查
             if (sliderData.NestedHitObjects == null) return;
 
+            // AutoPlay 模式判定窗口
+            bool isAutoPlay = gameManager != null && gameManager.useAutoPlay;
+            double earlyWindow = isAutoPlay ? 0 : -13;
+
             // -------------------------------------------------------------
             // 1. 头部判定 (Head)
             // -------------------------------------------------------------
@@ -1379,7 +1393,7 @@ namespace OsuVR
                 double spanDuration = (sliderData.EndTime - sliderData.StartTime) / sliderData.RepeatCount;
 
                 // 判定窗口内，且被追踪 -> 在 TryHitHead 里处理 Hit
-                if (isTracking && Mathf.Abs((float)diff) <= 250)
+                if (isTracking && diff >= earlyWindow && diff <= 250)
                 {
                     // 等待 TryHitHead 触发
                 }

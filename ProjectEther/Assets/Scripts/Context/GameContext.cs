@@ -30,6 +30,36 @@ namespace OsuVR
         public bool ShouldRetry { get; set; } = false;
 
         // =========================================================
+        // Mod 系统
+        // =========================================================
+
+        /// <summary>
+        /// 当前选中的 Mod 列表
+        /// </summary>
+        private ModSelection _selectedMods = new ModSelection();
+
+        /// <summary>
+        /// 获取当前 Mod 选择
+        /// </summary>
+        public ModSelection SelectedMods => _selectedMods;
+
+        /// <summary>
+        /// 设置 Mod 选择 (用于重试时恢复)
+        /// </summary>
+        public void SetSelectedMods(ModSelection mods)
+        {
+            _selectedMods = mods?.Clone() ?? new ModSelection();
+        }
+
+        /// <summary>
+        /// 清除 Mod 选择
+        /// </summary>
+        public void ClearMods()
+        {
+            _selectedMods.Clear();
+        }
+
+        // =========================================================
         // 场景配置
         // =========================================================
 

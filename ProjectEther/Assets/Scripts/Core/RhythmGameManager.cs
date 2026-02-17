@@ -100,25 +100,21 @@ namespace OsuVR
 
         [Header("校准设置")]
         [Tooltip("全局偏移 (毫秒)：调整音画同步。正数表示Note出现得更晚，负数表示Note出现得更早")]
-        // VR设备通常有较大的音频延迟，建议初始值设为 -50 到 -100 左右试手感
         public float universalOffsetMs = 0f;
 
-        // 内部变量，记录 Unity 音频系统的输出延迟
         private double audioSystemLatency = 0;
 
-        // 私有变量
         private List<HitObject> hitObjects = new List<HitObject>();
         private int nextNoteIndex = 0;
         private Beatmap currentBeatmap;
         private string currentBeatmapPath;
-        // 已生成音符的缓存
         private Dictionary<HitObject, GameObject> activeNoteObjects = new Dictionary<HitObject, GameObject>();
 
-        // 缓冲期开始的时间
         private double bufferStartDspTime = 0;
-
-        // 记录当前的渲染基准线
         private int currentRenderBaseline = 0;
+
+        private ModEffectsApplier modEffects;
+        private float speedMultiplier = 1f;
 
         // [新增] 1. 静态计算公式
         public static double CalculateTimePreempt(float ar)
@@ -502,10 +498,8 @@ namespace OsuVR
                 hitObjects = currentBeatmap.HitObjects;
                 totalNotes = hitObjects.Count;
 
-               
+                ApplyModEffects();
 
-
-                // 2. 颜色设置
                 if (currentBeatmap.ComboColors == null || currentBeatmap.ComboColors.Count == 0)
                 {
                     currentBeatmap.ComboColors = new List<Color> {
@@ -514,14 +508,15 @@ namespace OsuVR
                      };
                 }
 
-                // 3. 计算 AR (spawnOffsetMs)
                 if (currentBeatmap != null && currentBeatmap.Difficulty != null)
                 {
-                    spawnOffsetMs = (float)CalculateTimePreempt(currentBeatmap.Difficulty.ApproachRate);
-                    Debug.Log($"[AR System] Loaded AR: {currentBeatmap.Difficulty.ApproachRate}, TimePreempt: {spawnOffsetMs}ms");
+                    float effectiveAR = modEffects != null
+                        ? modEffects.GetModifiedAR(currentBeatmap.Difficulty.ApproachRate)
+                        : currentBeatmap.Difficulty.ApproachRate;
+                    spawnOffsetMs = (float)CalculateTimePreempt(effectiveAR);
+                    Debug.Log($"[AR System] Loaded AR: {currentBeatmap.Difficulty.ApproachRate}, Modified AR: {effectiveAR}, TimePreempt: {spawnOffsetMs}ms");
                 }
 
-                // 4. 应用 AR 到所有音符 (核心修复逻辑)
                 foreach (var obj in hitObjects)
                 {
                     if (obj.TimePreempt <= 0.1) obj.TimePreempt = spawnOffsetMs;
@@ -529,10 +524,8 @@ namespace OsuVR
 
                 Debug.Log($"✅ 谱面数据解析成功: {currentBeatmap.Metadata.Title}");
 
-                // 5. 动态加载音频
-                // 获取音频文件的绝对路径
                 string folderPath = Path.GetDirectoryName(absoluteOsuFilePath);
-                string audioFileName = currentBeatmap.General.AudioFilename.Trim(); // 去除可能的首尾空格
+                string audioFileName = currentBeatmap.General.AudioFilename.Trim();
                 string audioPath = Path.Combine(folderPath, audioFileName);
 
                 if (AudioManager.Instance != null)
@@ -584,24 +577,25 @@ namespace OsuVR
                         clip.name = Path.GetFileName(audioPath);
                         clip.LoadAudioData();
                         musicSource.clip = clip;
-                        musicClip = clip; // 同步引用
+                        musicClip = clip;
 
                         Debug.Log("[Audio] 正在预热音频引擎...");
 
-                        musicSource.volume = 0; // 静音
-                        musicSource.Play();     // 播放
+                        musicSource.pitch = speedMultiplier;
+                        Debug.Log($"[Mod] 音频速度设置为: {speedMultiplier}x");
 
-                        // 让它空转 2 帧 (确保音频线程被唤醒)
+                        musicSource.volume = 0;
+                        musicSource.Play();
+
                         yield return null;
                         yield return null;
 
-                        musicSource.Stop();     // 停止
-                        musicSource.time = 0;   // 倒带回开头
-                        musicSource.volume = 1; // 恢复音量
+                        musicSource.Stop();
+                        musicSource.time = 0;
+                        musicSource.volume = 1;
 
                         Debug.Log($"[Audio] 预热完成: {clip.name} ({clip.length:F1}s)");
 
-                        // 音频加载好后，自动开始游戏
                         StartGame();
                     }
                     else
@@ -611,6 +605,40 @@ namespace OsuVR
                     }
                 }
             }
+        }
+
+        private void ApplyModEffects()
+        {
+            if (GameContext.Instance != null && GameContext.Instance.SelectedMods != null)
+            {
+                modEffects = new ModEffectsApplier(GameContext.Instance.SelectedMods);
+                speedMultiplier = modEffects.SpeedMultiplier;
+
+                if (scoreManager != null)
+                {
+                    scoreManager.SetModsFromSelection(GameContext.Instance.SelectedMods);
+                }
+
+                useAutoPlay = modEffects.IsAutoPlay;
+
+                Debug.Log($"[Mod] 已应用 Mod 效果: {modEffects.GetModString()}");
+                Debug.Log($"[Mod] 速度倍率: {speedMultiplier}x, 分数倍率: {modEffects.ScoreMultiplier}x");
+                Debug.Log($"[Mod] AutoPlay: {useAutoPlay}, SuddenDeath: {modEffects.IsSuddenDeath}, Perfect: {modEffects.IsPerfect}");
+            }
+            else
+            {
+                modEffects = null;
+                speedMultiplier = 1f;
+                if (scoreManager != null)
+                {
+                    scoreManager.SetModsFromSelection(null);
+                }
+            }
+        }
+
+        public ModEffectsApplier GetModEffects()
+        {
+            return modEffects;
         }
 
         /// <summary>

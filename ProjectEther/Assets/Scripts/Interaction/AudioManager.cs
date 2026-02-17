@@ -374,12 +374,21 @@ namespace OsuVR
 
         private void PlayOneShot(AudioClip clip, float vol)
         {
+            // [修复] 找一个空闲的 AudioSource，如果找不到就创建新的
             var src = oneShotPool.Find(s => !s.isPlaying);
-            if (src != null)
+            if (src == null)
             {
-                src.volume = vol;
-                src.PlayOneShot(clip);
+                // 池用完了，动态创建新的 AudioSource
+                var go = new GameObject("SFX_OneShot_Dynamic_" + oneShotPool.Count);
+                go.transform.SetParent(transform);
+                src = go.AddComponent<AudioSource>();
+                src.playOnAwake = false;
+                src.spatialBlend = 0;
+                oneShotPool.Add(src);
+                Debug.LogWarning($"[Audio] 音效池已满，动态创建新的 AudioSource，当前池大小: {oneShotPool.Count}");
             }
+            src.volume = vol;
+            src.PlayOneShot(clip);
         }
     }
 }

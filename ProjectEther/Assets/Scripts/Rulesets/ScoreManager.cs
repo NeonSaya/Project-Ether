@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -96,6 +96,12 @@ namespace OsuVR
         private bool _isDoubleTime = false;             // 加速
         private bool _isHalfTime = false;               // 减速
         private bool _isHidden = false;                 // 隐藏音符
+        private bool _isSuddenDeath = false;            // 突然死亡
+        private bool _isPerfect = false;                // 完美判定
+        private bool _isEasy = false;                   // 简单模式
+
+        private ModEffectsApplier _modEffects;          // Mod 效果应用器
+        private float _scoreMultiplier = 1f;            // 分数倍率
 
         void Start()
         {
@@ -207,14 +213,8 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 设置当前使用的 Mod
+        /// 设置当前使用的 Mod (旧版兼容接口)
         /// </summary>
-        /// <param name="autoPlay">AutoPlay (自动游玩)</param>
-        /// <param name="relax">Relax (默认模式，无需点击)</param>
-        /// <param name="hardRock">HardRock (增加难度)</param>
-        /// <param name="doubleTime">DoubleTime (加速)</param>
-        /// <param name="halfTime">HalfTime (减速)</param>
-        /// <param name="hidden">Hidden (隐藏音符)</param>
         public void SetMods(bool autoPlay, bool relax, bool hardRock, bool doubleTime, bool halfTime, bool hidden)
         {
             _isAutoPlay = autoPlay;
@@ -223,6 +223,63 @@ namespace OsuVR
             _isDoubleTime = doubleTime;
             _isHalfTime = halfTime;
             _isHidden = hidden;
+        }
+
+        /// <summary>
+        /// 设置当前使用的 Mod (新版接口，使用 ModSelection)
+        /// </summary>
+        public void SetModsFromSelection(ModSelection selection)
+        {
+            if (selection == null)
+            {
+                _isAutoPlay = false;
+                _isHardRock = false;
+                _isDoubleTime = false;
+                _isHalfTime = false;
+                _isHidden = false;
+                _isSuddenDeath = false;
+                _isPerfect = false;
+                _isEasy = false;
+                _scoreMultiplier = 1f;
+                _modEffects = null;
+                return;
+            }
+
+            _isAutoPlay = selection.HasMod(ModType.Auto);
+            _isHardRock = selection.HasMod(ModType.HardRock);
+            _isEasy = selection.HasMod(ModType.Easy);
+            _isDoubleTime = selection.HasMod(ModType.DoubleTime);
+            _isHalfTime = selection.HasMod(ModType.HalfTime);
+            _isHidden = selection.HasMod(ModType.Hidden);
+            _isSuddenDeath = selection.HasMod(ModType.SuddenDeath);
+            _isPerfect = selection.HasMod(ModType.Perfect);
+
+            _modEffects = new ModEffectsApplier(selection);
+            _scoreMultiplier = _modEffects.ScoreMultiplier;
+        }
+
+        /// <summary>
+        /// 获取 Mod 效果应用器
+        /// </summary>
+        public ModEffectsApplier GetModEffects()
+        {
+            return _modEffects;
+        }
+
+        /// <summary>
+        /// 检查是否应该因为 Miss 而失败 (SD/PF)
+        /// </summary>
+        public bool ShouldFailOnMiss()
+        {
+            return _isSuddenDeath || _isPerfect;
+        }
+
+        /// <summary>
+        /// 检查是否应该因为非300判定而失败 (PF)
+        /// </summary>
+        public bool ShouldFailOnNon300()
+        {
+            return _isPerfect;
         }
 
 
@@ -343,33 +400,23 @@ namespace OsuVR
         /// </summary>
         private void ComputeScore()
         {
-            // A. 计算当前准确率 (Accuracy)
-            // 源码: currentBaseScore / currentMaximumBaseScore
             double accuracy = 1.0;
             if (_currentMaxBaseScore > 0)
                 accuracy = _currentBaseScore / _currentMaxBaseScore;
 
-            // B. 计算 Combo 进度 (Combo Progress)
-            // 源码: currentComboPortion / maximumComboPortion
             double comboProgress = 0;
             if (_maxComboPortionTotal > 0)
                 comboProgress = _currentComboPortion / _maxComboPortionTotal;
 
-            // C. 计算歌曲进度 (Accuracy Progress)
-            // 源码: currentAccuracyJudgementCount / maximumAccuracyJudgementCount
             double accuracyProgress = 0;
             if (_totalMapJudgements > 0)
                 accuracyProgress = (double)_totalHitsPerformed / _totalMapJudgements;
 
-            // D. 套用 Lazer 终极公式 (第 225 行)
-            // Total = (50万 * Acc * ComboProg) + (50万 * Acc^5 * AccProg) + Bonus
             double part1 = 500000 * accuracy * comboProgress;
             double part2 = 500000 * Math.Pow(accuracy, 5) * accuracyProgress;
 
             _finalScore = part1 + part2 + _currentBonusScore;
 
-            // 修正：当所有判定完成时，确保分数精确为整数
-            // 防止浮点精度问题导致满分不是 1000000
             if (_totalHitsPerformed >= _totalMapJudgements && _totalMapJudgements > 0)
             {
                 _finalScore = Math.Round(_finalScore);
@@ -382,25 +429,30 @@ namespace OsuVR
         }
 
         /// <summary>
+        /// 获取应用 Mod 倍率后的最终分数
+        /// </summary>
+        public long GetFinalScoreWithMultiplier()
+        {
+            return (long)Math.Round(_finalScore * _scoreMultiplier);
+        }
+
+        /// <summary>
         /// 获取结算数据：生成完整的成绩信息用于结算界面显示
         /// </summary>
-        /// <returns>包含所有成绩数据的 ResultData 对象</returns>
         public ResultData GetResultData()
         {
-            // 计算最终准确率
             double accuracy = 1.0;
             if (_currentMaxBaseScore > 0)
                 accuracy = _currentBaseScore / _currentMaxBaseScore;
 
-            // 判断是否全连 / 完美游玩
             bool isFullCombo = _hitMiss == 0;
             bool isPerfectPlay = isFullCombo && _hit300 == _totalNoteCount && _hit100 == 0 && _hit50 == 0;
 
-            // 计算评级
             string rank = ResultData.CalculateRank(accuracy, isPerfectPlay, isFullCombo);
 
-            // 构建 Mod 字符串
             string modString = BuildModString();
+
+            long finalScore = GetFinalScoreWithMultiplier();
 
             return new ResultData
             {
@@ -408,7 +460,7 @@ namespace OsuVR
                 songArtist = _songArtist,
                 difficultyName = _difficultyName,
                 mapperName = _mapperName,
-                finalScore = (long)_finalScore,
+                finalScore = finalScore,
                 accuracy = accuracy,
                 maxCombo = _maxComboReached,
                 isFullCombo = isFullCombo,
@@ -442,7 +494,10 @@ namespace OsuVR
             var mods = new System.Text.StringBuilder();
 
             if (_isAutoPlay) mods.Append("AT ");
+            if (_isEasy) mods.Append("EZ ");
             if (_isHardRock) mods.Append("HR ");
+            if (_isSuddenDeath) mods.Append("SD ");
+            if (_isPerfect) mods.Append("PF ");
             if (_isDoubleTime) mods.Append("DT ");
             if (_isHalfTime) mods.Append("HT ");
             if (_isHidden) mods.Append("HD ");

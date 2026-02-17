@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using TMPro;
@@ -209,7 +209,11 @@ namespace OsuVR
         {
             isAnimating = true;
 
-            // 1. 初始化面板状态
+            // 1. [修复] 先清空占位符，再显示面板
+            // 这样就不会看到原来的占位符
+            ResetPlaceholders();
+
+            // 2. 初始化面板状态
             if (resultPanel != null)
             {
                 resultPanel.SetActive(true);
@@ -223,7 +227,7 @@ namespace OsuVR
 
             PlaySound(resultAppearSound);
 
-            // 2. 面板淡入 + 缩放动画
+            // 3. 面板淡入 + 缩放动画
             float elapsed = 0f;
             while (elapsed < fadeDuration)
             {
@@ -244,12 +248,9 @@ namespace OsuVR
             if (resultPanel != null)
                 resultPanel.transform.localScale = originalPanelScale;
 
-            // 3. 设置歌曲信息
+            // 4. 设置歌曲信息
             SetSongInfo(result);
             SetModDisplay(result);
-
-            // 4. 初始化占位符 (分数、准确率、连击、评级)
-            ResetPlaceholders();
 
             // 5. 分数滚动动画
             yield return StartCoroutine(AnimateScore(result));

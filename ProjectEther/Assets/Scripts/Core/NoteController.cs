@@ -504,21 +504,27 @@ namespace OsuVR
             }
 
             // --- HIT 判定 ---
-            // 条件1: diff >= -20 (缩圈几乎重合，只允许提前20ms)
+            // AutoPlay 模式：判定时间固定为 0ms，但位置判定仍然生效
+            // 正常模式：最早判定区间为 -13ms (osu! 标准的提前判定窗口)
+            bool isAutoPlay = gameManager.useAutoPlay;
+            double earlyWindow = isAutoPlay ? 0 : -13;  // AutoPlay 精确 0ms，正常模式允许提前 13ms
+
+            // 条件1: diff >= earlyWindow (缩圈几乎重合)
             // 条件2: diff <= hitWindow (允许延迟 hitWindow 毫秒)
             // 条件3: isHovered (被射线指着)
-            if (diff >= -20 && diff <= hitWindow)
+            if (diff >= earlyWindow && diff <= hitWindow)
             {
                 if (isHovered) 
                 {
                     Debug.Log($"[Check] Diff: {diff:F2} | Window: {hitWindow}");
-                    OnHit(diff, hoveringHandIsRight);
+                    // AutoPlay 模式：强制判定时间为 0ms
+                    double hitAccuracy = isAutoPlay ? 0 : diff;
+                    OnHit(hitAccuracy, hoveringHandIsRight);
                 }
             }
             // --- 保护逻辑 ---
-            // 如果 diff < -20 (打太早了)，直接 return，什么都不做
-            // 这样玩家手放在那里不动，也不会触发 Miss，直到缩圈到位自动触发 Hit
-            else if (diff < -20)
+            // 如果 diff < earlyWindow (打太早了)，直接 return，什么都不做
+            else if (diff < earlyWindow)
             {
                 return;
             }
