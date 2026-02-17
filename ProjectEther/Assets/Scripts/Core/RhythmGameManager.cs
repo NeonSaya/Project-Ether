@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -79,6 +79,9 @@ namespace OsuVR
         [Tooltip("倒计时时间（秒），负数表示游戏未开始")]
         public double countdownTime = 0;
 
+        [Tooltip("游戏是否已结束")]
+        public bool isGameEnded = false;
+
         [Header("调试信息")]
         [SerializeField]
         private int totalNotes = 0;
@@ -107,6 +110,7 @@ namespace OsuVR
         private List<HitObject> hitObjects = new List<HitObject>();
         private int nextNoteIndex = 0;
         private Beatmap currentBeatmap;
+        private string currentBeatmapPath;
         // 已生成音符的缓存
         private Dictionary<HitObject, GameObject> activeNoteObjects = new Dictionary<HitObject, GameObject>();
 
@@ -252,10 +256,89 @@ namespace OsuVR
             if (isPlaying)
             {
                 SpawnNotes();
+                CheckGameEnd();
             }
 
             // 更新调试信息
             UpdateDebugInfo();
+        }
+
+        /// <summary>
+        /// 检查游戏是否结束
+        /// 条件：所有音符已判定完成（与原版 osu! 一致）
+        /// </summary>
+        private void CheckGameEnd()
+        {
+            if (isGameEnded) return;
+
+            // 所有音符已生成且已判定 = 游戏结束
+            // 不需要等歌曲播放完毕，打完最后一个note就结算
+            bool allNotesProcessed = nextNoteIndex >= hitObjects.Count;
+            bool allNotesCleared = activeNotes == 0;
+
+            if (allNotesProcessed && allNotesCleared)
+            {
+                StartCoroutine(EndGameCoroutine());
+            }
+        }
+
+        /// <summary>
+        /// 结束游戏协程：等待2秒后跳转结算场景
+        /// 音乐继续播放，保持余韵感
+        /// </summary>
+        private IEnumerator EndGameCoroutine()
+        {
+            if (isGameEnded) yield break;
+
+            isGameEnded = true;
+            // 注意：不设置 isPlaying = false，让音乐继续播放
+
+            Debug.Log("[RhythmGame] 游戏结束！等待2秒后显示结算...");
+
+            // 等待2秒，让玩家有余韵感
+            yield return new WaitForSeconds(2f);
+
+            // 让音乐跨场景继续播放
+            if (musicSource != null && musicSource.isPlaying)
+            {
+                if (MusicManager.Instance != null)
+                {
+                    MusicManager.Instance.SetAudioSource(musicSource);
+                    MusicManager.Instance.SetPersist(true);
+                }
+            }
+
+            if (scoreManager != null && currentBeatmap != null)
+            {
+                // 设置谱面信息
+                scoreManager.SetBeatmapInfo(
+                    currentBeatmap.Metadata?.Title,
+                    currentBeatmap.Metadata?.Artist,
+                    currentBeatmap.Metadata?.Version,
+                    currentBeatmap.Metadata?.Creator
+                );
+
+                // 设置 Mod (Relax 为默认模式)
+                scoreManager.SetMods(useAutoPlay, true, false, false, false, false);
+
+                // 获取结算数据
+                ResultData result = scoreManager.GetResultData();
+
+                // 保存到全局上下文 (用于结算场景显示和重试)
+                if (GameContext.Instance != null)
+                {
+                    GameContext.Instance.LastResult = result;
+                    GameContext.Instance.CurrentBeatmapPath = currentBeatmapPath;
+
+                    // 跳转到结算场景
+                    UnityEngine.SceneManagement.SceneManager.LoadScene(GameContext.Instance.ResultSceneName);
+                }
+                else
+                {
+                    Debug.LogWarning("[RhythmGame] GameContext 未找到，无法跳转到结算场景");
+                    Debug.Log($"[Result] 分数: {result.finalScore}, 准确率: {result.accuracy * 100:F2}%, 最大连击: {result.maxCombo}, 评级: {result.rank}");
+                }
+            }
         }
 
         /// <summary>
@@ -413,6 +496,7 @@ namespace OsuVR
             try
             {
                 currentBeatmap = OsuParser.Parse(absoluteOsuFilePath);
+                currentBeatmapPath = absoluteOsuFilePath;
                 StackingProcessor.ApplyStacking(currentBeatmap);
 
                 hitObjects = currentBeatmap.HitObjects;
