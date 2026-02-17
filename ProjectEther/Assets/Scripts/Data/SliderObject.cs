@@ -1,10 +1,10 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
 namespace OsuVR
 {
-    // [ĞÂÔö] ¶¨Òå»¬ÌõÄÚ²¿µÄÊÂ¼şÀàĞÍ
+    // [æ–°å¢] å®šä¹‰æ»‘æ¡å†…éƒ¨çš„äº‹ä»¶ç±»å‹
     public enum SliderEventType
     {
         Tick,
@@ -12,36 +12,36 @@ namespace OsuVR
         Tail
     }
 
-    // [ĞÂÔö] »¬ÌõÇ¶Ì×Îï¼ş£¨´ú±í»¬Ìõ¹ı³ÌÖĞµÄÃ¿Ò»¸öÅĞ¶¨µã£©
+    // [æ–°å¢] æ»‘æ¡åµŒå¥—ç‰©ä»¶ï¼ˆä»£è¡¨æ»‘æ¡è¿‡ç¨‹ä¸­çš„æ¯ä¸€ä¸ªåˆ¤å®šç‚¹ï¼‰
     public class SliderNestedObject
     {
-        public double Time;          // ÅĞ¶¨Ê±¼ä
-        public Vector2 Position;     // ÅĞ¶¨·¢ÉúÊ±µÄÇòÎ»ÖÃ£¨Ïà¶Ô×ø±ê£©
-        public SliderEventType Type; // ÀàĞÍ
-        public int SpanIndex;        // ÊôÓÚµÚ¼¸¸ö¿ç¶È
-        public bool IsHit;           // ÊÇ·ñÒÑ»÷ÖĞ£¨ÔËĞĞÊ±×´Ì¬£©
-        public bool IsTimeFixed;    // Ê±¼äÊÇ·ñÒÑËø¶¨£¨·ÀÖ¹ÖØ¸´¼ÆËã£©
+        public double Time;          // åˆ¤å®šæ—¶é—´
+        public Vector2 Position;     // åˆ¤å®šå‘ç”Ÿæ—¶çš„çƒä½ç½®ï¼ˆç›¸å¯¹åæ ‡ï¼‰
+        public SliderEventType Type; // ç±»å‹
+        public int SpanIndex;        // å±äºç¬¬å‡ ä¸ªè·¨åº¦
+        public bool IsHit;           // æ˜¯å¦å·²å‡»ä¸­ï¼ˆè¿è¡Œæ—¶çŠ¶æ€ï¼‰
+        public bool IsTimeFixed;    // æ—¶é—´æ˜¯å¦å·²é”å®šï¼ˆé˜²æ­¢é‡å¤è®¡ç®—ï¼‰
     }
     /// <summary>
-    /// ±íÊ¾Ò»¸ö»¬Ìõ»÷´ò¶ÔÏó
+    /// è¡¨ç¤ºä¸€ä¸ªæ»‘æ¡å‡»æ‰“å¯¹è±¡
     /// </summary>
     public class SliderObject : HitObject
     {
-        #region ºËĞÄÊôĞÔ
+        #region æ ¸å¿ƒå±æ€§
 
         /// <summary>
-        /// »¬ÌõµÄÇúÏßÀàĞÍ (Bezier, Linear, Perfect, Catmull)
+        /// æ»‘æ¡çš„æ›²çº¿ç±»å‹ (Bezier, Linear, Perfect, Catmull)
         /// </summary>
         public CurveType CurveType { get; set; }
 
         /// <summary>
-        /// ¶¨ÒåÇúÏßµÄÔ­Ê¼¿ØÖÆµã£¨Ïà¶ÔÓÚ»¬ÌõÆğµã Position£©
+        /// å®šä¹‰æ›²çº¿çš„åŸå§‹æ§åˆ¶ç‚¹ï¼ˆç›¸å¯¹äºæ»‘æ¡èµ·ç‚¹ Positionï¼‰
         /// </summary>
         public List<Vector2> ControlPoints { get; set; }
 
         private List<Vector2> _pathPoints;
         /// <summary>
-        /// ¼ÆËãºóµÄÕæÊµÂ·¾¶µã£¨Ïà¶ÔÓÚ»¬ÌõÆğµã Position£©
+        /// è®¡ç®—åçš„çœŸå®è·¯å¾„ç‚¹ï¼ˆç›¸å¯¹äºæ»‘æ¡èµ·ç‚¹ Positionï¼‰
         /// </summary>
         public List<Vector2> PathPoints
         {
@@ -49,34 +49,34 @@ namespace OsuVR
             set
             {
                 _pathPoints = value;
-                // µ±Â·¾¶¸üĞÂÊ±£¬ÖØĞÂ¼ÆËã³¤¶È»º´æºÍ½áÊøÎ»ÖÃ
+                // å½“è·¯å¾„æ›´æ–°æ—¶ï¼Œé‡æ–°è®¡ç®—é•¿åº¦ç¼“å­˜å’Œç»“æŸä½ç½®
                 RecalculatePathCache();
                 _endPositionCache = null; 
             }
         }
 
         /// <summary>
-        /// »¬Ìõ×Ü¿çÊı£¨¼´ osu! ÖĞµÄ repeat count£¬1=µ¥´Î£¬2=Íù·µ£©
+        /// æ»‘æ¡æ€»è·¨æ•°ï¼ˆå³ osu! ä¸­çš„ repeat countï¼Œ1=å•æ¬¡ï¼Œ2=å¾€è¿”ï¼‰
         /// </summary>
         public int RepeatCount { get; set; }
 
         /// <summary>
-        /// ÎªÁË´úÂë¿É¶ÁĞÔ£¬Ìá¹© SpanCount ±ğÃû
+        /// ä¸ºäº†ä»£ç å¯è¯»æ€§ï¼Œæä¾› SpanCount åˆ«å
         /// </summary>
         public int SpanCount => RepeatCount;
 
         /// <summary>
-        /// »¬ÌõÔ¤ÆÚµÄÏñËØ³¤¶È
+        /// æ»‘æ¡é¢„æœŸçš„åƒç´ é•¿åº¦
         /// </summary>
         public double PixelLength { get; set; }
 
         /// <summary>
-        /// »¬Ìõ³ÖĞøÊ±¼ä£¨ºÁÃë£©
+        /// æ»‘æ¡æŒç»­æ—¶é—´ï¼ˆæ¯«ç§’ï¼‰
         /// </summary>
         public double Duration { get; set; }
 
         /// <summary>
-        /// »¬Ìõ½áÊøÊ±¼ä
+        /// æ»‘æ¡ç»“æŸæ—¶é—´
         /// </summary>
         public double EndTime
         {
@@ -85,29 +85,29 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// »¬ÌõËÙ¶È£¨osu! ÏñËØ/ºÁÃë£©£¬ÓÃÓÚÄÑ¶È¼ÆËã
+        /// æ»‘æ¡é€Ÿåº¦ï¼ˆosu! åƒç´ /æ¯«ç§’ï¼‰ï¼Œç”¨äºéš¾åº¦è®¡ç®—
         /// </summary>
         public double Velocity { get; set; } = 1.0;
 
-        // [ĞÂÔö] ´æ´¢ËùÓĞ Tick (¼ì²éµã) µÄÊ±¼ä
+        // [æ–°å¢] å­˜å‚¨æ‰€æœ‰ Tick (æ£€æŸ¥ç‚¹) çš„æ—¶é—´
         public List<SliderNestedObject> NestedHitObjects { get; private set; } = new List<SliderNestedObject>();
 
         /// <summary>
-        /// »¬Ìõ½ÚµãµÄÒôĞ§ÁĞ±í [½ÚµãË÷Òı][ÒôĞ§ÁĞ±í]
+        /// æ»‘æ¡èŠ‚ç‚¹çš„éŸ³æ•ˆåˆ—è¡¨ [èŠ‚ç‚¹ç´¢å¼•][éŸ³æ•ˆåˆ—è¡¨]
         /// </summary>
         public List<List<HitSampleInfo>> NodeSamples { get; set; } = new List<List<HitSampleInfo>>();
 
         #endregion
 
-        #region »º´æÓë¼ÆËãÊôĞÔ
+        #region ç¼“å­˜ä¸è®¡ç®—å±æ€§
 
         private Vector2? _endPositionCache;
-        // Ô¤¼ÆËãµÄÂ·¾¶ÀÛ¼Æ³¤¶È£¬ÓÃÓÚ¶ş·Ö²éÕÒÎ»ÖÃ
+        // é¢„è®¡ç®—çš„è·¯å¾„ç´¯è®¡é•¿åº¦ï¼Œç”¨äºäºŒåˆ†æŸ¥æ‰¾ä½ç½®
         private float[] _cumulativeLengths;
         private float _totalPathDistance;
 
         /// <summary>
-        /// »ñÈ¡»¬Ìõ×îÖÕµÄ½áÊøÎ»ÖÃ£¨¿¼ÂÇÁËÕÛ·µ£©
+        /// è·å–æ»‘æ¡æœ€ç»ˆçš„ç»“æŸä½ç½®ï¼ˆè€ƒè™‘äº†æŠ˜è¿”ï¼‰
         /// </summary>
         public override Vector2 EndPosition
         {
@@ -123,10 +123,10 @@ namespace OsuVR
 
         #endregion
 
-        #region ¹¹Ôìº¯Êı
+        #region æ„é€ å‡½æ•°
 
         /// <summary>
-        /// ¹¹Ôìº¯Êı
+        /// æ„é€ å‡½æ•°
         /// </summary>
         public SliderObject(
             double startTime,
@@ -145,7 +145,7 @@ namespace OsuVR
             PixelLength = pixelLength;
             NodeSamples = new List<List<HitSampleInfo>>();
 
-            // È·±£¿ØÖÆµãÁĞ±íÖĞ°üº¬Æğµã£¨0,0£©
+            // ç¡®ä¿æ§åˆ¶ç‚¹åˆ—è¡¨ä¸­åŒ…å«èµ·ç‚¹ï¼ˆ0,0ï¼‰
             if (ControlPoints.Count == 0 || ControlPoints[0] != Vector2.zero)
             {
                 ControlPoints.Insert(0, Vector2.zero);
@@ -154,10 +154,10 @@ namespace OsuVR
 
         #endregion
 
-        #region ºËĞÄÂß¼­
+        #region æ ¸å¿ƒé€»è¾‘
 
         /// <summary>
-        /// ÖØĞÂ¼ÆËãÂ·¾¶³¤¶È»º´æ
+        /// é‡æ–°è®¡ç®—è·¯å¾„é•¿åº¦ç¼“å­˜
         /// </summary>
         private void RecalculatePathCache()
         {
@@ -182,23 +182,23 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ¼ÆËã»¬Ìõ½áÊøÊ±µÄÊÀ½ç×ø±ê£¨¿¼ÂÇÕÛ·µ£©
+        /// è®¡ç®—æ»‘æ¡ç»“æŸæ—¶çš„ä¸–ç•Œåæ ‡ï¼ˆè€ƒè™‘æŠ˜è¿”ï¼‰
         /// </summary>
         private Vector2 CalculateEndPosition()
         {
-            // Èç¹ûÃ»ÓĞÂ·¾¶µã£¬»ØÍËµ½Æğµã
+            // å¦‚æœæ²¡æœ‰è·¯å¾„ç‚¹ï¼Œå›é€€åˆ°èµ·ç‚¹
             if (_pathPoints == null || _pathPoints.Count == 0)
                 return Position;
 
-            // »ñÈ¡µ¥´ÎÂ·¾¶µÄÖÕµã£¨Ïà¶ÔÓÚ Position£©
+            // è·å–å•æ¬¡è·¯å¾„çš„ç»ˆç‚¹ï¼ˆç›¸å¯¹äº Positionï¼‰
             Vector2 pathEnd = _pathPoints[_pathPoints.Count - 1];
 
-            // Å¼Êı´Î¿çÔ½ (A->B->A)£¬ÖÕµãÔÚÆğµã
+            // å¶æ•°æ¬¡è·¨è¶Š (A->B->A)ï¼Œç»ˆç‚¹åœ¨èµ·ç‚¹
             if (SpanCount % 2 == 0)
             {
                 return Position;
             }
-            // ÆæÊı´Î¿çÔ½ (A->B)£¬ÖÕµãÔÚÂ·¾¶Ä©¶Ë
+            // å¥‡æ•°æ¬¡è·¨è¶Š (A->B)ï¼Œç»ˆç‚¹åœ¨è·¯å¾„æœ«ç«¯
             else
             {
                 return Position + pathEnd;
@@ -206,40 +206,40 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// »ñÈ¡»¬ÌõÔÚÖ¸¶¨½ø¶ÈµÄÎ»ÖÃ£¨»ùÓÚÕæÊµ¼ÆËãÂ·¾¶£©
+        /// è·å–æ»‘æ¡åœ¨æŒ‡å®šè¿›åº¦çš„ä½ç½®ï¼ˆåŸºäºçœŸå®è®¡ç®—è·¯å¾„ï¼‰
         /// </summary>
-        /// <param name="progress">×ÜÌå½ø¶È (0-1)£¬°üº¬ËùÓĞÕÛ·µ</param>
+        /// <param name="progress">æ€»ä½“è¿›åº¦ (0-1)ï¼ŒåŒ…å«æ‰€æœ‰æŠ˜è¿”</param>
         public Vector2 GetPositionAtProgress(double progress)
         {
             if (_pathPoints == null || _pathPoints.Count == 0) return Position;
             if (_pathPoints.Count == 1) return Position + _pathPoints[0];
 
-            // 1. ¼ÆËãµ±Ç°¿çÄÚµÄ½ø¶È (0~1)
+            // 1. è®¡ç®—å½“å‰è·¨å†…çš„è¿›åº¦ (0~1)
             double spanFullProgress = progress * SpanCount;
             int currentSpanIndex = (int)spanFullProgress;
             double currentSpanProgress = spanFullProgress - currentSpanIndex;
 
-            // ±ß½ç´¦Àí£ºÕıºÃ½áÊøÊ±
+            // è¾¹ç•Œå¤„ç†ï¼šæ­£å¥½ç»“æŸæ—¶
             if (currentSpanIndex >= SpanCount)
             {
                 currentSpanIndex = SpanCount - 1;
                 currentSpanProgress = 1.0;
             }
 
-            // 2. ´¦ÀíÕÛ·µ (ÆæÊı¿ç¶È A<-B ĞèÒª·´×ª½ø¶È)
+            // 2. å¤„ç†æŠ˜è¿” (å¥‡æ•°è·¨åº¦ A<-B éœ€è¦åè½¬è¿›åº¦)
             if (currentSpanIndex % 2 != 0)
             {
                 currentSpanProgress = 1.0 - currentSpanProgress;
             }
 
-            // 3. ÔÚÂ·¾¶ÉÏ²éÕÒÎ»ÖÃ
+            // 3. åœ¨è·¯å¾„ä¸ŠæŸ¥æ‰¾ä½ç½®
             return Position + GetPositionOnPath((float)currentSpanProgress);
         }
 
         /// <summary>
-        /// ÔÚµ¥´ÎÂ·¾¶ÉÏ²éÕÒÎ»ÖÃ (Ê¹ÓÃ¶ş·Ö²éÕÒÓÅ»¯)
+        /// åœ¨å•æ¬¡è·¯å¾„ä¸ŠæŸ¥æ‰¾ä½ç½® (ä½¿ç”¨äºŒåˆ†æŸ¥æ‰¾ä¼˜åŒ–)
         /// </summary>
-        /// <param name="t">µ¥´ÎÂ·¾¶½ø¶È (0-1)</param>
+        /// <param name="t">å•æ¬¡è·¯å¾„è¿›åº¦ (0-1)</param>
         public Vector2 GetPositionOnPath(float t)
         {
             if (_cumulativeLengths == null || _cumulativeLengths.Length == 0) return _pathPoints[0];
@@ -247,15 +247,15 @@ namespace OsuVR
             t = Mathf.Clamp01(t);
             float targetDist = t * _totalPathDistance;
 
-            // ¶ş·Ö²éÕÒ
+            // äºŒåˆ†æŸ¥æ‰¾
             int index = System.Array.BinarySearch(_cumulativeLengths, targetDist);
-            if (index < 0) index = ~index; // »ñÈ¡²åÈëµã
+            if (index < 0) index = ~index; // è·å–æ’å…¥ç‚¹
 
-            // ´¦Àí±ß½ç
+            // å¤„ç†è¾¹ç•Œ
             if (index <= 0) return _pathPoints[0];
             if (index >= _cumulativeLengths.Length) return _pathPoints[_pathPoints.Count - 1];
 
-            // ÔÚ index-1 ºÍ index Ö®¼ä²åÖµ
+            // åœ¨ index-1 å’Œ index ä¹‹é—´æ’å€¼
             int iA = index - 1;
             int iB = index;
             
@@ -272,27 +272,27 @@ namespace OsuVR
         #endregion
 
         /// <summary>
-        /// ¸üĞÂ Combo ĞÅÏ¢ (ÀıÈç¶Ñµş´¦Àí)
+        /// æ›´æ–° Combo ä¿¡æ¯ (ä¾‹å¦‚å †å å¤„ç†)
         /// </summary>
         public void UpdateComboInformation(HitObject previousObject)
         {
-            // ÕâÀï¿ÉÒÔÊµÏÖ osu! µÄ¶ÑµşÂß¼­ (Stacking)
-            // ĞèÒªÅĞ¶ÏÎ»ÖÃÊÇ·ñÖØµş¡¢Ê±¼ä¼ä¸ôÊÇ·ñ×ã¹»Ğ¡
-            // Èç¹ûÖØµş£¬Ôö¼Ó StackHeight
+            // è¿™é‡Œå¯ä»¥å®ç° osu! çš„å †å é€»è¾‘ (Stacking)
+            // éœ€è¦åˆ¤æ–­ä½ç½®æ˜¯å¦é‡å ã€æ—¶é—´é—´éš”æ˜¯å¦è¶³å¤Ÿå°
+            // å¦‚æœé‡å ï¼Œå¢åŠ  StackHeight
         }
         /// <summary>
-        /// [ºËĞÄÖØĞ´] °´ÕÕ osu! Âß¼­Éú³ÉËùÓĞÇ¶Ì×ÅĞ¶¨Îï¼ş (Ticks, Repeats, Tail)
+        /// [æ ¸å¿ƒé‡å†™] æŒ‰ç…§ osu! é€»è¾‘ç”Ÿæˆæ‰€æœ‰åµŒå¥—åˆ¤å®šç‰©ä»¶ (Ticks, Repeats, Tail)
         /// </summary>
         public void CalculateNestedHitObjects(double tickRate, double beatLength)
         {
             NestedHitObjects.Clear();
             if (tickRate <= 0 || beatLength <= 0 || RepeatCount == 0) return;
 
-            // 1. ¼ÆËã Tick ¼ä¸ô
+            // 1. è®¡ç®— Tick é—´éš”
             double tickInterval = beatLength / tickRate;
-            // 2. µ¥´Î»¬ĞĞµÄÊ±¼ä
+            // 2. å•æ¬¡æ»‘è¡Œçš„æ—¶é—´
             double spanDuration = Duration / RepeatCount;
-            // 3. ×îĞ¡ Tick ¾àÀë (·ÀÖ¹ Tick ÀëÍ·Î²Ì«½ü)
+            // 3. æœ€å° Tick è·ç¦» (é˜²æ­¢ Tick ç¦»å¤´å°¾å¤ªè¿‘)
             double minTickDistanceFromEnd = 0.01 * spanDuration;
 
             for (int span = 0; span < RepeatCount; span++)
@@ -300,20 +300,20 @@ namespace OsuVR
                 double spanStartTime = StartTime + (span * spanDuration);
                 bool reversed = span % 2 == 1;
 
-                // --- A. Éú³É Ticks ---
-                // Ticks ÊÇ»ùÓÚ³¤¶ÈÉú³ÉµÄ£¬ÕâÀï¼ò»¯Îª»ùÓÚÊ±¼ä
+                // --- A. ç”Ÿæˆ Ticks ---
+                // Ticks æ˜¯åŸºäºé•¿åº¦ç”Ÿæˆçš„ï¼Œè¿™é‡Œç®€åŒ–ä¸ºåŸºäºæ—¶é—´
                 double currentTickTime = tickInterval;
 
                 while (currentTickTime < spanDuration - minTickDistanceFromEnd)
                 {
                     double absoluteTime = spanStartTime + currentTickTime;
 
-                    // ¼ÆËã Tick µÄÎ»ÖÃ (ÓÃÓÚÌØĞ§Éú³ÉµÈ)
+                    // è®¡ç®— Tick çš„ä½ç½® (ç”¨äºç‰¹æ•ˆç”Ÿæˆç­‰)
                     double progressInSpan = currentTickTime / spanDuration;
-                    // Èç¹ûÊÇ·´Ïò¿ç¶È£¬Î»ÖÃÒ²Òª·´¹ıÀ´Ëã
+                    // å¦‚æœæ˜¯åå‘è·¨åº¦ï¼Œä½ç½®ä¹Ÿè¦åè¿‡æ¥ç®—
                     if (reversed) progressInSpan = 1.0 - progressInSpan;
 
-                    Vector2 pos = GetPositionAtProgress(progressInSpan); // ÕâÀïÊÇ¼ò»¯µ÷ÓÃ£¬Êµ¼ÊĞèÒª GetPositionOnPath
+                    Vector2 pos = GetPositionAtProgress(progressInSpan); // è¿™é‡Œæ˜¯ç®€åŒ–è°ƒç”¨ï¼Œå®é™…éœ€è¦ GetPositionOnPath
 
                     NestedHitObjects.Add(new SliderNestedObject
                     {
@@ -327,13 +327,13 @@ namespace OsuVR
                     currentTickTime += tickInterval;
                 }
 
-                // --- B. Éú³É Repeat (ÕÛ·µµã) »ò Tail (ÖÕµã) ---
+                // --- B. ç”Ÿæˆ Repeat (æŠ˜è¿”ç‚¹) æˆ– Tail (ç»ˆç‚¹) ---
                 double spanEndTime = spanStartTime + spanDuration;
-                Vector2 endPos = reversed ? Vector2.zero : PathPoints.Last(); // ¼ò»¯£ºÅ¼Êı´ÎÖÕµãÔÚÄ©¶Ë£¬ÆæÊı´ÎÔÚÆğµã
+                Vector2 endPos = reversed ? Vector2.zero : PathPoints.Last(); // ç®€åŒ–ï¼šå¶æ•°æ¬¡ç»ˆç‚¹åœ¨æœ«ç«¯ï¼Œå¥‡æ•°æ¬¡åœ¨èµ·ç‚¹
 
                 if (span < RepeatCount - 1)
                 {
-                    // ÕâÊÇÒ»¸öÕÛ·µµã (Repeat)
+                    // è¿™æ˜¯ä¸€ä¸ªæŠ˜è¿”ç‚¹ (Repeat)
                     NestedHitObjects.Add(new SliderNestedObject
                     {
                         Time = spanEndTime,
@@ -345,7 +345,7 @@ namespace OsuVR
                 }
                 else
                 {
-                    // ×îºóÒ»¸ö¿ç¶È£¬ÕâÊÇÕû¸ö»¬ÌõµÄÖÕµã (Tail)
+                    // æœ€åä¸€ä¸ªè·¨åº¦ï¼Œè¿™æ˜¯æ•´ä¸ªæ»‘æ¡çš„ç»ˆç‚¹ (Tail)
                     NestedHitObjects.Add(new SliderNestedObject
                     {
                         Time = spanEndTime,
@@ -357,11 +357,11 @@ namespace OsuVR
                 }
             }
 
-            // È·±£°´Ê±¼äÅÅĞò (ÀíÂÛÉÏÒÑ¾­ÊÇÅÅĞòµÄ£¬µ«ÎªÁË±£ÏÕ)
+            // ç¡®ä¿æŒ‰æ—¶é—´æ’åº (ç†è®ºä¸Šå·²ç»æ˜¯æ’åºçš„ï¼Œä½†ä¸ºäº†ä¿é™©)
             NestedHitObjects.Sort((a, b) => a.Time.CompareTo(b.Time));
         }
 
-        // ¸¨Öú£º»ñÈ¡½ø¶ÈÎ»ÖÃ (ĞèÒªÅäºÏ SliderPathCalculator£¬ÕâÀï¼ÙÉèÄãÓĞÀàËÆÂß¼­)
-        // ×¢Òâ£ºÕâÀïµÄ progress ÊÇ 0~1 ¶ÔÓ¦Õû¸ö PathPoints
+        // è¾…åŠ©ï¼šè·å–è¿›åº¦ä½ç½® (éœ€è¦é…åˆ SliderPathCalculatorï¼Œè¿™é‡Œå‡è®¾ä½ æœ‰ç±»ä¼¼é€»è¾‘)
+        // æ³¨æ„ï¼šè¿™é‡Œçš„ progress æ˜¯ 0~1 å¯¹åº”æ•´ä¸ª PathPoints
     }
 }

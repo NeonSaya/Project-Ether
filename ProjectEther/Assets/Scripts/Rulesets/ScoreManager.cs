@@ -368,6 +368,13 @@ namespace OsuVR
 
             _finalScore = part1 + part2 + _currentBonusScore;
 
+            // 修正：当所有判定完成时，确保分数精确为整数
+            // 防止浮点精度问题导致满分不是 1000000
+            if (_totalHitsPerformed >= _totalMapJudgements && _totalMapJudgements > 0)
+            {
+                _finalScore = Math.Round(_finalScore);
+            }
+
             if (boardController != null)
             {
                 boardController.UpdateDashboard((long)_finalScore, _currentCombo, accuracy);

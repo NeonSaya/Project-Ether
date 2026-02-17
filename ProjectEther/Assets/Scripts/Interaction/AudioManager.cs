@@ -6,34 +6,45 @@ using UnityEngine.Networking;
 
 namespace OsuVR
 {
+    /// <summary>
+    /// 音频管理器：处理打击音效、滑条音效、转盘音效
+    /// 对齐 osu!lazer 的音效系统
+    /// </summary>
     public class AudioManager : MonoBehaviour
     {
         public static AudioManager Instance { get; private set; }
 
+        // =========================================================
+        // 配置
+        // =========================================================
         [Header("配置")]
-        public SkinConfig defaultSkin; // 拖入刚才创建的 SkinData
-        [Range(0, 1)] public float masterVolume = 1.0f; // 全局音效音量
+        public SkinConfig defaultSkin;
+        [Range(0, 1)] public float masterVolume = 1.0f;
 
+        // =========================================================
+        // 运行时状态
+        // =========================================================
         [Header("运行时")]
-        // 缓存当前谱面的自定义音效：Key = "soft-hitnormal2", Value = AudioClip
         private Dictionary<string, AudioClip> beatmapSkinCache = new Dictionary<string, AudioClip>();
-
-        // 专门用于滑条滑动的循环音源
         private AudioSource sliderLoopSource;
         private AudioSource spinnerLoopSource;
         private List<AudioSource> oneShotPool = new List<AudioSource>();
+
+        // =========================================================
+        // 生命周期
+        // =========================================================
 
         void Awake()
         {
             if (Instance == null)
             {
                 Instance = this;
-                DontDestroyOnLoad(gameObject); // ✅ 加上这句：切换场景不销毁
+                DontDestroyOnLoad(gameObject);
             }
             else
             {
-                Destroy(gameObject); // 防止重复创建
-                return; // 重要：如果销毁了自己，不要继续执行后面的初始化
+                Destroy(gameObject);
+                return;
             }
 
             InitializeAudioSources();
@@ -41,14 +52,14 @@ namespace OsuVR
 
         private void InitializeAudioSources()
         {
-            // 1. 初始化 OneShot 池 (用于打击音)
+            // 1. 初始化 OneShot 池 (用于打击音效)
             for (int i = 0; i < 20; i++)
             {
                 var go = new GameObject("SFX_OneShot_" + i);
                 go.transform.SetParent(transform);
                 var src = go.AddComponent<AudioSource>();
                 src.playOnAwake = false;
-                src.spatialBlend = 0; // 2D 声音，不需要空间感
+                src.spatialBlend = 0;
                 oneShotPool.Add(src);
             }
 
@@ -70,14 +81,17 @@ namespace OsuVR
         }
 
         // =========================================================
-        // 1. 加载谱面自定义音效 (在 RhythmGameManager 加载谱面时调用)
+        // 1. 加载谱面自定义音效
         // =========================================================
+
+        /// <summary>
+        /// 加载谱面文件夹中的自定义音效
+        /// </summary>
         public void LoadBeatmapSamples(string mapFolderPath)
         {
-            // 清理上一首歌的缓存
             foreach (var clip in beatmapSkinCache.Values)
             {
-                if (clip != null) Destroy(clip); // 释放内存
+                if (clip != null) Destroy(clip);
             }
             beatmapSkinCache.Clear();
 
@@ -86,13 +100,11 @@ namespace OsuVR
 
         private IEnumerator LoadSamplesRoutine(string folder)
         {
-            // 扫描文件夹下所有的 .wav 文件
             string[] files = Directory.GetFiles(folder, "*.wav");
             foreach (var filePath in files)
             {
-                string fileName = Path.GetFileNameWithoutExtension(filePath).ToLower(); // 转小写作为 Key
+                string fileName = Path.GetFileNameWithoutExtension(filePath).ToLower();
 
-                // 只加载符合 osu 命名规范的文件 (micro-optimization)
                 if (!fileName.Contains("hit") && !fileName.Contains("slider")) continue;
 
                 string url = "file://" + filePath;
@@ -111,49 +123,211 @@ namespace OsuVR
         }
 
         // =========================================================
-        // 2. 核心播放逻辑
+        // 2. 核心播放逻辑 - 普通 HitObject
         // =========================================================
 
         /// <summary>
-        /// 播放打击音效 (Note / SliderHead / SliderEnd)
+        /// 播放打击音效 (HitCircle / SliderHead)
         /// </summary>
         public void PlayHitSound(HitObject hitObject)
         {
-            // 1. 获取并修正 HitSound 类型
-            // 如果是 None (0)，强制设为 Normal (1)，否则没声音
             HitSoundType soundType = hitObject.HitSound;
             if (soundType == HitSoundType.None)
             {
                 soundType = HitSoundType.Normal;
             }
+
             float finalVolume = hitObject.SampleVolume / 100f;
-            if (finalVolume <= 0f) finalVolume = 1.0f; // 最后的兜底
+            if (finalVolume <= 0f) finalVolume = 1.0f;
 
-            Debug.Log($"[Audio] 收到播放请求: {soundType} (原始: {hitObject.HitSound}) 音量:{finalVolume*100}%");
-
-            // 2. 获取基础信息
             SampleSet set = hitObject.SampleSet;
-            if (set == SampleSet.None) set = SampleSet.Normal; // 默认音效库
+            if (set == SampleSet.None) set = SampleSet.Normal;
 
-            // 注意：osu! 中 Additions (Whistle/Finish/Clap) 通常使用 AdditionSet，
-            // 但为了保持和你现有逻辑一致，这里暂时都用 set (SampleSet)
-            SampleSet additionSet = hitObject.AdditionSet; 
+            SampleSet additionSet = hitObject.AdditionSet;
             if (additionSet == SampleSet.None) additionSet = set;
 
             int customIndex = hitObject.CustomIndex;
-            
-            // 3. 播放逻辑
-            // 始终播放 Base Hit (Normal) - 除非你只想听纯哨子，否则通常都会叠加一个底鼓声
-            PlaySpecificSample(set, HitSoundType.Normal, hitObject.CustomIndex, finalVolume);
 
-            // 4. 叠加音效 (使用修正后的 soundType 进行判断)
+            // 始终播放 Normal (底鼓)
+            PlaySpecificSample(set, HitSoundType.Normal, customIndex, finalVolume);
+
+            // 叠加附加音效 (使用 AdditionSet)
             if ((soundType & HitSoundType.Whistle) != 0)
-                PlaySpecificSample(set, HitSoundType.Whistle, hitObject.CustomIndex, finalVolume);
+                PlaySpecificSample(additionSet, HitSoundType.Whistle, customIndex, finalVolume);
             if ((soundType & HitSoundType.Finish) != 0)
-                PlaySpecificSample(set, HitSoundType.Finish, hitObject.CustomIndex, finalVolume);
+                PlaySpecificSample(additionSet, HitSoundType.Finish, customIndex, finalVolume);
             if ((soundType & HitSoundType.Clap) != 0)
-                PlaySpecificSample(set, HitSoundType.Clap, hitObject.CustomIndex, finalVolume);
+                PlaySpecificSample(additionSet, HitSoundType.Clap, customIndex, finalVolume);
         }
+
+        // =========================================================
+        // 3. 滑条节点音效 (osu!lazer 标准)
+        // =========================================================
+
+        /// <summary>
+        /// 播放滑条节点音效
+        /// osu! 中每个滑条节点都有独立的音效配置
+        /// </summary>
+        /// <param name="slider">滑条对象</param>
+        /// <param name="nodeIndex">节点索引 (0=Head, 1+=Repeat/Tail)</param>
+        public void PlaySliderNodeSound(SliderObject slider, int nodeIndex)
+        {
+            if (slider == null) return;
+
+            // 获取节点音效列表
+            List<HitSampleInfo> nodeSamples = null;
+            if (slider.NodeSamples != null && nodeIndex < slider.NodeSamples.Count)
+            {
+                nodeSamples = slider.NodeSamples[nodeIndex];
+            }
+
+            // 默认音量和音效库
+            float volume = slider.SampleVolume / 100f;
+            if (volume <= 0f) volume = 1.0f;
+
+            SampleSet sampleSet = slider.SampleSet;
+            if (sampleSet == SampleSet.None) sampleSet = SampleSet.Normal;
+
+            SampleSet additionSet = slider.AdditionSet;
+            if (additionSet == SampleSet.None) additionSet = sampleSet;
+
+            int customIndex = slider.CustomIndex;
+
+            // 如果有节点音效配置，使用节点的配置
+            if (nodeSamples != null && nodeSamples.Count > 0)
+            {
+                PlayNodeSamples(nodeSamples, volume);
+            }
+            else
+            {
+                // 回退：使用滑条默认音效
+                HitSoundType soundType = slider.HitSound;
+                if (soundType == HitSoundType.None) soundType = HitSoundType.Normal;
+
+                PlaySpecificSample(sampleSet, HitSoundType.Normal, customIndex, volume);
+
+                if ((soundType & HitSoundType.Whistle) != 0)
+                    PlaySpecificSample(additionSet, HitSoundType.Whistle, customIndex, volume);
+                if ((soundType & HitSoundType.Finish) != 0)
+                    PlaySpecificSample(additionSet, HitSoundType.Finish, customIndex, volume);
+                if ((soundType & HitSoundType.Clap) != 0)
+                    PlaySpecificSample(additionSet, HitSoundType.Clap, customIndex, volume);
+            }
+        }
+
+        /// <summary>
+        /// 播放节点音效列表 (从 NodeSamples 解析)
+        /// </summary>
+        private void PlayNodeSamples(List<HitSampleInfo> samples, float volume)
+        {
+            foreach (var sample in samples)
+            {
+                if (sample is BankHitSampleInfo bankSample)
+                {
+                    SampleSet set = ConvertBankToSampleSet(bankSample.Bank);
+                    HitSoundType type = ConvertNameToHitSoundType(bankSample.Name);
+
+                    float vol = bankSample.Volume > 0 ? bankSample.Volume / 100f : volume;
+
+                    PlaySpecificSample(set, type, bankSample.CustomSampleBank, vol);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 将 SampleBank 转换为 SampleSet
+        /// </summary>
+        private SampleSet ConvertBankToSampleSet(SampleBank bank)
+        {
+            return bank switch
+            {
+                SampleBank.Soft => SampleSet.Soft,
+                SampleBank.Drum => SampleSet.Drum,
+                _ => SampleSet.Normal
+            };
+        }
+
+        /// <summary>
+        /// 将音效名称转换为 HitSoundType
+        /// </summary>
+        private HitSoundType ConvertNameToHitSoundType(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return HitSoundType.Normal;
+
+            if (name.Contains("whistle")) return HitSoundType.Whistle;
+            if (name.Contains("finish")) return HitSoundType.Finish;
+            if (name.Contains("clap")) return HitSoundType.Clap;
+
+            return HitSoundType.Normal;
+        }
+
+        // =========================================================
+        // 4. 滑条滑动音效
+        // =========================================================
+
+        /// <summary>
+        /// 播放滑条 Tick 音效
+        /// </summary>
+        public void PlaySliderTick(SampleSet set, int index, float volume)
+        {
+            float finalVol = volume * masterVolume;
+            AudioClip clip = GetClip(set, HitSoundType.Normal, index, false, true);
+            if (clip) PlayOneShot(clip, finalVol);
+        }
+
+        /// <summary>
+        /// 切换滑条滑动循环音效
+        /// </summary>
+        public void ToggleSliderLoop(bool isPlaying, SampleSet set = SampleSet.Normal, int index = 0)
+        {
+            if (isPlaying)
+            {
+                if (!sliderLoopSource.isPlaying)
+                {
+                    AudioClip clip = GetClip(set, HitSoundType.Normal, index, true, false);
+                    if (clip)
+                    {
+                        sliderLoopSource.clip = clip;
+                        sliderLoopSource.volume = 0.5f * masterVolume;
+                        sliderLoopSource.Play();
+                    }
+                }
+            }
+            else
+            {
+                sliderLoopSource.Stop();
+            }
+        }
+
+        // =========================================================
+        // 5. 转盘音效
+        // =========================================================
+
+        /// <summary>
+        /// 更新转盘循环音效
+        /// </summary>
+        public void UpdateSpinnerLoop(bool isSpinning, float intensity)
+        {
+            if (isSpinning)
+            {
+                if (!spinnerLoopSource.isPlaying && defaultSkin.soft_sliderslide)
+                {
+                    spinnerLoopSource.clip = defaultSkin.soft_sliderslide;
+                    spinnerLoopSource.Play();
+                }
+
+                spinnerLoopSource.volume = Mathf.Clamp01(intensity) * masterVolume;
+                spinnerLoopSource.pitch = 1.0f + (intensity * 0.2f);
+            }
+            else
+            {
+                spinnerLoopSource.Stop();
+            }
+        }
+
+        // =========================================================
+        // 6. 底层播放工具
+        // =========================================================
 
         private void PlaySpecificSample(SampleSet set, HitSoundType type, int index, float volume)
         {
@@ -165,32 +339,28 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 查找音频文件的核心算法
+        /// 查找音频文件
         /// </summary>
         private AudioClip GetClip(SampleSet set, HitSoundType type, int index, bool isSlide = false, bool isTick = false)
         {
-            // 1. 构建文件名
-            // 格式: {set}-hit{type}{index} 或 {set}-slider{type}{index}
-
-            string prefix = set.ToString().ToLower(); // "normal", "soft", "drum"
+            string prefix = set.ToString().ToLower();
             string middle = "hit";
             string suffix = type.ToString().ToLower();
 
             if (isSlide) { middle = "slider"; suffix = "slide"; }
             else if (isTick) { middle = "slider"; suffix = "tick"; }
-            else if (type == HitSoundType.Normal) suffix = "normal"; // hitnormal
+            else if (type == HitSoundType.Normal) suffix = "normal";
 
-            string indexStr = (index > 1) ? index.ToString() : ""; // index=0或1时不加后缀，index=2变 "2"
+            string indexStr = (index > 1) ? index.ToString() : "";
+            string searchKey = $"{prefix}-{middle}{suffix}{indexStr}";
 
-            string searchKey = $"{prefix}-{middle}{suffix}{indexStr}"; // e.g., "soft-hitnormal2"
-
-            // 2. 尝试从自定义缓存找
+            // 从自定义缓存找
             if (beatmapSkinCache.TryGetValue(searchKey, out AudioClip customClip))
             {
                 return customClip;
             }
 
-            // 3. 如果没找到且 index > 1，尝试回退找无后缀的 (soft-hitnormal2 -> soft-hitnormal)
+            // 回退查找
             if (index > 1)
             {
                 string fallbackKey = $"{prefix}-{middle}{suffix}";
@@ -198,11 +368,10 @@ namespace OsuVR
                     return fallbackClip;
             }
 
-            // 4. 从默认皮肤找
+            // 从默认皮肤找
             return defaultSkin.GetDefaultClip(set, type, isSlide, isTick);
         }
 
-        // --- 播放工具 ---
         private void PlayOneShot(AudioClip clip, float vol)
         {
             var src = oneShotPool.Find(s => !s.isPlaying);
@@ -210,61 +379,6 @@ namespace OsuVR
             {
                 src.volume = vol;
                 src.PlayOneShot(clip);
-            }
-        }
-
-        // =========================================================
-        // 3. 滑条与转盘专用控制
-        // =========================================================
-
-        public void PlaySliderTick(SampleSet set, int index, float volume)
-        {
-            float finalVol = volume * masterVolume;
-            AudioClip clip = GetClip(set, HitSoundType.Normal, index, false, true); // isTick = true
-            if (clip) PlayOneShot(clip, finalVol);
-        }
-
-        public void ToggleSliderLoop(bool isPlaying, SampleSet set = SampleSet.Normal, int index = 0)
-        {
-            if (isPlaying)
-            {
-                if (!sliderLoopSource.isPlaying)
-                {
-                    // 查找 Loop 声音
-                    AudioClip clip = GetClip(set, HitSoundType.Normal, index, true, false); // isSlide = true
-                    if (clip)
-                    {
-                        sliderLoopSource.clip = clip;
-                        sliderLoopSource.volume = 0.5f * masterVolume; // 滑行声音通常小一点
-                        sliderLoopSource.Play();
-                    }
-                }
-            }
-            else
-            {
-                sliderLoopSource.Stop();
-            }
-        }
-
-        public void UpdateSpinnerLoop(bool isSpinning, float intensity)
-        {
-            if (isSpinning)
-            {
-                // 如果没有 Spin 音效，可以用 soft-sliderslide 暂代，或者你需要提供 drum-spinnerspin
-                // 这里假设你有，或者就用 slide
-                if (!spinnerLoopSource.isPlaying && defaultSkin.soft_sliderslide) // 兜底
-                {
-                    spinnerLoopSource.clip = defaultSkin.soft_sliderslide; // 暂时用 slide 替代
-                    spinnerLoopSource.Play();
-                }
-
-                // 随速度改变音量和音调
-                spinnerLoopSource.volume = Mathf.Clamp01(intensity) * masterVolume;
-                spinnerLoopSource.pitch = 1.0f + (intensity * 0.2f); // 越快越尖
-            }
-            else
-            {
-                spinnerLoopSource.Stop();
             }
         }
     }

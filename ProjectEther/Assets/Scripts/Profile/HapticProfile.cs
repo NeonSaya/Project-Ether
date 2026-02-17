@@ -1,31 +1,31 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 namespace OsuVR
 {
     [CreateAssetMenu(fileName = "NewHapticProfile", menuName = "OsuVR/Haptic Profile")]
     public class HapticProfile : ScriptableObject
     {
-        [Header("»ù´¡´ò»÷ (Note / Slider Head / Slider End)")]
+        [Header("åŸºç¡€æ‰“å‡» (Note / Slider Head / Slider End)")]
         public HapticData NormalHit = new HapticData(0.6f, 0.08f);
-        public HapticData WhistleHit = new HapticData(0.4f, 0.1f); // ÉÚÒôÍ¨³£Çá¿ì
-        public HapticData FinishHit = new HapticData(0.9f, 0.15f); // ÖÕ½áÒôÖØ»÷
+        public HapticData WhistleHit = new HapticData(0.4f, 0.1f); // å“¨éŸ³é€šå¸¸è½»å¿«
+        public HapticData FinishHit = new HapticData(0.9f, 0.15f); // ç»ˆç»“éŸ³é‡å‡»
         public HapticData ClapHit = new HapticData(0.7f, 0.1f);
 
-        [Header("»¬Ìõ¹ı³Ì (Slider)")]
-        [Tooltip("»¬Ìõ³ÖĞø»¬¶¯Ê±µÄÎ¢Õğ (Ã¿Ò»Ö¡µ÷ÓÃ£¬Ö»ĞèÌîÇ¿¶È)")]
+        [Header("æ»‘æ¡è¿‡ç¨‹ (Slider)")]
+        [Tooltip("æ»‘æ¡æŒç»­æ»‘åŠ¨æ—¶çš„å¾®éœ‡ (æ¯ä¸€å¸§è°ƒç”¨ï¼Œåªéœ€å¡«å¼ºåº¦)")]
         [Range(0, 1)] public float SliderSlideIntensity = 0.05f;
 
-        [Tooltip("»¬Ìõ¾­¹ı Tick (Ğ¡¶¹¶¹) µÄÕğ¶¯")]
+        [Tooltip("æ»‘æ¡ç»è¿‡ Tick (å°è±†è±†) çš„éœ‡åŠ¨")]
         public HapticData SliderTick = new HapticData(0.3f, 0.05f);
 
-        [Tooltip("»¬ÌõÕÛ·µ (Reverse Arrow) µÄÕğ¶¯")]
+        [Tooltip("æ»‘æ¡æŠ˜è¿” (Reverse Arrow) çš„éœ‡åŠ¨")]
         public HapticData SliderReverse = new HapticData(0.5f, 0.08f);
 
-        [Header("×ªÅÌ (Spinner)")]
-        [Tooltip("×ªÅÌ¸Õ¿ªÊ¼×ªµÄ×îĞ¡Õğ¶¯")]
+        [Header("è½¬ç›˜ (Spinner)")]
+        [Tooltip("è½¬ç›˜åˆšå¼€å§‹è½¬çš„æœ€å°éœ‡åŠ¨")]
         public float SpinnerMinIntensity = 0.05f;
 
-        [Tooltip("×ªÅÌ×ªÂúËÙ/½ø¶ÈÂúÊ±µÄ×î´óÕğ¶¯")]
+        [Tooltip("è½¬ç›˜è½¬æ»¡é€Ÿ/è¿›åº¦æ»¡æ—¶çš„æœ€å¤§éœ‡åŠ¨")]
         public float SpinnerMaxIntensity = 0.6f;
 
         [System.Serializable]

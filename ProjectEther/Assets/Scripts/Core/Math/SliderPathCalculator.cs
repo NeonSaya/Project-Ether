@@ -1,27 +1,27 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace OsuVR
 {
     /// <summary>
-    /// »¬ÌõÂ·¾¶¼ÆËãÆ÷£º½«¸÷ÖÖÇúÏßÀàĞÍ×ª»»Îªµã¼¯
-    /// ²Î¿¼ osu-droid µÄ PathApproximation.kt
+    /// æ»‘æ¡è·¯å¾„è®¡ç®—å™¨ï¼šå°†å„ç§æ›²çº¿ç±»å‹è½¬æ¢ä¸ºç‚¹é›†
+    /// å‚è€ƒ osu-droid çš„ PathApproximation.kt
     /// </summary>
     public static class SliderPathCalculator
     {
-        // ³£Á¿¶¨Òå
+        // å¸¸é‡å®šä¹‰
         public const int CATMULL_DETAIL = 50;
         public const float BEZIER_TOLERANCE = 0.25f;
         public const float CIRCULAR_ARC_TOLERANCE = 0.1f;
-        private const float EPSILON = 0.0001f; // ÓÃÓÚ¸¡µãÊı±È½ÏµÄ¾«¶È
+        private const float EPSILON = 0.0001f; // ç”¨äºæµ®ç‚¹æ•°æ¯”è¾ƒçš„ç²¾åº¦
 
         /// <summary>
-        /// ´´½¨±´Èû¶ûÇúÏßµÄ·Ö¶ÎÏßĞÔ±Æ½ü
-        /// Í¨¹ı×ÔÊÊÓ¦ÖØ¸´Ï¸·Ö¿ØÖÆµã£¬Ö±µ½ËüÃÇµÄ±Æ½üÎó²îµÍÓÚ¸ø¶¨ãĞÖµ
+        /// åˆ›å»ºè´å¡å°”æ›²çº¿çš„åˆ†æ®µçº¿æ€§é€¼è¿‘
+        /// é€šè¿‡è‡ªé€‚åº”é‡å¤ç»†åˆ†æ§åˆ¶ç‚¹ï¼Œç›´åˆ°å®ƒä»¬çš„é€¼è¿‘è¯¯å·®ä½äºç»™å®šé˜ˆå€¼
         /// </summary>
-        /// <param name="controlPoints">ÇúÏßµÄ¿ØÖÆµã</param>
-        /// <returns>±íÊ¾½á¹û·Ö¶ÎÏßĞÔ±Æ½üµÄµã</returns>
+        /// <param name="controlPoints">æ›²çº¿çš„æ§åˆ¶ç‚¹</param>
+        /// <returns>è¡¨ç¤ºç»“æœåˆ†æ®µçº¿æ€§é€¼è¿‘çš„ç‚¹</returns>
         public static List<Vector2> ApproximatedBezier(List<Vector2> controlPoints)
         {
             List<Vector2> output = new List<Vector2>();
@@ -32,8 +32,8 @@ namespace OsuVR
                 return output;
             }
 
-            // "toFlatten" °üº¬ËùÓĞÉĞÎ´×ã¹»½üËÆµÄÇúÏß
-            // ÎÒÃÇÊ¹ÓÃÕ»À´Ä£Äâµİ¹é£¬¶øÃ»ÓĞÕ»Òç³öµÄ·çÏÕ
+            // "toFlatten" åŒ…å«æ‰€æœ‰å°šæœªè¶³å¤Ÿè¿‘ä¼¼çš„æ›²çº¿
+            // æˆ‘ä»¬ä½¿ç”¨æ ˆæ¥æ¨¡æ‹Ÿé€’å½’ï¼Œè€Œæ²¡æœ‰æ ˆæº¢å‡ºçš„é£é™©
             Stack<Vector2[]> toFlatten = new Stack<Vector2[]>();
             Stack<Vector2[]> freeBuffers = new Stack<Vector2[]>();
 
@@ -47,18 +47,18 @@ namespace OsuVR
 
                 if (BezierIsFlatEnough(parent))
                 {
-                    // Èç¹ûµ±Ç°²Ù×÷µÄ¿ØÖÆµã×ã¹»"Æ½Ì¹"£¬ÎÒÃÇÊ¹ÓÃ
-                    // De Casteljau Ëã·¨µÄÀ©Õ¹À´»ñµÃÓÉÎÒÃÇµÄ¿ØÖÆµã±íÊ¾µÄ±´Èû¶ûÇúÏßµÄ·Ö¶ÎÏßĞÔ±Æ½ü
+                    // å¦‚æœå½“å‰æ“ä½œçš„æ§åˆ¶ç‚¹è¶³å¤Ÿ"å¹³å¦"ï¼Œæˆ‘ä»¬ä½¿ç”¨
+                    // De Casteljau ç®—æ³•çš„æ‰©å±•æ¥è·å¾—ç”±æˆ‘ä»¬çš„æ§åˆ¶ç‚¹è¡¨ç¤ºçš„è´å¡å°”æ›²çº¿çš„åˆ†æ®µçº¿æ€§é€¼è¿‘
                     BezierApproximate(parent, output, subdivisionBuffer1, subdivisionBuffer2, count + 1);
                     freeBuffers.Push(parent);
                     continue;
                 }
 
-                // Èç¹ûÎÒÃÇ»¹Ã»ÓĞ×ã¹»"Æ½Ì¹"£¨»»¾ä»°Ëµ£¬ÏêÏ¸£©µÄ±Æ½ü£¬ÎÒÃÇ¼ÌĞøÏ¸·Öµ±Ç°²Ù×÷µÄÇúÏß
+                // å¦‚æœæˆ‘ä»¬è¿˜æ²¡æœ‰è¶³å¤Ÿ"å¹³å¦"ï¼ˆæ¢å¥è¯è¯´ï¼Œè¯¦ç»†ï¼‰çš„é€¼è¿‘ï¼Œæˆ‘ä»¬ç»§ç»­ç»†åˆ†å½“å‰æ“ä½œçš„æ›²çº¿
                 Vector2[] rightChild = freeBuffers.Count > 0 ? freeBuffers.Pop() : new Vector2[count + 1];
                 BezierSubdivide(parent, subdivisionBuffer2, rightChild, subdivisionBuffer1, count + 1);
 
-                // ÎÒÃÇÎªÆäÖĞÒ»¸ö×Ó½ÚµãÖØÓÃ¸¸½ÚµãµÄ»º³åÇø£¬ÕâÑùÃ¿´Îµü´ú¿ÉÒÔ½ÚÊ¡Ò»´Î·ÖÅä
+                // æˆ‘ä»¬ä¸ºå…¶ä¸­ä¸€ä¸ªå­èŠ‚ç‚¹é‡ç”¨çˆ¶èŠ‚ç‚¹çš„ç¼“å†²åŒºï¼Œè¿™æ ·æ¯æ¬¡è¿­ä»£å¯ä»¥èŠ‚çœä¸€æ¬¡åˆ†é…
                 for (int i = 0; i <= count; i++)
                 {
                     parent[i] = subdivisionBuffer2[i];
@@ -73,10 +73,10 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ´´½¨ Catmull-Rom ÑùÌõµÄ·Ö¶ÎÏßĞÔ±Æ½ü
+        /// åˆ›å»º Catmull-Rom æ ·æ¡çš„åˆ†æ®µçº¿æ€§é€¼è¿‘
         /// </summary>
-        /// <param name="controlPoints">¿ØÖÆµã</param>
-        /// <returns>±íÊ¾½á¹û·Ö¶ÎÏßĞÔ±Æ½üµÄµã</returns>
+        /// <param name="controlPoints">æ§åˆ¶ç‚¹</param>
+        /// <returns>è¡¨ç¤ºç»“æœåˆ†æ®µçº¿æ€§é€¼è¿‘çš„ç‚¹</returns>
         public static List<Vector2> ApproximatedCatmull(List<Vector2> controlPoints)
         {
             List<Vector2> result = new List<Vector2>();
@@ -99,15 +99,15 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ´´½¨Ô²ĞÎ»¡ÇúÏßµÄ·Ö¶ÎÏßĞÔ±Æ½ü
+        /// åˆ›å»ºåœ†å½¢å¼§æ›²çº¿çš„åˆ†æ®µçº¿æ€§é€¼è¿‘
         /// </summary>
-        /// <param name="controlPoints">¿ØÖÆµã£¨Ó¦Îª3¸öµã£©</param>
-        /// <returns>±íÊ¾½á¹û·Ö¶ÎÏßĞÔ±Æ½üµÄµã</returns>
+        /// <param name="controlPoints">æ§åˆ¶ç‚¹ï¼ˆåº”ä¸º3ä¸ªç‚¹ï¼‰</param>
+        /// <returns>è¡¨ç¤ºç»“æœåˆ†æ®µçº¿æ€§é€¼è¿‘çš„ç‚¹</returns>
         public static List<Vector2> ApproximatedCircularArc(List<Vector2> controlPoints)
         {
             if (controlPoints.Count != 3)
             {
-                // Èç¹û²»ÊÇ3¸öµã£¬ÍË»Øµ½±´Èû¶ûÇúÏß±Æ½ü
+                // å¦‚æœä¸æ˜¯3ä¸ªç‚¹ï¼Œé€€å›åˆ°è´å¡å°”æ›²çº¿é€¼è¿‘
                 return ApproximatedBezier(controlPoints);
             }
 
@@ -115,14 +115,14 @@ namespace OsuVR
             Vector2 b = controlPoints[1];
             Vector2 c = controlPoints[2];
 
-            // Èç¹ûÎÒÃÇÓĞÒ»¸öÍË»¯µÄÈı½ÇĞÎ£¬ÆäÖĞ±ß³¤¼¸ºõÎªÁã£¬Ôò·ÅÆú²¢»ØÍËµ½¸üÊıÖµÎÈ¶¨µÄ·½·¨
+            // å¦‚æœæˆ‘ä»¬æœ‰ä¸€ä¸ªé€€åŒ–çš„ä¸‰è§’å½¢ï¼Œå…¶ä¸­è¾¹é•¿å‡ ä¹ä¸ºé›¶ï¼Œåˆ™æ”¾å¼ƒå¹¶å›é€€åˆ°æ›´æ•°å€¼ç¨³å®šçš„æ–¹æ³•
             float cross = (b.y - a.y) * (c.x - a.x) - (b.x - a.x) * (c.y - a.y);
             if (Mathf.Abs(cross) < EPSILON)
             {
                 return ApproximatedBezier(controlPoints);
             }
 
-            // ²Î¼û£ºhttps://en.wikipedia.org/wiki/Circumscribed_circle#Cartesian_coordinates_2
+            // å‚è§ï¼šhttps://en.wikipedia.org/wiki/Circumscribed_circle#Cartesian_coordinates_2
             float d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
 
             float aSq = a.x * a.x + a.y * a.y;
@@ -149,7 +149,7 @@ namespace OsuVR
             double direction = 1.0;
             double thetaRange = thetaEnd - thetaStart;
 
-            // ¸ù¾İ B ÔÚ AC µÄÄÄÒ»²àÀ´¾ö¶¨»æÖÆÔ²µÄ·½Ïò
+            // æ ¹æ® B åœ¨ AC çš„å“ªä¸€ä¾§æ¥å†³å®šç»˜åˆ¶åœ†çš„æ–¹å‘
             Vector2 orthoAtoC = c - a;
             orthoAtoC = new Vector2(orthoAtoC.y, -orthoAtoC.x);
 
@@ -159,9 +159,9 @@ namespace OsuVR
                 thetaRange = 2 * Math.PI - thetaRange;
             }
 
-            // ÎÒÃÇÍ¨¹ıÒªÇóÀëÉ¢ÇúÂÊĞ¡ÓÚÌá¹©µÄÈİ²îÀ´Ñ¡Ôñ±Æ½üµÄµãÊı
-            // Âú×ãÈİ²îËùĞèµÄÈ·ÇĞ½Ç¶ÈÊÇ£º2 * acos(1 - TOLERANCE / radius)
-            // ÌØÊâÇé¿öÊÇÕë¶Ô°ë¾¶Ğ¡ÓÚÈİ²îµÄ¼«¶Ì»¬Ìõ¡£ÕâÊÇÒ»¸ö²¡Ì¬Çé¿ö¶ø·ÇÏÖÊµÇé¿ö
+            // æˆ‘ä»¬é€šè¿‡è¦æ±‚ç¦»æ•£æ›²ç‡å°äºæä¾›çš„å®¹å·®æ¥é€‰æ‹©é€¼è¿‘çš„ç‚¹æ•°
+            // æ»¡è¶³å®¹å·®æ‰€éœ€çš„ç¡®åˆ‡è§’åº¦æ˜¯ï¼š2 * acos(1 - TOLERANCE / radius)
+            // ç‰¹æ®Šæƒ…å†µæ˜¯é’ˆå¯¹åŠå¾„å°äºå®¹å·®çš„æçŸ­æ»‘æ¡ã€‚è¿™æ˜¯ä¸€ä¸ªç—…æ€æƒ…å†µè€Œéç°å®æƒ…å†µ
             int amountPoints;
             if (2 * radius <= CIRCULAR_ARC_TOLERANCE)
             {
@@ -188,21 +188,21 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ´´½¨ÏßĞÔÇúÏßµÄ·Ö¶ÎÏßĞÔ±Æ½ü£¨»ù±¾ÉÏ¾ÍÊÇ·µ»ØÊäÈë£©
+        /// åˆ›å»ºçº¿æ€§æ›²çº¿çš„åˆ†æ®µçº¿æ€§é€¼è¿‘ï¼ˆåŸºæœ¬ä¸Šå°±æ˜¯è¿”å›è¾“å…¥ï¼‰
         /// </summary>
-        /// <param name="controlPoints">¿ØÖÆµã</param>
+        /// <param name="controlPoints">æ§åˆ¶ç‚¹</param>
         public static List<Vector2> ApproximatedLinear(List<Vector2> controlPoints)
         {
-            // ÏßĞÔÇúÏß£ºÖ±½Ó·µ»ØÊäÈëµã
+            // çº¿æ€§æ›²çº¿ï¼šç›´æ¥è¿”å›è¾“å…¥ç‚¹
             return new List<Vector2>(controlPoints);
         }
 
         /// <summary>
-        /// ¼ÆËã¸ø¶¨ÇúÏßÀàĞÍºÍ²ÎÊıµÄµã¼¯
+        /// è®¡ç®—ç»™å®šæ›²çº¿ç±»å‹å’Œå‚æ•°çš„ç‚¹é›†
         /// </summary>
-        /// <param name="curveType">ÇúÏßÀàĞÍ</param>
-        /// <param name="controlPoints">¿ØÖÆµã</param>
-        /// <returns>±Æ½üµÄµã¼¯</returns>
+        /// <param name="curveType">æ›²çº¿ç±»å‹</param>
+        /// <param name="controlPoints">æ§åˆ¶ç‚¹</param>
+        /// <returns>é€¼è¿‘çš„ç‚¹é›†</returns>
         public static List<Vector2> CalculatePoints(CurveType curveType, List<Vector2> controlPoints)
         {
             switch (curveType)
@@ -220,17 +220,17 @@ namespace OsuVR
                     return ApproximatedCircularArc(controlPoints);
 
                 default:
-                    Debug.LogWarning($"Î´ÖªµÄÇúÏßÀàĞÍ: {curveType}£¬Ê¹ÓÃÏßĞÔ±Æ½ü");
+                    Debug.LogWarning($"æœªçŸ¥çš„æ›²çº¿ç±»å‹: {curveType}ï¼Œä½¿ç”¨çº¿æ€§é€¼è¿‘");
                     return ApproximatedLinear(controlPoints);
             }
         }
 
         /// <summary>
-        /// ¼ì²é±´Èû¶ûÇúÏßÊÇ·ñ×ã¹»Æ½Ì¹ÒÔ½øĞĞ±Æ½ü
-        /// È·±£¶ş½×µ¼Êı£¨Ê¹ÓÃÓĞÏŞÔª½üËÆ£©ÔÚ¿ÉÈİÈÌµÄ·¶Î§ÄÚ
+        /// æ£€æŸ¥è´å¡å°”æ›²çº¿æ˜¯å¦è¶³å¤Ÿå¹³å¦ä»¥è¿›è¡Œé€¼è¿‘
+        /// ç¡®ä¿äºŒé˜¶å¯¼æ•°ï¼ˆä½¿ç”¨æœ‰é™å…ƒè¿‘ä¼¼ï¼‰åœ¨å¯å®¹å¿çš„èŒƒå›´å†…
         /// </summary>
-        /// <param name="controlPoints">¿ØÖÆµã</param>
-        /// <returns>ÊÇ·ñ×ã¹»Æ½Ì¹</returns>
+        /// <param name="controlPoints">æ§åˆ¶ç‚¹</param>
+        /// <returns>æ˜¯å¦è¶³å¤Ÿå¹³å¦</returns>
         private static bool BezierIsFlatEnough(Vector2[] controlPoints)
         {
             for (int i = 1; i < controlPoints.Length - 1; i++)
@@ -240,7 +240,7 @@ namespace OsuVR
                 Vector2 next = controlPoints[i + 1];
                 Vector2 finalVec = prev - current * 2 + next;
 
-                // ¼ì²éÏòÁ¿µÄÆ½·½³¤¶ÈÊÇ·ñ´óÓÚÈİ²îÆ½·½µÄ4±¶
+                // æ£€æŸ¥å‘é‡çš„å¹³æ–¹é•¿åº¦æ˜¯å¦å¤§äºå®¹å·®å¹³æ–¹çš„4å€
                 if (finalVec.sqrMagnitude > BEZIER_TOLERANCE * BEZIER_TOLERANCE * 4)
                 {
                     return false;
@@ -251,14 +251,14 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ±Æ½ü±´Èû¶ûÇúÏß
-        /// Ê¹ÓÃµÂ¿¨Ë¹ÌØÀï°ÂËã·¨»ñµÃ×îÓÅµÄ·Ö¶ÎÏßĞÔ±Æ½ü
+        /// é€¼è¿‘è´å¡å°”æ›²çº¿
+        /// ä½¿ç”¨å¾·å¡æ–¯ç‰¹é‡Œå¥¥ç®—æ³•è·å¾—æœ€ä¼˜çš„åˆ†æ®µçº¿æ€§é€¼è¿‘
         /// </summary>
-        /// <param name="controlPoints">ÃèÊöÒª±Æ½üµÄ±´Èû¶ûÇúÏßµÄ¿ØÖÆµã</param>
-        /// <param name="output">±íÊ¾½á¹û·Ö¶ÎÏßĞÔ±Æ½üµÄµã</param>
-        /// <param name="subdivisionBuffer1">°üº¬µ±Ç°Ï¸·Ö×´Ì¬µÄµÚÒ»»º³åÇø</param>
-        /// <param name="subdivisionBuffer2">°üº¬µ±Ç°Ï¸·Ö×´Ì¬µÄµÚ¶ş»º³åÇø</param>
-        /// <param name="count">Ô­Ê¼Êı×éÖĞµÄ¿ØÖÆµãÊıÁ¿</param>
+        /// <param name="controlPoints">æè¿°è¦é€¼è¿‘çš„è´å¡å°”æ›²çº¿çš„æ§åˆ¶ç‚¹</param>
+        /// <param name="output">è¡¨ç¤ºç»“æœåˆ†æ®µçº¿æ€§é€¼è¿‘çš„ç‚¹</param>
+        /// <param name="subdivisionBuffer1">åŒ…å«å½“å‰ç»†åˆ†çŠ¶æ€çš„ç¬¬ä¸€ç¼“å†²åŒº</param>
+        /// <param name="subdivisionBuffer2">åŒ…å«å½“å‰ç»†åˆ†çŠ¶æ€çš„ç¬¬äºŒç¼“å†²åŒº</param>
+        /// <param name="count">åŸå§‹æ•°ç»„ä¸­çš„æ§åˆ¶ç‚¹æ•°é‡</param>
         private static void BezierApproximate(
             Vector2[] controlPoints, List<Vector2> output,
             Vector2[] subdivisionBuffer1, Vector2[] subdivisionBuffer2,
@@ -282,24 +282,24 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ½«±íÊ¾±´Èû¶ûÇúÏßµÄ n ¸ö¿ØÖÆµãÏ¸·ÖÎª 2 ×é n ¸ö¿ØÖÆµã£¬Ã¿×éÃèÊöÏàµ±ÓÚÔ­Ê¼ÇúÏßÒ»°ëµÄ±´Èû¶ûÇúÏß
+        /// å°†è¡¨ç¤ºè´å¡å°”æ›²çº¿çš„ n ä¸ªæ§åˆ¶ç‚¹ç»†åˆ†ä¸º 2 ç»„ n ä¸ªæ§åˆ¶ç‚¹ï¼Œæ¯ç»„æè¿°ç›¸å½“äºåŸå§‹æ›²çº¿ä¸€åŠçš„è´å¡å°”æ›²çº¿
         /// </summary>
-        /// <param name="controlPoints">»¬ÌõµÄÃªµã</param>
-        /// <param name="l">ÓÃÓÚ±Æ½üµÄ»¬Ìõ²¿·Ö</param>
-        /// <param name="r">ÓÃÓÚ±Æ½üµÄ»¬Ìõ²¿·Ö</param>
-        /// <param name="subdivisionBuffer">ÓÃÓÚ±Æ½üµÄ»¬Ìõ²¿·Ö</param>
-        /// <param name="count">»¬ÌõÖĞµÄÃªµãÊıÁ¿</param>
+        /// <param name="controlPoints">æ»‘æ¡çš„é”šç‚¹</param>
+        /// <param name="l">ç”¨äºé€¼è¿‘çš„æ»‘æ¡éƒ¨åˆ†</param>
+        /// <param name="r">ç”¨äºé€¼è¿‘çš„æ»‘æ¡éƒ¨åˆ†</param>
+        /// <param name="subdivisionBuffer">ç”¨äºé€¼è¿‘çš„æ»‘æ¡éƒ¨åˆ†</param>
+        /// <param name="count">æ»‘æ¡ä¸­çš„é”šç‚¹æ•°é‡</param>
         private static void BezierSubdivide(
             Vector2[] controlPoints, Vector2[] l, Vector2[] r,
             Vector2[] subdivisionBuffer, int count)
         {
-            // ½«¿ØÖÆµã¸´ÖÆµ½Ï¸·Ö»º³åÇø
+            // å°†æ§åˆ¶ç‚¹å¤åˆ¶åˆ°ç»†åˆ†ç¼“å†²åŒº
             for (int i = 0; i < count; i++)
             {
                 subdivisionBuffer[i] = controlPoints[i];
             }
 
-            // ½øĞĞÏ¸·Ö
+            // è¿›è¡Œç»†åˆ†
             for (int i = 0; i < count; i++)
             {
                 l[i] = subdivisionBuffer[0];
@@ -313,13 +313,13 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ÔÚÑùÌõµÄ²ÎÊıÎ»ÖÃÕÒµ½Ò»¸öµã
+        /// åœ¨æ ·æ¡çš„å‚æ•°ä½ç½®æ‰¾åˆ°ä¸€ä¸ªç‚¹
         /// </summary>
-        /// <param name="vec1">µÚÒ»¸öµã</param>
-        /// <param name="vec2">µÚ¶ş¸öµã</param>
-        /// <param name="vec3">µÚÈı¸öµã</param>
-        /// <param name="vec4">µÚËÄ¸öµã</param>
-        /// <param name="t">ÔÚÑùÌõÉÏÕÒµ½µãµÄ²ÎÊı£¬·¶Î§ [0, 1]</param>
+        /// <param name="vec1">ç¬¬ä¸€ä¸ªç‚¹</param>
+        /// <param name="vec2">ç¬¬äºŒä¸ªç‚¹</param>
+        /// <param name="vec3">ç¬¬ä¸‰ä¸ªç‚¹</param>
+        /// <param name="vec4">ç¬¬å››ä¸ªç‚¹</param>
+        /// <param name="t">åœ¨æ ·æ¡ä¸Šæ‰¾åˆ°ç‚¹çš„å‚æ•°ï¼ŒèŒƒå›´ [0, 1]</param>
         private static Vector2 CatmullFindPoint(
             Vector2 vec1, Vector2 vec2,
             Vector2 vec3, Vector2 vec4, float t)
@@ -343,10 +343,10 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ¼ÆËãÂ·¾¶µÄ×Ü³¤¶È
+        /// è®¡ç®—è·¯å¾„çš„æ€»é•¿åº¦
         /// </summary>
-        /// <param name="points">Â·¾¶µã¼¯</param>
-        /// <returns>×Ü³¤¶È</returns>
+        /// <param name="points">è·¯å¾„ç‚¹é›†</param>
+        /// <returns>æ€»é•¿åº¦</returns>
         public static float CalculatePathLength(List<Vector2> points)
         {
             if (points == null || points.Count < 2)
@@ -361,11 +361,11 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ÔÚÂ·¾¶ÉÏÕÒµ½Ö¸¶¨½ø¶È´¦µÄÎ»ÖÃ
+        /// åœ¨è·¯å¾„ä¸Šæ‰¾åˆ°æŒ‡å®šè¿›åº¦å¤„çš„ä½ç½®
         /// </summary>
-        /// <param name="points">Â·¾¶µã¼¯</param>
-        /// <param name="progress">½ø¶È (0-1)</param>
-        /// <returns>Î»ÖÃ</returns>
+        /// <param name="points">è·¯å¾„ç‚¹é›†</param>
+        /// <param name="progress">è¿›åº¦ (0-1)</param>
+        /// <returns>ä½ç½®</returns>
         public static Vector2 FindPointOnPath(List<Vector2> points, float progress)
         {
             if (points == null || points.Count == 0)
@@ -377,11 +377,11 @@ namespace OsuVR
             if (progress >= 1)
                 return points[points.Count - 1];
 
-            // ¼ÆËã×Ü³¤¶È
+            // è®¡ç®—æ€»é•¿åº¦
             float totalLength = CalculatePathLength(points);
             float targetLength = totalLength * progress;
 
-            // ÕÒµ½Ä¿±êµãËùÔÚµÄÏß¶Î
+            // æ‰¾åˆ°ç›®æ ‡ç‚¹æ‰€åœ¨çš„çº¿æ®µ
             float accumulatedLength = 0f;
             for (int i = 0; i < points.Count - 1; i++)
             {
@@ -400,11 +400,11 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ¼ò»¯Â·¾¶µã£¨ÒÆ³ı¹ıÓÚ½Ó½üµÄµã£©
+        /// ç®€åŒ–è·¯å¾„ç‚¹ï¼ˆç§»é™¤è¿‡äºæ¥è¿‘çš„ç‚¹ï¼‰
         /// </summary>
-        /// <param name="points">Ô­Ê¼µã¼¯</param>
-        /// <param name="tolerance">Èİ²î£¨Ğ¡ÓÚ´Ë¾àÀëµÄµã½«±»ÒÆ³ı£©</param>
-        /// <returns>¼ò»¯ºóµÄµã¼¯</returns>
+        /// <param name="points">åŸå§‹ç‚¹é›†</param>
+        /// <param name="tolerance">å®¹å·®ï¼ˆå°äºæ­¤è·ç¦»çš„ç‚¹å°†è¢«ç§»é™¤ï¼‰</param>
+        /// <returns>ç®€åŒ–åçš„ç‚¹é›†</returns>
         public static List<Vector2> SimplifyPath(List<Vector2> points, float tolerance = 0.01f)
         {
             if (points == null || points.Count < 3)
@@ -417,14 +417,14 @@ namespace OsuVR
 
             for (int i = 1; i < points.Count - 1; i++)
             {
-                // Èç¹ûµãÖ®¼äµÄ¾àÀë×ã¹»´ó£¬Ôò±£Áô
+                // å¦‚æœç‚¹ä¹‹é—´çš„è·ç¦»è¶³å¤Ÿå¤§ï¼Œåˆ™ä¿ç•™
                 if ((points[i] - simplified[simplified.Count - 1]).sqrMagnitude > sqrTolerance)
                 {
                     simplified.Add(points[i]);
                 }
             }
 
-            // È·±£×îºóÒ»¸öµã±»Ìí¼Ó
+            // ç¡®ä¿æœ€åä¸€ä¸ªç‚¹è¢«æ·»åŠ 
             if (simplified[simplified.Count - 1] != points[points.Count - 1])
             {
                 simplified.Add(points[points.Count - 1]);
@@ -435,46 +435,46 @@ namespace OsuVR
     }
 
     /// <summary>
-    /// À©Õ¹·½·¨£¬±ãÓÚÔÚÓÎÏ·ÖĞÊ¹ÓÃ
+    /// æ‰©å±•æ–¹æ³•ï¼Œä¾¿äºåœ¨æ¸¸æˆä¸­ä½¿ç”¨
     /// </summary>
     public static class SliderPathExtensions
     {
         /// <summary>
-        /// »ñÈ¡»¬ÌõÂ·¾¶ÉÏµÄµã£¨»ùÓÚÏñËØ³¤¶È£©
+        /// è·å–æ»‘æ¡è·¯å¾„ä¸Šçš„ç‚¹ï¼ˆåŸºäºåƒç´ é•¿åº¦ï¼‰
         /// </summary>
-        /// <param name="slider">»¬Ìõ¶ÔÏó</param>
-        /// <param name="pixelLength">ÏñËØ³¤¶È£¨Èç¹ûÎª0»ò¸ºÖµ£¬ÔòÊ¹ÓÃ»¬ÌõµÄPixelLength£©</param>
-        /// <returns>Â·¾¶µã¼¯</returns>
+        /// <param name="slider">æ»‘æ¡å¯¹è±¡</param>
+        /// <param name="pixelLength">åƒç´ é•¿åº¦ï¼ˆå¦‚æœä¸º0æˆ–è´Ÿå€¼ï¼Œåˆ™ä½¿ç”¨æ»‘æ¡çš„PixelLengthï¼‰</param>
+        /// <returns>è·¯å¾„ç‚¹é›†</returns>
         public static List<Vector2> GetSliderPath(this SliderObject slider, float pixelLength = 0f)
         {
             if (slider.ControlPoints == null || slider.ControlPoints.Count == 0)
                 return new List<Vector2>();
 
-            // ½«¿ØÖÆµã×ª»»ÎªÏà¶ÔÓÚ»¬ÌõÆğµãµÄ×ø±ê
+            // å°†æ§åˆ¶ç‚¹è½¬æ¢ä¸ºç›¸å¯¹äºæ»‘æ¡èµ·ç‚¹çš„åæ ‡
             List<Vector2> controlPoints = new List<Vector2>();
             foreach (Vector2 point in slider.ControlPoints)
             {
                 controlPoints.Add(point);
             }
 
-            // ¼ÆËãÂ·¾¶µã
+            // è®¡ç®—è·¯å¾„ç‚¹
             List<Vector2> pathPoints = SliderPathCalculator.CalculatePoints(slider.CurveType, controlPoints);
 
-            // Èç¹ûÓĞÖ¸¶¨µÄÏñËØ³¤¶È£¬µ÷ÕûÂ·¾¶
+            // å¦‚æœæœ‰æŒ‡å®šçš„åƒç´ é•¿åº¦ï¼Œè°ƒæ•´è·¯å¾„
             float targetLength = pixelLength > 0 ? pixelLength : (float)slider.PixelLength;
             if (targetLength > 0)
             {
-                // ¼ÆËãµ±Ç°Â·¾¶³¤¶È
+                // è®¡ç®—å½“å‰è·¯å¾„é•¿åº¦
                 float currentLength = SliderPathCalculator.CalculatePathLength(pathPoints);
 
                 if (currentLength > 0 && Mathf.Abs(currentLength - targetLength) > 0.01f)
                 {
-                    // ÖØĞÂ²ÉÑùÂ·¾¶ÒÔÆ¥ÅäÄ¿±ê³¤¶È
+                    // é‡æ–°é‡‡æ ·è·¯å¾„ä»¥åŒ¹é…ç›®æ ‡é•¿åº¦
                     pathPoints = ResamplePathToLength(pathPoints, targetLength);
                 }
             }
 
-            // ½«µã×ª»»»ØÊÀ½ç×ø±ê
+            // å°†ç‚¹è½¬æ¢å›ä¸–ç•Œåæ ‡
             for (int i = 0; i < pathPoints.Count; i++)
             {
                 pathPoints[i] = pathPoints[i] + slider.Position;
@@ -484,22 +484,22 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ½«Â·¾¶ÖØĞÂ²ÉÑùµ½Ö¸¶¨³¤¶È
+        /// å°†è·¯å¾„é‡æ–°é‡‡æ ·åˆ°æŒ‡å®šé•¿åº¦
         /// </summary>
-        /// <param name="originalPath">Ô­Ê¼Â·¾¶</param>
-        /// <param name="targetLength">Ä¿±ê³¤¶È</param>
-        /// <returns>ÖØĞÂ²ÉÑùºóµÄÂ·¾¶</returns>
+        /// <param name="originalPath">åŸå§‹è·¯å¾„</param>
+        /// <param name="targetLength">ç›®æ ‡é•¿åº¦</param>
+        /// <returns>é‡æ–°é‡‡æ ·åçš„è·¯å¾„</returns>
         private static List<Vector2> ResamplePathToLength(List<Vector2> originalPath, float targetLength)
         {
             float currentLength = SliderPathCalculator.CalculatePathLength(originalPath);
 
-            // Èç¹û³¤¶ÈºÜ½Ó½ü£¬²»ĞèÒªÖØĞÂ²ÉÑù
+            // å¦‚æœé•¿åº¦å¾ˆæ¥è¿‘ï¼Œä¸éœ€è¦é‡æ–°é‡‡æ ·
             if (Mathf.Abs(currentLength - targetLength) < 0.01f)
                 return new List<Vector2>(originalPath);
 
             List<Vector2> resampled = new List<Vector2>();
 
-            // ¸ù¾İÄ¿±ê³¤¶È¼ÆËãĞèÒªµÄµãÊı£¨Ã¿µ¥Î»³¤¶ÈÖÁÉÙÒ»¸öµã£©
+            // æ ¹æ®ç›®æ ‡é•¿åº¦è®¡ç®—éœ€è¦çš„ç‚¹æ•°ï¼ˆæ¯å•ä½é•¿åº¦è‡³å°‘ä¸€ä¸ªç‚¹ï¼‰
             int numPoints = Mathf.Max(2, Mathf.CeilToInt(targetLength));
 
             for (int i = 0; i < numPoints; i++)

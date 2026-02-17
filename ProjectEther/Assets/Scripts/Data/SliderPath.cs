@@ -1,31 +1,31 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
 namespace OsuVR
 {
     /// <summary>
-    /// »¬ÌõÂ·¾¶¼ÆËãÆ÷
+    /// æ»‘æ¡è·¯å¾„è®¡ç®—å™¨
     /// </summary>
     public class SliderPath
     {
         /// <summary>
-        /// ÇúÏßÀàĞÍ
+        /// æ›²çº¿ç±»å‹
         /// </summary>
         public CurveType Type { get; set; }
 
         /// <summary>
-        /// ¿ØÖÆµã
+        /// æ§åˆ¶ç‚¹
         /// </summary>
         public List<Vector2> ControlPoints { get; set; }
 
         /// <summary>
-        /// ÆÚÍû¾àÀë£¨ÏñËØ³¤¶È£©
+        /// æœŸæœ›è·ç¦»ï¼ˆåƒç´ é•¿åº¦ï¼‰
         /// </summary>
         public double ExpectedDistance { get; set; }
 
         /// <summary>
-        /// ¹¹Ôìº¯Êı
+        /// æ„é€ å‡½æ•°
         /// </summary>
         public SliderPath(CurveType type, List<Vector2> controlPoints, double expectedDistance)
         {
@@ -33,7 +33,7 @@ namespace OsuVR
             ControlPoints = controlPoints ?? new List<Vector2>();
             ExpectedDistance = expectedDistance;
 
-            // È·±£¿ØÖÆµãÁĞ±í²»Îª¿Õ
+            // ç¡®ä¿æ§åˆ¶ç‚¹åˆ—è¡¨ä¸ä¸ºç©º
             if (ControlPoints.Count == 0)
             {
                 ControlPoints.Add(Vector2.zero);
@@ -41,7 +41,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ÔÚÖ¸¶¨½ø¶È´¦»ñÈ¡Î»ÖÃ
+        /// åœ¨æŒ‡å®šè¿›åº¦å¤„è·å–ä½ç½®
         /// </summary>
         public Vector2 PositionAt(double progress)
         {
@@ -67,14 +67,14 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ¼ÆËãÏßĞÔÎ»ÖÃ
+        /// è®¡ç®—çº¿æ€§ä½ç½®
         /// </summary>
         private Vector2 CalculateLinearPosition(double progress)
         {
             if (ControlPoints.Count < 2)
                 return ControlPoints.FirstOrDefault();
 
-            // ¼òµ¥ÏßĞÔ²åÖµ
+            // ç®€å•çº¿æ€§æ’å€¼
             double totalLength = 0;
             List<double> segmentLengths = new List<double>();
 
@@ -106,34 +106,34 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ¼ÆËãÍêÃÀÇúÏßÎ»ÖÃ£¨Ô²ĞÎ£©
+        /// è®¡ç®—å®Œç¾æ›²çº¿ä½ç½®ï¼ˆåœ†å½¢ï¼‰
         /// </summary>
         private Vector2 CalculatePerfectCurvePosition(double progress)
         {
-            // ¼ò»¯ÊµÏÖ£ºÍêÃÀÇúÏßĞèÒªÈı¸ö¿ØÖÆµã
+            // ç®€åŒ–å®ç°ï¼šå®Œç¾æ›²çº¿éœ€è¦ä¸‰ä¸ªæ§åˆ¶ç‚¹
             if (ControlPoints.Count != 3)
                 return CalculateLinearPosition(progress);
 
-            // ¼ÆËãÔ²ĞÄºÍ°ë¾¶
+            // è®¡ç®—åœ†å¿ƒå’ŒåŠå¾„
             Vector2 p1 = ControlPoints[0];
             Vector2 p2 = ControlPoints[1];
             Vector2 p3 = ControlPoints[2];
 
-            // ¼ÆËãÔ²ĞÄ£¨ÈıµãÈ·¶¨Ò»¸öÔ²£©
-            // ÕâÀï¼ò»¯´¦Àí£¬Ê¹ÓÃÔ²»¡²åÖµ
+            // è®¡ç®—åœ†å¿ƒï¼ˆä¸‰ç‚¹ç¡®å®šä¸€ä¸ªåœ†ï¼‰
+            // è¿™é‡Œç®€åŒ–å¤„ç†ï¼Œä½¿ç”¨åœ†å¼§æ’å€¼
             float angle = Mathf.Lerp(0, Mathf.PI * 2, (float)progress);
-            Vector2 center = (p1 + p3) * 0.5f; // ¼ò»¯£ºÊ¹ÓÃÖĞµã×÷ÎªÔ²ĞÄ
+            Vector2 center = (p1 + p3) * 0.5f; // ç®€åŒ–ï¼šä½¿ç”¨ä¸­ç‚¹ä½œä¸ºåœ†å¿ƒ
             float radius = Vector2.Distance(p1, center);
 
             return center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
         }
 
         /// <summary>
-        /// ¼ÆËã±´Èû¶ûÇúÏßÎ»ÖÃ
+        /// è®¡ç®—è´å¡å°”æ›²çº¿ä½ç½®
         /// </summary>
         private Vector2 CalculateBezierPosition(double progress)
         {
-            // µÂ¿¨Ë¹ÌØÀï°ÂËã·¨
+            // å¾·å¡æ–¯ç‰¹é‡Œå¥¥ç®—æ³•
             List<Vector2> points = new List<Vector2>(ControlPoints);
 
             while (points.Count > 1)
@@ -153,26 +153,26 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ¼ÆËã¿¨ÌØÄ·ÇúÏßÎ»ÖÃ
+        /// è®¡ç®—å¡ç‰¹å§†æ›²çº¿ä½ç½®
         /// </summary>
         private Vector2 CalculateCatmullRomPosition(double progress)
         {
             if (ControlPoints.Count < 4)
                 return CalculateLinearPosition(progress);
 
-            // ÕÒµ½°üº¬progressµÄ¶Î
+            // æ‰¾åˆ°åŒ…å«progressçš„æ®µ
             int segmentCount = ControlPoints.Count - 3;
             double segmentProgress = progress * segmentCount;
             int segmentIndex = Mathf.Clamp((int)segmentProgress, 0, segmentCount - 1);
             double t = segmentProgress - segmentIndex;
 
-            // »ñÈ¡ËÄ¸ö¿ØÖÆµã
+            // è·å–å››ä¸ªæ§åˆ¶ç‚¹
             Vector2 p0 = ControlPoints[segmentIndex];
             Vector2 p1 = ControlPoints[segmentIndex + 1];
             Vector2 p2 = ControlPoints[segmentIndex + 2];
             Vector2 p3 = ControlPoints[segmentIndex + 3];
 
-            // Catmull-Rom¹«Ê½
+            // Catmull-Romå…¬å¼
             float t2 = (float)(t * t);
             float t3 = (float)(t2 * t);
 
@@ -186,7 +186,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ¼ÆËãÂ·¾¶×Ü³¤¶È
+        /// è®¡ç®—è·¯å¾„æ€»é•¿åº¦
         /// </summary>
         public double CalculateLength()
         {

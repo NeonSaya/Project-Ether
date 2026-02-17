@@ -1,10 +1,16 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 namespace OsuVR
 {
+    /// <summary>
+    /// çš®è‚¤é…ç½®ï¼šå­˜å‚¨é»˜è®¤éŸ³æ•ˆèµ„æº
+    /// </summary>
     [CreateAssetMenu(fileName = "DefaultSkin", menuName = "OsuVR/Skin Config")]
     public class SkinConfig : ScriptableObject
     {
+        // =========================================================
+        // Normal éŸ³æ•ˆé›†
+        // =========================================================
         [Header("Normal Set")]
         public AudioClip normal_hitnormal;
         public AudioClip normal_hitwhistle;
@@ -14,6 +20,9 @@ namespace OsuVR
         public AudioClip normal_slidertick;
         public AudioClip normal_sliderwhistle;
 
+        // =========================================================
+        // Soft éŸ³æ•ˆé›†
+        // =========================================================
         [Header("Soft Set")]
         public AudioClip soft_hitnormal;
         public AudioClip soft_hitwhistle;
@@ -23,6 +32,9 @@ namespace OsuVR
         public AudioClip soft_slidertick;
         public AudioClip soft_sliderwhistle;
 
+        // =========================================================
+        // Drum éŸ³æ•ˆé›†
+        // =========================================================
         [Header("Drum Set")]
         public AudioClip drum_hitnormal;
         public AudioClip drum_hitwhistle;
@@ -32,17 +44,23 @@ namespace OsuVR
         public AudioClip drum_slidertick;
         public AudioClip drum_sliderwhistle;
 
-        // ¸¨Öú·½·¨£º¸ù¾İÃ¶¾Ù»ñÈ¡Ä¬ÈÏÇĞÆ¬
+        /// <summary>
+        /// è·å–é»˜è®¤éŸ³æ•ˆç‰‡æ®µ
+        /// </summary>
+        /// <param name="set">éŸ³æ•ˆé›†</param>
+        /// <param name="type">éŸ³æ•ˆç±»å‹</param>
+        /// <param name="isSliderSlide">æ˜¯å¦ä¸ºæ»‘æ¡æ»‘åŠ¨éŸ³æ•ˆ</param>
+        /// <param name="isSliderTick">æ˜¯å¦ä¸ºæ»‘æ¡ Tick éŸ³æ•ˆ</param>
+        /// <returns>å¯¹åº”çš„éŸ³é¢‘ç‰‡æ®µ</returns>
         public AudioClip GetDefaultClip(SampleSet set, HitSoundType type, bool isSliderSlide = false, bool isSliderTick = false)
         {
-            // ¼òµ¥Â·ÓÉÂß¼­
             switch (set)
             {
                 case SampleSet.Drum:
                     if (isSliderSlide) return drum_sliderslide;
                     if (isSliderTick) return drum_slidertick;
                     if ((type & HitSoundType.Finish) != 0) return drum_hitfinish;
-                    if ((type & HitSoundType.Whistle) != 0) return drum_hitwhistle; // SliderWhistle Í¨³£¸´ÓÃÕâ¸ö»òµ¥¶À´¦Àí
+                    if ((type & HitSoundType.Whistle) != 0) return drum_hitwhistle;
                     if ((type & HitSoundType.Clap) != 0) return drum_hitclap;
                     return drum_hitnormal;
 

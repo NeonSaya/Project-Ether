@@ -1,88 +1,88 @@
-using System;
+ï»¿using System;
 
 namespace OsuVR
 {
     /// <summary>
-    /// »÷´ò¶ÔÏóÀàĞÍ
+    /// å‡»æ‰“å¯¹è±¡ç±»å‹
     /// </summary>
     [Flags]
     public enum HitObjectType
     {
         /// <summary>
-        /// µã»÷Ô²È¦
+        /// ç‚¹å‡»åœ†åœˆ
         /// </summary>
         Circle = 1,
 
         /// <summary>
-        /// »¬Ìõ
+        /// æ»‘æ¡
         /// </summary>
         Slider = 2,
 
         /// <summary>
-        /// ×ªÅÌ
+        /// è½¬ç›˜
         /// </summary>
         Spinner = 8,
 
         /// <summary>
-        /// ĞÂÁ¬»÷
+        /// æ–°è¿å‡»
         /// </summary>
         NewCombo = 4,
 
         /// <summary>
-        /// Á¬»÷ÑÕÉ«Æ«ÒÆ£¨¸ß4Î»£©
+        /// è¿å‡»é¢œè‰²åç§»ï¼ˆé«˜4ä½ï¼‰
         /// </summary>
-        ComboColorOffset = 112,// ¶ş½øÖÆ: 01110000
+        ComboColorOffset = 112,// äºŒè¿›åˆ¶: 01110000
 
             /// <summary>
-            /// Mania ³¤°´ (¼æÈİĞÔ±£Áô)
+            /// Mania é•¿æŒ‰ (å…¼å®¹æ€§ä¿ç•™)
             /// </summary>
         Hold = 128
     }
 
     /// <summary>
-    /// ÇúÏßÀàĞÍ£¨»¬ÌõÂ·¾¶ÀàĞÍ£©
+    /// æ›²çº¿ç±»å‹ï¼ˆæ»‘æ¡è·¯å¾„ç±»å‹ï¼‰
     /// </summary>
     public enum CurveType
     {
         /// <summary>
-        /// ÏßĞÔ»¬Ìõ
+        /// çº¿æ€§æ»‘æ¡
         /// </summary>
         Linear = 'L',
 
         /// <summary>
-        /// ÍêÃÀÇúÏß£¨Ô²ĞÎ£©
+        /// å®Œç¾æ›²çº¿ï¼ˆåœ†å½¢ï¼‰
         /// </summary>
         Perfect = 'P',
 
         /// <summary>
-        /// ±´Èû¶ûÇúÏß
+        /// è´å¡å°”æ›²çº¿
         /// </summary>
         Bezier = 'B',
 
         /// <summary>
-        /// ¿¨ÌØÄ·ÇúÏß
+        /// å¡ç‰¹å§†æ›²çº¿
         /// </summary>
         Catmull = 'C'
     }
 
     /// <summary>
-    /// ÓÎÏ·Ä£Ê½
+    /// æ¸¸æˆæ¨¡å¼
     /// </summary>
     public enum GameMode
     {
         /// <summary>
-        /// osu!droid Ä£Ê½
+        /// osu!droid æ¨¡å¼
         /// </summary>
         Droid,
 
         /// <summary>
-        /// osu!standard Ä£Ê½
+        /// osu!standard æ¨¡å¼
         /// </summary>
         Standard
     }
 
     /// <summary>
-    /// Ñù±¾¿âÀàĞÍ
+    /// æ ·æœ¬åº“ç±»å‹
     /// </summary>
     public enum SampleBank
     {
@@ -95,59 +95,59 @@ namespace OsuVR
 
 
     /// <summary>
-    /// ÒôĞ§²ÉÑù¼¯ÀàĞÍ (¾ö¶¨ÊÇÓÃÈáºÍÒô»¹ÊÇ¹ÄµãÒô)
+    /// éŸ³æ•ˆé‡‡æ ·é›†ç±»å‹ (å†³å®šæ˜¯ç”¨æŸ”å’ŒéŸ³è¿˜æ˜¯é¼“ç‚¹éŸ³)
     /// </summary>
     public enum SampleSet
     {
         /// <summary>
-        /// ×Ô¶¯/¼Ì³Ğ
+        /// è‡ªåŠ¨/ç»§æ‰¿
         /// </summary>
         None = 0,
 
         /// <summary>
-        /// ±ê×¼Òô (Normal)
+        /// æ ‡å‡†éŸ³ (Normal)
         /// </summary>
         Normal = 1,
 
         /// <summary>
-        /// ÈáºÍÒô (Soft)
+        /// æŸ”å’ŒéŸ³ (Soft)
         /// </summary>
         Soft = 2,
 
         /// <summary>
-        /// ¹ÄµãÒô (Drum)
+        /// é¼“ç‚¹éŸ³ (Drum)
         /// </summary>
         Drum = 3
     }
 
     /// <summary>
-    /// ´ò»÷ÒôĞ§ÀàĞÍ (Î»ÑÚÂë£¬Ö§³Öµş¼Ó)
+    /// æ‰“å‡»éŸ³æ•ˆç±»å‹ (ä½æ©ç ï¼Œæ”¯æŒå åŠ )
     /// </summary>
     [Flags]
     public enum HitSoundType
     {
         /// <summary>
-        /// ÎŞ¶îÍâÒôĞ§
+        /// æ— é¢å¤–éŸ³æ•ˆ
         /// </summary>
         None = 0,
 
         /// <summary>
-        /// »ù´¡´ò»÷Òô
+        /// åŸºç¡€æ‰“å‡»éŸ³
         /// </summary>
         Normal = 1,
 
         /// <summary>
-        /// ÉÚÒô (Whistle)
+        /// å“¨éŸ³ (Whistle)
         /// </summary>
         Whistle = 2,
 
         /// <summary>
-        /// ÖÕ½áÒô (Finish/ïïÆ¬)
+        /// ç»ˆç»“éŸ³ (Finish/é•²ç‰‡)
         /// </summary>
         Finish = 4,
 
         /// <summary>
-        /// ÕÆÉù (Clap)
+        /// æŒå£° (Clap)
         /// </summary>
         Clap = 8
     }

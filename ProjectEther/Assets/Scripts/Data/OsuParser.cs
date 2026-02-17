@@ -764,49 +764,67 @@ namespace OsuVR
 
         /// <summary>
         /// 解析滑条节点音效
+        /// osu! 格式：
+        /// - 第8个参数: 节点音效类型（用|分隔）如 "2|0|2"
+        /// - 第9个参数: 节点音效库（用|分隔）如 "0:0:0:0:|2:0:0:0:|0:0:0:0:"
         /// </summary>
         private static void ParseSliderNodeSamples(SliderObject slider, string[] parts)
         {
             try
             {
-                // 第8个参数: 节点音效类型（用|分隔）
-                // 格式: "2|0|2" 表示三个节点的音效类型
+                // 滑条节点数 = 重复次数 + 1 (Head + Repeats + Tail)
+                // 注意：osu! 格式中节点数 = RepeatCount + 1
+                int nodeCount = slider.RepeatCount + 1;
+
+                // 初始化节点音效列表
+                slider.NodeSamples = new List<List<HitSampleInfo>>();
+
+                // 解析第8个参数: 节点音效类型
+                string[] nodeSoundTypes = null;
                 if (parts.Length > 8 && !string.IsNullOrEmpty(parts[8]))
                 {
-                    string[] nodeSoundTypes = parts[8].Split(PipeChar, StringSplitOptions.RemoveEmptyEntries);
-
-                    // 滑条节点数 = 重复次数 + 2 (起点和终点)
-                    int nodeCount = slider.RepeatCount + 2;
-
-                    // 初始化节点音效列表
-                    slider.NodeSamples = new List<List<HitSampleInfo>>();
-
-                    for (int i = 0; i < nodeCount; i++)
-                    {
-                        int soundType = 0;
-                        if (i < nodeSoundTypes.Length)
-                        {
-                            soundType = int.Parse(nodeSoundTypes[i]);
-                        }
-
-                        // 根据音效类型创建音效列表
-                        List<HitSampleInfo> nodeSamples = ConvertSoundType(soundType, new SampleBankInfo());
-                        slider.NodeSamples.Add(nodeSamples);
-                    }
+                    nodeSoundTypes = parts[8].Split(PipeChar, StringSplitOptions.RemoveEmptyEntries);
                 }
 
-                // 第9个参数: 节点音效库（用|分隔）
-                // 格式: "0:0:0:0:|2:0:0:0:|0:0:0:0:" 表示三个节点的音效库
+                // 解析第9个参数: 节点音效库
+                string[] nodeSampleSets = null;
                 if (parts.Length > 9 && !string.IsNullOrEmpty(parts[9]))
                 {
-                    string[] nodeSampleSets = parts[9].Split(PipeChar, StringSplitOptions.RemoveEmptyEntries);
-
-                    // 确保NodeSamples已初始化
-                    if (slider.NodeSamples == null)
-                    {
-                        slider.NodeSamples = new List<List<HitSampleInfo>>();
-                    }
+                    nodeSampleSets = parts[9].Split(PipeChar, StringSplitOptions.RemoveEmptyEntries);
                 }
+
+                // 为每个节点创建音效列表
+                for (int i = 0; i < nodeCount; i++)
+                {
+                    // 获取音效类型
+                    int soundType = 0;
+                    if (nodeSoundTypes != null && i < nodeSoundTypes.Length)
+                    {
+                        soundType = int.Parse(nodeSoundTypes[i]);
+                    }
+
+                    // 获取音效库信息
+                    SampleBankInfo bankInfo = new SampleBankInfo();
+                    if (nodeSampleSets != null && i < nodeSampleSets.Length)
+                    {
+                        // 格式: normalBank:addBank:customIndex:volume:filename
+                        string[] bankParts = nodeSampleSets[i].Split(':');
+                        if (bankParts.Length >= 1 && int.TryParse(bankParts[0], out int normalBank))
+                            bankInfo.Normal = ParseSampleBank(normalBank);
+                        if (bankParts.Length >= 2 && int.TryParse(bankParts[1], out int addBank))
+                            bankInfo.Add = ParseSampleBank(addBank);
+                        if (bankParts.Length >= 3 && int.TryParse(bankParts[2], out int customIndex))
+                            bankInfo.CustomSampleBank = customIndex;
+                        if (bankParts.Length >= 4 && int.TryParse(bankParts[3], out int volume))
+                            bankInfo.Volume = volume;
+                    }
+
+                    // 根据音效类型和音效库创建音效列表
+                    List<HitSampleInfo> nodeSamples = ConvertSoundType(soundType, bankInfo);
+                    slider.NodeSamples.Add(nodeSamples);
+                }
+
+                Debug.Log($"[OsuParser] 滑条节点音效解析完成: {nodeCount} 个节点");
             }
             catch (Exception e)
             {

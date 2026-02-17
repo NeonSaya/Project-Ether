@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using TMPro;
 using System.Collections;
@@ -5,129 +6,162 @@ using System.Collections;
 namespace OsuVR
 {
     /// <summary>
-    /// ´¿ÊÓ¾õ¿ØÖÆÆ÷£º¸ºÔğ·ÖÊıµÄ¹ö¶¯ÏÔÊ¾¡¢Combo ¶¯»­¡¢Acc ¶¯»­
+    /// è®¡åˆ†æ¿æ§åˆ¶å™¨ï¼šç®¡ç†æ¸¸æˆä¸­çš„åˆ†æ•°ã€è¿å‡»ã€å‡†ç¡®ç‡æ˜¾ç¤º
     /// </summary>
     public class ScoreBoardController : MonoBehaviour
     {
-        [Header("UI ×é¼ş")]
-        public TextMeshProUGUI textScore;
-        public TextMeshProUGUI textCombo;
-        public TextMeshProUGUI textAcc;
-        public GameObject comboGroup; // ½« Combo ÎÄ×ÖºÍ±êÇ©·ÅÔÚÒ»¸ö¸¸ÎïÌåÏÂ£¬·½±ãÕûÌåÒş²Ø
+        // =========================================================
+        // UI å¼•ç”¨
+        // =========================================================
+        [Header("UI å¼•ç”¨")]
+        public TextMeshProUGUI textScore;       // åˆ†æ•°æ–‡æœ¬
+        public TextMeshProUGUI textCombo;       // è¿å‡»æ–‡æœ¬
+        public TextMeshProUGUI textAcc;         // å‡†ç¡®ç‡æ–‡æœ¬
+        public GameObject comboGroup;           // è¿å‡»ç»„ (åŒ…å«æ•°å­—å’Œæ ‡ç­¾ï¼Œç”¨äºæ•´ä½“æ˜¾éš)
 
-        [Header("¶¯»­ÉèÖÃ")]
-        public float scoreScrollSpeed = 5.0f; // ·ÖÊı¹ö¶¯ËÙ¶È
-        public float punchScale = 1.15f;       // Combo Ìø¶¯´óĞ¡
+        // =========================================================
+        // åŠ¨ç”»é…ç½®
+        // =========================================================
+        [Header("åŠ¨ç”»é…ç½®")]
+        [Tooltip("åˆ†æ•°æ»šåŠ¨é€Ÿåº¦")]
+        public float scoreScrollSpeed = 5.0f;
+        [Tooltip("è¿å‡»å¼¹å‡ºæ”¾å¤§å€æ•°")]
+        public float punchScale = 1.15f;
+        [Tooltip("æ–­è¿é¢œè‰²")]
         public Color comboBreakColor = Color.red;
 
-        // ÄÚ²¿ÏÔÊ¾ÊıÖµ (float ÓÃÓÚÆ½»¬¹ö¶¯)
-        private float displayScore = 0;
-        private double displayAcc = 1.0;
+        // =========================================================
+        // å†…éƒ¨çŠ¶æ€
+        // =========================================================
+        private float displayScore = 0;         // å½“å‰æ˜¾ç¤ºçš„åˆ†æ•° (ç”¨äºåŠ¨ç”»)
+        private double displayAcc = 1.0;        // å½“å‰æ˜¾ç¤ºçš„å‡†ç¡®ç‡ (ç”¨äºåŠ¨ç”»)
 
-        // Ä¿±êÊıÖµ
-        private long targetScore = 0;
-        private double targetAcc = 1.0;
-        private int currentCombo = 0;
+        private long targetScore = 0;           // ç›®æ ‡åˆ†æ•°
+        private double targetAcc = 1.0;         // ç›®æ ‡å‡†ç¡®ç‡
+        private int currentCombo = 0;           // å½“å‰è¿å‡»æ•°
 
-        private Vector3 comboOriginalScale;
-        private Color comboOriginalColor;
-        private bool isComboBroken = false;
+        private Vector3 comboOriginalScale;     // è¿å‡»æ–‡æœ¬åŸå§‹ç¼©æ”¾
+        private Color comboOriginalColor;       // è¿å‡»æ–‡æœ¬åŸå§‹é¢œè‰²
+        private bool isComboBroken = false;     // æ˜¯å¦æ­£åœ¨æ’­æ”¾æ–­è¿åŠ¨ç”»
+
+        // =========================================================
+        // ç”Ÿå‘½å‘¨æœŸ
+        // =========================================================
 
         void Start()
         {
             if (textCombo)
             {
-                comboOriginalScale = Vector3.one; // ¼ÙÉè³õÊ¼ÊÇ 1
+                comboOriginalScale = Vector3.one;
                 comboOriginalColor = textCombo.color;
             }
 
-            // ³õÊ¼×´Ì¬Òş²Ø Combo
+            // åˆå§‹çŠ¶æ€éšè— Combo
             if (comboGroup) comboGroup.SetActive(false);
             else if (textCombo) textCombo.gameObject.SetActive(false);
         }
 
         void Update()
         {
-            // 1. ·ÖÊı¹ö¶¯Âß¼­ (Lerp ²åÖµ)
-            // ÕâÖÖĞ´·¨»áÈÃÊı×ÖÌø¶¯ÓÉÓÚ "×·¸Ï" ¶ø²úÉú¹ö¶¯¸Ğ
+            // 1. åˆ†æ•°æ»šåŠ¨åŠ¨ç”» (Lerp æ’å€¼)
             if (Mathf.Abs(displayScore - targetScore) > 1f)
             {
-                // Ê¹ÓÃ Lerp »áÓĞ"¿ì->Âı"µÄ¸Ğ¾õ
                 displayScore = Mathf.Lerp(displayScore, targetScore, Time.deltaTime * scoreScrollSpeed);
-                // Ò²¿ÉÒÔÓÃ MoveTowards ÔÈËÙ¹ö¶¯:
-                // displayScore = Mathf.MoveTowards(displayScore, targetScore, Time.deltaTime * 50000f); 
-
-                // ¸üĞÂÎÄ±¾
                 if (textScore) textScore.text = ((long)displayScore).ToString("D6");
             }
             else if ((long)displayScore != targetScore)
             {
-                // ×îºóµÄÎü¸½£¬·ÀÖ¹Ğ¡ÊıÎó²î
+                // å·®å€¼è¿‡å°æ—¶ç›´æ¥å¯¹é½ï¼Œé˜²æ­¢å°æ•°æŠ–åŠ¨
                 displayScore = targetScore;
                 if (textScore) textScore.text = targetScore.ToString("D6");
             }
 
-            // 2. Acc ¹ö¶¯Âß¼­
+            // 2. å‡†ç¡®ç‡æ»šåŠ¨åŠ¨ç”»
             if (Mathf.Abs((float)(displayAcc - targetAcc)) > 0.0001f)
             {
                 displayAcc = Mathf.Lerp((float)displayAcc, (float)targetAcc, Time.deltaTime * 3f);
                 if (textAcc) textAcc.text = $"{displayAcc * 100:F2}%";
             }
+            else if (Math.Abs(displayAcc - targetAcc) > 0.000001)
+            {
+                // å¼ºåˆ¶å¯¹é½åˆ°ç›®æ ‡å€¼ï¼Œé˜²æ­¢æµ®ç‚¹ç²¾åº¦é—®é¢˜
+                displayAcc = targetAcc;
+                if (textAcc) textAcc.text = $"{displayAcc * 100:F2}%";
+            }
         }
 
+        // =========================================================
+        // å…¬å¼€æ¥å£
+        // =========================================================
+
         /// <summary>
-        /// Íâ²¿µ÷ÓÃ£º¸üĞÂÃæ°åÊı¾İ
+        /// æ›´æ–°è®¡åˆ†æ¿æ•°æ®
         /// </summary>
+        /// <param name="score">å½“å‰åˆ†æ•°</param>
+        /// <param name="combo">å½“å‰è¿å‡»</param>
+        /// <param name="acc">å½“å‰å‡†ç¡®ç‡</param>
         public void UpdateDashboard(long score, int combo, double acc)
         {
             targetScore = score;
             targetAcc = acc;
 
-            // Combo ´¦Àí
+            // Combo çŠ¶æ€å¤„ç†
             if (combo > currentCombo)
             {
-                // Combo Ôö¼Ó£ºÌø¶¯¶¯»­
+                // Combo å¢åŠ ï¼šæ’­æ”¾å¼¹å‡ºåŠ¨ç”»
                 currentCombo = combo;
                 UpdateComboText();
                 PunchCombo();
 
-                // È·±£ÏÔÊ¾
+                // ç¡®ä¿æ˜¾ç¤º
                 if (comboGroup) comboGroup.SetActive(true);
                 else if (textCombo) textCombo.gameObject.SetActive(true);
             }
             else if (combo == 0 && currentCombo > 0)
             {
-                // Combo ¶ÏÁ¬£º²¥·Å¶ÏÁ¬¶¯»­
+                // Combo æ–­æ‰ï¼šæ’­æ”¾æ–­è¿åŠ¨ç”»
                 currentCombo = 0;
                 StartCoroutine(ComboBreakEffect());
             }
             else if (combo == 0)
             {
-                // Ò»Ö±ÊÇ 0
+                // ä¸€ç›´æ˜¯ 0
                 currentCombo = 0;
             }
         }
 
+        // =========================================================
+        // è¾…åŠ©æ–¹æ³•
+        // =========================================================
+
+        /// <summary>
+        /// æ›´æ–°è¿å‡»æ–‡æœ¬
+        /// </summary>
         private void UpdateComboText()
         {
             if (textCombo) textCombo.text = $"{currentCombo}";
         }
 
+        /// <summary>
+        /// æ’­æ”¾è¿å‡»å¼¹å‡ºåŠ¨ç”»
+        /// </summary>
         private void PunchCombo()
         {
             if (!textCombo) return;
-            // ¼òµ¥µÄ·Å´ó»Øµ¯
             StopCoroutine("AnimatePunch");
             StartCoroutine("AnimatePunch");
         }
 
+        /// <summary>
+        /// è¿å‡»å¼¹å‡ºåŠ¨ç”»åç¨‹
+        /// </summary>
         private IEnumerator AnimatePunch()
         {
             float t = 0;
             while (t < 0.15f)
             {
                 t += Time.deltaTime;
-                float scale = Mathf.Lerp(punchScale, 1.0f, t * 10f); // ¿ìËÙ»Øµ¯
+                float scale = Mathf.Lerp(punchScale, 1.0f, t * 10f);
                 textCombo.transform.localScale = comboOriginalScale * scale;
                 yield return null;
             }
@@ -135,30 +169,29 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ¶ÏÁ¬¶¯»­£º±äºì -> µôÂä/ÏûÊ§ -> Òş²Ø
+        /// æ–­è¿åŠ¨ç”»ï¼šå˜çº¢ -> ä¸‹è½/æ·¡å‡º -> éšè—
         /// </summary>
         private IEnumerator ComboBreakEffect()
         {
             if (!textCombo) yield break;
 
             isComboBroken = true;
-            textCombo.color = comboBreakColor; // ±äºì
+            textCombo.color = comboBreakColor;
 
-            // Õğ¶¯Ò»ÏÂ (¿ÉÑ¡: ÍùÏÂµô)
             Vector3 originalPos = textCombo.transform.localPosition;
             float t = 0;
 
-            while (t < 0.3f) // 0.3Ãë¶¯»­
+            while (t < 0.3f)
             {
                 t += Time.deltaTime;
-                // ÍùÏÂµôÒ»µãµã
+                // ä¸‹è½åŠ¨ç”»
                 textCombo.transform.localPosition = originalPos - new Vector3(0, t * 0.5f, 0);
-                // ±äÍ¸Ã÷
+                // æ·¡å‡ºåŠ¨ç”»
                 textCombo.alpha = 1f - (t / 0.3f);
                 yield return null;
             }
 
-            // ¶¯»­½áÊø£º»¹Ô­²¢Òş²Ø
+            // åŠ¨ç”»ç»“æŸï¼šéšè—å¹¶é‡ç½®çŠ¶æ€
             if (comboGroup) comboGroup.SetActive(false);
             else textCombo.gameObject.SetActive(false);
 

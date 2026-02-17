@@ -1,13 +1,13 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 namespace OsuVR
 {
     public class ApproachCircleScaler : MonoBehaviour
     {
-        [Tooltip("ĞèÒªËõ·ÅµÄÄ¿±êÎïÌå£¨Quad »ò Sprite£©")]
+        [Tooltip("éœ€è¦ç¼©æ”¾çš„ç›®æ ‡ç‰©ä½“ï¼ˆQuad æˆ– Spriteï¼‰")]
         public Transform targetTransform;
 
-        private Renderer _renderer; // ¸ÄÓÃÍ¨ÓÃµÄ Renderer£¬¼æÈİ MeshRenderer ºÍ SpriteRenderer
+        private Renderer _renderer; // æ”¹ç”¨é€šç”¨çš„ Rendererï¼Œå…¼å®¹ MeshRenderer å’Œ SpriteRenderer
         private double hitTime;
         private double timePreempt;
         private bool isRunning = false;
@@ -18,19 +18,19 @@ namespace OsuVR
             this.timePreempt = timePreemptMs;
             this.isRunning = true;
 
-            // 1. ×Ô¶¯»ñÈ¡ÒıÓÃ
+            // 1. è‡ªåŠ¨è·å–å¼•ç”¨
             if (targetTransform == null) targetTransform = transform;
 
-            // ³¢ÊÔ»ñÈ¡ Renderer (Quad ÊÇ MeshRenderer, Sprite ÊÇ SpriteRenderer)
+            // å°è¯•è·å– Renderer (Quad æ˜¯ MeshRenderer, Sprite æ˜¯ SpriteRenderer)
             _renderer = targetTransform.GetComponent<Renderer>();
 
-            // 2. ³õÊ¼×´Ì¬£º4±¶´óĞ¡
+            // 2. åˆå§‹çŠ¶æ€ï¼š4å€å¤§å°
             targetTransform.localScale = Vector3.one * 4f;
 
-            // 3. È·±£ÎïÌå¼¤»î
+            // 3. ç¡®ä¿ç‰©ä½“æ¿€æ´»
             targetTransform.gameObject.SetActive(true);
 
-            // 4. ÏÈÒş²Ø Renderer (±ÜÃâÒ»¿ªÊ¼ÉÁÒ»ÏÂ)
+            // 4. å…ˆéšè— Renderer (é¿å…ä¸€å¼€å§‹é—ªä¸€ä¸‹)
             if (_renderer) _renderer.enabled = false;
         }
 
@@ -44,27 +44,27 @@ namespace OsuVR
             double currentTime = manager.GetCurrentMusicTimeMs();
             double timeRemaining = hitTime - currentTime;
 
-            // ×´Ì¬ 1: Ê±¼äÌ«Ôç (»¹Ã»½ø AR ·¶Î§) -> Òş²Ø
+            // çŠ¶æ€ 1: æ—¶é—´å¤ªæ—© (è¿˜æ²¡è¿› AR èŒƒå›´) -> éšè—
             if (timeRemaining > timePreempt)
             {
                 if (_renderer) _renderer.enabled = false;
             }
-            // ×´Ì¬ 2: Ê±¼äµ½ÁË (»÷ÖĞ/Miss) -> Òş²Ø
+            // çŠ¶æ€ 2: æ—¶é—´åˆ°äº† (å‡»ä¸­/Miss) -> éšè—
             else if (timeRemaining <= 0)
             {
                 targetTransform.localScale = Vector3.one;
                 if (_renderer) _renderer.enabled = false;
                 isRunning = false;
             }
-            // ×´Ì¬ 3: ÕıÔÚËõÈ¦ -> ÏÔÊ¾²¢Ëõ·Å
+            // çŠ¶æ€ 3: æ­£åœ¨ç¼©åœˆ -> æ˜¾ç¤ºå¹¶ç¼©æ”¾
             else
             {
                 if (_renderer) _renderer.enabled = true;
 
-                // ¼ÆËã½ø¶È (0 = ¿ªÊ¼, 1 = ½áÊø)
+                // è®¡ç®—è¿›åº¦ (0 = å¼€å§‹, 1 = ç»“æŸ)
                 float progress = 1f - (float)(timeRemaining / timePreempt);
 
-                // ÏßĞÔ²åÖµ£º´Ó 4x µ½ 1x
+                // çº¿æ€§æ’å€¼ï¼šä» 4x åˆ° 1x
                 float scale = Mathf.Lerp(4f, 1f, progress);
                 targetTransform.localScale = Vector3.one * scale;
             }

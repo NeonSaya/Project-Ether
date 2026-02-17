@@ -1,26 +1,26 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
 namespace OsuVR
 {
-    // ¼ò»¯µÄÆ×ÃæÔªÊı¾İ£¬ÓÃÓÚÑ¡¸è½çÃæÏÔÊ¾
+    // ç®€åŒ–çš„è°±é¢å…ƒæ•°æ®ï¼Œç”¨äºé€‰æ­Œç•Œé¢æ˜¾ç¤º
     public class BeatmapMetadata
     {
         public string Title;
         public string Artist;
         public string Creator;
-        public string Version; // ÄÑ¶ÈÃû
+        public string Version; // éš¾åº¦å
         public string AudioFilename;
         public string BackgroundFilename;
-        public string FolderPath; // ÎÄ¼ş¼ĞÂ·¾¶
-        public string OsuFilePath; // .osu ÎÄ¼şÈ«Â·¾¶
+        public string FolderPath; // æ–‡ä»¶å¤¹è·¯å¾„
+        public string OsuFilePath; // .osu æ–‡ä»¶å…¨è·¯å¾„
     }
 
     public static class SongMetaLoader
     {
         /// <summary>
-        /// É¨Ãè Songs Ä¿Â¼£¬·µ»ØËùÓĞ¿ÉÍæµÄÆ×ÃæĞÅÏ¢
+        /// æ‰«æ Songs ç›®å½•ï¼Œè¿”å›æ‰€æœ‰å¯ç©çš„è°±é¢ä¿¡æ¯
         /// </summary>
         public static List<BeatmapMetadata> ScanSongFolder()
         {
@@ -30,11 +30,11 @@ namespace OsuVR
 
             if (!Directory.Exists(rootPath)) return maps;
 
-            // ±éÀúÃ¿¸ö¸èÇúÎÄ¼ş¼Ğ
+            // éå†æ¯ä¸ªæ­Œæ›²æ–‡ä»¶å¤¹
             string[] songDirs = Directory.GetDirectories(rootPath);
             foreach (var dir in songDirs)
             {
-                // ÔÚÎÄ¼ş¼ĞÀïÕÒ .osu ÎÄ¼ş
+                // åœ¨æ–‡ä»¶å¤¹é‡Œæ‰¾ .osu æ–‡ä»¶
                 string[] osuFiles = Directory.GetFiles(dir, "*.osu");
                 foreach (var osuFile in osuFiles)
                 {
@@ -50,7 +50,7 @@ namespace OsuVR
             return maps;
         }
 
-        // Ö»¶ÁÈ¡Í·²¿ĞÅÏ¢£¬²»½âÎö HitObjects
+        // åªè¯»å–å¤´éƒ¨ä¿¡æ¯ï¼Œä¸è§£æ HitObjects
         private static BeatmapMetadata ParseHeader(string filePath)
         {
             BeatmapMetadata meta = new BeatmapMetadata();
@@ -59,14 +59,14 @@ namespace OsuVR
                 foreach (string line in File.ReadAllLines(filePath))
                 {
                     if (string.IsNullOrWhiteSpace(line)) continue;
-                    if (line.StartsWith("[HitObjects]")) break; // ¶Áµ½ÕâÀï¾ÍÍ££¬ºóÃæ²»ĞèÒª
+                    if (line.StartsWith("[HitObjects]")) break; // è¯»åˆ°è¿™é‡Œå°±åœï¼Œåé¢ä¸éœ€è¦
 
                     if (line.StartsWith("AudioFilename:")) meta.AudioFilename = line.Substring(14).Trim();
                     else if (line.StartsWith("Title:")) meta.Title = line.Substring(6).Trim();
                     else if (line.StartsWith("Artist:")) meta.Artist = line.Substring(7).Trim();
                     else if (line.StartsWith("Creator:")) meta.Creator = line.Substring(8).Trim();
                     else if (line.StartsWith("Version:")) meta.Version = line.Substring(8).Trim();
-                    // ´¦Àí±³¾°Í¼Í¨³£±È½Ï¸´ÔÓ£¬Í¨³£ÔÚ [Events] ÏÂ£¬ÕâÀïÏÈÂÔ¹ı
+                    // å¤„ç†èƒŒæ™¯å›¾é€šå¸¸æ¯”è¾ƒå¤æ‚ï¼Œé€šå¸¸åœ¨ [Events] ä¸‹ï¼Œè¿™é‡Œå…ˆç•¥è¿‡
                 }
                 if (string.IsNullOrEmpty(meta.AudioFilename)) return null;
 

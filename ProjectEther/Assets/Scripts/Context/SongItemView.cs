@@ -1,4 +1,4 @@
-using TMPro;
+ï»¿using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Events;
@@ -7,30 +7,30 @@ namespace OsuVR
 {
     public class SongItemView : MonoBehaviour
     {
-        [Header("UI ×é¼ş")]
+        [Header("UI ç»„ä»¶")]
         public TextMeshProUGUI titleText;
         public TextMeshProUGUI artistText;
         public TextMeshProUGUI versionText;
-        public Button myButton; // °´Å¥×é¼ş
+        public Button myButton; // æŒ‰é’®ç»„ä»¶
 
-        // ±£´æ¸èÇúĞÅÏ¢
+        // ä¿å­˜æ­Œæ›²ä¿¡æ¯
         private BeatmapMetadata _metadata;
 
-        // ³õÊ¼»¯·½·¨
+        // åˆå§‹åŒ–æ–¹æ³•
         public void Setup(BeatmapMetadata metadata, UnityAction<BeatmapMetadata> onClickAction)
         {
             _metadata = metadata;
 
-            // ÏÔÊ¾ĞÅÏ¢
+            // æ˜¾ç¤ºä¿¡æ¯
             if (titleText) titleText.text = metadata.Title;
             if (artistText) artistText.text = metadata.Artist;
             if (versionText) versionText.text = metadata.Version;
 
-            // °ó¶¨µã»÷ÊÂ¼ş
+            // ç»‘å®šç‚¹å‡»äº‹ä»¶
             myButton.onClick.RemoveAllListeners();
             myButton.onClick.AddListener(() =>
             {
-                // µ±±»µã»÷Ê±£¬Ö´ĞĞ´«½øÀ´µÄ¶¯×÷£¬²¢°Ñ×Ô¼º´ø¹ıÈ¥
+                // å½“è¢«ç‚¹å‡»æ—¶ï¼Œæ‰§è¡Œä¼ è¿›æ¥çš„åŠ¨ä½œï¼Œå¹¶æŠŠè‡ªå·±å¸¦è¿‡å»
                 onClickAction.Invoke(_metadata);
             });
         }

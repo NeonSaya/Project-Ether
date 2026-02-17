@@ -1,11 +1,11 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
 namespace OsuVR
 {
     /// <summary>
-    /// ÍêÕûµÄÆ×ÃæÊı¾İ½á¹¹
+    /// å®Œæ•´çš„è°±é¢æ•°æ®ç»“æ„
     /// </summary>
     public class Beatmap
     {
@@ -18,7 +18,7 @@ namespace OsuVR
         public List<Color> ComboColors { get; set; } = new List<Color>();
         public List<HitObject> HitObjects { get; set; } = new List<HitObject>();
 
-        // Ä¬ÈÏ Combo ÑÕÉ« (osu! Ä¬ÈÏÖµ)
+        // é»˜è®¤ Combo é¢œè‰² (osu! é»˜è®¤å€¼)
         public Beatmap()
         {
             ComboColors.Add(new Color(1f, 0.75f, 0.80f)); // Pink
@@ -27,33 +27,33 @@ namespace OsuVR
             ComboColors.Add(new Color(0.97f, 0.86f, 0.38f)); // Yellow
         }
         /// <summary>
-        /// »ñÈ¡Ö¸¶¨Ê±¼äµÄºìÏß (BPM)
+        /// è·å–æŒ‡å®šæ—¶é—´çš„çº¢çº¿ (BPM)
         /// </summary>
         public TimingPoint GetTimingPointAt(double time)
         {
             if (ControlPoints.Timing.Count == 0)
-                return new TimingPoint(0, 500, 4); // Ä¬ÈÏ 120 BPM
+                return new TimingPoint(0, 500, 4); // é»˜è®¤ 120 BPM
 
-            // ÕÒµ½×îºóÒ»¸ö Ê±¼ä <= time µÄºìÏß
-            // ÁĞ±íÍ¨³£ÊÇÅÅĞòµÄ£¬ÎªÁËĞÔÄÜ×îºÃÓÃ¶ş·Ö²éÕÒ£¬ÕâÀïÎªÁË¼òµ¥ÏÈÓÃ FindLast
+            // æ‰¾åˆ°æœ€åä¸€ä¸ª æ—¶é—´ <= time çš„çº¢çº¿
+            // åˆ—è¡¨é€šå¸¸æ˜¯æ’åºçš„ï¼Œä¸ºäº†æ€§èƒ½æœ€å¥½ç”¨äºŒåˆ†æŸ¥æ‰¾ï¼Œè¿™é‡Œä¸ºäº†ç®€å•å…ˆç”¨ FindLast
             var point = ControlPoints.Timing.FindLast(x => x.Time <= time);
 
-            // Èç¹û±ÈµÚÒ»¸ùºìÏß»¹Ôç£¬¾ÍÓÃµÚÒ»¸ù
+            // å¦‚æœæ¯”ç¬¬ä¸€æ ¹çº¢çº¿è¿˜æ—©ï¼Œå°±ç”¨ç¬¬ä¸€æ ¹
             return point ?? ControlPoints.Timing[0];
         }
 
         /// <summary>
-        /// »ñÈ¡Ö¸¶¨Ê±¼äµÄÂÌÏß (ËÙ¶È±¶ÂÊ)
+        /// è·å–æŒ‡å®šæ—¶é—´çš„ç»¿çº¿ (é€Ÿåº¦å€ç‡)
         /// </summary>
         public DifficultyPoint GetDifficultyPointAt(double time)
         {
-            // Èç¹ûÃ»ÓĞÂÌÏß£¬Ä¬ÈÏ±¶ÂÊÎª 1.0
+            // å¦‚æœæ²¡æœ‰ç»¿çº¿ï¼Œé»˜è®¤å€ç‡ä¸º 1.0
             if (ControlPoints.Difficulty.Count == 0)
                 return new DifficultyPoint(0, 1.0);
 
             var point = ControlPoints.Difficulty.FindLast(x => x.Time <= time);
 
-            // ×¢Òâ£ºÂÌÏßµÄ×÷ÓÃÓòÍ¨³£ÊÇ´ÓËü¿ªÊ¼£¬Èç¹ûÃ»ÓĞÕÒµ½£¬Ä¬ÈÏ±¶ÂÊÊÇ 1.0
+            // æ³¨æ„ï¼šç»¿çº¿çš„ä½œç”¨åŸŸé€šå¸¸æ˜¯ä»å®ƒå¼€å§‹ï¼Œå¦‚æœæ²¡æœ‰æ‰¾åˆ°ï¼Œé»˜è®¤å€ç‡æ˜¯ 1.0
             return point ?? new DifficultyPoint(0, 1.0);
         }
     }

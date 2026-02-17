@@ -1321,7 +1321,8 @@ namespace OsuVR
 
                 // 2. 视觉与触觉反馈
                 if (followBall) followBall.SetActive(true);
-                if (AudioManager.Instance != null) AudioManager.Instance.PlayHitSound(sliderData);
+                // Head 使用节点索引 0 的音效
+                if (AudioManager.Instance != null) AudioManager.Instance.PlaySliderNodeSound(sliderData, 0);
                 float vol = sliderData.SampleVolume / 100f;
 
                 if (HapticManager.Instance != null) HapticManager.Instance.PlayHitHaptic(isRightHand, (int)sliderData.HitSound, vol);
@@ -1470,7 +1471,9 @@ namespace OsuVR
                             break;
 
                         case SliderEventType.Repeat:
-                            if (AudioManager.Instance != null) AudioManager.Instance.PlayHitSound(sliderData);
+                            // Repeat 使用节点索引 = SpanIndex + 1
+                            int repeatNodeIndex = nestedObject.SpanIndex + 1;
+                            if (AudioManager.Instance != null) AudioManager.Instance.PlaySliderNodeSound(sliderData, repeatNodeIndex);
                             if (HapticManager.Instance != null)
                             {
                                 // [修复] 双手独立震动
@@ -1492,7 +1495,10 @@ namespace OsuVR
                             break;
 
                         case SliderEventType.Tail:
-                            // 尾巴只发爆破粒子
+                            // Tail 使用节点索引 = RepeatCount + 1
+                            int tailNodeIndex = sliderData.RepeatCount + 1;
+                            if (AudioManager.Instance != null) AudioManager.Instance.PlaySliderNodeSound(sliderData, tailNodeIndex);
+                            // 尾巴发爆破粒子
                             if (CodeOnlyVFX.Instance != null)
                             {
                                 bool endsAtTail = (sliderData.RepeatCount % 2 != 0);
@@ -1546,7 +1552,7 @@ namespace OsuVR
 
                     if (ticksGot > 0)
                     {
-                        if (AudioManager.Instance != null) AudioManager.Instance.PlayHitSound(sliderData);
+                        // 滑条成功完成：Tail 音效已在 UpdateJudgement 的 Tail case 中播放
                         if (HapticManager.Instance != null)
                         {
                             // [修复] 双手独立震动
