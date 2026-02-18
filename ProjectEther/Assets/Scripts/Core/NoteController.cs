@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Pool;
 
@@ -35,7 +35,7 @@ namespace OsuVR
         public Transform approachCircleObject;
 
         [Header("视觉增强")]
-        public float glowIntensity = 2.3f;
+        public float glowIntensity = 1.8f;
 
         // 内部变量
         private double currentMusicTimeMs = 0;
@@ -177,6 +177,7 @@ namespace OsuVR
         /// <summary>
         /// 初始化音符
         /// </summary>
+        /// <param name="renderIndex">安全渲染索引 (safeRenderIndex)，由 RhythmGameManager 计算</param>
         public void Initialize(HitObject hitObj, Vector3 targetPos, float speed, float beatmapCS, Color comboColor, RhythmGameManager manager, IObjectPool<GameObject> pool, int renderIndex, Vector3? nextPos = null)
         {
             EnsureComponentsCached();
@@ -204,10 +205,18 @@ namespace OsuVR
             // 存下下一个音符位置
             this.nextNotePosition = nextPos;
 
-            // ✅ [核心修复] 获取全局排序，越早生成的 Queue 越大，画在最上层！
-            int baseQueue = 3900 - (renderIndex * 3);
-
-            this.myRenderQueue = baseQueue + 2;
+            // ---------------------------------------------------------
+            // 机制2: 十步长画家算法
+            // 目标：确保先生成的物件永远盖在后生成的物件之上
+            // 子图层分配：
+            // - Halo = baseQueue + 4
+            // - Body/HitCircle = baseQueue + 5 (主体层)
+            // - Overlay = baseQueue + 6
+            // - FollowBall = baseQueue + 7
+            // - ApproachCircle = baseQueue + 8 (最高层，置顶)
+            // ---------------------------------------------------------
+            int baseQueue = 3900 - (renderIndex * 10);
+            this.myRenderQueue = baseQueue + 5;
 
             // -----------------------------------------------------------
             // 1. 获取 Body 和 Overlay 的 Renderer 引用 (如果是首次)
@@ -253,12 +262,12 @@ namespace OsuVR
                 bodyRenderer.SetPropertyBlock(_propBlock);
             }
 
-            // B. 给 Overlay 设置发光颜色 (通常是白色高亮)
+            // B. 给 Overlay 设置发光颜色 (通常是白色高亮，半透明)
             if (overlayRenderer != null)
             {
                 overlayRenderer.GetPropertyBlock(_propBlock);
-                // Overlay 通常保持白色，但也要乘亮度
-                Color overlayHdr = new Color(glowIntensity, glowIntensity, glowIntensity, 1f);
+                // Overlay 半透明，不遮挡 Body
+                Color overlayHdr = new Color(glowIntensity, glowIntensity, glowIntensity, 0.3f);
 
                 _propBlock.SetColor("_Color", overlayHdr);
                 _propBlock.SetColor("_BaseColor", overlayHdr);
@@ -279,25 +288,34 @@ namespace OsuVR
                 // 确保它是 Trigger 或者是普通碰撞体都可以，SphereCast 都能检测到
                 sc.isTrigger = true;
             }
-            // Stacking 堆叠偏移
-            Vector3 stackedPos = targetPos;
-            stackedPos.z -= hitObj.StackOrder * 0.01f;
+            // ---------------------------------------------------------
+            // 纯 2D 平面模式：所有音符基准物理 Z 轴偏移为 0
+            // 遮挡关系 100% 交由 RenderQueue 接管
+            // ---------------------------------------------------------
+            transform.position = targetPos;
 
-            // 直接设置位置，删掉后面那行重复的 transform.position = targetPos
-            transform.position = stackedPos;
-
-            // 应用 Combo 颜色
+            // 应用 Combo 颜色与精确子图层分配
             Renderer[] renderers = GetComponentsInChildren<Renderer>();
             foreach (var r in renderers)
             {
                 if (r == null) continue;
 
-                // 强行修改材质队列，让先生成的圈圈永远盖在后面生成的物件上
-                r.material.renderQueue = this.myRenderQueue;
+                int targetQueue = baseQueue + 5;
+                string objName = r.gameObject.name;
+                if (objName.Contains("Halo")) targetQueue = baseQueue + 4;
+                else if (objName.Contains("Body") || objName.Contains("HitCircle")) targetQueue = baseQueue + 5;
+                else if (objName.Contains("Overlay")) targetQueue = baseQueue + 6;
+                else if (objName.Contains("ApproachCircle")) targetQueue = baseQueue + 8;
+
+                r.material.renderQueue = targetQueue;
+                r.material.SetInt("_ZWrite", 0);
+
+                // Overlay 保持半透明白色，不应用 combo 颜色
+                if (objName.Contains("Overlay")) continue;
 
                 r.GetPropertyBlock(_propBlock);
-                _propBlock.SetColor("_Color", comboColor);
-                _propBlock.SetColor("_BaseColor", comboColor); // 兼容 URP
+                _propBlock.SetColor("_Color", hdrColor);
+                _propBlock.SetColor("_BaseColor", hdrColor);
                 r.SetPropertyBlock(_propBlock);
             }
 
@@ -309,8 +327,6 @@ namespace OsuVR
                 double defaultAR = (manager != null && manager.spawnOffsetMs > 100) ? manager.spawnOffsetMs : 1200;
                 hitObject.TimePreempt = defaultAR;
             }
-
-            transform.position = targetPos;
 
             //if (Camera.main) transform.LookAt(Camera.main.transform);
             if (MainCamera != null) transform.LookAt(MainCamera.transform);
@@ -378,7 +394,7 @@ namespace OsuVR
             }
 
             // 4. 重置姿态 (每次都要做，因为复用时位置可能变了)
-            haloObject.transform.localPosition = new Vector3(0, 0, 0.02f);
+            haloObject.transform.localPosition = Vector3.zero;
             haloObject.transform.localRotation = Quaternion.identity;
             haloObject.transform.localScale = Vector3.one * 1.25f;
 
@@ -504,10 +520,10 @@ namespace OsuVR
             }
 
             // --- HIT 判定 ---
-            // AutoPlay 模式：判定时间固定为 0ms，但位置判定仍然生效
+            // AutoPlay 模式：允许最多提前 16ms 判定（约一帧），确保精确同步
             // 正常模式：最早判定区间为 -13ms (osu! 标准的提前判定窗口)
             bool isAutoPlay = gameManager.useAutoPlay;
-            double earlyWindow = isAutoPlay ? 0 : -13;  // AutoPlay 精确 0ms，正常模式允许提前 13ms
+            double earlyWindow = isAutoPlay ? -16 : -13;
 
             // 条件1: diff >= earlyWindow (缩圈几乎重合)
             // 条件2: diff <= hitWindow (允许延迟 hitWindow 毫秒)
@@ -516,7 +532,6 @@ namespace OsuVR
             {
                 if (isHovered) 
                 {
-                    Debug.Log($"[Check] Diff: {diff:F2} | Window: {hitWindow}");
                     // AutoPlay 模式：强制判定时间为 0ms
                     double hitAccuracy = isAutoPlay ? 0 : diff;
                     OnHit(hitAccuracy, hoveringHandIsRight);

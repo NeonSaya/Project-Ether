@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.Pool;
 using System.Collections;
 
@@ -37,7 +37,7 @@ namespace OsuVR
 
 
         [Header("🎨 视觉设置")]
-        public float hdrIntensity = 2.3f;
+        public float hdrIntensity = 6.0f; // 适配圈圈亮度
 
         
 
@@ -76,20 +76,21 @@ namespace OsuVR
             cubeMesh = tempCube.GetComponent<MeshFilter>().sharedMesh;
             Destroy(tempCube);
 
-            // 2. 纯白贴图 (颜色遮罩)
+            // 2. 纯白贴图 (方形粒子用)
             Texture2D whiteTex = new Texture2D(1, 1);
             whiteTex.SetPixel(0, 0, Color.white);
             whiteTex.Apply();
 
-            // 3. Shader 选择 (优先标准 Unlit，支持顶点颜色)
-            Shader shader = Shader.Find("Particles/Standard Unlit");
+            // 3. Shader 选择 (优先 Additive 混合模式，实现发光效果)
+            Shader shader = Shader.Find("Mobile/Particles/Additive");
+            if (!shader) shader = Shader.Find("Legacy Shaders/Particles/Additive");
+            if (!shader) shader = Shader.Find("Particles/Standard Unlit");
             if (!shader) shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
-            if (!shader) shader = Shader.Find("Mobile/Particles/Alpha Blended");
 
             particleMat = new Material(shader);
             particleMat.enableInstancing = true;
 
-            // 4. 强制给贴图，防止 Shader 忽略颜色
+            // 4. 给贴图
             if (particleMat.HasProperty("_MainTex")) particleMat.SetTexture("_MainTex", whiteTex);
             if (particleMat.HasProperty("_BaseMap")) particleMat.SetTexture("_BaseMap", whiteTex);
 

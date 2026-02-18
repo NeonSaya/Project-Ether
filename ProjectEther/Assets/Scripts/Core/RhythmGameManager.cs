@@ -929,11 +929,17 @@ namespace OsuVR
             if ((!isPlaying && !isBufferPhase) || hitObjects == null || nextNoteIndex >= hitObjects.Count)
                 return;
 
+            // ---------------------------------------------------------
+            // 机制1: 全局基准线与防下穿机制
+            // 目标：防止长歌曲的渲染队列掉入 2000 以下的天空盒层
+            // ---------------------------------------------------------
+            // 1. 当屏幕上没有存活音符时，重置基准线
             if (activeNotes == 0)
             {
                 currentRenderBaseline = nextNoteIndex;
             }
-            else if (nextNoteIndex - currentRenderBaseline > 250)
+            // 2. 长图防暴毙锁：连续 250 个音符不断档，强行重置
+            else if (nextNoteIndex - currentRenderBaseline > 80)
             {
                 currentRenderBaseline = nextNoteIndex;
             }
@@ -965,8 +971,10 @@ namespace OsuVR
                         nextObject = hitObjects[nextNoteIndex + 1];
                     }
 
+                    // 机制1: 计算安全渲染索引（相对绝对索引）
                     int safeRenderIndex = nextNoteIndex - currentRenderBaseline;
                     SpawnNoteByType(hitObject, safeRenderIndex, nextObject);
+                    
                     nextNoteIndex++;
                     spawnedNotes++;
                 }
@@ -977,7 +985,7 @@ namespace OsuVR
             }
         }
 
-        private void SpawnNoteByType(HitObject hitObject, int noteIndex, HitObject nextHitObject = null)
+        private void SpawnNoteByType(HitObject hitObject, int renderIndex, HitObject nextHitObject = null)
         {
             // 1. 获取对象池管理器
             var poolMgr = NotePoolManager.Instance;
@@ -1019,7 +1027,7 @@ namespace OsuVR
                 if (controller != null)
                 {
                     Vector3 targetPosition = CoordinateMapper.MapToWorld(hitObject.Position);
-                    controller.Initialize(hitObject, targetPosition, noteSpeed, currentCS, comboColor, this, poolMgr.CirclePool, noteIndex, nextNoteWorldPos);
+                    controller.Initialize(hitObject, targetPosition, noteSpeed, currentCS, comboColor, this, poolMgr.CirclePool, renderIndex, nextNoteWorldPos);
                 }
             }
             else if (hitObject is SliderObject)
@@ -1041,7 +1049,7 @@ namespace OsuVR
 
                 if (controller != null)
                 {
-                    controller.Initialize((SliderObject)hitObject, currentCS, comboColor, this, poolMgr.SliderPool, poolMgr.TickPool, noteIndex, nextNoteWorldPos);
+                    controller.Initialize((SliderObject)hitObject, currentCS, comboColor, this, poolMgr.SliderPool, poolMgr.TickPool, renderIndex, nextNoteWorldPos);
                 }
             }
             else if (hitObject is SpinnerObject)

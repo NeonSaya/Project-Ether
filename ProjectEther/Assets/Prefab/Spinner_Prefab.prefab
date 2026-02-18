@@ -60,6 +60,7 @@ MonoBehaviour:
   centerFollowSpeed: 4
   minDrawingRadius: 0.05
   visualSmoothing: 20
+  glowIntensity: 2.5
   isHovered: 0
 --- !u!135 &2167872863410058600
 SphereCollider:
@@ -552,7 +553,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: b7a8d772c6e921e4499f96d4ca8a80d5, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 74c92edc9c9240e4681eb339f30ef2d4, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -627,7 +628,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 1b7751d64e2e0ba48ae88b8c63131f93, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 141a8fe37c865444198cd67e7c2af703, type: 3}
   m_Type: 3
   m_PreserveAspect: 1
   m_FillCenter: 1

@@ -359,7 +359,7 @@ namespace OsuVR
         /// <summary>
         /// [修复] AutoPlay 直接触发判定
         /// 在精确的时间点直接调用 OnHit，确保音效播放
-        /// 位置判定仍然生效：只有手移动到位才会触发（因为 TryTriggerHit 在 UpdateHandMotion 之后调用）
+        /// 0ms 判定：一旦到达或超过判定时间就立即触发
         /// </summary>
         private void TryTriggerHit(AutoHand hand, double time)
         {
@@ -367,9 +367,9 @@ namespace OsuVR
 
             double timeUntilHit = hand.currentTask.StartTime - time;
 
-            // [修复] 扩大判定窗口到 ±50ms，确保不会因为帧率不稳定而错过判定
- // 之前 ±5ms 太窄了
-            if (timeUntilHit >= -50 && timeUntilHit <= 50)
+            // 0ms 判定：到达或超过判定时间就触发（允许最多 16ms 提前，约一帧）
+            // 这样确保 AutoPlay 总是精确判定，不会提前太多
+            if (timeUntilHit <= 16 && timeUntilHit >= -100)
             {
                 // 检查是否已经触发过
                 if (hand.triggeredNotes == null) hand.triggeredNotes = new HashSet<HitObject>();
@@ -388,7 +388,6 @@ namespace OsuVR
                     {
                         hand.triggeredNotes.Add(hand.currentTask);
                         noteCtrl.OnHit(0, isRightHand); // 0 = 完美判定
-                        Debug.Log($"[AutoPlay] 直接触发 HitCircle 判定: {hand.currentTask.StartTime}");
                     }
                 }
                 // Slider：直接调用 TryHitHead
@@ -399,7 +398,6 @@ namespace OsuVR
                     {
                         hand.triggeredNotes.Add(hand.currentTask);
                         sliderCtrl.TryHitHead(isRightHand, Vector3.zero); // 参数：(isRightHand, hitPos)
-                        Debug.Log($"[AutoPlay] 直接触发 Slider Head 判定: {hand.currentTask.StartTime}");
                     }
                 }
             }

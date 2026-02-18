@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine.Rendering;
 using UnityEngine;
 
@@ -10,6 +10,15 @@ namespace OsuVR
         // 指定你的 Shader 名字
         private const string SHADER_NAME = "Osu/SliderVR_Flat_Stencil_VR_Fixed";
 
+        /// <summary>
+        /// 生成物理滑条网格和材质
+        /// </summary>
+        /// <param name="stencilID">模板缓冲区 ID (1-254)</param>
+        /// <remarks>
+        /// 机制3: 滑条自我交叉防重叠
+        /// - Body 材质 (霸体写入): StencilComp = Always, StencilOp = Replace
+        /// - Border 材质 (避让读取): StencilComp = NotEqual, StencilOp = Keep
+        /// </remarks>
         public static (Mesh border, Mesh body, Material borderMaterial, Material bodyMaterial) GeneratePhysicalSlider(
             List<Vector3> worldPathPoints,
             float radius,
@@ -32,25 +41,30 @@ namespace OsuVR
                 osuShader = Shader.Find("Standard");
             }
 
-            // ✅ 核心法则：越早出现的物件 stencilID 越小，算出来的 Queue 越大 (画在最顶层)
-            // 乘以 10 是为了给头尾预留插队空间
-            int baseQueue = 3100 - (stencilID * 10);
+            // ---------------------------------------------------------
+            // 机制3: 滑条自我交叉防重叠 (Stencil Buffer)
+            // 目标：利用模板缓冲区实现滑条边框对本体的完美镂空
+            // ---------------------------------------------------------
 
-            // 3. 配置 Body 材质 (局部底层)
+            // 3. 配置 Body 材质 (霸体写入)
+            // StencilComp = Always: 总是通过模板测试
+            // StencilOp = Replace: 把自己的 ID 刻入屏幕
             Material bodyMaterial = new Material(osuShader);
             bodyMaterial.SetColor("_Color", bodyColor);
             bodyMaterial.SetInt("_StencilID", stencilID);
-            bodyMaterial.SetInt("_StencilComp", 8); // Always
-            bodyMaterial.SetInt("_StencilOp", 2);   // Replace
-            bodyMaterial.renderQueue = baseQueue;   // ✅ 垫底
+            bodyMaterial.SetInt("_StencilComp", (int)CompareFunction.Always);
+            bodyMaterial.SetInt("_StencilOp", (int)StencilOp.Replace);
+            // renderQueue 由 SliderController 根据三步长画家算法设置
 
-            // 4. 配置 Border 材质 (局部中层)
+            // 4. 配置 Border 材质 (避让读取)
+            // StencilComp = NotEqual: 只有当模板缓冲区的 ID 不等于自己的 ID 时才渲染
+            // StencilOp = Keep: 遇到本体留下的 ID 则自动镂空
             Material borderMaterial = new Material(osuShader);
             borderMaterial.SetColor("_Color", borderColor);
             borderMaterial.SetInt("_StencilID", stencilID);
-            borderMaterial.SetInt("_StencilComp", 6); // NotEqual
-            borderMaterial.SetInt("_StencilOp", 0);   // Keep
-            borderMaterial.renderQueue = baseQueue + 1; // ✅ 盖在本体上
+            borderMaterial.SetInt("_StencilComp", (int)CompareFunction.NotEqual);
+            borderMaterial.SetInt("_StencilOp", (int)StencilOp.Keep);
+            // renderQueue 由 SliderController 根据三步长画家算法设置
 
             return (border, body, borderMaterial, bodyMaterial);
         }

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -186,7 +186,7 @@ namespace OsuVR
             }
 
             // -------------------------------------------------------
-            // 1. 根据你的截图中层级查找物体
+            // 1. 查找视觉组件
             // -------------------------------------------------------
 
             // 查找背景盘 (Visual_Container/Disc_Background)
