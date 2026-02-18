@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -31,13 +31,9 @@ namespace OsuVR
         [Tooltip("纹理平铺密度（每单位长度重复多少次纹理）")]
         public float textureTiling = 1.0f;
 
-        [Header("跟踪球设置")]
-        [Tooltip("跟踪球预制体")]
-        public GameObject followBallPrefab;
-
         [Header("判定设置")]
         [Tooltip("跟随判定半径倍率 (osu!标准约为 2x CS半径)")]
-        public float followRadiusMultiplier = 2f; // [新增] 控制跟随判定的容错范围
+        public float followRadiusMultiplier = 2f;
 
         [Header("渐变效果")]
         [Tooltip("渐隐时间（秒）")]
@@ -46,17 +42,13 @@ namespace OsuVR
         [Tooltip("是否启用渐隐效果")]
         public bool enableFadeOut = true;
 
-        [Header("osu! 风格组件")]
-        public GameObject sliderHeadPrefab;    // 拖入 VisualHitCircle Prefab
-        public GameObject sliderTickPrefab;
-        private GameObject headInstance;       // 实例化的头
-        private GameObject arrowInstance;      // 实例化的箭头
+        private GameObject headInstance;
+        private GameObject arrowInstance;
 
-       
         [Header("调试设置")]
-        public bool showDebugLabel = true; // 开关
-        public GameObject debugTextPrefab; // 需在 Inspector 拖入一个带 TextMeshPro 的 Prefab
-        private TextMeshPro debugTextInstance; // 实例化的文本
+        public bool showDebugLabel = true;
+        public GameObject debugTextPrefab;
+        private TextMeshPro debugTextInstance;
 
 
         private bool headHitValid = false;
@@ -159,6 +151,9 @@ namespace OsuVR
         // 用来控制视觉显隐的索引
         private int myRenderIndex = 0;
 
+        // 缓存当前滑条的 baseQueue，供子物体使用
+        private int cachedBaseQueue = 3900;
+
         // 记录下一个 Tick 位置的缓存（优化）
         private Vector3? nextNotePosition;
 
@@ -166,12 +161,7 @@ namespace OsuVR
         // 在 SliderController 类中添加这个列表，用来记录所有生成的子物体（Tick, 箭头等）
         private List<GameObject> garbageList = new List<GameObject>();
 
-        // 缓存滑条头部的空心光环 Mesh（如果需要的话）
-        private static Mesh cachedSliderHaloMesh;
-
         private static Texture2D cachedSoftDotTex;
-        // 缓存用于折返粒子的柔光圆点贴图
-        private static Material cachedHaloMat;
         private static Material cachedReverseMat;
 
         /// <summary>
@@ -181,7 +171,7 @@ namespace OsuVR
         {
             if (cachedSoftDotTex != null) return cachedSoftDotTex;
 
-            int size = 64; // 小粒子不需要太大
+            int size = 128; // 与光晕贴图一致大小
             var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
             Color[] colors = new Color[size * size];
             Vector2 center = new Vector2(size / 2f, size / 2f);
@@ -197,10 +187,10 @@ namespace OsuVR
 
                     if (r <= 1.0f)
                     {
-                        // 径向渐变：中心实心，边缘柔和
-                        // 使用 Cosine 曲线模拟光晕衰减
+                        // 三次方衰减：与Note/滑条头光晕完全一致
+                        // 中心实心亮白，边缘柔和衰减
                         float v = Mathf.Clamp01(1f - r);
-                        alpha = v * v; // 平方让边缘衰减更快，中心更亮
+                        alpha = v * v * v; // 三次方让中心更亮，边缘更柔和
                     }
 
                     colors[y * size + x] = new Color(1f, 1f, 1f, alpha);
@@ -214,12 +204,6 @@ namespace OsuVR
         }
 
 
-        private static Texture2D cachedSliderGlowTex;
-
-
-        /// <summary>
-        /// [新增] 生成和滑条融为一体的折返粒子特效
-        /// </summary>
         private ParticleSystem CreateReverseParticle(Vector3 pos, Quaternion rot, Color color)
         {
             GameObject go = new GameObject("VFX_Reverse_Energy");
@@ -244,18 +228,20 @@ namespace OsuVR
             main.duration = 1.0f;
             main.loop = true;
 
-            // ✅ [随机化] 寿命范围拉大 (0.3 ~ 0.6)
-            // 有的死得早(在内部)，有的死得晚(飘得远)，打破边缘整齐感
-            main.startLifetime = new ParticleSystem.MinMaxCurve(0.3f, 0.6f);
+            // ✅ [随机化] 寿命范围拉大 (0.4 ~ 0.8)
+            // 更长的寿命让粒子更明显
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.4f, 0.8f);
 
             // ✅ [随机化] 速度极慢且差异大
             // 模拟悬浮微尘，只有微弱的向外趋势
             main.startSpeed = new ParticleSystem.MinMaxCurve(0.5f, 1.0f);
-            // 尺寸随机
-            float baseSize = sliderWidth * 0.12f;
-            main.startSize = new ParticleSystem.MinMaxCurve(baseSize * 0.5f, baseSize * 1.5f);
+            // 尺寸更大更明显
+            float baseSize = sliderWidth * 0.18f;
+            main.startSize = new ParticleSystem.MinMaxCurve(baseSize * 0.6f, baseSize * 1.8f);
 
-            main.startColor = color;
+            // HDR高亮combo色
+            Color hdrColor = new Color(color.r * 6.0f, color.g * 6.0f, color.b * 6.0f, 1.0f);
+            main.startColor = hdrColor;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
 
             // 2. 形状：体积填充
@@ -266,8 +252,8 @@ namespace OsuVR
             // ✅ [核心] 设为 1，确保粒子在半圆"内部"随机生成，而不是只在边缘
             shape.radiusThickness = 1.0f;
 
-            // 3. 发射率：极高密度 (因为粒子很小且淡)
-            emission.rateOverTime = 400f;
+            // 3. 发射率：更高密度，粒子更多更明显
+            emission.rateOverTime = 800f;
             emission.enabled = false;
 
             // 4. ✅ [新增] 噪声模块：制造"朦胧"和"扰动"的关键
@@ -308,11 +294,11 @@ namespace OsuVR
                 cachedReverseMat = new Material(shader);
                 cachedReverseMat.mainTexture = GetSoftDotTexture();
 
-                // 粒子系统会自带颜色，所以材质颜色设为纯白高亮即可
-                Color hdrColor = Color.white * 3.0f;
-                if (cachedReverseMat.HasProperty("_TintColor")) cachedReverseMat.SetColor("_TintColor", hdrColor);
-                else if (cachedReverseMat.HasProperty("_BaseColor")) cachedReverseMat.SetColor("_BaseColor", hdrColor);
-                else cachedReverseMat.SetColor("_Color", hdrColor);
+                // 粒子系统会自带颜色，所以材质颜色设为纯白高亮
+                Color matHdrColor = Color.white * 6.0f;
+                if (cachedReverseMat.HasProperty("_TintColor")) cachedReverseMat.SetColor("_TintColor", matHdrColor);
+                else if (cachedReverseMat.HasProperty("_BaseColor")) cachedReverseMat.SetColor("_BaseColor", matHdrColor);
+                else cachedReverseMat.SetColor("_Color", matHdrColor);
             }
 
             // 使用 sharedMaterial
@@ -325,59 +311,6 @@ namespace OsuVR
             return ps;
         }
 
-        /// <summary>
-        /// [修复版] 完美匹配 1.25x 缩放的空心光环
-        /// </summary>
-        private Texture2D GetGlowTexture()
-        {
-            if (cachedSliderGlowTex != null) return cachedSliderGlowTex;
-
-            int size = 128;
-            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
-
-            Color[] colors = new Color[size * size];
-            Vector2 center = new Vector2(size / 2f, size / 2f);
-            float maxRadius = size / 2f;
-
-            float startRadius = 0.72f;
-            float peakRadius = 0.80f;
-            float endRadius = 1.0f;
-
-            for (int y = 0; y < size; y++)
-            {
-                for (int x = 0; x < size; x++)
-                {
-                    float dist = Vector2.Distance(new Vector2(x, y), center);
-                    float r = dist / maxRadius;
-                    float alpha = 0f;
-
-                    if (r < startRadius) alpha = 0f;
-                    else if (r < peakRadius)
-                    {
-                        float t = (r - startRadius) / (peakRadius - startRadius);
-                        alpha = t * t * (3f - 2f * t);
-                    }
-                    else
-                    {
-                        // 外部三次方衰减
-                        float t = (r - peakRadius) / (endRadius - peakRadius);
-                        float linear = 1f - Mathf.Clamp01(t);
-                        alpha = linear * linear * linear;
-                    }
-
-                    alpha *= 0.8f;
-
-                    colors[y * size + x] = new Color(1f, 1f, 1f, alpha);
-                }
-            }
-
-            tex.SetPixels(colors);
-            tex.Apply();
-            cachedSliderGlowTex = tex;
-            return tex;
-        }
-
-        // Slider 生命周期修复
         void OnEnable()
         {
             isActive = true;
@@ -393,6 +326,7 @@ namespace OsuVR
         /// <summary>
         /// 初始化滑条控制器 (对象池版)
         /// </summary>
+        /// <param name="renderIndex">安全渲染索引 (safeRenderIndex)，由 RhythmGameManager 计算</param>
         public void Initialize(SliderObject sliderData, float beatmapCS, Color comboColor, RhythmGameManager manager, IObjectPool<GameObject> pool, IObjectPool<GameObject> tPool, int renderIndex, Vector3? nextPos = null)
         {
             CleanUpEverything();
@@ -438,12 +372,20 @@ namespace OsuVR
             // 缓存下一个 Note 位置
             this.nextNotePosition = nextPos;
 
-            // 设置位置，考虑 Stack
+            // ---------------------------------------------------------
+            // 纯 2D 平面模式：所有滑条基准物理 Z 轴偏移为 0
+            // 遮挡关系 100% 交由 RenderQueue 接管
+            // 十步长画家算法：
+            // - Body = baseQueue + 1
+            // - Border = baseQueue + 2
+            // - Tick = baseQueue + 3
+            // - Halo = baseQueue + 4
+            // - Head/Body = baseQueue + 5
+            // - Overlay = baseQueue + 6
+            // - FollowBall = baseQueue + 7
+            // - ApproachCircle = baseQueue + 8 (最高层，置顶)
+            // ---------------------------------------------------------
             Vector3 startPos = CoordinateMapper.MapToWorld(sliderData.Position);
-
-            float stackOffset = sliderData.StackOrder * 0.01f;
-            startPos.z -= stackOffset;
-
             transform.position = startPos;
 
             // CS 尺寸计算
@@ -670,12 +612,22 @@ namespace OsuVR
             // 假设你的 borderWidth 是滑条的总宽度 (包含边框)，那么单边厚度 = (总宽 - 本体宽) / 2
             float borderThickness = (borderWidth - sliderWidth) * 0.5f;
 
-            // ✅ [终极层级公式] 与 NoteController 采用完全相同的数学逻辑！
-            int activeOrder = this.myRenderIndex % 300;
+            // ---------------------------------------------------------
+            // 机制2: 十步长画家算法
+            // 目标：确保先生成的物件永远盖在后生成的物件之上
+            // ---------------------------------------------------------
+            // 动态生成唯一模板 ID（限制在 8-bit 内，1-254）
             currentStencilId = (this.myRenderIndex % 254) + 1;
 
-            // 本体和边框的基础队列
-            int baseQueue = 3900 - (this.myRenderIndex * 3);
+            // 基准队列：3900 - safeRenderIndex * 10
+            int baseQueue = 3900 - (this.myRenderIndex * 10);
+            this.cachedBaseQueue = baseQueue;
+
+            // 层级分配法则：
+            // - 滑条本体 (Body) = baseQueue + 1 (垫底)
+            // - 滑条边框 (Border) = baseQueue + 2 (盖在本体上)
+            // - Tick = baseQueue + 3
+            // - 头部圈圈 (Head) = baseQueue + 5 ~ +8
 
             var (borderMesh, bodyMesh, borderMat, bodyMat) = SliderMeshGenerator.GeneratePhysicalSlider(
                     worldPathPoints, radius, borderThickness, customBorderColor, customBodyColor, currentStencilId);
@@ -688,15 +640,17 @@ namespace OsuVR
             borderMesh.bounds = safeBounds;
 
             // 3. 渲染主体网格
+            // 滑条本体 = baseQueue + 1 (垫底)
             combinedMesh = bodyMesh;
             if (meshFilter) meshFilter.mesh = combinedMesh;
             if (meshRenderer)
             {
-                bodyMat.renderQueue = baseQueue; // ✅ 本体在最下面
+                bodyMat.renderQueue = baseQueue + 1;
                 meshRenderer.sharedMaterial = bodyMat;
             }
 
             // 4. 渲染边框网格
+            // 滑条边框 = baseQueue + 2 (盖在本体上)
             GameObject borderObject = new GameObject("SliderBorder");
             borderObject.transform.SetParent(transform, false);
             borderObject.transform.localPosition = Vector3.zero;
@@ -705,7 +659,7 @@ namespace OsuVR
             MeshFilter borderMeshFilter = borderObject.AddComponent<MeshFilter>();
             borderMeshFilter.mesh = borderMesh;
 
-            borderMat.renderQueue = baseQueue + 1;
+            borderMat.renderQueue = baseQueue + 2;
 
             borderMeshRenderer = borderObject.AddComponent<MeshRenderer>();
             borderMeshRenderer.sharedMaterial = borderMat;
@@ -742,43 +696,96 @@ namespace OsuVR
 
 
         /// <summary>
-        /// [新增] 创建 osu! 风格的视觉元素 (头和箭头)
+        /// 创建滑条视觉元素：滑条头、Tick小点、折返箭头粒子
+        /// 支持对象池和纯代码生成双模式
         /// </summary>
         private void CreateVisuals()
         {
             if (this == null || this.gameObject == null) return;
 
-            // 创建滑条头 (Slider Head)
-            if (sliderHeadPrefab != null)
+            var poolMgr = NotePoolManager.Instance;
+            bool usePool = poolMgr != null;
+
+            // =========================================================
+            // 1. 创建滑条头 (Slider Head)
+            // 优先从对象池获取，否则使用工厂类纯代码生成
+            // =========================================================
+            if (usePool)
             {
-                headInstance = Instantiate(sliderHeadPrefab, transform);
-                garbageList.Add(headInstance);
-                headInstance.transform.localPosition = Vector3.zero;
-                // 防止 Z-Fighting，稍微往前一点点
+                headInstance = poolMgr.GetSliderHead();
+                if (headInstance != null)
+                {
+                    headInstance.transform.SetParent(transform);
+                    garbageList.Add(headInstance);
+                }
+            }
+            else
+            {
+                headInstance = HitObjectFactory.CreateSliderHead();
+                if (headInstance != null)
+                {
+                    headInstance.transform.SetParent(transform);
+                    garbageList.Add(headInstance);
+                }
+            }
+
+            // =========================================================
+            // 2. 配置滑条头视觉属性
+            // 纯 2D 平面模式：滑条头与本体在同一 Z 平面
+            // 遮挡关系由 RenderQueue 控制 (头部 = baseQueue + 5 ~ +7)
+            // =========================================================
+            if (headInstance != null)
+            {
+                // 设置位置和缩放
+                headInstance.transform.position = transform.position;
+                
                 float headScale = this.sliderWidth;
                 headInstance.transform.localScale = new Vector3(headScale, headScale, 0.02f);
-
-                headInstance.transform.localPosition -= Vector3.forward * 0.01f;
                 headInstance.SetActive(true);
 
-                // 计算这根滑条的基准层级
-                int baseQueue = 3900 - (this.myRenderIndex * 3);
+                // 机制2: 十步长画家算法
+                // 头部圈圈子图层分配：
+                // - Halo = baseQueue + 4
+                // - Body/SliderHead = baseQueue + 5
+                // - Overlay = baseQueue + 6
+                // - FollowBall = baseQueue + 7
+                // - ApproachCircle = baseQueue + 8 (最高层，置顶)
+                int baseQueue = 3900 - (this.myRenderIndex * 10);
 
-                // 应用当前 Combo 颜色
+                // 计算 HDR 高亮颜色
+                float headGlowIntensity = 2.3f;
+                Color hdrComboColor = new Color(
+                    currentComboColor.r * headGlowIntensity,
+                    currentComboColor.g * headGlowIntensity,
+                    currentComboColor.b * headGlowIntensity,
+                    1.0f
+                );
+
+                // 应用 Combo 颜色到所有渲染器
                 Renderer[] headRenderers = headInstance.GetComponentsInChildren<Renderer>();
                 MaterialPropertyBlock headMbp = new MaterialPropertyBlock();
 
                 foreach (var r in headRenderers)
                 {
                     if (r == null) continue;
-                    r.material.renderQueue = baseQueue + 2;
+
+                    int targetQueue = baseQueue + 5;
+                    string objName = r.gameObject.name;
+                    if (objName.Contains("Halo")) targetQueue = baseQueue + 4;
+                    else if (objName.Contains("Body") || objName.Contains("SliderHead")) targetQueue = baseQueue + 5;
+                    else if (objName.Contains("Overlay")) targetQueue = baseQueue + 6;
+                    else if (objName.Contains("ApproachCircle")) targetQueue = baseQueue + 8;
+
+                    r.material.renderQueue = targetQueue;
+                    r.material.SetInt("_ZWrite", 0);
+
                     r.GetPropertyBlock(headMbp);
-                    headMbp.SetColor("_Color", currentComboColor);
-                    headMbp.SetColor("_BaseColor", currentComboColor); // 兼容 URP
+                    headMbp.SetColor("_Color", hdrComboColor);
+                    headMbp.SetColor("_BaseColor", hdrComboColor);
                     r.SetPropertyBlock(headMbp);
                 }
 
-                // 初始化缩圈组件
+                // 初始化缩圈动画组件
                 var scaler = headInstance.GetComponent<ApproachCircleScaler>();
                 if (scaler != null)
                 {
@@ -789,7 +796,8 @@ namespace OsuVR
                 }
 
                 // =========================================================
-                // 给滑条头加完美圆形光晕 (已修复材质内存泄漏)
+                // 3. 动态生成滑条头光晕效果
+                // 使用程序化生成的空心光环贴图，实现边缘柔和的发光效果
                 // =========================================================
                 Transform bodyTr = headInstance.transform.Find("Body");
                 GameObject targetBody = bodyTr != null ? bodyTr.gameObject : headInstance;
@@ -798,54 +806,29 @@ namespace OsuVR
                 headHalo.transform.SetParent(targetBody.transform);
                 garbageList.Add(headHalo);
 
-                // 1. 强制使用 Quad Mesh
+                // 使用工厂缓存的 Quad Mesh
                 var dstMF = headHalo.AddComponent<MeshFilter>();
-                if (cachedSliderHaloMesh == null)
-                {
-                    // 检查缓存，如果没有就创建一个临时 Quad 来获取 Mesh
-                    GameObject tempQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                    cachedSliderHaloMesh = tempQuad.GetComponent<MeshFilter>().sharedMesh;
-                    Destroy(tempQuad);
-                }
-                dstMF.sharedMesh = cachedSliderHaloMesh;
+                dstMF.sharedMesh = HitObjectFactory.GetQuadMesh();
 
-                // 2. 材质 + 贴图 (核心修复：使用静态缓存材质，保证全游戏只 new 一次)
-                if (cachedHaloMat == null)
-                {
-                    Shader shader = Shader.Find("Mobile/Particles/Additive");
-                    if (!shader) shader = Shader.Find("Legacy Shaders/Particles/Additive");
-
-                    cachedHaloMat = new Material(shader);
-                    cachedHaloMat.mainTexture = GetGlowTexture();
-
-                    Color whiteGlow = new Color(2.5f, 2.5f, 2.5f, 0.75f);
-                    if (cachedHaloMat.HasProperty("_TintColor"))
-                        cachedHaloMat.SetColor("_TintColor", whiteGlow);
-                    else if (cachedHaloMat.HasProperty("_BaseColor"))
-                        cachedHaloMat.SetColor("_BaseColor", whiteGlow); // 兼容 URP
-                    else
-                        cachedHaloMat.SetColor("_Color", whiteGlow);
-                }
-
+                // 使用工厂缓存的光晕材质（含程序化生成的空心光环贴图）
                 var dstMR = headHalo.AddComponent<MeshRenderer>();
+                dstMR.material = HitObjectFactory.GetHaloMaterial();
+                dstMR.material.renderQueue = baseQueue + 4;
 
-                // 必须用 .material 实例化修改，让光晕也盖在边框之上
-                dstMR.material = cachedHaloMat;
-                dstMR.material.renderQueue = baseQueue + 2;
-
-                // 3. 变换
-                headHalo.transform.localPosition = new Vector3(0, 0, 0.02f);
+                // 光晕变换：1.25倍大小，纯 2D 平面模式
+                headHalo.transform.localPosition = Vector3.zero;
                 headHalo.transform.localRotation = Quaternion.identity;
-                headHalo.transform.localScale = Vector3.one * 1.25f; // 大一点
+                headHalo.transform.localScale = Vector3.one * 1.25f;
 
+                // 禁用阴影投射，保持纯净的发光效果
                 dstMR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                // =========================================================
             }
 
-
-
-            // 2.  生成 Tick (小圆点)
-            if (sliderTickPrefab != null && sliderData.NestedHitObjects != null)
+            // =========================================================
+            // 4. 生成滑条 Tick 小点
+            // Tick 沿滑条路径分布，玩家跟随时需要经过
+            // =========================================================
+            if (sliderData.NestedHitObjects != null)
             {
                 foreach (var nested in sliderData.NestedHitObjects)
                 {
@@ -866,16 +849,17 @@ namespace OsuVR
                         {
                             tickObj.transform.SetParent(transform);
                             tickObj.transform.localRotation = Quaternion.identity;
+                            tickObj.SetActive(false); // 初始隐藏，由 UpdateVisuals 控制
 
-                            tickObj.SetActive(false); // 初始隐藏
-
+                            // Tick 大小为滑条宽度的 30%
                             float tickScale = this.sliderWidth * 0.3f;
                             tickObj.transform.localScale = new Vector3(tickScale, tickScale, tickScale);
 
+                            // 根据 Tick 时间计算在路径上的位置
                             Vector3 tickPos = GetPositionAtTime(nested.Time);
-                            tickObj.transform.localPosition = tickPos - Vector3.forward * 0.065f;
+                            tickObj.transform.localPosition = tickPos;
+                            tickObj.GetComponent<Renderer>().material.renderQueue = this.cachedBaseQueue + 3;
 
-                            // [修改] 直接存入 List，不检查 Key 冲突
                             tickVisuals.Add(new TickVisualInfo
                             {
                                 data = nested,
@@ -984,24 +968,43 @@ namespace OsuVR
         {
             if (followBall == null)
             {
-                if (followBallPrefab != null)
-                    followBall = Instantiate(followBallPrefab, transform);
+                var poolMgr = NotePoolManager.Instance;
+
+                if (poolMgr != null)
+                {
+                    followBall = poolMgr.GetFollowBall();
+                    if (followBall != null)
+                    {
+                        followBall.transform.SetParent(transform);
+                    }
+                }
                 else
                 {
-                    followBall = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                    followBall.transform.parent = transform;
+                    followBall = HitObjectFactory.CreateFollowBall();
+                    if (followBall != null)
+                    {
+                        followBall.transform.SetParent(transform);
+                    }
                 }
 
-                if (garbageList != null) garbageList.Add(followBall);
+                if (followBall != null && garbageList != null)
+                {
+                    garbageList.Add(followBall);
+                }
 
                 baseBallScale = sliderWidth;
-                followBall.transform.localScale = Vector3.one * baseBallScale;
-
-                followBallRenderer = followBall.GetComponent<Renderer>();
-                ballCollider = followBall.GetComponent<SphereCollider>();
-                if (ballCollider == null) ballCollider = followBall.AddComponent<SphereCollider>();
-
-                followBall.SetActive(false);
+                if (followBall != null)
+                {
+                    followBall.transform.localScale = Vector3.one * baseBallScale;
+                    followBallRenderer = followBall.GetComponent<Renderer>();
+                    if (followBallRenderer != null)
+                    {
+                        followBallRenderer.material.renderQueue = this.cachedBaseQueue + 7;
+                    }
+                    ballCollider = followBall.GetComponent<SphereCollider>();
+                    if (ballCollider == null) ballCollider = followBall.AddComponent<SphereCollider>();
+                    followBall.SetActive(false);
+                }
             }
         }
 
@@ -1026,7 +1029,7 @@ namespace OsuVR
                 if (!followBall.activeSelf) followBall.SetActive(true);
 
                 Vector3 targetPos = GetPositionAtTime(currentTime);
-                followBall.transform.localPosition = targetPos - Vector3.forward * 0.035f;
+                followBall.transform.localPosition = targetPos;
             }
             else if (currentTime > endTime)
             {
@@ -1314,10 +1317,10 @@ namespace OsuVR
                 return;
             }
 
-            // AutoPlay 模式：判定时间固定为 0ms，但位置判定仍然生效
+            // AutoPlay 模式：允许最多提前 16ms 判定（约一帧），确保精确同步
             // 正常模式：最早判定区间为 -13ms (osu! 标准的提前判定窗口)
             bool isAutoPlay = gameManager != null && gameManager.useAutoPlay;
-            double earlyWindow = isAutoPlay ? 0 : -13;
+            double earlyWindow = isAutoPlay ? -16 : -13;
 
             if (offset >= earlyWindow && offset <= 250)
             {

@@ -1,8 +1,12 @@
-﻿Shader "Osu/SliderVR_Flat_Stencil_VR_Fixed"
+Shader "Osu/SliderVR_Flat_Stencil_VR_Fixed"
 {
     Properties
     {
         _Color ("Color", Color) = (1,1,1,1)
+        // ---------------------------------------------------------
+        // 机制3: 滑条自我交叉防重叠 (Stencil Buffer)
+        // 暴露模板缓冲区参数，由 SliderMeshGenerator 动态设置
+        // ---------------------------------------------------------
         _StencilID ("Stencil ID", Int) = 10
     }
     SubShader
@@ -18,6 +22,9 @@
         ZWrite Off 
         Cull Off
 
+        // 机制3: 动态模板测试配置
+        // Body: Comp=Always, Op=Replace (霸体写入)
+        // Border: Comp=NotEqual, Op=Keep (避让读取)
         Stencil {
             Ref [_StencilID]
             Comp NotEqual
