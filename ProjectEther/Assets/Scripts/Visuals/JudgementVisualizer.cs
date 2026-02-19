@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.Pool;
 using TMPro;
 using System.Collections;
@@ -6,6 +6,13 @@ using System.Collections.Generic;
 
 namespace OsuVR
 {
+    /// <summary>
+    /// 判定可视化器：显示击中判定结果（300/100/50/Miss）
+    /// 核心功能：
+    /// - 对象池管理：预创建判定文字对象，避免运行时 GC
+    /// - 颜色编码：不同判定结果使用不同颜色
+    /// - 动画效果：文字弹出后渐隐消失
+    /// </summary>
     public class JudgementVisualizer : MonoBehaviour
     {
         public static JudgementVisualizer Instance { get; private set; }

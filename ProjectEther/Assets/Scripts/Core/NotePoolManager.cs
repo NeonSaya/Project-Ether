@@ -3,6 +3,13 @@ using UnityEngine.Pool;
 
 namespace OsuVR
 {
+    /// <summary>
+    /// 音符对象池管理器：统一管理所有音符类型的对象池
+    /// 核心功能：
+    /// - 零 GC 运行时：所有对象预分配，避免 Instantiate/Destroy
+    /// - 双模式支持：预制体模式 / 纯代码生成模式
+    /// - 统一材质管理：支持全局材质覆盖
+    /// </summary>
     public class NotePoolManager : MonoBehaviour
     {
         public static NotePoolManager Instance;
