@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace OsuVR
 {
@@ -66,12 +66,17 @@ namespace OsuVR
         /// <summary>
         /// 菜单场景名称
         /// </summary>
-        public string MenuSceneName { get; set; } = "MenuScene";
+        public string MenuSceneName { get; set; } = "MainMenuScene";
+
+        /// <summary>
+        /// 选歌场景名称
+        /// </summary>
+        public string SongSelectSceneName { get; set; } = "SongSelectScene";
 
         /// <summary>
         /// 游戏场景名称
         /// </summary>
-        public string GameSceneName { get; set; } = "SampleScene";
+        public string GameSceneName { get; set; } = "GameScene";
 
         /// <summary>
         /// 结算场景名称
