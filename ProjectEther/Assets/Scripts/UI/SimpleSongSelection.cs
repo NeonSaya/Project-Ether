@@ -39,6 +39,9 @@ namespace OsuVR
 
         private List<BeatmapMetadata> songList = new List<BeatmapMetadata>();
         private BeatmapMetadata selectedSong;
+        
+        private bool isModPanelActive = false;
+        private Dictionary<ModType, Image> generatedModImages = new Dictionary<ModType, Image>();
 
         void Start()
         {
@@ -47,9 +50,6 @@ namespace OsuVR
             RefreshSongList();
             GenerateModButtons();
 
-            if (modPanel != null) modPanel.SetActive(false);
-
-            // ✅ 终极防呆：如果你忘了重新生成场景或者拖拽引用，代码会自己去找按钮并强行绑定！
             if (openModButton == null)
             {
                 GameObject btnObj = GameObject.Find("Btn_Mods");
@@ -60,16 +60,17 @@ namespace OsuVR
                 GameObject btnObj = GameObject.Find("Btn_Back");
                 if (btnObj != null) backMenuButton = btnObj.GetComponent<Button>();
             }
-            if (closeModButton == null)
+            if (closeModButton == null && modPanel != null)
             {
-                GameObject btnObj = GameObject.Find("CloseButton");
-                if (btnObj != null) closeModButton = btnObj.GetComponent<Button>();
+                Transform closeBtnTrans = modPanel.transform.Find("CloseButton");
+                if (closeBtnTrans != null) closeModButton = closeBtnTrans.GetComponent<Button>();
             }
 
-            // 清除旧事件并重新绑定
             if (openModButton != null) { openModButton.onClick.RemoveAllListeners(); openModButton.onClick.AddListener(ToggleModPanel); }
             if (backMenuButton != null) { backMenuButton.onClick.RemoveAllListeners(); backMenuButton.onClick.AddListener(GoBack); }
-            if (closeModButton != null) { closeModButton.onClick.RemoveAllListeners(); closeModButton.onClick.AddListener(ToggleModPanel); }
+            if (closeModButton != null) { closeModButton.onClick.RemoveAllListeners(); closeModButton.onClick.AddListener(CloseModPanel); }
+
+            if (modPanel != null) modPanel.SetActive(false);
         }
         void Update()
         {
@@ -96,6 +97,9 @@ namespace OsuVR
                     }
                 }
             }
+
+            // 检测点击空白区域以关闭 Mod 面板
+            HandleBlankAreaClick();
         }
 
 
@@ -181,46 +185,49 @@ namespace OsuVR
             {
                 Destroy(child.gameObject);
             }
+            
+            generatedModImages.Clear();
 
             var allMods = ModDatabase.GetAllMods();
             foreach (var modInfo in allMods)
             {
                 GameObject btnObj = Instantiate(modButtonPrefab, modButtonContainer);
-                btnObj.transform.localScale = Vector3.one;
-                btnObj.transform.localPosition = Vector3.zero;
+                
+                RectTransform rt = btnObj.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    rt.anchoredPosition3D = Vector3.zero;
+                    rt.localPosition = new Vector3(rt.localPosition.x, rt.localPosition.y, 0);
+                    rt.localRotation = Quaternion.identity;
+                    rt.localScale = Vector3.one;
+                }
 
                 var tmp = btnObj.GetComponentInChildren<TextMeshProUGUI>();
-                if (tmp != null)
-                    tmp.text = modInfo.shortName;
+                if (tmp != null) tmp.text = modInfo.shortName;
 
                 var img = btnObj.GetComponent<Image>();
-                Color defaultColor = new Color(0.15f, 0.15f, 0.2f);
-                if (img != null)
-                    img.color = defaultColor;
+                
+                if (img != null) generatedModImages[modInfo.type] = img;
 
                 var btn = btnObj.GetComponent<Button>();
                 if (btn == null) btn = btnObj.AddComponent<Button>();
 
                 ModType capturedType = modInfo.type;
-                btn.onClick.AddListener(() => ToggleMod(capturedType, img, modInfo.displayColor, defaultColor));
+                btn.onClick.RemoveAllListeners();
+                btn.onClick.AddListener(() => ToggleMod(capturedType));
             }
 
             UpdateModDisplay();
         }
 
-        void ToggleMod(ModType modType, Image buttonImage, Color activeColor, Color defaultColor)
+        void ToggleMod(ModType modType)
         {
             if (GameContext.Instance == null)
             {
                 new GameObject("GameContext").AddComponent<GameContext>();
             }
 
-            var mods = GameContext.Instance.SelectedMods;
-            mods.ToggleMod(modType);
-
-            bool isActive = mods.HasMod(modType);
-            if (buttonImage != null)
-                buttonImage.color = isActive ? activeColor : defaultColor;
+            GameContext.Instance.SelectedMods.ToggleMod(modType);
 
             UpdateModDisplay();
         }
@@ -243,12 +250,74 @@ namespace OsuVR
                 string modStr = mods.GetModString();
                 activeModsText.text = string.IsNullOrEmpty(modStr) ? "No Mod" : modStr;
             }
+
+            Color defaultColor = new Color(0.15f, 0.15f, 0.2f);
+            foreach (var kvp in generatedModImages)
+            {
+                ModType type = kvp.Key;
+                Image img = kvp.Value;
+                if (img != null)
+                {
+                    ModInfo info = ModDatabase.GetModInfo(type);
+                    bool isActive = mods.HasMod(type);
+                    img.color = isActive ? info.displayColor : defaultColor;
+                }
+            }
         }
 
         public void ToggleModPanel()
         {
             if (modPanel != null)
-                modPanel.SetActive(!modPanel.activeSelf);
+            {
+                bool newState = !modPanel.activeSelf;
+                modPanel.SetActive(newState);
+                isModPanelActive = newState;
+            }
+        }
+
+        public void CloseModPanel()
+        {
+            if (modPanel != null && modPanel.activeSelf)
+            {
+                modPanel.SetActive(false);
+                isModPanelActive = false;
+            }
+        }
+
+        private void HandleBlankAreaClick()
+        {
+            // 检测鼠标点击
+            if (Input.GetMouseButtonDown(0))
+            {
+                if (modPanel != null && modPanel.activeSelf && !IsPointerOverGameObject())
+                {
+                    CloseModPanel();
+                }
+            }
+
+            // 如果使用 RayController，可以通过其他方式检测点击
+            // 这里提供一个通用的解决方案
+        }
+
+        private bool IsPointerOverGameObject()
+        {
+            // 检查鼠标是否在 UI 上
+            UnityEngine.EventSystems.PointerEventData eventData = new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current);
+            eventData.position = Input.mousePosition;
+            
+            List<UnityEngine.EventSystems.RaycastResult> results = new List<UnityEngine.EventSystems.RaycastResult>();
+            UnityEngine.EventSystems.EventSystem.current.RaycastAll(eventData, results);
+            
+            for (int i = 0; i < results.Count; i++)
+            {
+                // 检查点击的对象是否在 Mod 面板内
+                if (results[i].gameObject.transform.IsChildOf(modPanel.transform))
+                {
+                    return true; // 点击在 Mod 面板内部
+                }
+            }
+            
+            return false; // 点击在 Mod 面板外部
         }
 
         public void GoBack()

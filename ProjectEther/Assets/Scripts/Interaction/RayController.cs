@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
@@ -145,14 +145,19 @@ namespace OsuVR
             {
                 if (IsHittingUI && lastHitUIObject != null)
                 {
-                    Button uiBtn = lastHitUIObject.GetComponent<Button>();
-                    if (uiBtn == null) uiBtn = lastHitUIObject.GetComponentInParent<Button>();
+                    Debug.Log($"[RayController] 发送标准 UI 点击: {lastHitUIObject.name}");
+                    
+                    Camera cam = Camera.main;
+                    Canvas parentCanvas = lastHitUIObject.GetComponentInParent<Canvas>();
+                    if (parentCanvas != null && parentCanvas.worldCamera != null) cam = parentCanvas.worldCamera;
+                    
+                    var pointerData = new PointerEventData(eventSystem);
+                    if (cam != null) pointerData.position = cam.WorldToScreenPoint(CurrentHitPoint);
 
-                    if (uiBtn != null)
-                    {
-                        uiBtn.onClick.Invoke();
-                        Debug.Log($" 成功点击 UI 按钮: {uiBtn.gameObject.name}");
-                    }
+                    ExecuteEvents.ExecuteHierarchy(lastHitUIObject, pointerData, ExecuteEvents.pointerDownHandler);
+                    ExecuteEvents.ExecuteHierarchy(lastHitUIObject, pointerData, ExecuteEvents.pointerClickHandler);
+                    ExecuteEvents.ExecuteHierarchy(lastHitUIObject, pointerData, ExecuteEvents.pointerUpHandler);
+                    ExecuteEvents.ExecuteHierarchy(lastHitUIObject, pointerData, ExecuteEvents.submitHandler);
                 }
                 else if (IsHitting && lastHitObject != null)
                 {
@@ -161,8 +166,11 @@ namespace OsuVR
 
                     if (btn != null)
                     {
-                        btn.onClick.Invoke();
-                        Debug.Log($" 成功点击 3D 按钮: {btn.gameObject.name}");
+                        var pointerData = new PointerEventData(eventSystem);
+                        ExecuteEvents.ExecuteHierarchy(btn.gameObject, pointerData, ExecuteEvents.pointerDownHandler);
+                        ExecuteEvents.ExecuteHierarchy(btn.gameObject, pointerData, ExecuteEvents.pointerClickHandler);
+                        ExecuteEvents.ExecuteHierarchy(btn.gameObject, pointerData, ExecuteEvents.pointerUpHandler);
+                        Debug.Log($"[RayController] 成功点击 3D 按钮: {btn.gameObject.name}");
                     }
                 }
             }
@@ -359,19 +367,18 @@ namespace OsuVR
                     if (canvasPlane.Raycast(ray, out enter))
                     {
                         Vector3 hitPoint = ray.GetPoint(enter);
-                        Vector3 localPoint = canvas.transform.InverseTransformPoint(hitPoint);
 
-                        RectTransform rectTransform = canvas.GetComponent<RectTransform>();
-                        if (rectTransform == null) continue;
-
-                        Vector2 pivot = rectTransform.pivot;
-                        Vector2 size = rectTransform.sizeDelta;
-
-                        float x = localPoint.x + size.x * pivot.x;
-                        float y = localPoint.y + size.y * pivot.y;
-
+                        Camera eventCam = canvas.worldCamera != null ? canvas.worldCamera : Camera.main;
                         PointerEventData ped = new PointerEventData(eventSystem);
-                        ped.position = new Vector2(x, y);
+
+                        if (eventCam != null)
+                        {
+                            ped.position = eventCam.WorldToScreenPoint(hitPoint);
+                        }
+                        else
+                        {
+                            ped.position = new Vector2(Screen.width / 2, Screen.height / 2);
+                        }
 
                         List<RaycastResult> results = new List<RaycastResult>();
                         raycaster.Raycast(ped, results);

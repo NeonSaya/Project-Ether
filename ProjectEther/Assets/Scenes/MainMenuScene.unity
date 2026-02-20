@@ -1304,7 +1304,7 @@ Canvas:
   m_Enabled: 1
   serializedVersion: 3
   m_RenderMode: 2
-  m_Camera: {fileID: 0}
+  m_Camera: {fileID: 1934778826}
   m_PlaneDistance: 100
   m_PixelPerfect: 0
   m_ReceivesEvents: 1
@@ -1941,6 +1941,11 @@ PrefabInstance:
       propertyPath: clickAction.m_Action.m_Name
       value: Click
       objectReference: {fileID: 0}
+    - target: {fileID: 3588498708657264690, guid: b378079ab90e57e4aabe341ba7a3749f,
+        type: 3}
+      propertyPath: rightStickAction.m_Action.m_Name
+      value: Right Stick
+      objectReference: {fileID: 0}
     - target: {fileID: 5041252558263177254, guid: b378079ab90e57e4aabe341ba7a3749f,
         type: 3}
       propertyPath: laserWidth
@@ -1999,6 +2004,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7647497083426514023, guid: b378079ab90e57e4aabe341ba7a3749f,
         type: 3}
+      propertyPath: rightStickAction.m_Action.m_Name
+      value: Right Stick
+      objectReference: {fileID: 0}
+    - target: {fileID: 7647497083426514023, guid: b378079ab90e57e4aabe341ba7a3749f,
+        type: 3}
       propertyPath: clickAction.m_Action.m_SingletonActionBindings.Array.size
       value: 1
       objectReference: {fileID: 0}
@@ -2022,6 +2032,12 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: b378079ab90e57e4aabe341ba7a3749f, type: 3}
+--- !u!20 &1934778826 stripped
+Camera:
+  m_CorrespondingSourceObject: {fileID: 4089526529677120967, guid: b378079ab90e57e4aabe341ba7a3749f,
+    type: 3}
+  m_PrefabInstance: {fileID: 1934778825}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &2072325518
 GameObject:
   m_ObjectHideFlags: 0

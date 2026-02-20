@@ -306,7 +306,6 @@ namespace OsuVR
 
             if (scoreManager != null && currentBeatmap != null)
             {
-                // 设置谱面信息
                 scoreManager.SetBeatmapInfo(
                     currentBeatmap.Metadata?.Title,
                     currentBeatmap.Metadata?.Artist,
@@ -314,10 +313,6 @@ namespace OsuVR
                     currentBeatmap.Metadata?.Creator
                 );
 
-                // 设置 Mod (Relax 为默认模式)
-                scoreManager.SetMods(useAutoPlay, true, false, false, false, false);
-
-                // 获取结算数据
                 ResultData result = scoreManager.GetResultData();
 
                 // 保存到全局上下文 (用于结算场景显示和重试)
@@ -350,11 +345,11 @@ namespace OsuVR
                     double currentDspTime = AudioSettings.dspTime;
                     double elapsedBufferTime = currentDspTime - bufferStartDspTime;
 
-                    // 倒计时时间 = 总缓冲时间 - 已过的缓冲时间
-                    countdownTime = preparationTime + (spawnOffsetMs / 1000.0) - elapsedBufferTime;
+                    // 修复: 倒计时等待阶段，spawnOffset的真实等待时间也受变速影响
+                    countdownTime = preparationTime + ((spawnOffsetMs / 1000.0) / speedMultiplier) - elapsedBufferTime;
 
-                    // 当前音乐时间为负的spawnOffset（倒计时）
-                    currentMusicTimeMs = ((currentDspTime - dspStartTime) * 1000.0) - universalOffsetMs;
+                    // 修复: 乘上 speedMultiplier 让游戏时间与加速的音乐匹配
+                    currentMusicTimeMs = (((currentDspTime - dspStartTime) * 1000.0) * speedMultiplier) - universalOffsetMs;
                 }
                 else
                 {
@@ -368,7 +363,9 @@ namespace OsuVR
                 if (dspStartTime > 0)
                 {
                     double currentDspTime = AudioSettings.dspTime;
-                    currentMusicTimeMs = ((currentDspTime - dspStartTime) * 1000.0) - universalOffsetMs;
+                    
+                    // 修复: 乘上 speedMultiplier 让游戏时间与加速的音乐匹配
+                    currentMusicTimeMs = (((currentDspTime - dspStartTime) * 1000.0) * speedMultiplier) - universalOffsetMs;
 
                     // 检查音乐是否应该开始但还未开始
                     if (!isMusicPlaying && currentMusicTimeMs >= 0)
@@ -442,6 +439,8 @@ namespace OsuVR
             // 记录缓冲期开始时间（用于倒计时）
             bufferStartDspTime = currentDspTime;
 
+            // 设置音乐变速 (DT/HT)
+            musicSource.pitch = speedMultiplier;
             // 设置音乐在未来某个精确时刻播放
             musicSource.PlayScheduled(dspStartTime);
 
@@ -519,7 +518,13 @@ namespace OsuVR
 
                 foreach (var obj in hitObjects)
                 {
-                    if (obj.TimePreempt <= 0.1) obj.TimePreempt = spawnOffsetMs;
+                    obj.TimePreempt = spawnOffsetMs;
+                }
+
+                // HR Mod: Y轴镜像翻转 (修复选歌界面进入时未应用HR镜像的问题)
+                if (modEffects != null && modEffects.IsHardRock)
+                {
+                    ApplyHardRockMirror();
                 }
 
                 Debug.Log($"✅ 谱面数据解析成功: {currentBeatmap.Metadata.Title}");
@@ -670,22 +675,28 @@ namespace OsuVR
 
             foreach (var obj in hitObjects)
             {
-                // 镜像翻转 Y 坐标: newY = 2 * centerY - originalY
+                // 1. 翻转头部坐标 (头部是绝对坐标，用 384 - y 是对的)
                 Vector2 pos = obj.Position;
                 pos.y = 2f * CENTER_Y - pos.y;
                 obj.Position = pos;
 
-                // Slider 还需要翻转终点位置
-                if (obj is SliderObject slider)
+                // 2. 翻转滑条控制点
+                if (obj is SliderObject slider && slider.ControlPoints != null)
                 {
-                    Vector2 endPos = slider.EndPosition;
-                    endPos.y = 2f * CENTER_Y - endPos.y;
-                    // Slider 的 EndPosition 是计算属性，需要通过 PathPoints 重新计算
-                    // 这里简化处理，在 SliderController 初始化时会重新计算路径
+                    for (int i = 0; i < slider.ControlPoints.Count; i++)
+                    {
+                        Vector2 cp = slider.ControlPoints[i];
+                        
+                        // 【核心修复】：因为控制点是相对坐标（偏移量）
+                        // 往下偏移变成往上偏移，只需要对 Y 取反，不需要减去 384
+                        cp.y = -cp.y;
+                        
+                        slider.ControlPoints[i] = cp;
+                    }
                 }
             }
 
-            Debug.Log($"[Mod] HR Y轴镜像翻转完成，共处理 {hitObjects.Count} 个物件");
+            Debug.Log($"[Mod] HR Y轴镜像翻转完成，共处理 {hitObjects.Count} 个物件，已修复滑条相对坐标翻转");
         }
 
         /// <summary>
@@ -742,7 +753,10 @@ namespace OsuVR
             currentMusicTimeMs = 0;
             isPlaying = false;
             isMusicPlaying = false;
-            countdownTime = preparationTime + (spawnOffsetMs / 1000.0);
+            
+            // 修复：除以 speedMultiplier
+            countdownTime = preparationTime + ((spawnOffsetMs / 1000.0) / speedMultiplier);
+            
             spawnedNotes = 0;
             activeNotes = 0;
         }
@@ -837,8 +851,8 @@ namespace OsuVR
                 // 根据谱面中的AR设置计算spawnOffsetMs
                 if (currentBeatmap != null && currentBeatmap.Difficulty != null)
                 {
-                    // 应用 Mod 效果到难度参数
-                    ApplyModEffectsToBeatmap();
+                    // === 注释掉这一行！防止CS和AR被乘两次 ===
+                    // ApplyModEffectsToBeatmap();
 
                     float baseAR = currentBeatmap.Difficulty.ApproachRate;
                     float modifiedAR = modEffects != null ? modEffects.GetModifiedAR(baseAR) : baseAR;
@@ -850,11 +864,7 @@ namespace OsuVR
                 // 这样 SpawnNotes 里的 (StartTime - TimePreempt) 才能算出正确的生成时间
                 foreach (var obj in hitObjects)
                 {
-                    // 只有当音符自己的 TimePreempt 没被设置时才覆盖
-                    if (obj.TimePreempt <= 0.1)
-                    {
-                        obj.TimePreempt = spawnOffsetMs;
-                    }
+                    obj.TimePreempt = spawnOffsetMs;
                 }
 
                 // HR Mod: Y轴镜像翻转
@@ -1433,7 +1443,8 @@ namespace OsuVR
         /// </summary>
         public double GetCurrentMusicTimeMs()
         {
-            if (!isPlaying)
+            // 如果没有在播放且没有处于缓冲期
+            if (!isPlaying && bufferStartDspTime <= 0)
             {
                 return -spawnOffsetMs;
             }
@@ -1441,7 +1452,8 @@ namespace OsuVR
             if (dspStartTime > 0)
             {
                 double currentDspTime = AudioSettings.dspTime;
-                return (currentDspTime - dspStartTime) * 1000.0;
+                // 修复: 必须乘上 speedMultiplier，并减去全局偏移
+                return (((currentDspTime - dspStartTime) * 1000.0) * speedMultiplier) - universalOffsetMs;
             }
 
             return 0;

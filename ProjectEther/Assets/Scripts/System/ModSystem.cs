@@ -255,14 +255,22 @@ namespace OsuVR
             else
             {
                 // 移除所有与新 Mod 互斥的已激活 Mod
+                var modsToRemove = new List<ModType>();
                 foreach (var active in activeMods)
                 {
                     if (ModDatabase.AreIncompatible(mod, active))
                     {
-                        activeMods.Remove(active);
-                        OnModChanged?.Invoke(active, false);
+                        modsToRemove.Add(active);
                     }
                 }
+                
+                // 安全地移除互斥的 Mods
+                foreach (var modToRemove in modsToRemove)
+                {
+                    activeMods.Remove(modToRemove);
+                    OnModChanged?.Invoke(modToRemove, false);
+                }
+                
                 activeMods.Add(mod);
                 OnModChanged?.Invoke(mod, true);
                 return true;
@@ -284,14 +292,22 @@ namespace OsuVR
                 if (!activeMods.Contains(mod))
                 {
                     // 移除所有互斥 Mod
+                    var modsToRemove = new List<ModType>();
                     foreach (var active in activeMods)
                     {
                         if (ModDatabase.AreIncompatible(mod, active))
                         {
-                            activeMods.Remove(active);
-                            OnModChanged?.Invoke(active, false);
+                            modsToRemove.Add(active);
                         }
                     }
+                    
+                    // 安全地移除互斥的 Mods
+                    foreach (var modToRemove in modsToRemove)
+                    {
+                        activeMods.Remove(modToRemove);
+                        OnModChanged?.Invoke(modToRemove, false);
+                    }
+                    
                     activeMods.Add(mod);
                     OnModChanged?.Invoke(mod, true);
                 }
