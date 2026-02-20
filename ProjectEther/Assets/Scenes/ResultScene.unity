@@ -671,6 +671,7 @@ GameObject:
   - component: {fileID: 420171355}
   - component: {fileID: 420171354}
   - component: {fileID: 420171356}
+  - component: {fileID: 420171357}
   m_Layer: 5
   m_Name: Button_Retry
   m_TagString: Untagged
@@ -780,6 +781,27 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!65 &420171357
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 420171352}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &668590884
 GameObject:
   m_ObjectHideFlags: 0
@@ -1776,6 +1798,7 @@ GameObject:
   - component: {fileID: 1425369174}
   - component: {fileID: 1425369173}
   - component: {fileID: 1425369172}
+  - component: {fileID: 1425369176}
   m_Layer: 5
   m_Name: Button_BackToMenu
   m_TagString: Untagged
@@ -1885,6 +1908,27 @@ RectTransform:
   m_AnchoredPosition: {x: 120, y: -200}
   m_SizeDelta: {x: 180, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!65 &1425369176
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1425369171}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &1504139976
 GameObject:
   m_ObjectHideFlags: 0
@@ -2299,6 +2343,12 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: b378079ab90e57e4aabe341ba7a3749f, type: 3}
+--- !u!20 &1787360706 stripped
+Camera:
+  m_CorrespondingSourceObject: {fileID: 4089526529677120967, guid: b378079ab90e57e4aabe341ba7a3749f,
+    type: 3}
+  m_PrefabInstance: {fileID: 1787360705}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1799104290
 GameObject:
   m_ObjectHideFlags: 0
@@ -2887,7 +2937,7 @@ Canvas:
   m_Enabled: 1
   serializedVersion: 3
   m_RenderMode: 2
-  m_Camera: {fileID: 0}
+  m_Camera: {fileID: 1787360706}
   m_PlaneDistance: 100
   m_PixelPerfect: 0
   m_ReceivesEvents: 1

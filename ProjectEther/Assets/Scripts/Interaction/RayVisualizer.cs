@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace OsuVR
 {
@@ -31,63 +31,54 @@ namespace OsuVR
                 rayController = GetComponentInParent<RayController>();
             }
 
-            // 2. 初始化 LineRenderer (就像以前一样)
+            // 2. 初始化 LineRenderer
             lineRenderer = GetComponent<LineRenderer>();
-            lineRenderer.useWorldSpace = true;       // 必须用世界坐标
+            lineRenderer.useWorldSpace = true;
             lineRenderer.startWidth = laserWidth;
             lineRenderer.endWidth = laserWidth;
             lineRenderer.positionCount = 2;
 
-            // 3. 自动设置材质 (防止变成紫色方块)
-            if (lineRenderer.sharedMaterial == null)
+            // 3. 修复：让射线无视深度遮挡，永远显示在 UI 上方
+            if (lineRenderer.sharedMaterial == null || rayMaterial == null)
             {
-                // 如果你有指定的材质就用，没有就新建一个默认的
-                if (rayMaterial != null)
-                {
-                    lineRenderer.material = rayMaterial;
-                }
-                else
-                {
-                    // 创建一个简单的 Shader 材质，防止变紫
-                    Material defaultMat = new Material(Shader.Find("Legacy Shaders/Particles/Alpha Blended"));
-                    lineRenderer.material = defaultMat;
-                }
+                // 使用 UI/Default 材质并强制关闭深度测试 (ZTest Always)
+                Material alwaysOnTopMat = new Material(Shader.Find("UI/Default"));
+                alwaysOnTopMat.SetInt("unity_GUIZTestMode", (int)UnityEngine.Rendering.CompareFunction.Always);
+                lineRenderer.material = alwaysOnTopMat;
             }
+            else
+            {
+                lineRenderer.material = rayMaterial;
+            }
+
+            // 强制提升渲染层级，盖过 Canvas (100)
+            lineRenderer.sortingOrder = 32767;
         }
 
         void LateUpdate()
         {
             if (rayController == null || rayController.visualRay == null) return;
 
-            // --- 核心：跟着 RayController 的逻辑轴动 ---
-            // RayController 已经计算好了 Wrist-Gain 旋转，赋给了 visualRay
-            // 我们只需要把线画在 visualRay 的位置和方向上
             Transform source = rayController.visualRay;
-
             Vector3 startPos = source.position;
             Vector3 endPos;
 
-            // 1. 决定颜色和终点
-            if (rayController.IsHitting)
+            if (rayController.IsHittingUI || rayController.IsHitting)
             {
-                // 打中：变黄，终点吸附在物体表面
                 lineRenderer.startColor = hitColor;
                 lineRenderer.endColor = hitColor;
                 endPos = rayController.CurrentHitPoint;
             }
             else
             {
-                // 没打中：变青，射向无限远
                 lineRenderer.startColor = laserColor;
                 lineRenderer.endColor = laserColor;
                 endPos = startPos + source.forward * rayController.rayLength;
             }
 
-            // 2. 更新线条位置
             lineRenderer.SetPosition(0, startPos);
             lineRenderer.SetPosition(1, endPos);
 
-            // 实时更新宽度 (方便运行通过 Inspector 调节)
             lineRenderer.startWidth = laserWidth;
             lineRenderer.endWidth = laserWidth;
         }

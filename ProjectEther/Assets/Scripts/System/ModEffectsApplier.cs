@@ -50,9 +50,16 @@ namespace OsuVR
         public bool IsFlashlight { get; private set; } = false;
 
         /// <summary>
-        /// 总分数倍率 (所有 Mod 倍率的乘积)
+        /// 总分数倍率 (所有 Mod 倍率的乘积，用于 UI 显示)
+        /// AT Mod 会使此值变为 0.00x
         /// </summary>
         public float ScoreMultiplier { get; private set; } = 1f;
+
+        /// <summary>
+        /// 用于实际分数计算的倍率 (排除 AT Mod)
+        /// AT Mod 不影响实际分数计算，但会在 UI 上显示 0.00x
+        /// </summary>
+        public float ScoreMultiplierForCalculation { get; private set; } = 1f;
 
         /// <summary>
         /// 固定判定窗口 (毫秒)
@@ -87,7 +94,18 @@ namespace OsuVR
             IsAutoPlay = false;
             IsHidden = false;
             IsFlashlight = false;
+
             ScoreMultiplier = modSelection.GetTotalScoreMultiplier();
+
+            ScoreMultiplierForCalculation = 1f;
+            foreach (var mod in modSelection.GetActiveMods())
+            {
+                var info = ModDatabase.GetModInfo(mod);
+                if (info != null && mod != ModType.Auto)
+                {
+                    ScoreMultiplierForCalculation *= info.scoreMultiplier;
+                }
+            }
 
             // 遍历应用每个 Mod 的效果
             foreach (var mod in modSelection.GetActiveMods())

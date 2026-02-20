@@ -4,10 +4,16 @@ using UnityEngine;
 
 namespace OsuVR
 {
+    /// <summary>
+    /// 滑条网格生成器：负责将路径点转换为可渲染的 3D 网格
+    /// 核心功能：
+    /// - 生成香肠形网格（圆形端点 + 矩形连接）
+    /// - 配置 Stencil Buffer 材质，实现滑条自我交叉防重叠
+    /// - 支持 GPU Instancing 和动态 RenderQueue
+    /// </summary>
     public static class SliderMeshGenerator
     {
         private const int CIRCLE_RESOLUTION = 32;
-        // 指定你的 Shader 名字
         private const string SHADER_NAME = "Osu/SliderVR_Flat_Stencil_VR_Fixed";
 
         /// <summary>
@@ -69,6 +75,13 @@ namespace OsuVR
             return (border, body, borderMaterial, bodyMaterial);
         }
 
+        /// <summary>
+        /// 构建香肠形网格：圆形端点 + 矩形连接段
+        /// </summary>
+        /// <param name="path">路径点列表</param>
+        /// <param name="w">网格半径</param>
+        /// <param name="name">网格名称</param>
+        /// <returns>生成的网格对象</returns>
         private static Mesh BuildSausageMesh(List<Vector3> path, float w, string name)
         {
             Mesh m = new Mesh { name = name };
@@ -123,6 +136,13 @@ namespace OsuVR
             return m;
         }
 
+        /// <summary>
+        /// 添加圆形网格：在指定位置生成一个圆形顶点扇形
+        /// </summary>
+        /// <param name="v">顶点列表</param>
+        /// <param name="t">三角形索引列表</param>
+        /// <param name="c">圆心位置</param>
+        /// <param name="r">圆的半径</param>
         private static void AddCircle(List<Vector3> v, List<int> t, Vector3 c, float r)
         {
             int centerIdx = v.Count;

@@ -117,6 +117,16 @@ namespace OsuVR
         // [新增] 辅助属性：只要有一只手在跟踪，就视为有效（替换原来的 isTracking）
         public bool isTracking => isLeftHandTracking || isRightHandTracking;
 
+        // [新增] 脱离容错计时器（秒）- 允许脱离约1帧（60fps ≈ 16.67ms）后才算断滑条
+        private float leftHandGraceTimer = 0f;
+        private float rightHandGraceTimer = 0f;
+        private const float GRACE_PERIOD_SECONDS = 0.018f; // 约1帧的容错时间
+
+        // [新增] 防短滑条断机制：记录最后一次有效跟踪的时间（音乐时间，毫秒）
+        // 滑条结束前约2帧内离开判定范围，仍算接住尾巴
+        private double lastEffectiveTrackTime = 0;
+        private const double TAIL_GRACE_PERIOD_MS = 33.0; // 约2帧的容错时间
+
 
         // [新增] 避免每帧重复获取时间的缓存
         private double currentMusicTimeCache;
@@ -318,6 +328,11 @@ namespace OsuVR
             isLeftHandTracking = false;
             isRightHandTracking = false;
 
+            // [新增] 重置容错计时器
+            leftHandGraceTimer = 0f;
+            rightHandGraceTimer = 0f;
+            lastEffectiveTrackTime = 0;
+
             headHit = false;
             finished = false;
         }
@@ -483,6 +498,11 @@ namespace OsuVR
             // [新增] 重置双手状态
             isLeftHandTracking = false;
             isRightHandTracking = false;
+
+            // [新增] 重置容错计时器
+            leftHandGraceTimer = 0f;
+            rightHandGraceTimer = 0f;
+            lastEffectiveTrackTime = 0;
 
             // 4. 处理子物体
             if (headInstance) headInstance.SetActive(false);
@@ -1178,10 +1198,13 @@ namespace OsuVR
             // 1. 更新球体位置
             UpdateFollowBall();
 
-            // 2. 判定逻辑 (头判、Tick、尾判)
+            // 2. 更新容错计时器（在判定之前）
+            UpdateGraceTimers();
+
+            // 3. 判定逻辑 (头判、Tick、尾判)
             UpdateJudgement();
 
-            // 3. 视觉反馈
+            // 4. 视觉反馈
             UpdateVisuals();
 
 
@@ -1244,6 +1267,83 @@ namespace OsuVR
             }
             // -------------------------------------------------------------
         }
+
+        /// <summary>
+        /// [新增] 更新容错计时器 - 实现1帧容错机制
+        /// 当手脱离2x判定范围时，给予约1帧的缓冲时间
+        /// </summary>
+        private void UpdateGraceTimers()
+        {
+            if (followBall == null || !headHit) return;
+
+            float allowedRadius = (sliderWidth * 0.5f) * followRadiusMultiplier;
+            float dt = Time.deltaTime;
+            bool anyHandEffective = false;
+
+            // 处理左手
+            if (isLeftHandTracking)
+            {
+                float dist = Vector3.Distance(leftHandPos, followBall.transform.position);
+                if (dist <= allowedRadius)
+                {
+                    leftHandGraceTimer = GRACE_PERIOD_SECONDS;
+                    anyHandEffective = true;
+                }
+                else
+                {
+                    leftHandGraceTimer -= dt;
+                }
+            }
+            else
+            {
+                leftHandGraceTimer -= dt;
+            }
+
+            // 处理右手
+            if (isRightHandTracking)
+            {
+                float dist = Vector3.Distance(rightHandPos, followBall.transform.position);
+                if (dist <= allowedRadius)
+                {
+                    rightHandGraceTimer = GRACE_PERIOD_SECONDS;
+                    anyHandEffective = true;
+                }
+                else
+                {
+                    rightHandGraceTimer -= dt;
+                }
+            }
+            else
+            {
+                rightHandGraceTimer -= dt;
+            }
+
+            // [新增] 记录最后一次有效跟踪的时间（用于防短滑条断机制）
+            if (anyHandEffective)
+            {
+                lastEffectiveTrackTime = currentMusicTimeCache;
+            }
+
+            // 钳制到非负值
+            leftHandGraceTimer = Mathf.Max(0, leftHandGraceTimer);
+            rightHandGraceTimer = Mathf.Max(0, rightHandGraceTimer);
+        }
+
+        /// <summary>
+        /// [新增] 检查手是否在有效跟踪状态（考虑容错期）
+        /// </summary>
+        private bool IsHandEffectivelyTracking(bool isRightHand)
+        {
+            if (isRightHand)
+            {
+                return isRightHandTracking || rightHandGraceTimer > 0;
+            }
+            else
+            {
+                return isLeftHandTracking || leftHandGraceTimer > 0;
+            }
+        }
+
         public void OnRayExit(bool isRightHand)
         {
             // [重构] 只重置对应手柄的状态，绝不干扰另一只手
@@ -1393,34 +1493,37 @@ namespace OsuVR
             if (!headHit)
             {
                 double diff = currentMusicTimeCache - sliderData.StartTime;
-                double spanDuration = (sliderData.EndTime - sliderData.StartTime) / sliderData.RepeatCount;
 
-                // 判定窗口内，且被追踪 -> 在 TryHitHead 里处理 Hit
-                if (isTracking && diff >= earlyWindow && diff <= 250)
+                // 安全计算单次折返的持续时间（防止 RepeatCount 为 0 导致报错）
+                double spanDuration = sliderData.RepeatCount > 0
+                    ? (sliderData.EndTime - sliderData.StartTime) / sliderData.RepeatCount
+                    : (sliderData.EndTime - sliderData.StartTime);
+
+                // 触发 Head Miss 的三大条件：
+                // 1. 时间超过正常最大打击窗口 (250ms)
+                // 2. 球已经跑完了一个折返段的时间 (针对快速滑条，球走远了算漏)
+                // 3. 整个滑条已经彻底结束 (解决极短滑条不显示 Miss 也不消失的问题)
+                bool isTimeoutMiss = (diff > 250) || (diff > spanDuration && diff > 0) || (currentMusicTimeCache >= sliderData.EndTime);
+
+                if (isTimeoutMiss)
                 {
-                    // 等待 TryHitHead 触发
-                }
-                // 超时 Miss
-                else if (diff > 250 || (diff > spanDuration && diff > 0))
-                {
-                    headHit = true;
+                    headHit = true; // 锁定状态，防止重复触发
                     Debug.Log($"<color=red>Slider Head MISS</color>");
 
-                    // 1. 立即隐藏滑条头 (视觉上 Head 没了)
+                    // 1. 立即隐藏滑条头 (视觉上 Head 直接消失)
                     if (headInstance != null) headInstance.SetActive(false);
 
-                    // 2. 绝对不要调用 gameManager.OnNoteMiss(sliderData)! 这会杀死滑条
-                    // 3. 而是告诉分数系统：断连了 (0分)
+                    // 2. 告诉分数系统：断连了 (扣血/断Combo)
                     if (gameManager != null && gameManager.scoreManager != null)
                     {
                         gameManager.scoreManager.RegisterMiss(300);
                     }
 
+                    // 3. 弹小红叉文字 (位置在滑条头当前位置)
                     if (JudgementVisualizer.Instance != null)
                     {
                         JudgementVisualizer.Instance.ShowJudgement(transform.position, 0, Color.red);
                     }
-                    // 此时滑条本体还在，Update 还会继续跑，后面的 Tick 还能吃
                 }
             }
 
@@ -1437,19 +1540,45 @@ namespace OsuVR
                 // --- 判定开始 ---
                 bool hit = false;
 
-                if (isTracking && followBall != null) // isTracking 现在是属性，只要任意手在即为 true
+                // [修改] 使用容错机制判定
+                if (followBall != null)
                 {
                     float allowedRadius = (sliderWidth * 0.5f) * followRadiusMultiplier;
                     float minDist = float.MaxValue;
 
-                    // 计算离球最近的那只手的距离
-                    if (isLeftHandTracking)
+                    // 检查左手（考虑容错期）
+                    bool leftEffective = IsHandEffectivelyTracking(false);
+                    if (leftEffective && isLeftHandTracking)
+                    {
                         minDist = Mathf.Min(minDist, Vector3.Distance(leftHandPos, followBall.transform.position));
+                    }
 
-                    if (isRightHandTracking)
+                    // 检查右手（考虑容错期）
+                    bool rightEffective = IsHandEffectivelyTracking(true);
+                    if (rightEffective && isRightHandTracking)
+                    {
                         minDist = Mathf.Min(minDist, Vector3.Distance(rightHandPos, followBall.transform.position));
+                    }
 
-                    if (minDist <= allowedRadius) hit = true;
+                    // [核心修改] 只要任意手在容错期内且距离有效，就算hit
+                    if ((leftEffective || rightEffective) && minDist <= allowedRadius)
+                    {
+                        hit = true;
+                    }
+
+                    // [新增] 防短滑条断机制：Tail特殊处理
+                    // 如果最后有效跟踪时间在滑条结束前约2帧内，仍算接住尾巴
+                    if (!hit && nestedObject.Type == SliderEventType.Tail)
+                    {
+                        double timeSinceLastTrack = currentMusicTimeCache - lastEffectiveTrackTime;
+                        double timeUntilEnd = sliderData.EndTime - lastEffectiveTrackTime;
+
+                        // 条件：曾经有效跟踪过，且最后一次跟踪在结束前2帧内
+                        if (lastEffectiveTrackTime > sliderData.StartTime && timeUntilEnd <= TAIL_GRACE_PERIOD_MS)
+                        {
+                            hit = true;
+                        }
+                    }
                 }
 
                 nestedObject.IsHit = hit;

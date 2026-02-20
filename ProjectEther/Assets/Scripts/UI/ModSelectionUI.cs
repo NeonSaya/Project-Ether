@@ -27,6 +27,13 @@ namespace OsuVR
         [Tooltip("清除所有 Mod 的按钮")]
         public Button clearAllButton;
 
+        [Tooltip("关闭 Mod 面板的按钮")]
+        public Button closeButton;
+
+        [Header("面板引用")]
+        [Tooltip("Mod 选择面板的整体 GameObject")]
+        public GameObject modPanel;
+
         [Header("设置")]
         [Tooltip("是否在 Start 时自动生成按钮")]
         public bool autoGenerateButtons = true;
@@ -65,7 +72,15 @@ namespace OsuVR
                 clearAllButton.onClick.AddListener(OnClearAllClicked);
             }
 
+            if (closeButton != null)
+            {
+                closeButton.onClick.AddListener(OnCloseClicked);
+            }
+
             UpdateUI();
+            
+            // 确保按钮状态与当前 Mod 选择状态同步
+            ForceSyncButtonStates();
         }
 
         void OnDestroy()
@@ -78,6 +93,11 @@ namespace OsuVR
             if (clearAllButton != null)
             {
                 clearAllButton.onClick.RemoveListener(OnClearAllClicked);
+            }
+
+            if (closeButton != null)
+            {
+                closeButton.onClick.RemoveListener(OnCloseClicked);
             }
         }
 
@@ -190,6 +210,22 @@ namespace OsuVR
             UpdateUI();
         }
 
+        /// <summary>
+        /// 关闭按钮点击回调
+        /// </summary>
+        private void OnCloseClicked()
+        {
+            if (modPanel != null)
+            {
+                modPanel.SetActive(false);
+            }
+            else
+            {
+                // 如果没有设置面板，则隐藏整个组件
+                gameObject.SetActive(false);
+            }
+        }
+
         // =========================================================
         // UI 更新
         // =========================================================
@@ -261,6 +297,19 @@ namespace OsuVR
         public ModSelection GetModSelection()
         {
             return modSelection;
+        }
+
+        /// <summary>
+        /// 强制同步所有按钮状态与当前 Mod 选择状态
+        /// </summary>
+        public void ForceSyncButtonStates()
+        {
+            foreach (var kvp in buttonControllers)
+            {
+                bool hasMod = modSelection.HasMod(kvp.Key);
+                kvp.Value.SetSelected(hasMod);
+            }
+            UpdateUI();
         }
     }
 

@@ -1,7 +1,15 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace OsuVR
 {
+    /// <summary>
+    /// 触觉反馈配置文件：定义各种游戏事件的震动参数
+    /// 作为 ScriptableObject 存储在项目中，可在 Inspector 中配置
+    /// 支持的震动类型：
+    /// - 基础打击：NormalHit, WhistleHit, FinishHit, ClapHit
+    /// - 滑条：SliderSlide, SliderTick, SliderReverse
+    /// - 转盘：SpinnerMinIntensity, SpinnerMaxIntensity
+    /// </summary>
     [CreateAssetMenu(fileName = "NewHapticProfile", menuName = "OsuVR/Haptic Profile")]
     public class HapticProfile : ScriptableObject
     {

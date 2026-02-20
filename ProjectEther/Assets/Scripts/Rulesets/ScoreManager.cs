@@ -101,6 +101,7 @@ namespace OsuVR
 
         private ModEffectsApplier _modEffects;
         private float _scoreMultiplier = 1f;
+        private float _scoreMultiplierForCalculation = 1f;
 
         void Start()
         {
@@ -145,7 +146,29 @@ namespace OsuVR
         // ================================================================
         public void Initialize(List<HitObject> allHitObjects)
         {
+            float savedMultiplier = _scoreMultiplier;
+            float savedMultiplierForCalculation = _scoreMultiplierForCalculation;
+            var savedModEffects = _modEffects;
+            bool savedAutoPlay = _isAutoPlay;
+            bool savedHardRock = _isHardRock;
+            bool savedDoubleTime = _isDoubleTime;
+            bool savedHalfTime = _isHalfTime;
+            bool savedHidden = _isHidden;
+            bool savedFlashlight = _isFlashlight;
+            bool savedEasy = _isEasy;
+
             ResetData();
+
+            _scoreMultiplier = savedMultiplier;
+            _scoreMultiplierForCalculation = savedMultiplierForCalculation;
+            _modEffects = savedModEffects;
+            _isAutoPlay = savedAutoPlay;
+            _isHardRock = savedHardRock;
+            _isDoubleTime = savedDoubleTime;
+            _isHalfTime = savedHalfTime;
+            _isHidden = savedHidden;
+            _isFlashlight = savedFlashlight;
+            _isEasy = savedEasy;
 
             // 模拟一次完美的 Full Combo (AutoPlay)
             // 以此计算出准确的分母：_maxComboPortionTotal 和 _totalMapJudgements
@@ -236,6 +259,7 @@ namespace OsuVR
                 _isFlashlight = false;
                 _isEasy = false;
                 _scoreMultiplier = 1f;
+                _scoreMultiplierForCalculation = 1f;
                 _modEffects = null;
                 return;
             }
@@ -250,6 +274,7 @@ namespace OsuVR
 
             _modEffects = new ModEffectsApplier(selection);
             _scoreMultiplier = _modEffects.ScoreMultiplier;
+            _scoreMultiplierForCalculation = _modEffects.ScoreMultiplierForCalculation;
         }
 
         public ModEffectsApplier GetModEffects()
@@ -399,16 +424,18 @@ namespace OsuVR
 
             if (boardController != null)
             {
-                boardController.UpdateDashboard((long)_finalScore, _currentCombo, accuracy);
+                long displayScore = (long)Math.Round(_finalScore * _scoreMultiplierForCalculation);
+                boardController.UpdateDashboard(displayScore, _currentCombo, accuracy);
             }
         }
 
         /// <summary>
         /// 获取应用 Mod 倍率后的最终分数
+        /// 使用 ScoreMultiplierForCalculation（排除 AT Mod）
         /// </summary>
         public long GetFinalScoreWithMultiplier()
         {
-            return (long)Math.Round(_finalScore * _scoreMultiplier);
+            return (long)Math.Round(_finalScore * _scoreMultiplierForCalculation);
         }
 
         /// <summary>

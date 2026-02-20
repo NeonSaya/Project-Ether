@@ -7,20 +7,37 @@ using UnityEngine.XR.Interaction.Toolkit;
 
 namespace OsuVR
 {
-    // [修复] 确保在 RayController 之前执行，这样手移动到位后射线检测能立即检测到
-    // RayController 默认顺序为 0，所以这里设为 -100 确保先执行
+    /// <summary>
+    /// 自动演奏管理器：实现 AI 自动游玩功能，支持拟人化手部动作
+    /// 核心特性：
+    /// - 智能任务分配：根据音符位置和时间自动选择最优手
+    /// - 避障系统：防止手臂穿过滑条中段导致断连
+    /// - 拟人化运动：使用缓动函数模拟自然的手部移动
+    /// - 零帧瞬移：紧急避险时直接瞬移，不产生碰撞
+    /// </summary>
     [DefaultExecutionOrder(-100)]
     public class AutoPlayManager : MonoBehaviour
     {
         [Header("核心引用")]
+        [Tooltip("节奏游戏管理器，用于获取音符列表和游戏时间")]
         public RhythmGameManager gameManager;
+
+        [Tooltip("左手射线控制器")]
         public RayController leftRay;
+
+        [Tooltip("右手射线控制器")]
         public RayController rightRay;
 
         [Header("拟人化参数 (Lazy Relax Style)")]
+        [Tooltip("模拟头部高度（米），用于计算肩膀位置")]
         public float simulatedHeadHeight = 0.0f;
+
+        [Tooltip("手臂伸展长度（米），控制手能到达的最远距离")]
         public float armExtension = 0.25f;
 
+        /// <summary>
+        /// 自动手控制器：封装单只手的所有状态和行为
+        /// </summary>
         private class AutoHand
         {
             public RayController controller;
@@ -39,7 +56,6 @@ namespace OsuVR
 
             public List<MonoBehaviour> disabledComponents = new List<MonoBehaviour>();
 
-            // [修复] 记录已触发判定的音符，防止重复触发
             public HashSet<HitObject> triggeredNotes = new HashSet<HitObject>();
         }
 
@@ -51,12 +67,15 @@ namespace OsuVR
 
         private FieldInfo _notesField;
         private List<HitObject> _allNotes;
-        private int _noteStartIndex = 0; // ✅ 终极性能优化：记录当前进度，告别全局扫描导致的时间越长越卡！
+        private int _noteStartIndex = 0;
         private HashSet<HitObject> _assignedNotes = new HashSet<HitObject>();
 
         private Dictionary<HitObject, GameObject> _activeObjectsRef;
         private GameObject _tempRoot;
 
+        /// <summary>
+        /// 初始化：获取反射字段引用，创建临时手柄容器，初始化双手控制器
+        /// </summary>
         void Start()
         {
             if (gameManager == null) return;
@@ -73,6 +92,12 @@ namespace OsuVR
             rightHand = InitHand(rightRay, true);
         }
 
+        /// <summary>
+        /// 初始化单只手的控制器：禁用 XR 追踪组件，切换到直接控制模式
+        /// </summary>
+        /// <param name="ray">射线控制器</param>
+        /// <param name="isRight">是否为右手</param>
+        /// <returns>初始化后的 AutoHand 对象</returns>
         private AutoHand InitHand(RayController ray, bool isRight)
         {
             if (ray == null) return null;
@@ -94,6 +119,9 @@ namespace OsuVR
             return hand;
         }
 
+        /// <summary>
+        /// 禁用时恢复手柄原始状态：还原父子关系，重新启用 XR 追踪组件
+        /// </summary>
         void OnDisable()
         {
             RestoreHand(leftHand);
@@ -101,6 +129,9 @@ namespace OsuVR
             if (_tempRoot != null) Destroy(_tempRoot);
         }
 
+        /// <summary>
+        /// 恢复单只手的原始状态
+        /// </summary>
         private void RestoreHand(AutoHand hand)
         {
             if (hand == null || hand.transform == null) return;
@@ -114,9 +145,10 @@ namespace OsuVR
             hand.disabledComponents.Clear();
         }
 
-        // [修复] 使用 Update 而不是 LateUpdate
-        // 这样手的位置会在 RayController.Update() 射线检测之前更新
-        // 确保手移动到位后能立即被检测到，不会错过判定窗口
+        /// <summary>
+        /// 主循环：分配任务并更新双手运动
+        /// 使用 Update 而非 LateUpdate，确保手位置在 RayController 射线检测之前更新
+        /// </summary>
         void Update()
         {
             if (Camera.main != null && Camera.main.transform.localPosition.y < 0.1f && simulatedHeadHeight > 0.01f)
@@ -133,6 +165,9 @@ namespace OsuVR
             UpdateHandMotion(rightHand, time);
         }
 
+        /// <summary>
+        /// 获取肩膀位置：基于头部位置计算左右肩膀的空间坐标
+        /// </summary>
         private Vector3 GetShoulderPos(AutoHand hand)
         {
             Vector3 headPos = Camera.main ? Camera.main.transform.position : new Vector3(0, simulatedHeadHeight, 0);
@@ -140,6 +175,9 @@ namespace OsuVR
             return headPos + new Vector3(sign * 0.2f, -0.25f, 0.0f);
         }
 
+        /// <summary>
+        /// 三次缓动函数：平滑的加速-减速曲线，模拟自然的手部运动
+        /// </summary>
         private float EasingInOutCubic(float t)
         {
             if (t <= 0) return 0;
@@ -147,9 +185,13 @@ namespace OsuVR
             return t < 0.5f ? 4f * t * t * t : 1f - Mathf.Pow(-2f * t + 2f, 3f) / 2f;
         }
 
-        // ==========================================
-        // 🛡️ 智能警戒雷达 (终极防撞：读取真实物理本体模型 + 提早1.2秒预警)
-        // ==========================================
+        /// <summary>
+        /// 智能警戒雷达：计算悬停姿态，检测并避开即将到来的音符
+        /// 核心算法：
+        /// - HitCircle：20cm 警戒圈，轻微避让
+        /// - Slider：45cm 警戒圈，严格防守防止刮断
+        /// - 提前 1.2 秒预警，确保有足够时间避险
+        /// </summary>
         private Vector3 GetHoverPose(AutoHand hand, double time, bool isLongBreak, out bool isDodging)
         {
             isDodging = false;
@@ -235,9 +277,13 @@ namespace OsuVR
             return baseWorld + wanderWorld;
         }
 
-        // ==========================================
-        // 🔥 1. 运动学引擎 (真·0帧瞬移避险)
-        // ==========================================
+        /// <summary>
+        /// 运动学引擎：更新手部位置和旋转
+        /// 核心特性：
+        /// - 真·0帧瞬移：避险时直接瞬移到安全位置
+        /// - 拟人化移动：使用 Lerp/Slerp 平滑过渡
+        /// - 自动触发判定：到达精确时间点时触发音符判定
+        /// </summary>
         private void UpdateHandMotion(AutoHand hand, double time)
         {
             if (hand == null) return;
@@ -357,9 +403,11 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// [修复] AutoPlay 直接触发判定
-        /// 在精确的时间点直接调用 OnHit，确保音效播放
-        /// 0ms 判定：一旦到达或超过判定时间就立即触发
+        /// 直接触发判定：在精确时间点调用音符的 OnHit 方法
+        /// 判定逻辑：
+        /// - 0ms 判定：到达或超过判定时间就立即触发
+        /// - 允许最多 16ms 提前（约一帧），确保 AutoPlay 总是精确判定
+        /// - 使用 HashSet 防止重复触发同一音符
         /// </summary>
         private void TryTriggerHit(AutoHand hand, double time)
         {
@@ -403,9 +451,12 @@ namespace OsuVR
             }
         }
 
-        // ==========================================
-        // 🎯 2. 目标解算与队列流转
-        // ==========================================
+        /// <summary>
+        /// 目标解算：根据当前任务类型计算手应该瞄准的位置
+        /// - Spinner：绕中心旋转
+        /// - Slider：追踪滑条球的位置
+        /// - HitCircle：直接瞄准目标位置
+        /// </summary>
         private Vector3 GetAimTarget(AutoHand hand, double time)
         {
             if (hand.currentTask is SpinnerObject)
@@ -457,6 +508,9 @@ namespace OsuVR
             return normalPos;
         }
 
+        /// <summary>
+        /// 任务检查：判断当前任务是否完成，完成后从队列取出下一个任务
+        /// </summary>
         private void CheckTask(AutoHand hand, double time)
         {
             if (hand.currentTask != null)
@@ -491,9 +545,13 @@ namespace OsuVR
             }
         }
 
-        // ==========================================
-        // 🧠 3. 读谱分配 (O(1) 无内存泄漏版本)
-        // ==========================================
+        /// <summary>
+        /// 读谱分配：扫描未分配的音符，智能分配给左右手
+        /// 核心优化：
+        /// - O(1) 时间复杂度：使用 _noteStartIndex 记录扫描进度
+        /// - 防重复分配：使用 HashSet 记录已分配的音符
+        /// - Spinner 双手处理：转盘需要双手同时参与
+        /// </summary>
         private void AssignTasks(double currentTime)
         {
             if (_notesField == null) return;
@@ -552,12 +610,23 @@ namespace OsuVR
             }
         }
 
+        /// <summary>
+        /// 获取音符的结束位置：Slider 返回终点，其他返回起点
+        /// </summary>
         private Vector2 GetNoteEndPosition(HitObject note)
         {
             if (note is SliderObject s) return s.EndPosition;
             return note.Position;
         }
 
+        /// <summary>
+        /// 智能手选择算法：根据音符位置、时间和上一音符信息选择最优手
+        /// 核心策略：
+        /// - 空闲优先：选择当前空闲的手
+        /// - 堆叠锁定：物理距离极近时强制使用同一只手
+        /// - 同 Combo 锁定：同一 Combo 内近距离音符优先用同一手
+        /// - 位置偏好：左侧音符倾向左手，右侧倾向右手
+        /// </summary>
         private AutoHand ChooseHandPro(HitObject note)
         {
             bool leftFree = IsHandFreeAt(leftHand, note.StartTime);
@@ -600,11 +669,17 @@ namespace OsuVR
             return note.Position.x < 256 ? leftHand : rightHand;
         }
 
+        /// <summary>
+        /// 检查手在指定时间是否空闲
+        /// </summary>
         private bool IsHandFreeAt(AutoHand hand, double targetTime)
         {
             return GetLastEndTime(hand) <= targetTime;
         }
 
+        /// <summary>
+        /// 获取手最后任务的结束时间：遍历当前任务和队列找出最晚结束时间
+        /// </summary>
         private double GetLastEndTime(AutoHand hand)
         {
             double lastTime = 0;
@@ -617,6 +692,9 @@ namespace OsuVR
             return lastTime;
         }
 
+        /// <summary>
+        /// 获取任务的结束时间：Slider 返回 EndTime，Spinner 返回 EndTime，其他返回 StartTime
+        /// </summary>
         private double GetTaskEndTime(HitObject task)
         {
             if (task is SliderObject s) return s.EndTime;

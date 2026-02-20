@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
@@ -10,11 +10,14 @@ namespace OsuVR
         public string Title;
         public string Artist;
         public string Creator;
-        public string Version; // 难度名
+        public string Version;
         public string AudioFilename;
         public string BackgroundFilename;
-        public string FolderPath; // 文件夹路径
-        public string OsuFilePath; // .osu 文件全路径
+        public string FolderPath;
+        public string OsuFilePath;
+        public float BPM = 120f;
+        public float Length = 180f;
+        public float PreviewTime = 0f;
     }
 
     public static class SongMetaLoader

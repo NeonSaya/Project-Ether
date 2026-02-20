@@ -1,7 +1,14 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace OsuVR
 {
+    /// <summary>
+    /// 缩圈动画控制器：控制 Approach Circle 的缩放动画
+    /// 核心逻辑：
+    /// - 从 4 倍大小开始，在 AR 时间范围内线性缩小到 1 倍
+    /// - 自动管理显示/隐藏状态
+    /// - 支持任意 Renderer 类型（MeshRenderer / SpriteRenderer）
+    /// </summary>
     public class ApproachCircleScaler : MonoBehaviour
     {
         [Tooltip("需要缩放的目标物体（Quad 或 Sprite）")]
