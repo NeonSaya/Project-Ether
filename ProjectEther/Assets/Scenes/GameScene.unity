@@ -1242,6 +1242,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 26cbfc8275252784ba3eb242d5f13dfe, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  bodyMaterial: {fileID: 0}
+  overlayMaterial: {fileID: 0}
+  approachMaterial: {fileID: 0}
+  glowMaterial: {fileID: 0}
+  sliderMaterial: {fileID: 0}
   hitCirclePrefab: {fileID: 5026766453584379729, guid: 6cc26bdd4f36015438bb5a90bcc131ef,
     type: 3}
   sliderPrefab: {fileID: 8225510774563580309, guid: 549833058cabb0a4ea465588159b6da1,
@@ -1250,6 +1255,8 @@ MonoBehaviour:
     type: 3}
   sliderTickPrefab: {fileID: 8308767009617404742, guid: e9059b8a0fa3fab499ad85ae6d45b576,
     type: 3}
+  followBallPrefab: {fileID: 0}
+  forceProceduralGeneration: 1
 --- !u!4 &1090296221
 Transform:
   m_ObjectHideFlags: 0
@@ -1442,7 +1449,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1397690893}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9fbed021309bf8e41a5c14f0bce4ff00, type: 3}
   m_Name: 

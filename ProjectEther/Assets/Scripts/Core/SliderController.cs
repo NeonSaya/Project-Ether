@@ -1393,34 +1393,37 @@ namespace OsuVR
             if (!headHit)
             {
                 double diff = currentMusicTimeCache - sliderData.StartTime;
-                double spanDuration = (sliderData.EndTime - sliderData.StartTime) / sliderData.RepeatCount;
 
-                // 判定窗口内，且被追踪 -> 在 TryHitHead 里处理 Hit
-                if (isTracking && diff >= earlyWindow && diff <= 250)
+                // 安全计算单次折返的持续时间（防止 RepeatCount 为 0 导致报错）
+                double spanDuration = sliderData.RepeatCount > 0
+                    ? (sliderData.EndTime - sliderData.StartTime) / sliderData.RepeatCount
+                    : (sliderData.EndTime - sliderData.StartTime);
+
+                // 触发 Head Miss 的三大条件：
+                // 1. 时间超过正常最大打击窗口 (250ms)
+                // 2. 球已经跑完了一个折返段的时间 (针对快速滑条，球走远了算漏)
+                // 3. 整个滑条已经彻底结束 (解决极短滑条不显示 Miss 也不消失的问题)
+                bool isTimeoutMiss = (diff > 250) || (diff > spanDuration && diff > 0) || (currentMusicTimeCache >= sliderData.EndTime);
+
+                if (isTimeoutMiss)
                 {
-                    // 等待 TryHitHead 触发
-                }
-                // 超时 Miss
-                else if (diff > 250 || (diff > spanDuration && diff > 0))
-                {
-                    headHit = true;
+                    headHit = true; // 锁定状态，防止重复触发
                     Debug.Log($"<color=red>Slider Head MISS</color>");
 
-                    // 1. 立即隐藏滑条头 (视觉上 Head 没了)
+                    // 1. 立即隐藏滑条头 (视觉上 Head 直接消失)
                     if (headInstance != null) headInstance.SetActive(false);
 
-                    // 2. 绝对不要调用 gameManager.OnNoteMiss(sliderData)! 这会杀死滑条
-                    // 3. 而是告诉分数系统：断连了 (0分)
+                    // 2. 告诉分数系统：断连了 (扣血/断Combo)
                     if (gameManager != null && gameManager.scoreManager != null)
                     {
                         gameManager.scoreManager.RegisterMiss(300);
                     }
 
+                    // 3. 弹小红叉文字 (位置在滑条头当前位置)
                     if (JudgementVisualizer.Instance != null)
                     {
                         JudgementVisualizer.Instance.ShowJudgement(transform.position, 0, Color.red);
                     }
-                    // 此时滑条本体还在，Update 还会继续跑，后面的 Tick 还能吃
                 }
             }
 

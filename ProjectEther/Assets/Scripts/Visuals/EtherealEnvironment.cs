@@ -183,6 +183,8 @@ namespace OsuVR
             stardustObject.transform.localPosition = Vector3.zero;
 
             stardustPS = stardustObject.AddComponent<ParticleSystem>();
+            stardustPS.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
             var main = stardustPS.main;
 
             main.duration = 10f;
@@ -233,6 +235,8 @@ namespace OsuVR
             streamlinesObject.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
 
             streamlinesPS = streamlinesObject.AddComponent<ParticleSystem>();
+            streamlinesPS.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
             var main = streamlinesPS.main;
 
             main.duration = 10f;

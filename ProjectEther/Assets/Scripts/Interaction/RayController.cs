@@ -2,11 +2,14 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
+
 namespace OsuVR
 {
     /// <summary>
     /// 射线控制器：支持 "手腕增益" (懒人模式) 和 "线性直连" (健身模式) 切换
     /// 已集成 OpenXR 通用输入
+    /// 支持 3D 物理射线和 UI 射线检测
     /// </summary>
     public class RayController : MonoBehaviour
     {
@@ -25,8 +28,12 @@ namespace OsuVR
 
         [Header("OpenXR 输入设置")]
         [Tooltip("点击动作 (请绑定 <XRController>/triggerPressed)")]
-        // ✅ [新增] 通用输入动作，支持所有 VR 手柄
         public InputActionProperty clickAction;
+        
+        [Header("摇杆滚动")]
+        [Tooltip("右手摇杆动作 (用于滚动列表)")]
+        public InputActionProperty rightStickAction;
+        public float scrollSpeed = 500f;
 
         [Header("懒人模式参数 (Wrist Gain)")]
         [Tooltip("增益系数 (Gamma)：建议 1.3 ~ 1.5")]
@@ -50,57 +57,134 @@ namespace OsuVR
         [Tooltip("射线半径 (米)：把射线变粗，容错率更高 (建议 0.1 ~ 0.15)")]
         public float rayRadius = 0.13f;
 
+        [Header("UI 检测")]
+        [Tooltip("场景中的 GraphicRaycaster 列表 (自动查找)")]
+        public List<GraphicRaycaster> uiRaycasters = new List<GraphicRaycaster>();
+        
+        [Header("UI 备用检测 (无 GraphicRaycaster 时)")]
+        [Tooltip("UI 按钮所在的 Layer")]
+        public LayerMask uiLayer;
+
         [Header("通用配置")]
         public float rayLength = 100f;
         public LayerMask noteLayer;
-        public Transform visualRay; // 视觉射线对象
+        public Transform visualRay;
 
-        // 内部状态
         private GameObject lastHitObject;
+        private GameObject lastHitUIObject;
         public Vector3 CurrentHitPoint { get; private set; }
         public bool IsHitting { get; private set; }
+        public bool IsHittingUI { get; private set; }
 
         private HashSet<GameObject> previousHitObjects = new HashSet<GameObject>();
+        private EventSystem eventSystem;
 
-        // ✅ [新增] 必须启用/禁用 Action
         void OnEnable()
         {
-            if (clickAction.action != null) clickAction.action.Enable();
+            if (clickAction.action != null && clickAction.action.bindings.Count > 0) clickAction.action.Enable();
+            if (rightStickAction.action != null && rightStickAction.action.bindings.Count > 0) rightStickAction.action.Enable();
         }
 
         void OnDisable()
         {
-            if (clickAction.action != null) clickAction.action.Disable();
+            if (clickAction.action != null && clickAction.action.bindings.Count > 0) clickAction.action.Disable();
+            if (rightStickAction.action != null && rightStickAction.action.bindings.Count > 0) rightStickAction.action.Disable();
+        }
+
+        void Start()
+        {
+            eventSystem = EventSystem.current;
+            
+            if (eventSystem == null)
+            {
+                Debug.LogError("[RayController] 场景中没有 EventSystem！");
+            }
+            
+            if (uiRaycasters.Count == 0)
+            {
+                uiRaycasters.AddRange(FindObjectsOfType<GraphicRaycaster>());
+            }
+            
+            if (uiLayer.value == 0)
+            {
+                uiLayer = ~0;
+            }
+            
+            Debug.Log($"[RayController] 找到 {uiRaycasters.Count} 个 GraphicRaycaster, UI Layer: {uiLayer.value}");
+            foreach (var r in uiRaycasters)
+            {
+                if (r != null)
+                {
+                    Canvas c = r.GetComponent<Canvas>();
+                    Debug.Log($"[RayController] - {r.name}, renderMode: {(c != null ? c.renderMode.ToString() : "null")}");
+                }
+            }
         }
 
         void Update()
         {
-            // 1. 根据模式计算射线的局部旋转
-            if (currentMode == ControlMode.WristGain)
-            {
-                ApplyWristGainMapping();
-            }
-            else
-            {
-                ApplyDirectMapping();
-            }
+            if (currentMode == ControlMode.WristGain) ApplyWristGainMapping();
+            else ApplyDirectMapping();
 
-            // 2. 执行射线检测
             PerformRaycastAll();
+            PerformUIRaycast();
 
-            // 3. ✅ [修改] 使用 OpenXR Action 检测点击
-            // WasPressedThisFrame 只在按下瞬间触发一次
-            if (clickAction.action != null && clickAction.action.WasPressedThisFrame())
+            // --- 终极点击修复 ---
+            bool isClicked = false;
+
+            // 1. VR扳机
+            if (clickAction.action != null && clickAction.action.bindings.Count > 0 && clickAction.action.WasPressedThisFrame()) isClicked = true;
+
+            // 2. 新版 Input System 鼠标左键
+            if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame) isClicked = true;
+
+            // 3. 传统旧版输入兜底 (防止某些 Unity 版本的 Input System 冲突)
+            if (Input.GetMouseButtonDown(0)) isClicked = true;
+
+            if (isClicked)
             {
-                if (IsHitting && lastHitObject != null)
+                if (IsHittingUI && lastHitUIObject != null)
                 {
-                    // 只处理 UI 按钮
-                    Button btn = lastHitObject.GetComponentInParent<Button>();
-                    if (btn == null) btn = lastHitObject.GetComponentInChildren<Button>();
+                    Button uiBtn = lastHitUIObject.GetComponent<Button>();
+                    if (uiBtn == null) uiBtn = lastHitUIObject.GetComponentInParent<Button>();
+
+                    if (uiBtn != null)
+                    {
+                        uiBtn.onClick.Invoke();
+                        Debug.Log($" 成功点击 UI 按钮: {uiBtn.gameObject.name}");
+                    }
+                }
+                else if (IsHitting && lastHitObject != null)
+                {
+                    Button btn = lastHitObject.GetComponent<Button>();
+                    if (btn == null) btn = lastHitObject.GetComponentInParent<Button>();
 
                     if (btn != null)
                     {
                         btn.onClick.Invoke();
+                        Debug.Log($" 成功点击 3D 按钮: {btn.gameObject.name}");
+                    }
+                }
+            }
+
+            HandleScrollInput();
+        }
+
+        void HandleScrollInput()
+        {
+            if (rightStickAction.action == null || rightStickAction.action.bindings.Count == 0) return;
+            
+            Vector2 stickValue = rightStickAction.action.ReadValue<Vector2>();
+            
+            if (Mathf.Abs(stickValue.y) > 0.3f)
+            {
+                ScrollRect[] scrollViews = FindObjectsOfType<ScrollRect>();
+                foreach (var sv in scrollViews)
+                {
+                    if (sv.gameObject.activeInHierarchy && sv.vertical)
+                    {
+                        sv.verticalNormalizedPosition += stickValue.y * scrollSpeed * Time.deltaTime / sv.content.rect.height;
+                        sv.verticalNormalizedPosition = Mathf.Clamp01(sv.verticalNormalizedPosition);
                     }
                 }
             }
@@ -225,6 +309,87 @@ namespace OsuVR
 
             previousHitObjects = new HashSet<GameObject>(currentHitMap.Keys);
             
+        }
+
+        private void PerformUIRaycast()
+        {
+            if (visualRay == null) return;
+
+            IsHittingUI = false;
+            lastHitUIObject = null;
+
+            Vector3 origin = visualRay.position;
+            Vector3 direction = visualRay.forward;
+            float closestDistance = float.MaxValue;
+
+            // 1. 终极物理检测：无视 Layer 限制，且强制检测 Trigger 触发器
+            Ray ray = new Ray(origin, direction);
+            RaycastHit[] hits = Physics.RaycastAll(ray, rayLength, Physics.AllLayers, QueryTriggerInteraction.Collide);
+
+            foreach (var hit in hits)
+            {
+                Button btn = hit.collider.GetComponentInParent<Button>();
+                if (btn == null) btn = hit.collider.GetComponentInChildren<Button>();
+
+                if (btn != null)
+                {
+                    if (hit.distance < closestDistance)
+                    {
+                        closestDistance = hit.distance;
+                        IsHittingUI = true;
+                        lastHitUIObject = btn.gameObject;
+                        CurrentHitPoint = hit.point;
+                    }
+                }
+            }
+
+            // 2. 如果物理没检测到，用 EventSystem (GraphicRaycaster) 兜底
+            if (!IsHittingUI && uiRaycasters.Count > 0 && eventSystem != null)
+            {
+                foreach (var raycaster in uiRaycasters)
+                {
+                    if (raycaster == null) continue;
+
+                    Canvas canvas = raycaster.GetComponent<Canvas>();
+                    if (canvas == null || canvas.renderMode != RenderMode.WorldSpace) continue;
+
+                    Plane canvasPlane = new Plane(canvas.transform.forward, canvas.transform.position);
+                    float enter;
+
+                    if (canvasPlane.Raycast(ray, out enter))
+                    {
+                        Vector3 hitPoint = ray.GetPoint(enter);
+                        Vector3 localPoint = canvas.transform.InverseTransformPoint(hitPoint);
+
+                        RectTransform rectTransform = canvas.GetComponent<RectTransform>();
+                        if (rectTransform == null) continue;
+
+                        Vector2 pivot = rectTransform.pivot;
+                        Vector2 size = rectTransform.sizeDelta;
+
+                        float x = localPoint.x + size.x * pivot.x;
+                        float y = localPoint.y + size.y * pivot.y;
+
+                        PointerEventData ped = new PointerEventData(eventSystem);
+                        ped.position = new Vector2(x, y);
+
+                        List<RaycastResult> results = new List<RaycastResult>();
+                        raycaster.Raycast(ped, results);
+
+                        if (results.Count > 0)
+                        {
+                            float dist = Vector3.Distance(origin, hitPoint);
+                            if (dist < closestDistance)
+                            {
+                                closestDistance = dist;
+                                IsHittingUI = true;
+                                lastHitUIObject = results[0].gameObject;
+                                CurrentHitPoint = hitPoint;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         private void NotifyHoverState(GameObject obj, bool state, Vector3 hitPoint)
