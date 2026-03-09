@@ -2,7 +2,12 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using UnityEngine.Networking;
+using UnityEngine.SceneManagement;
+using OsuVR;
 
 namespace OsuVR
 {
@@ -65,6 +70,18 @@ namespace OsuVR
         [Header("系统引用")]
         [Tooltip("拖入挂载了 ScoreManager 脚本的物体")]
         public ScoreManager scoreManager; // <--- 新增这个
+
+        [Header("暂停菜单设置")]
+        [Tooltip("VR暂停菜单Prefab（推荐使用）")]
+        public GameObject pauseMenuPrefab;
+        
+        [Tooltip("如果不想用Prefab，可以拖入场景中的VRPauseMenu实例")]
+        public VRPauseMenu pauseMenuInstance;
+
+        // 内部引用
+        private InputAction cancelInputAction;
+        private VRPauseMenu currentPauseMenu; // 当前激活的暂停菜单实例
+        private bool isUsingPrefab = false;   // 是否使用Prefab模式
 
         [Header("游戏状态")]
         [Tooltip("当前音乐时间（毫秒）")]
@@ -193,6 +210,12 @@ namespace OsuVR
                 LoadBeatmap(); // 加载 Inspector 里的 osuFileName
                 if (autoStart) Invoke("StartGame", 1.0f);
             }
+
+            // 初始化暂停菜单
+            InitializePauseMenu();
+            
+            // 初始化暂停菜单输入
+            InitializePauseInput();
         }
 
         /// <summary>
@@ -792,6 +815,158 @@ namespace OsuVR
             }
 
             Debug.Log("游戏已恢复");
+        }
+
+        /// <summary>
+        /// 重新开始游戏
+        /// </summary>
+        public void RestartGame()
+        {
+            StopGame();
+            StartGame();
+            Debug.Log("游戏已重新开始");
+        }
+
+        /// <summary>
+        /// 初始化暂停菜单UI
+        /// </summary>
+        private void InitializePauseMenu()
+        {
+            // 优先使用Prefab模式
+            if (pauseMenuPrefab != null)
+            {
+                isUsingPrefab = true;
+                Debug.Log("[RhythmGameManager] 使用VR暂停菜单Prefab模式");
+                return;
+            }
+
+            // 其次使用实例模式
+            if (pauseMenuInstance != null)
+            {
+                isUsingPrefab = false;
+                currentPauseMenu = pauseMenuInstance;
+                Debug.Log("[RhythmGameManager] 使用场景中的VR暂停菜单实例");
+                return;
+            }
+
+            // 尝试查找场景中已有的暂停菜单
+            var existingPauseMenu = FindObjectOfType<VRPauseMenu>();
+            if (existingPauseMenu != null)
+            {
+                isUsingPrefab = false;
+                currentPauseMenu = existingPauseMenu;
+                Debug.Log("[RhythmGameManager] 找到场景中的VR暂停菜单");
+                return;
+            }
+
+            Debug.LogWarning("[RhythmGameManager] 未设置暂停菜单Prefab或实例，暂停功能将降级为基本暂停/恢复");
+        }
+
+
+
+        /// <summary>
+        /// 初始化暂停菜单输入
+        /// </summary>
+        private void InitializePauseInput()
+        {
+            // 创建Cancel输入动作
+            cancelInputAction = new InputAction("Cancel", binding: "*/{Cancel}");
+            cancelInputAction.Enable();
+            
+            if (cancelInputAction != null)
+            {
+                cancelInputAction.performed += OnCancelAction;
+                Debug.Log("[RhythmGameManager] 已绑定菜单按钮输入");
+            }
+            else
+            {
+                Debug.LogWarning("[RhythmGameManager] 未找到Cancel输入动作，暂停功能可能不可用");
+            }
+        }
+
+        /// <summary>
+        /// 处理菜单按钮按下
+        /// </summary>
+        private void OnCancelAction(InputAction.CallbackContext context)
+        {
+            if (context.phase == InputActionPhase.Performed)
+            {
+                HandlePauseToggle();
+            }
+        }
+
+        /// <summary>
+        /// 切换暂停状态
+        /// </summary>
+        private void HandlePauseToggle()
+        {
+            // 检查是否可以暂停（游戏正在进行且未结束）
+            if (!isPlaying || isGameEnded)
+                return;
+
+            // 使用Prefab模式
+            if (isUsingPrefab)
+            {
+                if (currentPauseMenu != null && currentPauseMenu.IsPaused())
+                {
+                    // 如果已经在暂停状态，继续游戏
+                    currentPauseMenu.HidePauseMenu();
+                    // 回收到对象池（这里简单Destroy，实际项目建议用对象池）
+                    Destroy(currentPauseMenu.gameObject);
+                    currentPauseMenu = null;
+                    ResumeGame();
+                }
+                else
+                {
+                    // 实例化暂停菜单Prefab
+                    if (pauseMenuPrefab != null)
+                    {
+                        GameObject pauseMenuObj = Instantiate(pauseMenuPrefab);
+                        currentPauseMenu = pauseMenuObj.GetComponent<VRPauseMenu>();
+                        if (currentPauseMenu != null)
+                        {
+                            currentPauseMenu.ShowPauseMenu();
+                        }
+                        else
+                        {
+                            // 如果Prefab没有VRPauseMenu组件，直接暂停
+                            PauseGame();
+                        }
+                    }
+                    else
+                    {
+                        // 降级为基本暂停
+                        PauseGame();
+                    }
+                }
+            }
+            // 使用实例模式
+            else if (currentPauseMenu != null)
+            {
+                if (currentPauseMenu.IsPaused())
+                {
+                    // 如果已经在暂停状态，继续游戏
+                    currentPauseMenu.HidePauseMenu();
+                    ResumeGame();
+                }
+                else
+                {
+                    // 显示暂停菜单
+                    currentPauseMenu.ShowPauseMenu();
+                }
+            }
+            else
+            {
+                // 如果没有暂停菜单，直接暂停/恢复
+                if (isMusicPlaying)
+                {
+                    PauseGame();
+                }
+                else
+                {
+                    ResumeGame();
+                }
+            }
         }
 
         /// <summary>
@@ -1430,6 +1605,14 @@ namespace OsuVR
         /// </summary>
         void OnDestroy()
         {
+            // 清理Cancel输入动作
+            if (cancelInputAction != null)
+            {
+                cancelInputAction.performed -= OnCancelAction;
+                cancelInputAction.Disable();
+                cancelInputAction.Dispose();
+            }
+
             ClearAllNotes();
 
             if (musicSource != null && musicSource.isPlaying)

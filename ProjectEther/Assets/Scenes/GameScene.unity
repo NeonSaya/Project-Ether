@@ -1924,6 +1924,9 @@ MonoBehaviour:
   preparationTime: 2
   autoStart: 1
   scoreManager: {fileID: 164684627}
+  pauseMenuPrefab: {fileID: 1875147582374140286, guid: fde43ccf1b15b114183887dfc5b3fab8,
+    type: 3}
+  pauseMenuInstance: {fileID: 0}
   currentMusicTimeMs: 0
   isPlaying: 0
   isMusicPlaying: 0
