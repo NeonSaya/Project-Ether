@@ -180,17 +180,17 @@ namespace OsuVR
                 main.startLifetime = new ParticleSystem.MinMaxCurve(0.4f, 0.6f);
 
                 // 2. 重力曲线
-              
                 AnimationCurve gravCurve = new AnimationCurve();
                 gravCurve.AddKey(0.0f, 0.0f);
                 gravCurve.AddKey(hoverTimeFraction, 0.0f); // 悬停结束
-
-                // 曲线稍微陡峭一点
+                
                 Keyframe endKey = new Keyframe(1.0f, 1.0f);
                 endKey.inTangent = 2.0f;
                 gravCurve.AddKey(endKey);
 
-                main.gravityModifier = new ParticleSystem.MinMaxCurve(gravityScale, gravCurve);
+                var gravityCurve = new ParticleSystem.MinMaxCurve(gravityScale, gravCurve);
+                gravityCurve.mode = ParticleSystemCurveMode.Curve;
+                main.gravityModifier = gravityCurve;
 
                 
                 // 我们要它掉得越快越好，不要阻力
