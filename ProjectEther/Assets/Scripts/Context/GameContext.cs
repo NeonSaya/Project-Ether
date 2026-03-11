@@ -84,6 +84,11 @@ namespace OsuVR
         public string ResultSceneName { get; set; } = "ResultScene";
 
         /// <summary>
+        /// 设置场景名称
+        /// </summary>
+        public string SettingsSceneName { get; set; } = "SettingsScene";
+
+        /// <summary>
         /// 当前游玩的谱面路径 (用于重试)
         /// </summary>
         public string CurrentBeatmapPath { get; set; }

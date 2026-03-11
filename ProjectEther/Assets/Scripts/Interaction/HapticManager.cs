@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.XR; // 引用底层 XR 库
 using System.Collections.Generic;
 
@@ -15,6 +15,10 @@ namespace OsuVR
         [Header("配置引用")]
         [Tooltip("请将创建的 HapticProfile 配置文件拖入此处")]
         public HapticProfile profile;
+
+        [Header("Runtime Settings")]
+        private bool hapticsEnabled = true;
+        private float hapticIntensityMultiplier = 1.0f;
 
         // 缓存设备列表，避免每帧 GC (垃圾回收)
         private List<InputDevice> devices = new List<InputDevice>();
@@ -41,13 +45,14 @@ namespace OsuVR
         /// </summary>
         private void SendHaptic(XRNode node, float intensity, float duration)
         {
-            // 1. 获取指定节点设备
+            if (!hapticsEnabled) return;
+
+            intensity *= hapticIntensityMultiplier;
+
             InputDevices.GetDevicesAtXRNode(node, devices);
 
-            // 2. 遍历找到的设备 (通常只有一个)
             foreach (var device in devices)
             {
-                // 检查设备是否有效且支持震动
                 if (device.isValid)
                 {
                     HapticCapabilities capabilities;
@@ -55,7 +60,6 @@ namespace OsuVR
                     {
                         if (capabilities.supportsImpulse)
                         {
-                            // 发送指令：通道0，强度，持续时间
                             device.SendHapticImpulse(0, intensity, duration);
                         }
                     }
@@ -132,9 +136,6 @@ namespace OsuVR
             SendHaptic(XRNode.RightHand, intensity, duration);
         }
 
-        /// <summary>
-        /// [修复] 双手同时播放打击震动，现在支持音量参数
-        /// </summary>
         public void PlayHitHapticBoth(int hitSoundType, float volume)
         {
             HapticProfile.HapticData data = profile.NormalHit;
@@ -143,13 +144,25 @@ namespace OsuVR
             else if ((hitSoundType & 8) > 0) data = profile.ClapHit;
             else if ((hitSoundType & 2) > 0) data = profile.WhistleHit;
 
-            // [新增] 应用音量计算
             float finalIntensity = data.intensity * Mathf.Clamp01(volume);
 
-            // 最小阈值防止无法感知
             if (volume > 0.05f && finalIntensity < 0.1f) finalIntensity = 0.1f;
 
             PlayHapticBoth(finalIntensity, data.duration);
+        }
+
+        // =========================================================
+        // Settings Integration
+        // =========================================================
+
+        public void SetEnabled(bool enabled)
+        {
+            hapticsEnabled = enabled;
+        }
+
+        public void SetIntensity(float intensity)
+        {
+            hapticIntensityMultiplier = Mathf.Clamp01(intensity);
         }
     }
 }

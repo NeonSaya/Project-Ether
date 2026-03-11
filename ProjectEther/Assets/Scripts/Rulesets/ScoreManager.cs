@@ -82,7 +82,9 @@ namespace OsuVR
         // 谱面信息 (用于结算)
         // ================================================================
         private string _songTitle = "";
+        private string _songTitleUnicode = "";
         private string _songArtist = "";
+        private string _songArtistUnicode = "";
         private string _difficultyName = "";
         private string _mapperName = "";
         private int _totalNoteCount = 0;
@@ -226,10 +228,12 @@ namespace OsuVR
         /// <summary>
         /// 设置谱面信息 (用于结算界面显示)
         /// </summary>
-        public void SetBeatmapInfo(string title, string artist, string difficulty, string mapper)
+        public void SetBeatmapInfo(string title, string titleUnicode, string artist, string artistUnicode, string difficulty, string mapper)
         {
             _songTitle = title ?? "";
+            _songTitleUnicode = titleUnicode ?? "";
             _songArtist = artist ?? "";
+            _songArtistUnicode = artistUnicode ?? "";
             _difficultyName = difficulty ?? "";
             _mapperName = mapper ?? "";
         }
@@ -459,7 +463,9 @@ namespace OsuVR
             return new ResultData
             {
                 songTitle = _songTitle,
+                songTitleUnicode = _songTitleUnicode,
                 songArtist = _songArtist,
+                songArtistUnicode = _songArtistUnicode,
                 difficultyName = _difficultyName,
                 mapperName = _mapperName,
                 finalScore = finalScore,

@@ -8,7 +8,9 @@ namespace OsuVR
     public class BeatmapMetadata
     {
         public string Title;
+        public string TitleUnicode;
         public string Artist;
+        public string ArtistUnicode;
         public string Creator;
         public string Version;
         public string AudioFilename;
@@ -18,6 +20,20 @@ namespace OsuVR
         public float BPM = 120f;
         public float Length = 180f;
         public float PreviewTime = 0f;
+
+        public string GetDisplayTitle(bool useOriginalLanguage)
+        {
+            if (useOriginalLanguage && !string.IsNullOrEmpty(TitleUnicode))
+                return TitleUnicode;
+            return Title;
+        }
+
+        public string GetDisplayArtist(bool useOriginalLanguage)
+        {
+            if (useOriginalLanguage && !string.IsNullOrEmpty(ArtistUnicode))
+                return ArtistUnicode;
+            return Artist;
+        }
     }
 
     public static class SongMetaLoader
@@ -65,7 +81,9 @@ namespace OsuVR
                     if (line.StartsWith("[HitObjects]")) break; // 读到这里就停，后面不需要
 
                     if (line.StartsWith("AudioFilename:")) meta.AudioFilename = line.Substring(14).Trim();
+                    else if (line.StartsWith("TitleUnicode:")) meta.TitleUnicode = line.Substring(13).Trim();
                     else if (line.StartsWith("Title:")) meta.Title = line.Substring(6).Trim();
+                    else if (line.StartsWith("ArtistUnicode:")) meta.ArtistUnicode = line.Substring(14).Trim();
                     else if (line.StartsWith("Artist:")) meta.Artist = line.Substring(7).Trim();
                     else if (line.StartsWith("Creator:")) meta.Creator = line.Substring(8).Trim();
                     else if (line.StartsWith("Version:")) meta.Version = line.Substring(8).Trim();

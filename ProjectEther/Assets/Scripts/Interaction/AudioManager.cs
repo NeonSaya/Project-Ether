@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -20,6 +20,8 @@ namespace OsuVR
         [Header("配置")]
         public SkinConfig defaultSkin;
         [Range(0, 1)] public float masterVolume = 1.0f;
+        [Range(0, 1)] public float musicVolume = 0.8f;
+        [Range(0, 1)] public float sfxVolume = 1.0f;
 
         // =========================================================
         // 运行时状态
@@ -389,6 +391,25 @@ namespace OsuVR
             }
             src.volume = vol;
             src.PlayOneShot(clip);
+        }
+
+        // =========================================================
+        // Settings Integration
+        // =========================================================
+
+        public void SetMasterVolume(float volume)
+        {
+            masterVolume = Mathf.Clamp01(volume);
+        }
+
+        public void SetMusicVolume(float volume)
+        {
+            musicVolume = Mathf.Clamp01(volume);
+        }
+
+        public void SetSFXVolume(float volume)
+        {
+            sfxVolume = Mathf.Clamp01(volume);
         }
     }
 }

@@ -186,6 +186,13 @@ namespace OsuVR
             // 初始化AudioSource
             InitializeAudioSource();
 
+            // 从SettingsManager加载音频偏移设置
+            if (SettingsManager.Instance != null && SettingsManager.Instance.Settings != null)
+            {
+                universalOffsetMs = SettingsManager.Instance.Settings.audioOffsetMs;
+                Debug.Log($"[Settings] Loaded audio offset: {universalOffsetMs}ms");
+            }
+
             /// 获取选歌数据（如果有）
             string selectedPath = null;
             if (GameContext.Instance != null)
@@ -331,7 +338,9 @@ namespace OsuVR
             {
                 scoreManager.SetBeatmapInfo(
                     currentBeatmap.Metadata?.Title,
+                    currentBeatmap.Metadata?.TitleUnicode,
                     currentBeatmap.Metadata?.Artist,
+                    currentBeatmap.Metadata?.ArtistUnicode,
                     currentBeatmap.Metadata?.Version,
                     currentBeatmap.Metadata?.Creator
                 );
