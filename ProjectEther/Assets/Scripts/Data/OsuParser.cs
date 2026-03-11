@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization; 
 using System.IO;
@@ -537,7 +537,9 @@ namespace OsuVR
             switch (key)
             {
                 case "Title": metadata.Title = value; break;
+                case "TitleUnicode": metadata.TitleUnicode = value; break;
                 case "Artist": metadata.Artist = value; break;
+                case "ArtistUnicode": metadata.ArtistUnicode = value; break;
                 case "Creator": metadata.Creator = value; break;
                 case "Version": metadata.Version = value; break;
                 case "BeatmapID": int.TryParse(value, out int bid); metadata.BeatmapID = bid; break;

@@ -68,6 +68,13 @@ namespace OsuVR
         private ParticleSystem bokehPS;
         private ParticleSystem crystalsPS;
 
+        private float currentParticleDensity = 1.0f;
+        private int baseStardustMaxParticles;
+        private int baseStardustRate;
+        private int baseBokehMaxParticles;
+        private int baseBokehRate;
+        private int baseCrystalsMaxParticles;
+
         void Awake()
         {
             if (Instance == null)
@@ -160,6 +167,9 @@ namespace OsuVR
             GameObject go = new GameObject("LayerA_DreamyStardust");
             go.transform.SetParent(transform);
 
+            baseStardustMaxParticles = stardustMaxParticles;
+            baseStardustRate = stardustRate;
+
             stardustPS = go.AddComponent<ParticleSystem>();
             var main = stardustPS.main;
             main.maxParticles = stardustMaxParticles;
@@ -194,6 +204,9 @@ namespace OsuVR
             // 这是替换流线层的新层：大体积的柔和光斑，缓慢向上浮动
             GameObject go = new GameObject("LayerB_FloatingBokeh");
             go.transform.SetParent(transform);
+
+            baseBokehMaxParticles = bokehMaxParticles;
+            baseBokehRate = bokehRate;
 
             bokehPS = go.AddComponent<ParticleSystem>();
             var main = bokehPS.main;
@@ -244,6 +257,8 @@ namespace OsuVR
         {
             GameObject go = new GameObject("LayerC_SlowCrystals");
             go.transform.SetParent(transform);
+
+            baseCrystalsMaxParticles = crystalsMaxParticles;
 
             crystalsPS = go.AddComponent<ParticleSystem>();
             var main = crystalsPS.main;
@@ -350,5 +365,36 @@ namespace OsuVR
             }
             if (modified) crystalsPS.SetParticles(particles, count);
         }
+
+        public void SetParticleDensity(float density)
+        {
+            currentParticleDensity = Mathf.Clamp01(density);
+
+            if (stardustPS != null)
+            {
+                var main = stardustPS.main;
+                main.maxParticles = Mathf.RoundToInt(baseStardustMaxParticles * currentParticleDensity);
+
+                var emission = stardustPS.emission;
+                emission.rateOverTime = Mathf.RoundToInt(baseStardustRate * currentParticleDensity);
+            }
+
+            if (bokehPS != null)
+            {
+                var main = bokehPS.main;
+                main.maxParticles = Mathf.RoundToInt(baseBokehMaxParticles * currentParticleDensity);
+
+                var emission = bokehPS.emission;
+                emission.rateOverTime = Mathf.RoundToInt(baseBokehRate * currentParticleDensity);
+            }
+
+            if (crystalsPS != null)
+            {
+                var main = crystalsPS.main;
+                main.maxParticles = Mathf.RoundToInt(baseCrystalsMaxParticles * currentParticleDensity);
+            }
+        }
+
+        public float GetParticleDensity() => currentParticleDensity;
     }
 }

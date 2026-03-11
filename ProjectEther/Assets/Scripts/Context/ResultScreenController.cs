@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using TMPro;
@@ -170,8 +170,14 @@ namespace OsuVR
         /// <param name="result">结算数据</param>
         public void QuickShow(ResultData result)
         {
-            if (textTitle != null) textTitle.text = result.songTitle;
-            if (textArtist != null) textArtist.text = result.songArtist;
+            bool useOriginalLanguage = false;
+            if (SettingsManager.Instance != null && SettingsManager.Instance.Settings != null)
+            {
+                useOriginalLanguage = SettingsManager.Instance.Settings.displayOriginalLanguage;
+            }
+
+            if (textTitle != null) textTitle.text = result.GetDisplayTitle(useOriginalLanguage);
+            if (textArtist != null) textArtist.text = result.GetDisplayArtist(useOriginalLanguage);
             if (textDifficulty != null) textDifficulty.text = result.difficultyName;
             if (textScore != null) textScore.text = result.finalScore.ToString("D7");
             if (textAccuracy != null) textAccuracy.text = $"{result.accuracy * 100:F2}%";
@@ -479,10 +485,16 @@ namespace OsuVR
         /// </summary>
         private void SetSongInfo(ResultData result)
         {
+            bool useOriginalLanguage = false;
+            if (SettingsManager.Instance != null && SettingsManager.Instance.Settings != null)
+            {
+                useOriginalLanguage = SettingsManager.Instance.Settings.displayOriginalLanguage;
+            }
+
             if (textTitle != null)
-                textTitle.text = result.songTitle ?? "Unknown Title";
+                textTitle.text = result.GetDisplayTitle(useOriginalLanguage) ?? "Unknown Title";
             if (textArtist != null)
-                textArtist.text = result.songArtist ?? "Unknown Artist";
+                textArtist.text = result.GetDisplayArtist(useOriginalLanguage) ?? "Unknown Artist";
             if (textDifficulty != null)
                 textDifficulty.text = $"[{result.difficultyName ?? "Normal"}]";
             if (textMapper != null)

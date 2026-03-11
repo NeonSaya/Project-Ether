@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 
 namespace OsuVR
@@ -13,10 +13,26 @@ namespace OsuVR
         // =========================================================
         // 谱面信息
         // =========================================================
-        public string songTitle;        // 曲名
-        public string songArtist;       // 艺术家
+        public string songTitle;        // 曲名 (Romanized)
+        public string songTitleUnicode; // 曲名 (原语言)
+        public string songArtist;       // 艺术家 (Romanized)
+        public string songArtistUnicode;// 艺术家 (原语言)
         public string difficultyName;   // 难度名称
         public string mapperName;       // 谱师
+
+        public string GetDisplayTitle(bool useOriginalLanguage)
+        {
+            if (useOriginalLanguage && !string.IsNullOrEmpty(songTitleUnicode))
+                return songTitleUnicode;
+            return songTitle;
+        }
+
+        public string GetDisplayArtist(bool useOriginalLanguage)
+        {
+            if (useOriginalLanguage && !string.IsNullOrEmpty(songArtistUnicode))
+                return songArtistUnicode;
+            return songArtist;
+        }
 
         // =========================================================
         // 核心成绩

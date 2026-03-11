@@ -110,7 +110,7 @@ namespace OsuVR
         void OnSettingsClicked()
         {
             PlayClickSound();
-            Debug.Log("[MainMenu] Settings - 待实现");
+            SceneManager.LoadScene("SettingsScene");
         }
 
         void OnCreditsClicked()
