@@ -137,7 +137,7 @@ namespace OsuVR.Editor
                 Directory.CreateDirectory(destFolder);
             }
 
-            string destFontPath = Path.Combine(destFolder, fontName + ".ttf");
+            string destFontPath = $"{destFolder}/{fontName}{Path.GetExtension(systemFontPath)}";
             if (!File.Exists(destFontPath))
             {
                 File.Copy(systemFontPath, destFontPath, true);
@@ -151,7 +151,7 @@ namespace OsuVR.Editor
                 return;
             }
 
-            string assetPath = Path.Combine(destFolder, fontName + " SDF.asset");
+            string assetPath = $"{destFolder}/{fontName} SDF.asset";
 
             TMP_FontAsset fontAsset = TMP_FontAsset.CreateFontAsset(sourceFont, 90, 9, 
                 GlyphRenderMode.SDFAA, 
@@ -181,8 +181,12 @@ namespace OsuVR.Editor
             TMP_Settings settings = TMP_Settings.instance;
             if (settings == null)
             {
-                EditorUtility.DisplayDialog("错误", "无法找到TMP Settings", "确定");
-                return;
+                settings = Resources.Load<TMP_Settings>("TMP Settings");
+                if (settings == null)
+                {
+                    EditorUtility.DisplayDialog("错误", "无法找到 TMP Settings，请先在 Window -> TextMeshPro 中导入 Essential Resources", "确定");
+                    return;
+                }
             }
 
             string fontsFolder = "Assets/TextMesh Pro/Resources/Fonts & Materials";
@@ -232,7 +236,11 @@ namespace OsuVR.Editor
             TMP_Settings settings = TMP_Settings.instance;
             if (settings == null)
             {
-                EditorUtility.DisplayDialog("配置检查", "无法找到TMP Settings", "确定");
+                settings = Resources.Load<TMP_Settings>("TMP Settings");
+            }
+            if (settings == null)
+            {
+                EditorUtility.DisplayDialog("配置检查", "无法找到 TMP Settings，请先在 Window -> TextMeshPro 中导入 Essential Resources", "确定");
                 return;
             }
 

@@ -47,19 +47,37 @@ namespace OsuVR.Editor
             // 创建根对象
             GameObject pauseMenuObj = new GameObject(prefabName);
             
+            // 设置Layer为UI
+            pauseMenuObj.layer = LayerMask.NameToLayer("UI");
+            
             // 添加必要组件
             Canvas canvas = pauseMenuObj.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
             canvas.sortingOrder = 100;
+            canvas.gameObject.layer = LayerMask.NameToLayer("UI");
             
-            pauseMenuObj.AddComponent<CanvasScaler>();
+            CanvasScaler scaler = pauseMenuObj.AddComponent<CanvasScaler>();
+            scaler.dynamicPixelsPerUnit = 10;
+            
             pauseMenuObj.AddComponent<GraphicRaycaster>();
-            pauseMenuObj.AddComponent<CanvasGroup>();
+            
+            CanvasGroup canvasGroup = pauseMenuObj.AddComponent<CanvasGroup>();
+            canvasGroup.interactable = true;
+            canvasGroup.blocksRaycasts = true;
+            
+            // 设置Canvas的scale和位置
+            RectTransform rootRect = pauseMenuObj.GetComponent<RectTransform>();
+            rootRect.localScale = Vector3.one * 0.002f;
+            rootRect.position = new Vector3(0f, 2.2f, 1.5f);
             
             VRPauseMenu vrPauseMenu = pauseMenuObj.AddComponent<VRPauseMenu>();
+            vrPauseMenu.fixedPosition = new Vector3(0f, 2.2f, 1.5f);
             
             // 创建UI结构
             CreateUIStructure(pauseMenuObj, vrPauseMenu);
+            
+            // 设置所有子对象的Layer
+            SetLayerRecursively(pauseMenuObj, LayerMask.NameToLayer("UI"));
             
             // 创建Prefab
             string assetPath = $"{savePath}/{prefabName}.prefab";
@@ -70,8 +88,8 @@ namespace OsuVR.Editor
                 Debug.Log($"[VRPauseMenu] 成功创建Prefab: {assetPath}");
                 Selection.activeObject = prefab;
                 
-                // 清理场景中的临时对象
-                DestroyImmediate(pauseMenuObj);
+                // 清理场景中的临时对象 - 使用延迟销毁避免TMP字体资源问题
+                DestroyTemporaryObject(pauseMenuObj);
             }
             else
             {
@@ -79,21 +97,39 @@ namespace OsuVR.Editor
             }
         }
 
+        void DestroyTemporaryObject(GameObject obj)
+        {
+            // 先禁用所有TMP组件，避免字体资源引用问题
+            var tmpComponents = obj.GetComponentsInChildren<TextMeshProUGUI>(true);
+            foreach (var tmp in tmpComponents)
+            {
+                tmp.text = string.Empty;
+            }
+            
+            // 使用Destroy而不是DestroyImmediate，让Unity在下一帧安全清理
+            Object.DestroyImmediate(obj);
+        }
+
         void CreateUIStructure(GameObject root, VRPauseMenu pauseMenu)
         {
-            // 创建主容器
+            // 创建主容器 - 尺寸适配0.002 scale
             GameObject mainContainer = new GameObject("PauseMenu_Container");
             mainContainer.transform.SetParent(root.transform, false);
             RectTransform containerRect = mainContainer.AddComponent<RectTransform>();
             containerRect.anchorMin = new Vector2(0.5f, 0.5f);
             containerRect.anchorMax = new Vector2(0.5f, 0.5f);
             containerRect.pivot = new Vector2(0.5f, 0.5f);
-            containerRect.sizeDelta = new Vector2(600, 450);
+            containerRect.sizeDelta = new Vector2(400, 300);
             containerRect.anchoredPosition = Vector2.zero;
+
+            // 添加背景面板以支持射线检测
+            Image bgImage = mainContainer.AddComponent<Image>();
+            bgImage.color = new Color(0.05f, 0.05f, 0.1f, 0.9f);
+            bgImage.raycastTarget = true;
 
             // 创建标题
             GameObject titleObj = CreateText("Title", mainContainer.transform, "PAUSED", 
-                new Vector2(0, 120), new Vector2(500, 70), 32, TextAlignmentOptions.Center);
+                new Vector2(0, 100), new Vector2(300, 60), 36, TextAlignmentOptions.Center);
             
             // 创建按钮容器
             GameObject buttonContainer = new GameObject("Buttons");
@@ -101,17 +137,22 @@ namespace OsuVR.Editor
             RectTransform buttonContainerRect = buttonContainer.AddComponent<RectTransform>();
             buttonContainerRect.anchorMin = new Vector2(0.5f, 0.5f);
             buttonContainerRect.anchorMax = new Vector2(0.5f, 0.5f);
-            buttonContainerRect.pivot = new Vector2(0.5f, 1f);
-            buttonContainerRect.sizeDelta = new Vector2(220, 200);
-            buttonContainerRect.anchoredPosition = new Vector2(0, 20);
+            buttonContainerRect.pivot = new Vector2(0.5f, 0.5f);
+            buttonContainerRect.sizeDelta = new Vector2(280, 200);
+            buttonContainerRect.anchoredPosition = new Vector2(0, -20);
 
             VerticalLayoutGroup layout = buttonContainer.AddComponent<VerticalLayoutGroup>();
-            layout.spacing = 12;
+            layout.spacing = 15;
             layout.childAlignment = TextAnchor.MiddleCenter;
             layout.childControlWidth = true;
             layout.childControlHeight = false;
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
+
+            // 添加Content Size Fitter确保按钮容器大小正确
+            ContentSizeFitter fitter = buttonContainer.AddComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             // 创建按钮
             pauseMenu.continueButton = CreateButton("Continue", buttonContainer.transform);
@@ -131,9 +172,9 @@ namespace OsuVR.Editor
             countdownRect.anchoredPosition = Vector2.zero;
 
             GameObject countdownTextObj = CreateText("CountdownText", pauseMenu.countdownPanel.transform, "3", 
-                Vector2.zero, new Vector2(200, 200), 120, TextAlignmentOptions.Center);
+                Vector2.zero, new Vector2(200, 200), 100, TextAlignmentOptions.Center);
             pauseMenu.countdownText = countdownTextObj.GetComponent<TextMeshProUGUI>();
-            pauseMenu.countdownText.fontSize = 120;
+            pauseMenu.countdownText.fontSize = 100;
             pauseMenu.countdownText.alignment = TextAlignmentOptions.Center;
         }
 
@@ -148,6 +189,7 @@ namespace OsuVR.Editor
             tmpText.alignment = alignment;
             tmpText.color = Color.white;
             tmpText.enableWordWrapping = false;
+            tmpText.raycastTarget = false;
 
             RectTransform rect = tmpText.GetComponent<RectTransform>();
             rect.anchorMin = new Vector2(0.5f, 0.5f);
@@ -165,10 +207,18 @@ namespace OsuVR.Editor
             buttonObj.transform.SetParent(parent, false);
 
             Button button = buttonObj.AddComponent<Button>();
+            Navigation nav = new Navigation { mode = Navigation.Mode.None };
+            button.navigation = nav;
             
-            // 设置按钮视觉
+            // 设置按钮视觉 - 确保raycastTarget为true
             Image image = buttonObj.AddComponent<Image>();
-            image.color = new Color(0.2f, 0.6f, 1f, 1f); // 蓝色主题
+            image.color = new Color(0.2f, 0.6f, 1f, 1f);
+            image.raycastTarget = true;
+            
+            // 添加布局元素控制按钮大小
+            LayoutElement layoutElement = buttonObj.AddComponent<LayoutElement>();
+            layoutElement.preferredWidth = 220;
+            layoutElement.preferredHeight = 50;
             
             // 添加文本
             GameObject textObj = new GameObject("Text");
@@ -176,9 +226,10 @@ namespace OsuVR.Editor
             
             TextMeshProUGUI tmpText = textObj.AddComponent<TextMeshProUGUI>();
             tmpText.text = buttonText;
-            tmpText.fontSize = 20;
+            tmpText.fontSize = 24;
             tmpText.alignment = TextAlignmentOptions.Center;
             tmpText.color = Color.white;
+            tmpText.raycastTarget = false;
             
             RectTransform textRect = tmpText.GetComponent<RectTransform>();
             textRect.anchorMin = Vector2.zero;
@@ -189,9 +240,18 @@ namespace OsuVR.Editor
 
             // 设置按钮RectTransform
             RectTransform buttonRect = buttonObj.GetComponent<RectTransform>();
-            buttonRect.sizeDelta = new Vector2(200, 50);
+            buttonRect.sizeDelta = new Vector2(220, 50);
 
             return button;
+        }
+
+        void SetLayerRecursively(GameObject obj, int layer)
+        {
+            obj.layer = layer;
+            foreach (Transform child in obj.transform)
+            {
+                SetLayerRecursively(child.gameObject, layer);
+            }
         }
     }
 }

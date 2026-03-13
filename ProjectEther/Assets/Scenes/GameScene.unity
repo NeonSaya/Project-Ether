@@ -480,6 +480,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   defaultSkin: {fileID: 11400000, guid: 7ba1b82f0c1c4134fb23b9f07326ce21, type: 2}
   masterVolume: 1
+  musicVolume: 0.8
+  sfxVolume: 1
 --- !u!4 &427527594
 Transform:
   m_ObjectHideFlags: 0
@@ -1924,7 +1926,7 @@ MonoBehaviour:
   preparationTime: 2
   autoStart: 1
   scoreManager: {fileID: 164684627}
-  pauseMenuPrefab: {fileID: 1875147582374140286, guid: fde43ccf1b15b114183887dfc5b3fab8,
+  pauseMenuPrefab: {fileID: 1106810286181193114, guid: fde43ccf1b15b114183887dfc5b3fab8,
     type: 3}
   pauseMenuInstance: {fileID: 0}
   currentMusicTimeMs: 0

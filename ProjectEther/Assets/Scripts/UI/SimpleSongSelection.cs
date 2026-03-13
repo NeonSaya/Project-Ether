@@ -3,56 +3,97 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using TMPro;
-using UnityEngine.XR; // ✅ 必须加上这个引用，用于读取 VR 摇杆
-
+using UnityEngine.XR;
 
 namespace OsuVR
 {
-    /// <summary>
-    /// 简化版选歌菜单控制器
-    /// 直接继承原有 SongSelectionMenu 的逻辑
-    /// </summary>
     public class SimpleSongSelection : MonoBehaviour
     {
-        [Header("UI 引用")]
+        [Header("UI 引用 - 列表区")]
         public Transform listContent;
         public GameObject songItemPrefab;
 
-        [Header("Mod 面板")]
+        [Header("UI 引用 - Info 面板")]
+        public GameObject infoPanel;
+        public RawImage backgroundImage;
+        public TextMeshProUGUI titleText;
+        public TextMeshProUGUI artistText;
+        public TextMeshProUGUI csText;
+        public TextMeshProUGUI arText;
+        public TextMeshProUGUI odText;
+        public TextMeshProUGUI hpText;
+        public TextMeshProUGUI lengthText;
+        public TextMeshProUGUI difficultyText;
+        public Transform difficultyDropdownContainer;
+
+        [Header("UI 引用 - Mod 面板")]
         public GameObject modPanel;
         public Transform modButtonContainer;
         public GameObject modButtonPrefab;
         public TextMeshProUGUI multiplierText;
         public TextMeshProUGUI activeModsText;
 
-        [Header("场景配置")]
-        public string gameSceneName = "GameScene";
+        [Header("UI 引用 - 选歌界面Mod状态显示")]
+        public TextMeshProUGUI modStatusText;
 
-        [Header("按钮引用")]
+        [Header("UI 引用 - 控制台按钮")]
         public Button openModButton;
         public Button backMenuButton;
-        public Button closeModButton;
+        public Button playButton;
+
+        [Header("场景配置")]
+        public string gameSceneName = "GameScene";
 
         [Header("音效")]
         public AudioSource sfxSource;
         public AudioClip selectSound;
 
-        private List<BeatmapMetadata> songList = new List<BeatmapMetadata>();
-        private BeatmapMetadata selectedSong;
+        private List<BeatmapSet> beatmapSets = new List<BeatmapSet>();
+        private BeatmapSet selectedSet;
+        private BeatmapMetadata selectedDifficulty;
         
         private bool isModPanelActive = false;
-        private Dictionary<ModType, Image> generatedModImages = new Dictionary<ModType, Image>();
+        private readonly Dictionary<ModType, Image> generatedModImages = new Dictionary<ModType, Image>();
+
+        private TextMeshProUGUI toggleModsButtonText;
+        private ScrollRect cachedScrollRect;
+        private List<GameObject> difficultyButtons = new List<GameObject>();
+        private readonly List<SongItemView> songItemViews = new List<SongItemView>();
+        private SongItemView currentSelectedView = null;
+
+        [Header("滚动按钮")]
+        public Button scrollUpButton;
+        public Button scrollDownButton;
+        public float scrollAmount = 100f;
 
         void Start()
         {
             Debug.Log($"[SimpleSongSelection] 歌曲文件夹: {BeatmapImporter.SongsDirectory}");
             BeatmapImporter.ImportNewOszFiles();
+            
+            if (listContent != null)
+            {
+                cachedScrollRect = listContent.GetComponentInParent<ScrollRect>();
+            }
+            
             RefreshSongList();
             GenerateModButtons();
 
+            SetupButtonReferences();
+            SetupButtonListeners();
+
+            if (modPanel != null) modPanel.SetActive(false);
+            if (infoPanel != null) infoPanel.SetActive(true);
+            isModPanelActive = false;
+
+            UpdateToggleModsButtonText();
+        }
+
+        void SetupButtonReferences()
+        {
             if (openModButton == null)
             {
-                GameObject btnObj = GameObject.Find("Btn_Mods");
+                GameObject btnObj = GameObject.Find("Btn_ToggleMods");
                 if (btnObj != null) openModButton = btnObj.GetComponent<Button>();
             }
             if (backMenuButton == null)
@@ -60,48 +101,96 @@ namespace OsuVR
                 GameObject btnObj = GameObject.Find("Btn_Back");
                 if (btnObj != null) backMenuButton = btnObj.GetComponent<Button>();
             }
-            if (closeModButton == null && modPanel != null)
+            if (playButton == null)
             {
-                Transform closeBtnTrans = modPanel.transform.Find("CloseButton");
-                if (closeBtnTrans != null) closeModButton = closeBtnTrans.GetComponent<Button>();
+                GameObject btnObj = GameObject.Find("Btn_Play");
+                if (btnObj != null) playButton = btnObj.GetComponent<Button>();
             }
 
-            if (openModButton != null) { openModButton.onClick.RemoveAllListeners(); openModButton.onClick.AddListener(ToggleModPanel); }
-            if (backMenuButton != null) { backMenuButton.onClick.RemoveAllListeners(); backMenuButton.onClick.AddListener(GoBack); }
-            if (closeModButton != null) { closeModButton.onClick.RemoveAllListeners(); closeModButton.onClick.AddListener(CloseModPanel); }
-
-            if (modPanel != null) modPanel.SetActive(false);
+            if (openModButton != null)
+            {
+                toggleModsButtonText = openModButton.GetComponentInChildren<TextMeshProUGUI>();
+            }
         }
+
+        void SetupButtonListeners()
+        {
+            if (openModButton != null)
+            {
+                openModButton.onClick.RemoveAllListeners();
+                openModButton.onClick.AddListener(ToggleModPanel);
+            }
+            if (backMenuButton != null)
+            {
+                backMenuButton.onClick.RemoveAllListeners();
+                backMenuButton.onClick.AddListener(GoBack);
+            }
+            if (playButton != null)
+            {
+                playButton.onClick.RemoveAllListeners();
+                playButton.onClick.AddListener(OnPlayButtonClicked);
+            }
+            if (scrollUpButton != null)
+            {
+                scrollUpButton.onClick.RemoveAllListeners();
+                scrollUpButton.onClick.AddListener(ScrollUp);
+            }
+            if (scrollDownButton != null)
+            {
+                scrollDownButton.onClick.RemoveAllListeners();
+                scrollDownButton.onClick.AddListener(ScrollDown);
+            }
+        }
+
+        public void ScrollUp()
+        {
+            if (cachedScrollRect == null) return;
+            cachedScrollRect.verticalNormalizedPosition += scrollAmount / 1000f;
+            cachedScrollRect.verticalNormalizedPosition = Mathf.Clamp01(cachedScrollRect.verticalNormalizedPosition);
+        }
+
+        public void ScrollDown()
+        {
+            if (cachedScrollRect == null) return;
+            cachedScrollRect.verticalNormalizedPosition -= scrollAmount / 1000f;
+            cachedScrollRect.verticalNormalizedPosition = Mathf.Clamp01(cachedScrollRect.verticalNormalizedPosition);
+        }
+
         void Update()
         {
-            // 获取所有属于"右手"和"控制器"的设备
+            HandleVRStickScroll();
+        }
+
+        void HandleVRStickScroll()
+        {
+            if (cachedScrollRect == null) return;
+
             var rightHandDevices = new List<InputDevice>();
-            InputDevices.GetDevicesWithCharacteristics(InputDeviceCharacteristics.Right | InputDeviceCharacteristics.Controller, rightHandDevices);
+            InputDevices.GetDevicesWithCharacteristics(
+                InputDeviceCharacteristics.Right | InputDeviceCharacteristics.Controller, 
+                rightHandDevices);
 
             if (rightHandDevices.Count > 0)
             {
-                // 获取右摇杆的二维坐标值
                 if (rightHandDevices[0].TryGetFeatureValue(CommonUsages.primary2DAxis, out Vector2 stick))
                 {
-                    // 摇杆推度大于 0.1 才响应（防误触）
                     if (Mathf.Abs(stick.y) > 0.1f)
                     {
-                        ScrollRect scroll = listContent.GetComponentInParent<ScrollRect>();
-                        if (scroll != null)
-                        {
-                            // 向上推增加位置，向下推减少位置 (1.5f 为滚动速度，可自行调整)
-                            scroll.verticalNormalizedPosition += stick.y * Time.deltaTime * 1.5f;
-                            // 钳制在 0~1 之间防止滚出边界
-                            scroll.verticalNormalizedPosition = Mathf.Clamp01(scroll.verticalNormalizedPosition);
-                        }
+                        cachedScrollRect.verticalNormalizedPosition += stick.y * Time.deltaTime * 1.5f;
+                        cachedScrollRect.verticalNormalizedPosition = Mathf.Clamp01(cachedScrollRect.verticalNormalizedPosition);
                     }
                 }
             }
-
-            // 检测点击空白区域以关闭 Mod 面板
-            HandleBlankAreaClick();
         }
 
+        private void EnsureGameContext()
+        {
+            if (GameContext.Instance == null)
+            {
+                GameObject gcObj = new GameObject("GameContext");
+                gcObj.AddComponent<GameContext>();
+            }
+        }
 
         public void RefreshSongList()
         {
@@ -122,17 +211,20 @@ namespace OsuVR
                 Destroy(child.gameObject);
             }
 
-            songList = SongMetaLoader.ScanSongFolder();
+            songItemViews.Clear();
+            currentSelectedView = null;
 
-            if (songList.Count == 0)
+            beatmapSets = SongMetaLoader.ScanSongFolderGrouped();
+
+            if (beatmapSets.Count == 0)
             {
                 Debug.LogWarning("[SimpleSongSelection] 未找到歌曲");
                 return;
             }
 
-            Debug.Log($"[SimpleSongSelection] 找到 {songList.Count} 首歌曲");
+            Debug.Log($"[SimpleSongSelection] 找到 {beatmapSets.Count} 个 BeatmapSet");
 
-            foreach (var map in songList)
+            foreach (var set in beatmapSets)
             {
                 GameObject obj = Instantiate(songItemPrefab, listContent);
                 obj.transform.localScale = Vector3.one;
@@ -142,7 +234,9 @@ namespace OsuVR
                 var view = obj.GetComponent<SongItemView>();
                 if (view != null)
                 {
-                    view.Setup(map, OnSongSelected);
+                    BeatmapMetadata defaultDiff = set.GetDefaultDifficulty();
+                    view.Setup(defaultDiff, set.Difficulties.Count, (meta) => OnBeatmapSetSelected(set));
+                    songItemViews.Add(view);
                 }
                 else
                 {
@@ -151,29 +245,251 @@ namespace OsuVR
             }
         }
 
-        void OnSongSelected(BeatmapMetadata mapData)
+        void OnBeatmapSetSelected(BeatmapSet set)
         {
-            selectedSong = mapData;
-            Debug.Log($"[SimpleSongSelection] 选中: {mapData.Title}");
+            selectedSet = set;
+            selectedDifficulty = set.GetDefaultDifficulty();
+
+            UpdateSelectionHighlight(set);
+
+            Debug.Log($"[SimpleSongSelection] 选中 BeatmapSet: {set.Title} ({set.Difficulties.Count} 个难度)");
 
             if (sfxSource != null && selectSound != null)
                 sfxSource.PlayOneShot(selectSound);
 
-            if (GameContext.Instance == null)
-            {
-                new GameObject("GameContext").AddComponent<GameContext>();
-            }
-            GameContext.Instance.SelectedBeatmapPath = mapData.OsuFilePath;
-            GameContext.Instance.CurrentBeatmapPath = mapData.OsuFilePath;
+            LoadBackgroundImage(set.BackgroundPath);
+            UpdateInfoPanel(selectedDifficulty);
+            GenerateDifficultyButtons(set);
 
-            // ✅ 检查场景是否添加到了 Build Settings，防止静默失败选不了歌！
-            if (Application.CanStreamedLevelBeLoaded(gameSceneName))
+            if (isModPanelActive)
             {
-                SceneManager.LoadScene(gameSceneName);
+                ToggleModPanel();
+            }
+        }
+
+        void UpdateSelectionHighlight(BeatmapSet set)
+        {
+            if (currentSelectedView != null)
+            {
+                currentSelectedView.SetSelected(false);
+            }
+
+            foreach (var view in songItemViews)
+            {
+                if (view.Metadata != null && view.Metadata.Title == set.Title && view.Metadata.Artist == set.Artist)
+                {
+                    view.SetSelected(true);
+                    currentSelectedView = view;
+                    return;
+                }
+            }
+        }
+
+        void LoadBackgroundImage(string backgroundPath)
+        {
+            if (backgroundImage == null) return;
+
+            Texture2D bgTex = SongMetaLoader.LoadBackground(backgroundPath);
+            if (bgTex != null)
+            {
+                backgroundImage.texture = bgTex;
+                backgroundImage.color = new Color(1f, 1f, 1f, 0.12f);
+                backgroundImage.gameObject.SetActive(true);
             }
             else
             {
-                Debug.LogError($"[SimpleSongSelection] 无法加载场景！请点击顶部菜单 File -> Build Settings，点击 'Add Open Scenes' 或把 {gameSceneName} 拖进上面的大框框里！");
+                backgroundImage.gameObject.SetActive(false);
+            }
+        }
+
+        void GenerateDifficultyButtons(BeatmapSet set)
+        {
+            if (difficultyDropdownContainer == null) return;
+
+            foreach (var btn in difficultyButtons)
+            {
+                if (btn != null) Destroy(btn);
+            }
+            difficultyButtons.Clear();
+
+            foreach (var diff in set.Difficulties)
+            {
+                GameObject btnObj = new GameObject($"Diff_{diff.Version}");
+                btnObj.transform.SetParent(difficultyDropdownContainer, false);
+
+                RectTransform rt = btnObj.AddComponent<RectTransform>();
+                rt.sizeDelta = new Vector2(90, 30);
+
+                Image img = btnObj.AddComponent<Image>();
+                img.color = GetDifficultyColor(diff.OverallDifficulty);
+
+                Button btn = btnObj.AddComponent<Button>();
+                
+                GameObject textObj = new GameObject("Text");
+                textObj.transform.SetParent(btnObj.transform, false);
+                RectTransform textRt = textObj.AddComponent<RectTransform>();
+                textRt.anchorMin = Vector2.zero;
+                textRt.anchorMax = Vector2.one;
+                textRt.sizeDelta = Vector2.zero;
+                textRt.offsetMin = new Vector2(4, 2);
+                textRt.offsetMax = new Vector2(-4, -2);
+                TextMeshProUGUI tmp = textObj.AddComponent<TextMeshProUGUI>();
+                tmp.text = string.IsNullOrEmpty(diff.Version) ? "Normal" : diff.Version;
+                tmp.fontSize = 12;
+                tmp.alignment = TextAlignmentOptions.Center;
+                tmp.color = Color.white;
+
+                BeatmapMetadata capturedDiff = diff;
+                btn.onClick.AddListener(() => OnDifficultySelected(capturedDiff));
+
+                difficultyButtons.Add(btnObj);
+            }
+
+            LayoutRebuilder.ForceRebuildLayoutImmediate(difficultyDropdownContainer as RectTransform);
+        }
+
+        void OnDifficultySelected(BeatmapMetadata diff)
+        {
+            selectedDifficulty = diff;
+            Debug.Log($"[SimpleSongSelection] 切换难度: {diff.Version}");
+            UpdateInfoPanel(diff);
+            UpdateStatsWithMods();
+
+            if (sfxSource != null && selectSound != null)
+                sfxSource.PlayOneShot(selectSound);
+        }
+
+        Color GetDifficultyColor(float od)
+        {
+            if (od < 3) return new Color(0.4f, 0.8f, 0.4f);
+            if (od < 5) return new Color(0.6f, 0.8f, 0.3f);
+            if (od < 6.5f) return new Color(0.9f, 0.7f, 0.2f);
+            if (od < 8) return new Color(1f, 0.5f, 0.3f);
+            return new Color(1f, 0.3f, 0.4f);
+        }
+
+        void UpdateInfoPanel(BeatmapMetadata mapData)
+        {
+            if (titleText != null)
+            {
+                titleText.text = string.IsNullOrEmpty(mapData.Title) ? "Unknown Title" : mapData.Title;
+            }
+
+            if (artistText != null)
+            {
+                artistText.text = string.IsNullOrEmpty(mapData.Artist) ? "-" : mapData.Artist;
+            }
+
+            try
+            {
+                if (csText != null)
+                {
+                    csText.text = mapData.CircleSize.ToString("F1");
+                }
+
+                if (arText != null)
+                {
+                    arText.text = mapData.ApproachRate.ToString("F1");
+                }
+
+                if (odText != null)
+                {
+                    odText.text = mapData.OverallDifficulty.ToString("F1");
+                }
+
+                if (hpText != null)
+                {
+                    hpText.text = mapData.HPDrainRate.ToString("F1");
+                }
+
+                if (lengthText != null)
+                {
+                    lengthText.text = mapData.GetDisplayLength();
+                }
+
+                if (difficultyText != null)
+                {
+                    string diffName = string.IsNullOrEmpty(mapData.Version) ? "Normal" : mapData.Version;
+                    difficultyText.text = $"{diffName} ▼";
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[SimpleSongSelection] 更新四维数据失败: {e.Message}");
+                
+                if (csText != null) csText.text = "-";
+                if (arText != null) arText.text = "-";
+                if (odText != null) odText.text = "-";
+                if (hpText != null) hpText.text = "-";
+                if (lengthText != null) lengthText.text = "-";
+            }
+        }
+
+        void UpdateStatsWithMods()
+        {
+            if (selectedDifficulty == null) return;
+
+            EnsureGameContext();
+            var mods = GameContext.Instance.SelectedMods;
+
+            float origCs = selectedDifficulty.CircleSize;
+            float origAr = selectedDifficulty.ApproachRate;
+            float origOd = selectedDifficulty.OverallDifficulty;
+            float origHp = selectedDifficulty.HPDrainRate;
+
+            float cs = origCs;
+            float ar = origAr;
+            float od = origOd;
+            float hp = origHp;
+
+            bool hasHR = mods.HasMod(ModType.HardRock);
+            bool hasEZ = mods.HasMod(ModType.Easy);
+
+            if (hasHR)
+            {
+                cs = Mathf.Min(cs * 1.3f, 10f);
+                ar = Mathf.Min(ar * 1.4f, 10f);
+                od = Mathf.Min(od * 1.4f, 10f);
+                hp = Mathf.Min(hp * 1.4f, 10f);
+            }
+            else if (hasEZ)
+            {
+                cs = cs * 0.5f;
+                ar = ar * 0.5f;
+                od = od * 0.5f;
+                hp = hp * 0.5f;
+            }
+
+            Color normalColor = Color.white;
+            Color increasedColor = new Color(1f, 0.5f, 0.5f);
+            Color decreasedColor = new Color(0.5f, 1f, 0.5f);
+
+            try
+            {
+                if (csText != null)
+                {
+                    csText.text = cs.ToString("F1");
+                    csText.color = hasHR ? increasedColor : (hasEZ ? decreasedColor : normalColor);
+                }
+                if (arText != null)
+                {
+                    arText.text = ar.ToString("F1");
+                    arText.color = hasHR ? increasedColor : (hasEZ ? decreasedColor : normalColor);
+                }
+                if (odText != null)
+                {
+                    odText.text = od.ToString("F1");
+                    odText.color = hasHR ? increasedColor : (hasEZ ? decreasedColor : normalColor);
+                }
+                if (hpText != null)
+                {
+                    hpText.text = hp.ToString("F1");
+                    hpText.color = hasHR ? increasedColor : (hasEZ ? decreasedColor : normalColor);
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[SimpleSongSelection] 更新Mod后四维数据失败: {e.Message}");
             }
         }
 
@@ -202,19 +518,23 @@ namespace OsuVR
                     rt.localScale = Vector3.one;
                 }
 
-                var tmp = btnObj.GetComponentInChildren<TextMeshProUGUI>();
-                if (tmp != null) tmp.text = modInfo.shortName;
+                var controller = btnObj.GetComponent<ModButtonController>();
+                if (controller == null)
+                {
+                    controller = btnObj.AddComponent<ModButtonController>();
+                }
+
+                bool isSelected = false;
+                if (GameContext.Instance != null && GameContext.Instance.SelectedMods != null)
+                {
+                    isSelected = GameContext.Instance.SelectedMods.HasMod(modInfo.type);
+                }
+
+                controller.Initialize(modInfo, isSelected);
+                controller.OnModClicked += ToggleMod;
 
                 var img = btnObj.GetComponent<Image>();
-                
                 if (img != null) generatedModImages[modInfo.type] = img;
-
-                var btn = btnObj.GetComponent<Button>();
-                if (btn == null) btn = btnObj.AddComponent<Button>();
-
-                ModType capturedType = modInfo.type;
-                btn.onClick.RemoveAllListeners();
-                btn.onClick.AddListener(() => ToggleMod(capturedType));
             }
 
             UpdateModDisplay();
@@ -222,19 +542,14 @@ namespace OsuVR
 
         void ToggleMod(ModType modType)
         {
-            if (GameContext.Instance == null)
-            {
-                new GameObject("GameContext").AddComponent<GameContext>();
-            }
-
+            EnsureGameContext();
             GameContext.Instance.SelectedMods.ToggleMod(modType);
-
             UpdateModDisplay();
         }
 
         void UpdateModDisplay()
         {
-            if (GameContext.Instance == null) return;
+            EnsureGameContext();
 
             var mods = GameContext.Instance.SelectedMods;
 
@@ -242,7 +557,7 @@ namespace OsuVR
             {
                 float mult = mods.GetTotalScoreMultiplier();
                 multiplierText.text = $"{mult:F2}x";
-                multiplierText.color = mult >= 1f ? new Color(0.3f, 1f, 0.5f) : new Color(1f, 0.5f, 0.3f);
+                multiplierText.color = mult >= 1f ? new Color(0.4f, 1f, 0.6f) : new Color(1f, 0.5f, 0.4f);
             }
 
             if (activeModsText != null)
@@ -251,7 +566,23 @@ namespace OsuVR
                 activeModsText.text = string.IsNullOrEmpty(modStr) ? "No Mod" : modStr;
             }
 
-            Color defaultColor = new Color(0.15f, 0.15f, 0.2f);
+            string statusModStr = mods.GetModString();
+            if (modStatusText != null)
+            {
+                if (string.IsNullOrEmpty(statusModStr))
+                {
+                    modStatusText.text = "";
+                    modStatusText.gameObject.SetActive(false);
+                }
+                else
+                {
+                    float mult = mods.GetTotalScoreMultiplier();
+                    modStatusText.text = $"{statusModStr} ({mult:F2}x)";
+                    modStatusText.gameObject.SetActive(true);
+                }
+            }
+
+            Color inactiveColor = new Color(0.1f, 0.1f, 0.15f, 0.9f);
             foreach (var kvp in generatedModImages)
             {
                 ModType type = kvp.Key;
@@ -260,64 +591,85 @@ namespace OsuVR
                 {
                     ModInfo info = ModDatabase.GetModInfo(type);
                     bool isActive = mods.HasMod(type);
-                    img.color = isActive ? info.displayColor : defaultColor;
+                    if (isActive)
+                    {
+                        Color modColor = info.displayColor;
+                        img.color = new Color(modColor.r, modColor.g, modColor.b, 0.95f);
+                    }
+                    else
+                    {
+                        img.color = inactiveColor;
+                    }
                 }
             }
+
+            UpdateStatsWithMods();
         }
 
         public void ToggleModPanel()
         {
-            if (modPanel != null)
-            {
-                bool newState = !modPanel.activeSelf;
-                modPanel.SetActive(newState);
-                isModPanelActive = newState;
-            }
-        }
+            if (infoPanel == null || modPanel == null) return;
 
-        public void CloseModPanel()
-        {
-            if (modPanel != null && modPanel.activeSelf)
+            isModPanelActive = !isModPanelActive;
+
+            if (isModPanelActive)
+            {
+                infoPanel.SetActive(false);
+                modPanel.SetActive(true);
+                
+                if (backMenuButton != null) backMenuButton.gameObject.SetActive(false);
+            }
+            else
             {
                 modPanel.SetActive(false);
-                isModPanelActive = false;
+                infoPanel.SetActive(true);
+                
+                if (backMenuButton != null) backMenuButton.gameObject.SetActive(true);
+            }
+
+            UpdateToggleModsButtonText();
+        }
+
+        void UpdateToggleModsButtonText()
+        {
+            if (toggleModsButtonText != null)
+            {
+                if (isModPanelActive)
+                {
+                    toggleModsButtonText.text = "BACK";
+                    toggleModsButtonText.color = new Color(1f, 0.3f, 0.3f);
+                }
+                else
+                {
+                    toggleModsButtonText.text = "MODS";
+                    toggleModsButtonText.color = Color.white;
+                }
             }
         }
 
-        private void HandleBlankAreaClick()
+        public void OnPlayButtonClicked()
         {
-            // 检测鼠标点击
-            if (Input.GetMouseButtonDown(0))
+            if (selectedDifficulty == null)
             {
-                if (modPanel != null && modPanel.activeSelf && !IsPointerOverGameObject())
-                {
-                    CloseModPanel();
-                }
+                Debug.LogWarning("[SimpleSongSelection] 未选中任何歌曲，无法开始游戏！");
+                return;
             }
 
-            // 如果使用 RayController，可以通过其他方式检测点击
-            // 这里提供一个通用的解决方案
-        }
+            Debug.Log($"[SimpleSongSelection] 开始游玩: {selectedDifficulty.Title} [{selectedDifficulty.Version}]");
 
-        private bool IsPointerOverGameObject()
-        {
-            // 检查鼠标是否在 UI 上
-            UnityEngine.EventSystems.PointerEventData eventData = new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current);
-            eventData.position = Input.mousePosition;
+            EnsureGameContext();
             
-            List<UnityEngine.EventSystems.RaycastResult> results = new List<UnityEngine.EventSystems.RaycastResult>();
-            UnityEngine.EventSystems.EventSystem.current.RaycastAll(eventData, results);
-            
-            for (int i = 0; i < results.Count; i++)
+            GameContext.Instance.SelectedBeatmapPath = selectedDifficulty.OsuFilePath;
+            GameContext.Instance.CurrentBeatmapPath = selectedDifficulty.OsuFilePath;
+
+            if (Application.CanStreamedLevelBeLoaded(gameSceneName))
             {
-                // 检查点击的对象是否在 Mod 面板内
-                if (results[i].gameObject.transform.IsChildOf(modPanel.transform))
-                {
-                    return true; // 点击在 Mod 面板内部
-                }
+                SceneManager.LoadScene(gameSceneName);
             }
-            
-            return false; // 点击在 Mod 面板外部
+            else
+            {
+                Debug.LogError($"[SimpleSongSelection] 无法加载场景！请确保 '{gameSceneName}' 已添加到 Build Settings！");
+            }
         }
 
         public void GoBack()
