@@ -92,63 +92,51 @@ namespace OsuVR
         {
             modInfos = new Dictionary<ModType, ModInfo>
             {
-                // =========================================================
-                // 难度调整 Mod
-                // =========================================================
                 { ModType.HardRock, new ModInfo(
                     ModType.HardRock, "HR", "Hard Rock",
-                    "一切变得更难了...\nCS×1.3, AR×1.4 (上限10)\nY轴镜像翻转",
+                    "Everything becomes harder...",
                     1.06f, true, ModCategory.Difficulty,
                     new Color(1f, 0.3f, 0.3f)
                 )},
 
                 { ModType.Easy, new ModInfo(
                     ModType.Easy, "EZ", "Easy",
-                    "放松一下...\nCS×0.5, AR×0.5",
+                    "Relax and take it easy...",
                     0.5f, true, ModCategory.Difficulty,
                     new Color(0.3f, 1f, 0.5f)
                 )},
 
-                // =========================================================
-                // 自动化 Mod
-                // =========================================================
                 { ModType.Auto, new ModInfo(
                     ModType.Auto, "AT", "Auto",
-                    "自动游玩\n分数不计入排名",
+                    "Watch a perfect autoplay",
                     0f, false, ModCategory.Automation,
                     new Color(0.3f, 0.7f, 1f)
                 )},
 
-                // =========================================================
-                // 速度 Mod
-                // =========================================================
                 { ModType.DoubleTime, new ModInfo(
                     ModType.DoubleTime, "DT", "Double Time",
-                    "速度提升至150%\n音乐加速1.5倍\n判定窗口固定250ms",
+                    "Speed up to 150%",
                     1.12f, true, ModCategory.Speed,
                     new Color(1f, 0.5f, 0.8f)
                 )},
 
                 { ModType.HalfTime, new ModInfo(
                     ModType.HalfTime, "HT", "Half Time",
-                    "速度降低至75%\n音乐减速0.75倍\n判定窗口固定250ms",
+                    "Slow down to 75%",
                     0.3f, true, ModCategory.Speed,
                     new Color(0.5f, 0.7f, 1f)
                 )},
 
-                // =========================================================
-                // 视觉 Mod (占位，待实现)
-                // =========================================================
                 { ModType.Hidden, new ModInfo(
                     ModType.Hidden, "HD", "Hidden",
-                    "音符逐渐消失\n(视觉Mod - 待实现)",
+                    "Notes fade out gradually",
                     1.06f, true, ModCategory.Visual,
                     new Color(0.6f, 0.6f, 0.6f)
                 )},
 
                 { ModType.Flashlight, new ModInfo(
                     ModType.Flashlight, "FL", "Flashlight",
-                    "视野受限\n(视觉Mod - 待实现)",
+                    "Restricted visibility area",
                     1.12f, true, ModCategory.Visual,
                     new Color(1f, 1f, 0.6f)
                 )},

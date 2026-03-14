@@ -35,10 +35,10 @@ namespace OsuVR
         public RhythmGameManager gameManager;
 
         [Header("UI配置")]
-        [Tooltip("暂停菜单相对于玩家的位置")]
-        public Vector3 menuOffset = new Vector3(0f, 1.5f, 1.5f);
+        [Tooltip("暂停菜单固定位置")]
+        public Vector3 fixedPosition = new Vector3(0f, 2.2f, 1.5f);
         
-        [Tooltip("暂停菜单的旋转角度（相对于玩家朝向）")]
+        [Tooltip("暂停菜单的旋转角度")]
         public Vector3 menuRotation = new Vector3(0f, 0f, 0f);
 
         private Canvas canvas;
@@ -47,7 +47,6 @@ namespace OsuVR
         private bool isCountingDown = false;
         private float countdownTimer = 0f;
         private const float COUNTDOWN_DURATION = 3f;
-        private Transform playerHead;
 
         void Awake()
         {
@@ -66,56 +65,20 @@ namespace OsuVR
             canvasGroup.blocksRaycasts = true;
             canvasGroup.alpha = 1f;
 
+            // 设置固定位置
+            transform.position = fixedPosition;
+            transform.rotation = Quaternion.Euler(menuRotation);
+
             SetupButtons();
             HideCountdown();
-            gameObject.SetActive(false); // 默认隐藏
-
-            // 查找玩家头部（用于定位）
-            FindPlayerHead();
+            gameObject.SetActive(false);
         }
 
         void Update()
         {
-            if (isPaused && playerHead != null)
-            {
-                // 跟随玩家头部位置和旋转
-                Vector3 targetPosition = playerHead.position + playerHead.TransformDirection(menuOffset);
-                Quaternion targetRotation = playerHead.rotation * Quaternion.Euler(menuRotation);
-                
-                transform.position = targetPosition;
-                transform.rotation = targetRotation;
-            }
-
             if (isCountingDown)
             {
                 UpdateCountdown();
-            }
-        }
-
-        void FindPlayerHead()
-        {
-            // 查找主相机（适用于VR和非VR模式）
-            if (Camera.main != null)
-            {
-                playerHead = Camera.main.transform;
-                return;
-            }
-
-            // 备用方案：查找任何相机
-            var cameras = FindObjectsOfType<Camera>();
-            foreach (var cam in cameras)
-            {
-                if (cam.gameObject.CompareTag("MainCamera") || cam.gameObject.name.Contains("Camera"))
-                {
-                    playerHead = cam.transform;
-                    return;
-                }
-            }
-
-            // 如果还是找不到，使用第一个相机
-            if (cameras.Length > 0)
-            {
-                playerHead = cameras[0].transform;
             }
         }
 
@@ -182,21 +145,28 @@ namespace OsuVR
                 gameManager = FindObjectOfType<RhythmGameManager>();
             }
 
-            if (gameManager == null || !gameManager.isPlaying)
-                return;
-
             isPaused = true;
             isCountingDown = false;
+            
+            // 设置固定位置
+            transform.position = fixedPosition;
+            transform.rotation = Quaternion.Euler(menuRotation);
+            
             gameObject.SetActive(true);
             HideCountdown();
 
             // 暂停游戏
-            gameManager.PauseGame();
+            if (gameManager != null)
+            {
+                gameManager.PauseGame();
+            }
 
             // 确保UI可交互
             canvasGroup.interactable = true;
             canvasGroup.blocksRaycasts = true;
             canvasGroup.alpha = 1f;
+            
+            Debug.Log($"[VRPauseMenu] 显示暂停菜单，位置: {transform.position}");
         }
 
         /// <summary>
@@ -309,6 +279,19 @@ namespace OsuVR
             isPaused = false;
             isCountingDown = false;
             countdownTimer = 0f;
+        }
+
+        void OnDestroy()
+        {
+            // 清理TMP文本，避免字体资源引用错误
+            var tmpComponents = GetComponentsInChildren<TextMeshProUGUI>(true);
+            foreach (var tmp in tmpComponents)
+            {
+                if (tmp != null)
+                {
+                    tmp.text = string.Empty;
+                }
+            }
         }
     }
 }

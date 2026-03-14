@@ -49,8 +49,7 @@ namespace OsuVR
                 var view = obj.GetComponent<SongItemView>();
                 if (view != null)
                 {
-                    // 把 OnSongSelected 方法传给按钮
-                    view.Setup(map, OnSongSelected);
+                    view.Setup(map, 1, OnSongSelected);
                 }
             }
 

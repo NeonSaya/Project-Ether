@@ -259,7 +259,7 @@ namespace OsuVR
                 string modString = modSelection.GetModString();
                 if (string.IsNullOrEmpty(modString))
                 {
-                    activeModsText.text = "No Mod";
+                    activeModsText.text = LocalizationManager.GetText("ui_no_mod");
                     activeModsText.color = Color.white;
                 }
                 else
@@ -323,21 +323,15 @@ namespace OsuVR
         public Image backgroundImage;
         public TextMeshProUGUI shortNameText;
         public TextMeshProUGUI fullNameText;
+        public TextMeshProUGUI descriptionText;
         public Button button;
 
         private ModInfo modInfo;
         private bool isSelected = false;
-        private Color normalColor = new Color(0.2f, 0.2f, 0.25f);
+        private Color normalColor = new Color(0.1f, 0.1f, 0.14f, 0.95f);
         private Color selectedColor = new Color(0.3f, 0.6f, 0.9f);
 
-        /// <summary>
-        /// 按钮点击事件
-        /// </summary>
         public event System.Action<ModType> OnModClicked;
-
-        // =========================================================
-        // 生命周期
-        // =========================================================
 
         void Awake()
         {
@@ -357,58 +351,82 @@ namespace OsuVR
                 button.onClick.RemoveListener(OnButtonClicked);
         }
 
-        // =========================================================
-        // 初始化与状态更新
-        // =========================================================
-
-        /// <summary>
-        /// 初始化按钮
-        /// </summary>
         public void Initialize(ModInfo info, bool selected)
         {
             modInfo = info;
             isSelected = selected;
 
+            if (shortNameText == null)
+            {
+                Transform t = transform.Find("ShortName");
+                if (t != null) shortNameText = t.GetComponent<TextMeshProUGUI>();
+            }
             if (shortNameText != null)
                 shortNameText.text = info.shortName;
 
+            if (fullNameText == null)
+            {
+                Transform t = transform.Find("FullName");
+                if (t != null) fullNameText = t.GetComponent<TextMeshProUGUI>();
+            }
             if (fullNameText != null)
-                fullNameText.text = info.fullName;
+            {
+                string nameKey = $"mod_{info.type.ToString().ToLower()}_name";
+                string localizedName = LocalizationManager.GetText(nameKey);
+                fullNameText.text = LocalizationManager.HasKey(nameKey) ? localizedName : info.fullName;
+            }
+
+            if (descriptionText == null)
+            {
+                Transform t = transform.Find("Description");
+                if (t != null) descriptionText = t.GetComponent<TextMeshProUGUI>();
+            }
+            if (descriptionText != null)
+            {
+                string descKey = $"mod_{info.type.ToString().ToLower()}_desc";
+                string localizedDesc = LocalizationManager.GetText(descKey);
+                descriptionText.text = LocalizationManager.HasKey(descKey) ? localizedDesc : info.description;
+            }
 
             UpdateVisual();
         }
 
-        /// <summary>
-        /// 设置选中状态
-        /// </summary>
         public void SetSelected(bool selected)
         {
             isSelected = selected;
             UpdateVisual();
         }
 
-        /// <summary>
-        /// 按钮点击回调
-        /// </summary>
         private void OnButtonClicked()
         {
             OnModClicked?.Invoke(modInfo.type);
         }
 
-        /// <summary>
-        /// 更新视觉状态
-        /// 选中时显示 Mod 主题色，未选中时显示默认灰色
-        /// </summary>
         private void UpdateVisual()
         {
+            if (backgroundImage == null)
+            {
+                backgroundImage = GetComponent<Image>();
+            }
+            
             if (backgroundImage != null)
             {
-                backgroundImage.color = isSelected ? modInfo.displayColor : normalColor;
+                backgroundImage.color = isSelected && modInfo != null ? modInfo.displayColor : normalColor;
             }
 
             if (shortNameText != null)
             {
-                shortNameText.color = isSelected ? Color.white : Color.gray;
+                shortNameText.color = isSelected ? Color.white : new Color(0.7f, 0.7f, 0.7f);
+            }
+
+            if (fullNameText != null)
+            {
+                fullNameText.color = isSelected ? Color.white : new Color(0.8f, 0.8f, 0.8f);
+            }
+
+            if (descriptionText != null)
+            {
+                descriptionText.color = isSelected ? new Color(0.8f, 0.8f, 0.8f) : new Color(0.5f, 0.5f, 0.5f);
             }
         }
     }

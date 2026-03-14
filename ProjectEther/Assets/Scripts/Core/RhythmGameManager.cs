@@ -931,6 +931,8 @@ namespace OsuVR
                     if (pauseMenuPrefab != null)
                     {
                         GameObject pauseMenuObj = Instantiate(pauseMenuPrefab);
+                        // 确保在场景根层级
+                        pauseMenuObj.transform.SetParent(null);
                         currentPauseMenu = pauseMenuObj.GetComponent<VRPauseMenu>();
                         if (currentPauseMenu != null)
                         {
@@ -938,13 +940,11 @@ namespace OsuVR
                         }
                         else
                         {
-                            // 如果Prefab没有VRPauseMenu组件，直接暂停
                             PauseGame();
                         }
                     }
                     else
                     {
-                        // 降级为基本暂停
                         PauseGame();
                     }
                 }
