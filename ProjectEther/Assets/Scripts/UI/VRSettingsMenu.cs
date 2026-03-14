@@ -35,6 +35,7 @@ namespace OsuVR
         public Slider hapticIntensitySlider;
         public TextMeshProUGUI hapticIntensityValueText;
         public Toggle displayOriginalLanguageToggle;
+        public TMP_Dropdown languageDropdown;
 
         [Header("Controller Offset UI")]
         public Slider leftControllerZOffsetSlider;
@@ -77,6 +78,20 @@ namespace OsuVR
         void OnEnable()
         {
             EnsureWorldCamera();
+            LocalizationManager.OnLanguageChanged += OnLanguageChanged;
+        }
+
+        void OnDisable()
+        {
+            LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
+        }
+
+        private void OnLanguageChanged()
+        {
+            if (languageDropdown != null)
+            {
+                languageDropdown.SetValueWithoutNotify(LocalizationManager.GetCurrentLanguageIndex());
+            }
         }
 
         private void EnsureWorldCamera()

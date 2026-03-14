@@ -4,6 +4,7 @@ using UnityEngine.UI;
 using UnityEditor;
 using TMPro;
 using UnityEngine.EventSystems;
+using OsuVR;
 
 namespace OsuVR.Editor
 {
@@ -48,9 +49,13 @@ namespace OsuVR.Editor
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             GameObject playBtn = CreateSimpleButton("Play", buttonContainer.transform, new Color(0.2f, 0.6f, 1f));
+            AddLocalizedTextToButton(playBtn, "ui_play");
             GameObject settingsBtn = CreateSimpleButton("Settings", buttonContainer.transform, new Color(0.5f, 0.5f, 0.5f));
+            AddLocalizedTextToButton(settingsBtn, "ui_settings");
             GameObject creditsBtn = CreateSimpleButton("Credits", buttonContainer.transform, new Color(0.4f, 0.5f, 0.6f));
+            AddLocalizedTextToButton(creditsBtn, "ui_credits");
             GameObject quitBtn = CreateSimpleButton("Quit", buttonContainer.transform, new Color(0.8f, 0.3f, 0.3f));
+            AddLocalizedTextToButton(quitBtn, "ui_quit");
 
             AddButtonCollider(playBtn);
             AddButtonCollider(settingsBtn);
@@ -244,6 +249,8 @@ namespace OsuVR.Editor
             GameObject titleObj = CreateAnchoredText("Title", leftArea.transform, "BEATMAPS", 
                 new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1),
                 new Vector2(10, -50), new Vector2(-10, -10), 28, TextAlignmentOptions.Left);
+            
+            AddLocalizedText(titleObj, "ui_beatmaps");
 
             GameObject scrollView = CreateScrollViewAnchored("SongScrollView", leftArea.transform);
 
@@ -316,6 +323,7 @@ namespace OsuVR.Editor
             GameObject backBtn = CreateActionButton("Back", layoutContainer.transform, 
                 new Vector2(180, 60), new Color(1f, 0.267f, 0.267f, 0.8f), 20);
             backBtn.name = "Btn_Back";
+            AddLocalizedTextToButton(backBtn, "ui_back");
 
             GameObject toggleModsBtn = CreateActionButton("MODS", layoutContainer.transform, 
                 new Vector2(180, 60), new Color(0.267f, 0.667f, 1f, 0.8f), 20);
@@ -324,6 +332,7 @@ namespace OsuVR.Editor
             GameObject playBtn = CreateActionButton("PLAY", layoutContainer.transform, 
                 new Vector2(250, 80), new Color(1f, 0.4f, 0.667f, 1f), 28);
             playBtn.name = "Btn_Play";
+            AddLocalizedTextToButton(playBtn, "ui_play_button");
 
             return rightBottomArea;
         }
@@ -407,11 +416,11 @@ namespace OsuVR.Editor
             statsLayout.childForceExpandWidth = false;
             statsLayout.childForceExpandHeight = false;
 
-            CreateStatBlock(statsContainer.transform, "CS", "-");
-            CreateStatBlock(statsContainer.transform, "AR", "-");
-            CreateStatBlock(statsContainer.transform, "OD", "-");
-            CreateStatBlock(statsContainer.transform, "HP", "-");
-            CreateStatBlock(statsContainer.transform, "Length", "-");
+            CreateStatBlock(statsContainer.transform, "CS", "ui_cs");
+            CreateStatBlock(statsContainer.transform, "AR", "ui_ar");
+            CreateStatBlock(statsContainer.transform, "OD", "ui_od");
+            CreateStatBlock(statsContainer.transform, "HP", "ui_hp");
+            CreateStatBlock(statsContainer.transform, "Length", null);
 
             GameObject divider2 = new GameObject("Divider2");
             divider2.transform.SetParent(infoPanel.transform, false);
@@ -477,7 +486,7 @@ namespace OsuVR.Editor
             return infoPanel;
         }
 
-        static void CreateStatBlock(Transform parent, string label, string value)
+        static void CreateStatBlock(Transform parent, string label, string localizationKey)
         {
             GameObject statBlock = new GameObject(label);
             statBlock.transform.SetParent(parent, false);
@@ -502,13 +511,18 @@ namespace OsuVR.Editor
             labelText.fontSize = 12;
             labelText.alignment = TextAlignmentOptions.Center;
             labelText.color = new Color(0.6f, 0.6f, 0.6f);
+            
+            if (!string.IsNullOrEmpty(localizationKey))
+            {
+                AddLocalizedText(labelObj, localizationKey);
+            }
 
             GameObject valueObj = new GameObject("Value");
             valueObj.transform.SetParent(statBlock.transform, false);
             RectTransform valueRect = valueObj.AddComponent<RectTransform>();
             valueRect.sizeDelta = new Vector2(65, 30);
             TextMeshProUGUI valueText = valueObj.AddComponent<TextMeshProUGUI>();
-            valueText.text = value;
+            valueText.text = "-";
             valueText.fontSize = 20;
             valueText.alignment = TextAlignmentOptions.Center;
             valueText.color = Color.white;
@@ -548,6 +562,7 @@ namespace OsuVR.Editor
             GameObject activeModsObj = CreateAnchoredText("ActiveMods", panel.transform, "No Mod",
                 new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0.5f, 1),
                 new Vector2(-100, -62), new Vector2(100, -48), 12, TextAlignmentOptions.Center);
+            AddLocalizedText(activeModsObj, "ui_no_mod");
 
             GameObject divider = new GameObject("Divider");
             divider.transform.SetParent(panel.transform, false);
@@ -1034,6 +1049,27 @@ namespace OsuVR.Editor
             collider.isTrigger = true;
 
             return btn;
+        }
+
+        static void AddLocalizedText(GameObject textObj, string key)
+        {
+            if (textObj == null || string.IsNullOrEmpty(key)) return;
+            
+            var localizedText = textObj.AddComponent<LocalizedText>();
+            SerializedObject so = new SerializedObject(localizedText);
+            so.FindProperty("localizationKey").stringValue = key;
+            so.ApplyModifiedProperties();
+        }
+
+        static void AddLocalizedTextToButton(GameObject btnObj, string key)
+        {
+            if (btnObj == null || string.IsNullOrEmpty(key)) return;
+            
+            Transform textTransform = btnObj.transform.Find("Text");
+            if (textTransform != null)
+            {
+                AddLocalizedText(textTransform.gameObject, key);
+            }
         }
     }
 }

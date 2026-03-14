@@ -259,7 +259,7 @@ namespace OsuVR
                 string modString = modSelection.GetModString();
                 if (string.IsNullOrEmpty(modString))
                 {
-                    activeModsText.text = "No Mod";
+                    activeModsText.text = LocalizationManager.GetText("ui_no_mod");
                     activeModsText.color = Color.white;
                 }
                 else
@@ -370,7 +370,11 @@ namespace OsuVR
                 if (t != null) fullNameText = t.GetComponent<TextMeshProUGUI>();
             }
             if (fullNameText != null)
-                fullNameText.text = info.fullName;
+            {
+                string nameKey = $"mod_{info.type.ToString().ToLower()}_name";
+                string localizedName = LocalizationManager.GetText(nameKey);
+                fullNameText.text = LocalizationManager.HasKey(nameKey) ? localizedName : info.fullName;
+            }
 
             if (descriptionText == null)
             {
@@ -378,7 +382,11 @@ namespace OsuVR
                 if (t != null) descriptionText = t.GetComponent<TextMeshProUGUI>();
             }
             if (descriptionText != null)
-                descriptionText.text = info.description;
+            {
+                string descKey = $"mod_{info.type.ToString().ToLower()}_desc";
+                string localizedDesc = LocalizationManager.GetText(descKey);
+                descriptionText.text = LocalizationManager.HasKey(descKey) ? localizedDesc : info.description;
+            }
 
             UpdateVisual();
         }

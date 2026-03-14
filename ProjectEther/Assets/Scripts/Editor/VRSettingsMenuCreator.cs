@@ -25,7 +25,7 @@ namespace OsuVR.Editor
             GUILayout.Label("VR设置菜单创建器", EditorStyles.boldLabel);
             GUILayout.Space(10);
 
-            prefabName = EditorGUILayout.TextField("Prefab名称", prefabName);
+            prefabName = EditorGUILayout.TextField("Prefab名称", prefabName); 
             savePath = EditorGUILayout.TextField("Prefab保存路径", savePath);
             GUILayout.Space(5);
             createScene = EditorGUILayout.Toggle("创建场景", createScene);
@@ -148,14 +148,15 @@ namespace OsuVR.Editor
             settingsMenu.tabPanels = new GameObject[4];
 
             string[] tabNames = { "Audio", "Graphics", "Game", "Controller" };
+            string[] tabKeys = { "ui_tab_audio", "ui_tab_graphics", "ui_tab_game", null };
             for (int i = 0; i < 4; i++)
             {
-                GameObject tabBtn = CreateTabButton($"Tab_{tabNames[i]}", tabBar.transform, tabNames[i], out Button btn);
+                GameObject tabBtn = CreateTabButton($"Tab_{tabNames[i]}", tabBar.transform, tabNames[i], tabKeys[i], out Button btn);
                 settingsMenu.tabButtons[i] = btn;
             }
         }
 
-        private GameObject CreateTabButton(string name, Transform parent, string text, out Button button)
+        private GameObject CreateTabButton(string name, Transform parent, string text, string localizationKey, out Button button)
         {
             GameObject btn = new GameObject(name);
             btn.transform.SetParent(parent, false);
@@ -180,6 +181,11 @@ namespace OsuVR.Editor
             textRect.anchorMin = Vector2.zero;
             textRect.anchorMax = Vector2.one;
             textRect.sizeDelta = Vector2.zero;
+            
+            if (!string.IsNullOrEmpty(localizationKey))
+            {
+                AddLocalizedText(textObj, localizationKey);
+            }
 
             GameObject indicator = new GameObject("Indicator");
             indicator.transform.SetParent(btn.transform, false);
@@ -238,6 +244,9 @@ namespace OsuVR.Editor
             GameObject panel = CreatePanel("GamePanel", parent, 2);
             settingsMenu.tabPanels[2] = panel;
 
+            CreateLanguageRow(panel.transform, out TMP_Dropdown languageDropdown);
+            settingsMenu.languageDropdown = languageDropdown;
+
             CreateToggleRow(panel.transform, "Enable Haptics", true, out Toggle hapticsToggle);
             settingsMenu.hapticsToggle = hapticsToggle;
 
@@ -247,6 +256,59 @@ namespace OsuVR.Editor
 
             CreateToggleRow(panel.transform, "Display Song Names in Original Language", false, out Toggle originalLangToggle);
             settingsMenu.displayOriginalLanguageToggle = originalLangToggle;
+        }
+
+        private void CreateLanguageRow(Transform parent, out TMP_Dropdown dropdown)
+        {
+            GameObject row = new GameObject("LanguageRow");
+            row.transform.SetParent(parent, false);
+
+            RectTransform rect = row.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0, 0.5f);
+            rect.anchorMax = new Vector2(1, 0.5f);
+            rect.sizeDelta = new Vector2(0, 36);
+            rect.anchoredPosition = Vector2.zero;
+
+            HorizontalLayoutGroup layout = row.AddComponent<HorizontalLayoutGroup>();
+            layout.spacing = 10;
+            layout.childControlWidth = true;
+            layout.childControlHeight = false;
+            layout.childAlignment = TextAnchor.MiddleLeft;
+
+            GameObject labelObj = CreateText("Label", row.transform, "Language", Vector2.zero, new Vector2(160, 36), 14, TextAlignmentOptions.Left);
+            LayoutElement labelLayout = labelObj.AddComponent<LayoutElement>();
+            labelLayout.preferredWidth = 160;
+            labelLayout.flexibleWidth = 0;
+            AddLocalizedText(labelObj, "ui_language");
+
+            string[] languageOptions = { "English", "简体中文", "日本語" };
+            int currentLangIndex = LocalizationManager.GetCurrentLanguageIndex();
+            GameObject dropdownObj = CreateLanguageDropdown("LanguageDropdown", row.transform, languageOptions, currentLangIndex, out dropdown);
+            LayoutElement dropdownLayout = dropdownObj.AddComponent<LayoutElement>();
+            dropdownLayout.flexibleWidth = 1;
+            dropdownLayout.preferredWidth = 180;
+        }
+
+        private GameObject CreateLanguageDropdown(string name, Transform parent, string[] options, int defaultValue, out TMP_Dropdown dropdown)
+        {
+            GameObject dropdownObj = CreateDropdown(name, parent, options, defaultValue, out dropdown);
+            
+            dropdown.onValueChanged.AddListener((index) =>
+            {
+                LocalizationManager.SetLanguageByIndex(index);
+            });
+
+            return dropdownObj;
+        }
+
+        private void AddLocalizedText(GameObject textObj, string key)
+        {
+            if (textObj == null || string.IsNullOrEmpty(key)) return;
+            
+            var localizedText = textObj.AddComponent<LocalizedText>();
+            SerializedObject so = new SerializedObject(localizedText);
+            so.FindProperty("localizationKey").stringValue = key;
+            so.ApplyModifiedProperties();
         }
 
         private void CreateControllerOffsetPanel(Transform parent, VRSettingsMenu settingsMenu)

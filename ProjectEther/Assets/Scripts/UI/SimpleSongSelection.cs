@@ -370,14 +370,22 @@ namespace OsuVR
 
         void UpdateInfoPanel(BeatmapMetadata mapData)
         {
+            bool useOriginalLanguage = false;
+            if (SettingsManager.Instance != null && SettingsManager.Instance.Settings != null)
+            {
+                useOriginalLanguage = SettingsManager.Instance.Settings.displayOriginalLanguage;
+            }
+
             if (titleText != null)
             {
-                titleText.text = string.IsNullOrEmpty(mapData.Title) ? "Unknown Title" : mapData.Title;
+                string displayTitle = mapData.GetDisplayTitle(useOriginalLanguage);
+                titleText.text = string.IsNullOrEmpty(displayTitle) ? "Unknown Title" : displayTitle;
             }
 
             if (artistText != null)
             {
-                artistText.text = string.IsNullOrEmpty(mapData.Artist) ? "-" : mapData.Artist;
+                string displayArtist = mapData.GetDisplayArtist(useOriginalLanguage);
+                artistText.text = string.IsNullOrEmpty(displayArtist) ? "-" : displayArtist;
             }
 
             try
@@ -563,7 +571,7 @@ namespace OsuVR
             if (activeModsText != null)
             {
                 string modStr = mods.GetModString();
-                activeModsText.text = string.IsNullOrEmpty(modStr) ? "No Mod" : modStr;
+                activeModsText.text = string.IsNullOrEmpty(modStr) ? LocalizationManager.GetText("ui_no_mod") : modStr;
             }
 
             string statusModStr = mods.GetModString();
@@ -636,12 +644,12 @@ namespace OsuVR
             {
                 if (isModPanelActive)
                 {
-                    toggleModsButtonText.text = "BACK";
+                    toggleModsButtonText.text = LocalizationManager.GetText("ui_back");
                     toggleModsButtonText.color = new Color(1f, 0.3f, 0.3f);
                 }
                 else
                 {
-                    toggleModsButtonText.text = "MODS";
+                    toggleModsButtonText.text = LocalizationManager.GetText("ui_mods");
                     toggleModsButtonText.color = Color.white;
                 }
             }
