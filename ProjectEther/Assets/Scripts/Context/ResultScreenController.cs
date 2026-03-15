@@ -408,13 +408,15 @@ namespace OsuVR
             // 滑条信息
             if (textSliderInfo != null && result.totalSliders > 0)
             {
-                textSliderInfo.text = $"Sliders: {result.slidersPerfect}/{result.totalSliders} Perfect";
+                string sliderTemplate = LocalizationManager.GetText("ui_sliders_info");
+                textSliderInfo.text = string.Format(sliderTemplate, result.slidersPerfect, result.totalSliders);
             }
 
             // 转盘奖励
             if (textSpinnerBonus != null && result.spinnerBonus > 0)
             {
-                textSpinnerBonus.text = $"+{result.spinnerBonus} Spinner Bonus";
+                string spinnerTemplate = LocalizationManager.GetText("ui_spinner_bonus_text");
+                textSpinnerBonus.text = string.Format(spinnerTemplate, result.spinnerBonus);
             }
         }
 

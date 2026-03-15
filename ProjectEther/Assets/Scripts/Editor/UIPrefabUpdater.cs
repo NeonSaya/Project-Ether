@@ -438,7 +438,7 @@ namespace OsuVR.Editor
             settingsMenu.tabPanels = new GameObject[4];
 
             string[] tabNames = { "Audio", "Graphics", "Game", "Controller" };
-            string[] tabKeys = { "ui_tab_audio", "ui_tab_graphics", "ui_tab_game", null };
+            string[] tabKeys = { "ui_tab_audio", "ui_tab_graphics", "ui_tab_game", "ui_tab_controller" };
             for (int i = 0; i < 4; i++)
             {
                 GameObject tabBtn = CreateSettingsTabButton($"Tab_{tabNames[i]}", tabBar.transform, tabNames[i], tabKeys[i], out Button btn);
@@ -496,19 +496,19 @@ namespace OsuVR.Editor
             GameObject panel = CreateContainer("AudioPanel", parent, 0);
             settingsMenu.tabPanels[0] = panel;
 
-            CreateSliderRow(panel.transform, "Audio Offset", -200, 200, 0, "ms", out Slider audioOffsetSlider, out TextMeshProUGUI audioOffsetText);
+            CreateSliderRow(panel.transform, "Audio Offset", "ui_audio_offset", -200, 200, 0, "ms", out Slider audioOffsetSlider, out TextMeshProUGUI audioOffsetText);
             settingsMenu.audioOffsetSlider = audioOffsetSlider;
             settingsMenu.audioOffsetValueText = audioOffsetText;
 
-            CreateSliderRow(panel.transform, "Master Volume", 0, 1, 0.8f, "percent", out Slider masterSlider, out TextMeshProUGUI masterText);
+            CreateSliderRow(panel.transform, "Master Volume", "ui_master_volume", 0, 1, 0.8f, "percent", out Slider masterSlider, out TextMeshProUGUI masterText);
             settingsMenu.masterVolumeSlider = masterSlider;
             settingsMenu.masterVolumeValueText = masterText;
 
-            CreateSliderRow(panel.transform, "Music Volume", 0, 1, 0.6f, "percent", out Slider musicSlider, out TextMeshProUGUI musicText);
+            CreateSliderRow(panel.transform, "Music Volume", "ui_music_volume", 0, 1, 0.6f, "percent", out Slider musicSlider, out TextMeshProUGUI musicText);
             settingsMenu.musicVolumeSlider = musicSlider;
             settingsMenu.musicVolumeValueText = musicText;
 
-            CreateSliderRow(panel.transform, "SFX Volume", 0, 1, 0.8f, "percent", out Slider sfxSlider, out TextMeshProUGUI sfxText);
+            CreateSliderRow(panel.transform, "SFX Volume", "ui_sfx_volume", 0, 1, 0.8f, "percent", out Slider sfxSlider, out TextMeshProUGUI sfxText);
             settingsMenu.sfxVolumeSlider = sfxSlider;
             settingsMenu.sfxVolumeValueText = sfxText;
         }
@@ -518,13 +518,13 @@ namespace OsuVR.Editor
             GameObject panel = CreateContainer("GraphicsPanel", parent, 1);
             settingsMenu.tabPanels[1] = panel;
 
-            CreateDropdownRow(panel.transform, "Quality", new[] { "Low", "Medium", "High", "Ultra" }, 2, out TMP_Dropdown qualityDropdown);
+            CreateDropdownRow(panel.transform, "Quality", "ui_quality", new[] { "Low", "Medium", "High", "Ultra" }, 2, out TMP_Dropdown qualityDropdown);
             settingsMenu.qualityDropdown = qualityDropdown;
 
-            CreateDropdownRow(panel.transform, "Anti-Aliasing", new[] { "Off", "2x", "4x", "8x" }, 2, out TMP_Dropdown aaDropdown);
+            CreateDropdownRow(panel.transform, "Anti-Aliasing", "ui_anti_aliasing", new[] { "Off", "2x", "4x", "8x" }, 2, out TMP_Dropdown aaDropdown);
             settingsMenu.antiAliasingDropdown = aaDropdown;
 
-            CreateSliderRow(panel.transform, "Particle Density", 0, 1, 0.7f, "percent", out Slider particleSlider, out TextMeshProUGUI particleText);
+            CreateSliderRow(panel.transform, "Particle Density", "ui_particle_density", 0, 1, 0.7f, "percent", out Slider particleSlider, out TextMeshProUGUI particleText);
             settingsMenu.particleDensitySlider = particleSlider;
             settingsMenu.particleDensityValueText = particleText;
         }
@@ -537,14 +537,14 @@ namespace OsuVR.Editor
             CreateLanguageRow(panel.transform, out TMP_Dropdown languageDropdown);
             settingsMenu.languageDropdown = languageDropdown;
 
-            CreateToggleRow(panel.transform, "Enable Haptics", true, out Toggle hapticsToggle);
+            CreateToggleRow(panel.transform, "Enable Haptics", "ui_enable_haptics", true, out Toggle hapticsToggle);
             settingsMenu.hapticsToggle = hapticsToggle;
 
-            CreateSliderRow(panel.transform, "Haptic Intensity", 0, 1, 0.8f, "percent", out Slider hapticIntSlider, out TextMeshProUGUI hapticIntText);
+            CreateSliderRow(panel.transform, "Haptic Intensity", "ui_haptic_intensity", 0, 1, 0.8f, "percent", out Slider hapticIntSlider, out TextMeshProUGUI hapticIntText);
             settingsMenu.hapticIntensitySlider = hapticIntSlider;
             settingsMenu.hapticIntensityValueText = hapticIntText;
 
-            CreateToggleRow(panel.transform, "Display Song Names in Original Language", false, out Toggle originalLangToggle);
+            CreateToggleRow(panel.transform, "Display Song Names in Original Language", "ui_display_original_language", false, out Toggle originalLangToggle);
             settingsMenu.displayOriginalLanguageToggle = originalLangToggle;
         }
 
@@ -553,19 +553,19 @@ namespace OsuVR.Editor
             GameObject panel = CreateContainer("ControllerOffsetPanel", parent, 3);
             settingsMenu.tabPanels[3] = panel;
 
-            CreateSliderRow(panel.transform, "Left Controller Z Offset", -0.5f, 0.5f, 0, "m", out Slider leftZSlider, out TextMeshProUGUI leftZText);
+            CreateSliderRow(panel.transform, "Left Controller Z Offset", null, -0.5f, 0.5f, 0, "m", out Slider leftZSlider, out TextMeshProUGUI leftZText);
             settingsMenu.leftControllerZOffsetSlider = leftZSlider;
             settingsMenu.leftControllerZOffsetValueText = leftZText;
 
-            CreateSliderRow(panel.transform, "Right Controller Z Offset", -0.5f, 0.5f, 0, "m", out Slider rightZSlider, out TextMeshProUGUI rightZText);
+            CreateSliderRow(panel.transform, "Right Controller Z Offset", null, -0.5f, 0.5f, 0, "m", out Slider rightZSlider, out TextMeshProUGUI rightZText);
             settingsMenu.rightControllerZOffsetSlider = rightZSlider;
             settingsMenu.rightControllerZOffsetValueText = rightZText;
 
-            CreateSliderRow(panel.transform, "Left Controller Y Offset", -0.3f, 0.3f, 0, "m", out Slider leftYSlider, out TextMeshProUGUI leftYText);
+            CreateSliderRow(panel.transform, "Left Controller Y Offset", null, -0.3f, 0.3f, 0, "m", out Slider leftYSlider, out TextMeshProUGUI leftYText);
             settingsMenu.leftControllerYOffsetSlider = leftYSlider;
             settingsMenu.leftControllerYOffsetValueText = leftYText;
 
-            CreateSliderRow(panel.transform, "Right Controller Y Offset", -0.3f, 0.3f, 0, "m", out Slider rightYSlider, out TextMeshProUGUI rightYText);
+            CreateSliderRow(panel.transform, "Right Controller Y Offset", null, -0.3f, 0.3f, 0, "m", out Slider rightYSlider, out TextMeshProUGUI rightYText);
             settingsMenu.rightControllerYOffsetSlider = rightYSlider;
             settingsMenu.rightControllerYOffsetValueText = rightYText;
         }
@@ -875,7 +875,7 @@ namespace OsuVR.Editor
             collider.isTrigger = true;
         }
 
-        private static void CreateSliderRow(Transform parent, string label, float min, float max, float defaultValue, string format, out Slider slider, out TextMeshProUGUI valueText)
+        private static void CreateSliderRow(Transform parent, string label, string localizationKey, float min, float max, float defaultValue, string format, out Slider slider, out TextMeshProUGUI valueText)
         {
             GameObject row = new GameObject(label.Replace(" ", "") + "Row");
             row.transform.SetParent(parent, false);
@@ -896,6 +896,11 @@ namespace OsuVR.Editor
             LayoutElement labelLayout = labelObj.AddComponent<LayoutElement>();
             labelLayout.preferredWidth = 160;
             labelLayout.flexibleWidth = 0;
+            
+            if (!string.IsNullOrEmpty(localizationKey))
+            {
+                AddLocalizedText(labelObj, localizationKey);
+            }
 
             GameObject sliderObj = new GameObject("Slider");
             sliderObj.transform.SetParent(row.transform, false);
@@ -921,7 +926,7 @@ namespace OsuVR.Editor
                 valueText.text = $"{defaultValue}{format}";
         }
 
-        private static void CreateToggleRow(Transform parent, string label, bool defaultValue, out Toggle toggle)
+        private static void CreateToggleRow(Transform parent, string label, string localizationKey, bool defaultValue, out Toggle toggle)
         {
             GameObject row = new GameObject(label.Replace(" ", "") + "Row");
             row.transform.SetParent(parent, false);
@@ -942,6 +947,11 @@ namespace OsuVR.Editor
             LayoutElement labelLayout = labelObj.AddComponent<LayoutElement>();
             labelLayout.preferredWidth = 160;
             labelLayout.flexibleWidth = 0;
+            
+            if (!string.IsNullOrEmpty(localizationKey))
+            {
+                AddLocalizedText(labelObj, localizationKey);
+            }
 
             GameObject toggleObj = new GameObject("Toggle");
             toggleObj.transform.SetParent(row.transform, false);
@@ -967,7 +977,7 @@ namespace OsuVR.Editor
             checkRect.sizeDelta = Vector2.zero;
         }
 
-        private static void CreateDropdownRow(Transform parent, string label, string[] options, int defaultValue, out TMP_Dropdown dropdown)
+        private static void CreateDropdownRow(Transform parent, string label, string localizationKey, string[] options, int defaultValue, out TMP_Dropdown dropdown)
         {
             GameObject row = new GameObject(label + "Row");
             row.transform.SetParent(parent, false);
@@ -988,6 +998,11 @@ namespace OsuVR.Editor
             LayoutElement labelLayout = labelObj.AddComponent<LayoutElement>();
             labelLayout.preferredWidth = 160;
             labelLayout.flexibleWidth = 0;
+            
+            if (!string.IsNullOrEmpty(localizationKey))
+            {
+                AddLocalizedText(labelObj, localizationKey);
+            }
 
             GameObject dropdownObj = CreateDropdown("Dropdown", row.transform, options, defaultValue, out dropdown);
             LayoutElement dropdownLayout = dropdownObj.AddComponent<LayoutElement>();

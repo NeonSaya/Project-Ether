@@ -433,6 +433,25 @@ namespace OsuVR
                 displayOriginalLanguageToggle.onValueChanged.AddListener(OnDisplayOriginalLanguageChanged);
                 AddHoverEffect(displayOriginalLanguageToggle.gameObject);
             }
+
+            if (languageDropdown != null)
+            {
+                languageDropdown.ClearOptions();
+                languageDropdown.AddOptions(new System.Collections.Generic.List<string>(LocalizationManager.GetAllLanguageNames()));
+                languageDropdown.value = LocalizationManager.GetCurrentLanguageIndex();
+                languageDropdown.onValueChanged.AddListener(OnLanguageChanged);
+                AddHoverEffect(languageDropdown.gameObject);
+            }
+        }
+
+        private void OnLanguageChanged(int index)
+        {
+            LocalizationManager.SetLanguageByIndex(index);
+            if (SettingsManager.Instance != null)
+            {
+                SettingsManager.Instance.SaveSettings();
+            }
+            PlayClickSound();
         }
 
         private void OnHapticsChanged(bool enabled)
