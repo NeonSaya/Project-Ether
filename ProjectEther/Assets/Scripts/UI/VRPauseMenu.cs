@@ -6,12 +6,6 @@ using System.Collections;
 
 namespace OsuVR
 {
-    /// <summary>
-    /// VR暂停菜单控制器 - Prefab模式
-    /// 支持BeatSaber风格的暂停菜单：Continue, Retry, Back to Menu
-    /// 自动处理3秒倒计时继续游戏
-    /// 使用对象池避免频繁Instantiate/Destroy
-    /// </summary>
     [RequireComponent(typeof(Canvas))]
     [RequireComponent(typeof(CanvasGroup))]
     public class VRPauseMenu : MonoBehaviour
@@ -20,6 +14,11 @@ namespace OsuVR
         public Button continueButton;
         public Button retryButton;
         public Button backToMenuButton;
+
+        [Header("按钮文本引用")]
+        public TextMeshProUGUI continueButtonText;
+        public TextMeshProUGUI retryButtonText;
+        public TextMeshProUGUI backToMenuButtonText;
 
         [Header("倒计时显示")]
         public TextMeshProUGUI countdownText;
@@ -53,25 +52,48 @@ namespace OsuVR
             canvas = GetComponent<Canvas>();
             canvasGroup = GetComponent<CanvasGroup>();
 
-            // 确保Canvas设置正确
             if (canvas.renderMode != RenderMode.WorldSpace)
             {
                 canvas.renderMode = RenderMode.WorldSpace;
             }
             canvas.sortingOrder = 100;
 
-            // 确保UI在暂停时可交互
             canvasGroup.interactable = true;
             canvasGroup.blocksRaycasts = true;
             canvasGroup.alpha = 1f;
 
-            // 设置固定位置
             transform.position = fixedPosition;
             transform.rotation = Quaternion.Euler(menuRotation);
 
             SetupButtons();
             HideCountdown();
             gameObject.SetActive(false);
+        }
+
+        void OnEnable()
+        {
+            LocalizationManager.OnLanguageChanged += OnLanguageChanged;
+            UpdateButtonTexts();
+        }
+
+        void OnDisable()
+        {
+            LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
+        }
+
+        private void OnLanguageChanged()
+        {
+            UpdateButtonTexts();
+        }
+
+        private void UpdateButtonTexts()
+        {
+            if (continueButtonText != null)
+                continueButtonText.text = LocalizationManager.GetText("ui_resume");
+            if (retryButtonText != null)
+                retryButtonText.text = LocalizationManager.GetText("ui_retry");
+            if (backToMenuButtonText != null)
+                backToMenuButtonText.text = LocalizationManager.GetText("ui_main_menu");
         }
 
         void Update()
@@ -118,7 +140,7 @@ namespace OsuVR
             {
                 eventID = EventTriggerType.PointerExit
             };
-            exitEntry.callback.AddListener((_) => { /* 可以添加退出音效 */ });
+            exitEntry.callback.AddListener((_) => { });
             trigger.triggers.Add(exitEntry);
         }
 
@@ -134,12 +156,8 @@ namespace OsuVR
                 audioSource.PlayOneShot(clickSound, 0.8f);
         }
 
-        /// <summary>
-        /// 显示暂停菜单
-        /// </summary>
         public void ShowPauseMenu()
         {
-            // 自动查找GameManager（如果未设置）
             if (gameManager == null)
             {
                 gameManager = FindObjectOfType<RhythmGameManager>();
@@ -148,30 +166,26 @@ namespace OsuVR
             isPaused = true;
             isCountingDown = false;
             
-            // 设置固定位置
             transform.position = fixedPosition;
             transform.rotation = Quaternion.Euler(menuRotation);
             
             gameObject.SetActive(true);
             HideCountdown();
 
-            // 暂停游戏
             if (gameManager != null)
             {
                 gameManager.PauseGame();
             }
 
-            // 确保UI可交互
             canvasGroup.interactable = true;
             canvasGroup.blocksRaycasts = true;
             canvasGroup.alpha = 1f;
             
+            UpdateButtonTexts();
+            
             Debug.Log($"[VRPauseMenu] 显示暂停菜单，位置: {transform.position}");
         }
 
-        /// <summary>
-        /// 隐藏暂停菜单
-        /// </summary>
         public void HidePauseMenu()
         {
             isPaused = false;
@@ -237,7 +251,6 @@ namespace OsuVR
             {
                 countdownPanel.SetActive(true);
             }
-            // 隐藏按钮
             if (continueButton != null) continueButton.gameObject.SetActive(false);
             if (retryButton != null) retryButton.gameObject.SetActive(false);
             if (backToMenuButton != null) backToMenuButton.gameObject.SetActive(false);
@@ -249,7 +262,6 @@ namespace OsuVR
             {
                 countdownPanel.SetActive(false);
             }
-            // 显示按钮
             if (continueButton != null) continueButton.gameObject.SetActive(true);
             if (retryButton != null) retryButton.gameObject.SetActive(true);
             if (backToMenuButton != null) backToMenuButton.gameObject.SetActive(true);
@@ -270,9 +282,6 @@ namespace OsuVR
             return isPaused || isCountingDown;
         }
 
-        /// <summary>
-        /// 重置菜单状态（用于对象池回收）
-        /// </summary>
         public void ResetMenu()
         {
             HidePauseMenu();
@@ -283,7 +292,6 @@ namespace OsuVR
 
         void OnDestroy()
         {
-            // 清理TMP文本，避免字体资源引用错误
             var tmpComponents = GetComponentsInChildren<TextMeshProUGUI>(true);
             foreach (var tmp in tmpComponents)
             {

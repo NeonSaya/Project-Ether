@@ -546,7 +546,7 @@ namespace OsuVR
                 if (bonusText)
                 {
                     bonusText.gameObject.SetActive(true);
-                    bonusText.text = "MAX"; // 显示 MAX
+                    bonusText.text = LocalizationManager.GetText("ui_max");
                     bonusText.color = Color.yellow;
                     bonusText.transform.localScale = Vector3.one * 1.5f;
                 }

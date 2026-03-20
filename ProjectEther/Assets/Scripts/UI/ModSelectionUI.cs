@@ -60,6 +60,21 @@ namespace OsuVR
             modSelection.OnModChanged += OnModChanged;
         }
 
+        void OnEnable()
+        {
+            LocalizationManager.OnLanguageChanged += OnLanguageChanged;
+        }
+
+        void OnDisable()
+        {
+            LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
+        }
+
+        private void OnLanguageChanged()
+        {
+            UpdateUI();
+        }
+
         void Start()
         {
             if (autoGenerateButtons)
@@ -79,7 +94,6 @@ namespace OsuVR
 
             UpdateUI();
             
-            // 确保按钮状态与当前 Mod 选择状态同步
             ForceSyncButtonStates();
         }
 
@@ -345,6 +359,24 @@ namespace OsuVR
                 button.onClick.AddListener(OnButtonClicked);
         }
 
+        void OnEnable()
+        {
+            LocalizationManager.OnLanguageChanged += OnLanguageChanged;
+        }
+
+        void OnDisable()
+        {
+            LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
+        }
+
+        private void OnLanguageChanged()
+        {
+            if (modInfo.type != ModType.None)
+            {
+                UpdateLocalizedText();
+            }
+        }
+
         void OnDestroy()
         {
             if (button != null)
@@ -364,6 +396,14 @@ namespace OsuVR
             if (shortNameText != null)
                 shortNameText.text = info.shortName;
 
+            UpdateLocalizedText();
+            UpdateVisual();
+        }
+
+        private void UpdateLocalizedText()
+        {
+            if (modInfo.type == ModType.None) return;
+
             if (fullNameText == null)
             {
                 Transform t = transform.Find("FullName");
@@ -371,9 +411,9 @@ namespace OsuVR
             }
             if (fullNameText != null)
             {
-                string nameKey = $"mod_{info.type.ToString().ToLower()}_name";
+                string nameKey = $"mod_{modInfo.type.ToString().ToLower()}_name";
                 string localizedName = LocalizationManager.GetText(nameKey);
-                fullNameText.text = LocalizationManager.HasKey(nameKey) ? localizedName : info.fullName;
+                fullNameText.text = LocalizationManager.HasKey(nameKey) ? localizedName : modInfo.fullName;
             }
 
             if (descriptionText == null)
@@ -383,12 +423,10 @@ namespace OsuVR
             }
             if (descriptionText != null)
             {
-                string descKey = $"mod_{info.type.ToString().ToLower()}_desc";
+                string descKey = $"mod_{modInfo.type.ToString().ToLower()}_desc";
                 string localizedDesc = LocalizationManager.GetText(descKey);
-                descriptionText.text = LocalizationManager.HasKey(descKey) ? localizedDesc : info.description;
+                descriptionText.text = LocalizationManager.HasKey(descKey) ? localizedDesc : modInfo.description;
             }
-
-            UpdateVisual();
         }
 
         public void SetSelected(bool selected)

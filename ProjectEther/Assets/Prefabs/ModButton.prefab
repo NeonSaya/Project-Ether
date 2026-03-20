@@ -13,7 +13,6 @@ GameObject:
   - component: {fileID: 4054343936785359533}
   - component: {fileID: 4227223556655465009}
   - component: {fileID: 3970694080970505662}
-  - component: {fileID: 8490721644232229784}
   m_Layer: 0
   m_Name: ModButton
   m_TagString: Untagged
@@ -146,23 +145,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 240, y: 60, z: 10}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &8490721644232229784
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 671648947591184364}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 0}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  backgroundImage: {fileID: 4054343936785359533}
-  shortNameText: {fileID: 3991347961486708259}
-  fullNameText: {fileID: 4184478009424915121}
-  descriptionText: {fileID: 813615814448066554}
-  button: {fileID: 4227223556655465009}
 --- !u!1 &7007404938007584766
 GameObject:
   m_ObjectHideFlags: 0
@@ -230,8 +212,9 @@ MonoBehaviour:
       m_Calls: []
   m_text: HR
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 1acc6c82055414f468ce2751513dab16, type: 2}
+  m_sharedMaterial: {fileID: -5168871395213266841, guid: 1acc6c82055414f468ce2751513dab16,
+    type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -250,7 +233,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -364,8 +347,9 @@ MonoBehaviour:
       m_Calls: []
   m_text: Hard Rock
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 1acc6c82055414f468ce2751513dab16, type: 2}
+  m_sharedMaterial: {fileID: -5168871395213266841, guid: 1acc6c82055414f468ce2751513dab16,
+    type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -384,7 +368,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -498,14 +482,15 @@ MonoBehaviour:
       m_Calls: []
   m_text: Everything becomes harder...
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 1acc6c82055414f468ce2751513dab16, type: 2}
+  m_sharedMaterial: {fileID: -5168871395213266841, guid: 1acc6c82055414f468ce2751513dab16,
+    type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4287401100
   m_fontColor: {r: 0.55, g: 0.55, b: 0.55, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -518,7 +503,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2

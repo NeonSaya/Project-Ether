@@ -23,6 +23,10 @@ namespace OsuVR
         [Range(0, 1)] public float musicVolume = 0.8f;
         [Range(0, 1)] public float sfxVolume = 1.0f;
 
+        [Header("音频延迟补偿")]
+        [Tooltip("音效延迟补偿（毫秒）：正值延迟播放，负值提前播放。osu!默认约20-30ms")]
+        [Range(-100, 100)] public float audioLatencyCompensation = 20f;
+
         // =========================================================
         // 运行时状态
         // =========================================================
@@ -31,6 +35,7 @@ namespace OsuVR
         private AudioSource sliderLoopSource;
         private AudioSource spinnerLoopSource;
         private List<AudioSource> oneShotPool = new List<AudioSource>();
+        private double audioSystemLatency = 0;
 
         // =========================================================
         // 生命周期
@@ -54,7 +59,12 @@ namespace OsuVR
 
         private void InitializeAudioSources()
         {
-            // 1. 初始化 OneShot 池 (用于打击音效)
+            int bufferLength;
+            int numBuffers;
+            AudioSettings.GetDSPBufferSize(out bufferLength, out numBuffers);
+            audioSystemLatency = (double)bufferLength / AudioSettings.outputSampleRate;
+            Debug.Log($"[Audio] 系统硬件延迟: {audioSystemLatency * 1000:F2} ms, 音效补偿: {audioLatencyCompensation} ms");
+
             for (int i = 0; i < 20; i++)
             {
                 var go = new GameObject("SFX_OneShot_" + i);
@@ -65,7 +75,6 @@ namespace OsuVR
                 oneShotPool.Add(src);
             }
 
-            // 2. 初始化滑条循环源
             var slideGo = new GameObject("SFX_SliderLoop");
             slideGo.transform.SetParent(transform);
             sliderLoopSource = slideGo.AddComponent<AudioSource>();
@@ -73,7 +82,6 @@ namespace OsuVR
             sliderLoopSource.playOnAwake = false;
             sliderLoopSource.spatialBlend = 0;
 
-            // 3. 初始化转盘循环源
             var spinGo = new GameObject("SFX_SpinnerLoop");
             spinGo.transform.SetParent(transform);
             spinnerLoopSource = spinGo.AddComponent<AudioSource>();

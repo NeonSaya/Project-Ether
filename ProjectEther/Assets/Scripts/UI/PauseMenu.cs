@@ -5,16 +5,17 @@ using UnityEngine.SceneManagement;
 
 namespace OsuVR
 {
-    /// <summary>
-    /// 暂停菜单控制器 - BeatSaber风格
-    /// 支持Back to Menu, Retry, Continue三个选项
-    /// </summary>
     public class PauseMenu : MonoBehaviour
     {
         [Header("按钮引用")]
         public Button continueButton;
         public Button retryButton;
         public Button backToMenuButton;
+
+        [Header("按钮文本引用")]
+        public TextMeshProUGUI continueButtonText;
+        public TextMeshProUGUI retryButtonText;
+        public TextMeshProUGUI backToMenuButtonText;
 
         [Header("倒计时显示")]
         public TextMeshProUGUI countdownText;
@@ -37,7 +38,33 @@ namespace OsuVR
         {
             SetupButtons();
             HideCountdown();
-            gameObject.SetActive(false); // 默认隐藏
+            gameObject.SetActive(false);
+        }
+
+        void OnEnable()
+        {
+            LocalizationManager.OnLanguageChanged += OnLanguageChanged;
+            UpdateButtonTexts();
+        }
+
+        void OnDisable()
+        {
+            LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
+        }
+
+        private void OnLanguageChanged()
+        {
+            UpdateButtonTexts();
+        }
+
+        private void UpdateButtonTexts()
+        {
+            if (continueButtonText != null)
+                continueButtonText.text = LocalizationManager.GetText("ui_resume");
+            if (retryButtonText != null)
+                retryButtonText.text = LocalizationManager.GetText("ui_retry");
+            if (backToMenuButtonText != null)
+                backToMenuButtonText.text = LocalizationManager.GetText("ui_main_menu");
         }
 
         void Update()
@@ -102,8 +129,8 @@ namespace OsuVR
             isCountingDown = false;
             gameObject.SetActive(true);
             HideCountdown();
+            UpdateButtonTexts();
 
-            // 暂停游戏
             gameManager.PauseGame();
         }
 
@@ -172,7 +199,6 @@ namespace OsuVR
             {
                 countdownPanel.SetActive(true);
             }
-            // 隐藏按钮
             if (continueButton != null) continueButton.gameObject.SetActive(false);
             if (retryButton != null) retryButton.gameObject.SetActive(false);
             if (backToMenuButton != null) backToMenuButton.gameObject.SetActive(false);
@@ -184,7 +210,6 @@ namespace OsuVR
             {
                 countdownPanel.SetActive(false);
             }
-            // 显示按钮
             if (continueButton != null) continueButton.gameObject.SetActive(true);
             if (retryButton != null) retryButton.gameObject.SetActive(true);
             if (backToMenuButton != null) backToMenuButton.gameObject.SetActive(true);

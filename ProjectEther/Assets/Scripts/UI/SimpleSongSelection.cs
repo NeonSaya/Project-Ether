@@ -89,6 +89,26 @@ namespace OsuVR
             UpdateToggleModsButtonText();
         }
 
+        void OnEnable()
+        {
+            LocalizationManager.OnLanguageChanged += OnLanguageChanged;
+        }
+
+        void OnDisable()
+        {
+            LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
+        }
+
+        private void OnLanguageChanged()
+        {
+            UpdateToggleModsButtonText();
+            UpdateModDisplay();
+            if (selectedDifficulty != null)
+            {
+                UpdateInfoPanel(selectedDifficulty);
+            }
+        }
+
         void SetupButtonReferences()
         {
             if (openModButton == null)
@@ -334,7 +354,7 @@ namespace OsuVR
                 textRt.offsetMin = new Vector2(4, 2);
                 textRt.offsetMax = new Vector2(-4, -2);
                 TextMeshProUGUI tmp = textObj.AddComponent<TextMeshProUGUI>();
-                tmp.text = string.IsNullOrEmpty(diff.Version) ? "Normal" : diff.Version;
+                tmp.text = string.IsNullOrEmpty(diff.Version) ? LocalizationManager.GetText("ui_normal") : diff.Version;
                 tmp.fontSize = 12;
                 tmp.alignment = TextAlignmentOptions.Center;
                 tmp.color = Color.white;
@@ -379,7 +399,7 @@ namespace OsuVR
             if (titleText != null)
             {
                 string displayTitle = mapData.GetDisplayTitle(useOriginalLanguage);
-                titleText.text = string.IsNullOrEmpty(displayTitle) ? "Unknown Title" : displayTitle;
+                titleText.text = string.IsNullOrEmpty(displayTitle) ? LocalizationManager.GetText("ui_unknown_title") : displayTitle;
             }
 
             if (artistText != null)
@@ -417,7 +437,7 @@ namespace OsuVR
 
                 if (difficultyText != null)
                 {
-                    string diffName = string.IsNullOrEmpty(mapData.Version) ? "Normal" : mapData.Version;
+                    string diffName = string.IsNullOrEmpty(mapData.Version) ? LocalizationManager.GetText("ui_normal") : mapData.Version;
                     difficultyText.text = $"{diffName} ▼";
                 }
             }

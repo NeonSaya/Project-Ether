@@ -97,6 +97,9 @@ namespace OsuVR
         // [新增] 判定相关变量
         private SphereCollider ballCollider; // 用于射线的碰撞体
 
+        // [新增] 淡入效果组件
+        private ObjectFadeIn fadeInComponent;
+
         // 状态变量
       
         private bool isTrackingAudioPlaying = false; // 是否正在播放跟踪音效
@@ -333,6 +336,12 @@ namespace OsuVR
             rightHandGraceTimer = 0f;
             lastEffectiveTrackTime = 0;
 
+            // [新增] 重置淡入组件
+            if (fadeInComponent != null)
+            {
+                fadeInComponent.ResetState();
+            }
+
             headHit = false;
             finished = false;
         }
@@ -453,6 +462,15 @@ namespace OsuVR
 
             CreateFollowBall();
             CreateVisuals(); // 内部会处理 Tick 的池化生成
+
+            // [新增] 初始化淡入效果（必须在所有视觉元素创建和颜色设置之后）
+            if (fadeInComponent == null)
+            {
+                fadeInComponent = gameObject.GetComponent<ObjectFadeIn>();
+                if (fadeInComponent == null)
+                    fadeInComponent = gameObject.AddComponent<ObjectFadeIn>();
+            }
+            fadeInComponent.Initialize(sliderData.StartTime, sliderData.TimePreempt, manager);
 
             // 重置计数器
             currentNestedIndex = 0;
@@ -1419,8 +1437,15 @@ namespace OsuVR
 
             // AutoPlay 模式：允许最多提前 16ms 判定（约一帧），确保精确同步
             // 正常模式：最早判定区间为 -13ms (osu! 标准的提前判定窗口)
+            // 加上音效延迟补偿，使音效与视觉打击同步
+            double audioLatencyCompensation = 20.0;
+            if (AudioManager.Instance != null)
+            {
+                audioLatencyCompensation = AudioManager.Instance.audioLatencyCompensation;
+            }
+
             bool isAutoPlay = gameManager != null && gameManager.useAutoPlay;
-            double earlyWindow = isAutoPlay ? -16 : -13;
+            double earlyWindow = (isAutoPlay ? -16 : -13) + audioLatencyCompensation;
 
             if (offset >= earlyWindow && offset <= 250)
             {
@@ -1484,8 +1509,15 @@ namespace OsuVR
             if (sliderData.NestedHitObjects == null) return;
 
             // AutoPlay 模式判定窗口
+            // 加上音效延迟补偿，使音效与视觉打击同步
+            double audioLatencyCompensation = 20.0;
+            if (AudioManager.Instance != null)
+            {
+                audioLatencyCompensation = AudioManager.Instance.audioLatencyCompensation;
+            }
+
             bool isAutoPlay = gameManager != null && gameManager.useAutoPlay;
-            double earlyWindow = isAutoPlay ? 0 : -13;
+            double earlyWindow = (isAutoPlay ? 0 : -13) + audioLatencyCompensation;
 
             // -------------------------------------------------------------
             // 1. 头部判定 (Head)

@@ -551,6 +551,7 @@ namespace OsuVR
                 foreach (var obj in hitObjects)
                 {
                     obj.TimePreempt = spawnOffsetMs;
+                    obj.TimeFadeIn = spawnOffsetMs * (2.0 / 3.0);
                 }
 
                 // HR Mod: Y轴镜像翻转 (修复选歌界面进入时未应用HR镜像的问题)
@@ -1049,6 +1050,7 @@ namespace OsuVR
                 foreach (var obj in hitObjects)
                 {
                     obj.TimePreempt = spawnOffsetMs;
+                    obj.TimeFadeIn = spawnOffsetMs * (2.0 / 3.0);
                 }
 
                 // HR Mod: Y轴镜像翻转

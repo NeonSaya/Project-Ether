@@ -122,9 +122,27 @@ namespace OsuVR
             originalPanelScale = resultPanel != null ? resultPanel.transform.localScale : Vector3.one;
         }
 
+        void OnEnable()
+        {
+            LocalizationManager.OnLanguageChanged += OnLanguageChanged;
+        }
+
+        void OnDisable()
+        {
+            LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
+        }
+
+        private void OnLanguageChanged()
+        {
+            if (currentResult != null && !isAnimating)
+            {
+                SetSongInfo(currentResult);
+                SetModDisplay(currentResult);
+            }
+        }
+
         void Start()
         {
-            // 绑定按钮事件
             if (buttonRetry != null)
                 buttonRetry.onClick.AddListener(OnRetryClicked);
             if (buttonBackToMenu != null)
@@ -132,14 +150,12 @@ namespace OsuVR
             if (buttonWatchReplay != null)
                 buttonWatchReplay.onClick.AddListener(OnWatchReplayClicked);
 
-            // 初始隐藏
             if (resultPanel != null)
                 resultPanel.SetActive(false);
 
             if (fullComboEffect != null)
                 fullComboEffect.SetActive(false);
 
-            // 从 GameContext 获取结算数据并显示
             if (GameContext.Instance != null && GameContext.Instance.LastResult != null)
             {
                 ShowResult(GameContext.Instance.LastResult);
@@ -408,13 +424,15 @@ namespace OsuVR
             // 滑条信息
             if (textSliderInfo != null && result.totalSliders > 0)
             {
-                textSliderInfo.text = $"Sliders: {result.slidersPerfect}/{result.totalSliders} Perfect";
+                string sliderTemplate = LocalizationManager.GetText("ui_sliders_info");
+                textSliderInfo.text = string.Format(sliderTemplate, result.slidersPerfect, result.totalSliders);
             }
 
             // 转盘奖励
             if (textSpinnerBonus != null && result.spinnerBonus > 0)
             {
-                textSpinnerBonus.text = $"+{result.spinnerBonus} Spinner Bonus";
+                string spinnerTemplate = LocalizationManager.GetText("ui_spinner_bonus_text");
+                textSpinnerBonus.text = string.Format(spinnerTemplate, result.spinnerBonus);
             }
         }
 
@@ -492,13 +510,20 @@ namespace OsuVR
             }
 
             if (textTitle != null)
-                textTitle.text = result.GetDisplayTitle(useOriginalLanguage) ?? "Unknown Title";
+                textTitle.text = result.GetDisplayTitle(useOriginalLanguage) ?? LocalizationManager.GetText("ui_unknown_title");
             if (textArtist != null)
-                textArtist.text = result.GetDisplayArtist(useOriginalLanguage) ?? "Unknown Artist";
+                textArtist.text = result.GetDisplayArtist(useOriginalLanguage) ?? LocalizationManager.GetText("ui_unknown_artist");
             if (textDifficulty != null)
-                textDifficulty.text = $"[{result.difficultyName ?? "Normal"}]";
+            {
+                string diffName = string.IsNullOrEmpty(result.difficultyName) ? LocalizationManager.GetText("ui_normal") : result.difficultyName;
+                textDifficulty.text = $"[{diffName}]";
+            }
             if (textMapper != null)
-                textMapper.text = $"Mapped by {result.mapperName ?? "Unknown"}";
+            {
+                string mapperName = string.IsNullOrEmpty(result.mapperName) ? LocalizationManager.GetText("ui_unknown_mapper") : result.mapperName;
+                string mappedByTemplate = LocalizationManager.GetText("ui_mapped_by");
+                textMapper.text = string.Format(mappedByTemplate, mapperName);
+            }
         }
 
         /// <summary>
@@ -515,7 +540,8 @@ namespace OsuVR
                 else
                 {
                     textMods.gameObject.SetActive(true);
-                    textMods.text = $"Mods: {result.modString}";
+                    string modsTemplate = LocalizationManager.GetText("ui_mods_display");
+                    textMods.text = string.Format(modsTemplate, result.modString);
                 }
             }
         }
