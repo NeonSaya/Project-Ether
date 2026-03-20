@@ -8,10 +8,12 @@ namespace OsuVR
         private double timePreempt;
         private double timeFadeIn;
         private RhythmGameManager gameManager;
-        private Renderer[] renderers;
         private MaterialPropertyBlock propBlock;
         private bool isInitialized = false;
         private bool hasFinishedFadeIn = false;
+
+        private Renderer[] cachedRenderers;
+        private Color[] cachedColors;
 
         public void Initialize(double hitTimeMs, double timePreemptMs, RhythmGameManager manager)
         {
@@ -22,11 +24,66 @@ namespace OsuVR
             this.isInitialized = true;
             this.hasFinishedFadeIn = false;
 
-            renderers = GetComponentsInChildren<Renderer>(true);
             if (propBlock == null)
                 propBlock = new MaterialPropertyBlock();
 
+            cachedRenderers = GetComponentsInChildren<Renderer>(true);
+            cachedColors = new Color[cachedRenderers.Length];
+
+            for (int i = 0; i < cachedRenderers.Length; i++)
+            {
+                cachedColors[i] = GetCurrentColor(cachedRenderers[i]);
+            }
+            
             SetAlpha(0f);
+        }
+
+        private Color GetCurrentColor(Renderer renderer)
+        {
+            if (renderer == null) return Color.white;
+
+            MaterialPropertyBlock tempBlock = new MaterialPropertyBlock();
+            renderer.GetPropertyBlock(tempBlock);
+
+            if (tempBlock.isEmpty)
+            {
+                if (renderer.sharedMaterial != null)
+                {
+                    if (renderer.sharedMaterial.HasProperty("_BaseColor"))
+                        return renderer.sharedMaterial.GetColor("_BaseColor");
+                    if (renderer.sharedMaterial.HasProperty("_Color"))
+                        return renderer.sharedMaterial.GetColor("_Color");
+                }
+                return Color.white;
+            }
+
+            Color color = Color.white;
+            bool found = false;
+
+            string[] colorProperties = { "_BaseColor", "_Color" };
+            foreach (string prop in colorProperties)
+            {
+                if (tempBlock.HasProperty(prop))
+                {
+                    color = tempBlock.GetColor(prop);
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found && renderer.sharedMaterial != null)
+            {
+                foreach (string prop in colorProperties)
+                {
+                    if (renderer.sharedMaterial.HasProperty(prop))
+                    {
+                        color = renderer.sharedMaterial.GetColor(prop);
+                        break;
+                    }
+                }
+            }
+
+            return color;
         }
 
         void Update()
@@ -57,41 +114,19 @@ namespace OsuVR
 
         private void SetAlpha(float alpha)
         {
-            if (renderers == null) return;
+            if (cachedRenderers == null || cachedColors == null) return;
 
-            foreach (var renderer in renderers)
+            for (int i = 0; i < cachedRenderers.Length; i++)
             {
+                var renderer = cachedRenderers[i];
                 if (renderer == null) continue;
 
                 renderer.GetPropertyBlock(propBlock);
 
-                Color currentColor = Color.white;
-                bool hasColorProperty = false;
-
-                if (renderer.sharedMaterial != null)
-                {
-                    if (renderer.sharedMaterial.HasProperty("_BaseColor"))
-                    {
-                        currentColor = renderer.sharedMaterial.GetColor("_BaseColor");
-                        hasColorProperty = true;
-                        currentColor.a = alpha;
-                        propBlock.SetColor("_BaseColor", currentColor);
-                    }
-                    else if (renderer.sharedMaterial.HasProperty("_Color"))
-                    {
-                        currentColor = renderer.sharedMaterial.GetColor("_Color");
-                        hasColorProperty = true;
-                        currentColor.a = alpha;
-                        propBlock.SetColor("_Color", currentColor);
-                    }
-                }
-
-                if (!hasColorProperty)
-                {
-                    currentColor = new Color(1f, 1f, 1f, alpha);
-                    propBlock.SetColor("_Color", currentColor);
-                    propBlock.SetColor("_BaseColor", currentColor);
-                }
+                Color colorWithAlpha = cachedColors[i];
+                colorWithAlpha.a = cachedColors[i].a * alpha;
+                propBlock.SetColor("_BaseColor", colorWithAlpha);
+                propBlock.SetColor("_Color", colorWithAlpha);
 
                 renderer.SetPropertyBlock(propBlock);
             }

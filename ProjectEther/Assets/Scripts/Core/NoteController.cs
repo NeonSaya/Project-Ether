@@ -345,15 +345,6 @@ namespace OsuVR
                 approachCircleObject.gameObject.SetActive(true);
             }
 
-            // [新增] 初始化淡入效果
-            if (fadeInComponent == null)
-            {
-                fadeInComponent = gameObject.GetComponent<ObjectFadeIn>();
-                if (fadeInComponent == null)
-                    fadeInComponent = gameObject.AddComponent<ObjectFadeIn>();
-            }
-            fadeInComponent.Initialize(hitObject.StartTime, hitObject.TimePreempt, manager);
-
             // 创建光晕
             Renderer targetRenderer = transform.Find("Body")?.GetComponent<Renderer>();
             if (targetRenderer == null) targetRenderer = this.circleRenderer;
@@ -362,6 +353,15 @@ namespace OsuVR
             {
                 CreateHalo(targetRenderer.gameObject, comboColor);
             }
+
+            // [新增] 初始化淡入效果（必须在所有颜色设置和光晕创建之后）
+            if (fadeInComponent == null)
+            {
+                fadeInComponent = gameObject.GetComponent<ObjectFadeIn>();
+                if (fadeInComponent == null)
+                    fadeInComponent = gameObject.AddComponent<ObjectFadeIn>();
+            }
+            fadeInComponent.Initialize(hitObject.StartTime, hitObject.TimePreempt, manager);
 
             // 手动调用一次 Update 确保初始大小正确
             Update();
@@ -538,10 +538,19 @@ namespace OsuVR
             }
 
             // --- HIT 判定 ---
+            // 音效延迟补偿：osu!默认约20-30ms
+            // 正值表示延迟判定，负值表示提前判定
+            double audioLatencyCompensation = 20.0;
+            if (AudioManager.Instance != null)
+            {
+                audioLatencyCompensation = AudioManager.Instance.audioLatencyCompensation;
+            }
+
             // AutoPlay 模式：允许最多提前 16ms 判定（约一帧），确保精确同步
             // 正常模式：最早判定区间为 -13ms (osu! 标准的提前判定窗口)
+            // 加上音效延迟补偿，使音效与视觉打击同步
             bool isAutoPlay = gameManager.useAutoPlay;
-            double earlyWindow = isAutoPlay ? -16 : -13;
+            double earlyWindow = (isAutoPlay ? -16 : -13) + audioLatencyCompensation;
 
             // 条件1: diff >= earlyWindow (缩圈几乎重合)
             // 条件2: diff <= hitWindow (允许延迟 hitWindow 毫秒)
