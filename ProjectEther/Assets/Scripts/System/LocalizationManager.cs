@@ -106,6 +106,10 @@ namespace OsuVR
                 {"ui_on", new[] {"On", "开启", "オン"}},
                 {"ui_sliders_info", new[] {"Sliders: {0}/{1} Perfect", "滑条: {0}/{1} 完美", "スライダー: {0}/{1} パーフェクト"}},
                 {"ui_spinner_bonus_text", new[] {"+{0} Spinner Bonus", "+{0} 转盘奖励", "+{0} スピナーボーナス"}},
+                {"ui_unknown_artist", new[] {"Unknown Artist", "未知艺术家", "不明なアーティスト"}},
+                {"ui_unknown_mapper", new[] {"Unknown", "未知", "不明"}},
+                {"ui_mapped_by", new[] {"Mapped by {0}", "谱师: {0}", "マッパー: {0}"}},
+                {"ui_mods_display", new[] {"Mods: {0}", "Mods: {0}", "モッド: {0}"}},
             };
         }
 

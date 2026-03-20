@@ -92,6 +92,68 @@ namespace OsuVR
             {
                 languageDropdown.SetValueWithoutNotify(LocalizationManager.GetCurrentLanguageIndex());
             }
+            RefreshAllLocalizedText();
+        }
+
+        private void RefreshAllLocalizedText()
+        {
+            RefreshQualityDropdownOptions();
+            RefreshAntiAliasingDropdownOptions();
+            RefreshTabTexts();
+        }
+
+        private void RefreshQualityDropdownOptions()
+        {
+            if (qualityDropdown == null) return;
+            int currentValue = qualityDropdown.value;
+            qualityDropdown.ClearOptions();
+            qualityDropdown.AddOptions(new System.Collections.Generic.List<string> 
+            { 
+                LocalizationManager.GetText("ui_low"),
+                LocalizationManager.GetText("ui_medium"),
+                LocalizationManager.GetText("ui_high"),
+                LocalizationManager.GetText("ui_ultra")
+            });
+            qualityDropdown.SetValueWithoutNotify(currentValue);
+        }
+
+        private void RefreshAntiAliasingDropdownOptions()
+        {
+            if (antiAliasingDropdown == null) return;
+            int currentValue = antiAliasingDropdown.value;
+            antiAliasingDropdown.ClearOptions();
+            antiAliasingDropdown.AddOptions(new System.Collections.Generic.List<string> 
+            { 
+                LocalizationManager.GetText("ui_off"),
+                "2x",
+                "4x",
+                "8x"
+            });
+            antiAliasingDropdown.SetValueWithoutNotify(currentValue);
+        }
+
+        private void RefreshTabTexts()
+        {
+            for (int i = 0; i < tabButtons.Length; i++)
+            {
+                if (tabButtons[i] == null) continue;
+                var tmp = tabButtons[i].GetComponentInChildren<TextMeshProUGUI>();
+                if (tmp == null) continue;
+                
+                string key = i switch
+                {
+                    0 => "ui_tab_game",
+                    1 => "ui_tab_audio",
+                    2 => "ui_tab_graphics",
+                    3 => "ui_tab_controller",
+                    _ => null
+                };
+                
+                if (!string.IsNullOrEmpty(key))
+                {
+                    tmp.text = LocalizationManager.GetText(key);
+                }
+            }
         }
 
         private void EnsureWorldCamera()
@@ -127,6 +189,7 @@ namespace OsuVR
             SetupGameSettings();
             SetupControllerOffsetSettings();
             SetupButtons();
+            RefreshTabTexts();
 
             isInitialized = true;
             Debug.Log("[VRSettingsMenu] Menu initialized");
@@ -324,7 +387,13 @@ namespace OsuVR
             if (qualityDropdown != null)
             {
                 qualityDropdown.ClearOptions();
-                qualityDropdown.AddOptions(new System.Collections.Generic.List<string> { "Low", "Medium", "High", "Ultra" });
+                qualityDropdown.AddOptions(new System.Collections.Generic.List<string> 
+                { 
+                    LocalizationManager.GetText("ui_low"),
+                    LocalizationManager.GetText("ui_medium"),
+                    LocalizationManager.GetText("ui_high"),
+                    LocalizationManager.GetText("ui_ultra")
+                });
                 qualityDropdown.value = tempSettings.qualityLevel;
                 qualityDropdown.onValueChanged.AddListener(OnQualityChanged);
                 AddHoverEffect(qualityDropdown.gameObject);
@@ -333,7 +402,13 @@ namespace OsuVR
             if (antiAliasingDropdown != null)
             {
                 antiAliasingDropdown.ClearOptions();
-                antiAliasingDropdown.AddOptions(new System.Collections.Generic.List<string> { "Off", "2x", "4x", "8x" });
+                antiAliasingDropdown.AddOptions(new System.Collections.Generic.List<string> 
+                { 
+                    LocalizationManager.GetText("ui_off"),
+                    "2x",
+                    "4x",
+                    "8x"
+                });
                 int aaIndex = tempSettings.antiAliasing switch
                 {
                     0 => 0,

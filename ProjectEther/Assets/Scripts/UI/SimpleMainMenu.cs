@@ -5,10 +5,6 @@ using TMPro;
 
 namespace OsuVR
 {
-    /// <summary>
-    /// 简化版主菜单控制器
-    /// Beat Saber 风格，简洁实用
-    /// </summary>
     public class SimpleMainMenu : MonoBehaviour
     {
         [Header("按钮引用")]
@@ -16,6 +12,12 @@ namespace OsuVR
         public Button settingsButton;
         public Button creditsButton;
         public Button quitButton;
+
+        [Header("按钮文本引用")]
+        public TextMeshProUGUI playButtonText;
+        public TextMeshProUGUI settingsButtonText;
+        public TextMeshProUGUI creditsButtonText;
+        public TextMeshProUGUI quitButtonText;
 
         [Header("标题")]
         public TextMeshProUGUI titleText;
@@ -35,6 +37,34 @@ namespace OsuVR
         {
             SetupButtons();
             SetupTitle();
+            UpdateButtonTexts();
+        }
+
+        void OnEnable()
+        {
+            LocalizationManager.OnLanguageChanged += OnLanguageChanged;
+        }
+
+        void OnDisable()
+        {
+            LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
+        }
+
+        private void OnLanguageChanged()
+        {
+            UpdateButtonTexts();
+        }
+
+        private void UpdateButtonTexts()
+        {
+            if (playButtonText != null)
+                playButtonText.text = LocalizationManager.GetText("ui_play_button");
+            if (settingsButtonText != null)
+                settingsButtonText.text = LocalizationManager.GetText("ui_settings");
+            if (creditsButtonText != null)
+                creditsButtonText.text = LocalizationManager.GetText("ui_credits");
+            if (quitButtonText != null)
+                quitButtonText.text = LocalizationManager.GetText("ui_quit");
         }
 
         void SetupButtons()

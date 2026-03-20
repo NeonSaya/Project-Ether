@@ -24,6 +24,21 @@ namespace OsuVR
 
         public BeatmapMetadata Metadata => _metadata;
 
+        void OnEnable()
+        {
+            LocalizationManager.OnLanguageChanged += OnLanguageChanged;
+        }
+
+        void OnDisable()
+        {
+            LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
+        }
+
+        private void OnLanguageChanged()
+        {
+            RefreshDisplay();
+        }
+
         public void Setup(BeatmapMetadata metadata, int difficultyCount, UnityAction<BeatmapMetadata> onClickAction)
         {
             _metadata = metadata;

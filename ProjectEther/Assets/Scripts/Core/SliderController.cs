@@ -97,6 +97,9 @@ namespace OsuVR
         // [新增] 判定相关变量
         private SphereCollider ballCollider; // 用于射线的碰撞体
 
+        // [新增] 淡入效果组件
+        private ObjectFadeIn fadeInComponent;
+
         // 状态变量
       
         private bool isTrackingAudioPlaying = false; // 是否正在播放跟踪音效
@@ -333,6 +336,12 @@ namespace OsuVR
             rightHandGraceTimer = 0f;
             lastEffectiveTrackTime = 0;
 
+            // [新增] 重置淡入组件
+            if (fadeInComponent != null)
+            {
+                fadeInComponent.ResetState();
+            }
+
             headHit = false;
             finished = false;
         }
@@ -420,6 +429,15 @@ namespace OsuVR
                 double defaultAR = (manager != null && manager.spawnOffsetMs > 100) ? manager.spawnOffsetMs : 1200;
                 this.sliderData.TimePreempt = defaultAR;
             }
+
+            // [新增] 初始化淡入效果
+            if (fadeInComponent == null)
+            {
+                fadeInComponent = gameObject.GetComponent<ObjectFadeIn>();
+                if (fadeInComponent == null)
+                    fadeInComponent = gameObject.AddComponent<ObjectFadeIn>();
+            }
+            fadeInComponent.Initialize(sliderData.StartTime, sliderData.TimePreempt, manager);
 
             // 修正嵌套物件时间
             if (this.sliderData.NestedHitObjects != null)

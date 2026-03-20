@@ -50,6 +50,9 @@ namespace OsuVR
         // [优化] 缓存 Scaler 组件，避免每次 Initialize 都 Get
         private ApproachCircleScaler cachedScaler;
 
+        // [新增] 淡入效果组件
+        private ObjectFadeIn fadeInComponent;
+
         // [优化] 缓存相机，杜绝 Update 里使用 Camera.main
         private static Camera _cachedMainCamera;
         private float lastDebugTime = 0f;
@@ -342,6 +345,15 @@ namespace OsuVR
                 approachCircleObject.gameObject.SetActive(true);
             }
 
+            // [新增] 初始化淡入效果
+            if (fadeInComponent == null)
+            {
+                fadeInComponent = gameObject.GetComponent<ObjectFadeIn>();
+                if (fadeInComponent == null)
+                    fadeInComponent = gameObject.AddComponent<ObjectFadeIn>();
+            }
+            fadeInComponent.Initialize(hitObject.StartTime, hitObject.TimePreempt, manager);
+
             // 创建光晕
             Renderer targetRenderer = transform.Find("Body")?.GetComponent<Renderer>();
             if (targetRenderer == null) targetRenderer = this.circleRenderer;
@@ -434,6 +446,12 @@ namespace OsuVR
             if (circleRenderer != null)
             {
                 circleRenderer.enabled = true;
+            }
+
+            // [新增] 重置淡入组件
+            if (fadeInComponent != null)
+            {
+                fadeInComponent.ResetState();
             }
         }
 
