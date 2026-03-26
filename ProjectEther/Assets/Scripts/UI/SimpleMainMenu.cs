@@ -35,9 +35,35 @@ namespace OsuVR
 
         void Start()
         {
+            AutoAttachLocalizedTexts();
             SetupButtons();
             SetupTitle();
             UpdateButtonTexts();
+            LocalizationManager.ReloadAndNotify();
+        }
+
+        private void AutoAttachLocalizedTexts()
+        {
+            var allTexts = GetComponentsInChildren<TextMeshProUGUI>(true);
+            var mapping = new System.Collections.Generic.Dictionary<string, string>
+            {
+                { "Play", "ui_play_button" },
+                { "Settings", "ui_settings" },
+                { "Credits", "ui_credits" },
+                { "Quit", "ui_quit" }
+            };
+
+            foreach (var text in allTexts)
+            {
+                if (mapping.TryGetValue(text.text, out string key))
+                {
+                    if (text.GetComponent<LocalizedText>() == null)
+                    {
+                        var lt = text.gameObject.AddComponent<LocalizedText>();
+                        lt.localizationKey = key;
+                    }
+                }
+            }
         }
 
         void OnEnable()

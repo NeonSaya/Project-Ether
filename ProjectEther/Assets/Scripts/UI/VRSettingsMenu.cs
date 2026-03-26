@@ -72,7 +72,49 @@ namespace OsuVR
         void Start()
         {
             EnsureWorldCamera();
+            AutoAttachLocalizedTexts();
             InitializeMenu();
+            LocalizationManager.ReloadAndNotify();
+        }
+
+        private void AutoAttachLocalizedTexts()
+        {
+            var allTexts = GetComponentsInChildren<TextMeshProUGUI>(true);
+            var mapping = new System.Collections.Generic.Dictionary<string, string>
+            {
+                { "Master Volume", "ui_master_volume" },
+                { "Music Volume", "ui_music_volume" },
+                { "SFX Volume", "ui_sfx_volume" },
+                { "Audio Offset", "ui_audio_offset" },
+                { "Quality", "ui_quality" },
+                { "Anti-Aliasing", "ui_anti_aliasing" },
+                { "Particle Density", "ui_particle_density" },
+                { "Enable Haptics", "ui_enable_haptics" },
+                { "Haptic Intensity", "ui_haptic_intensity" },
+                { "Display Song Names in Original Language", "ui_display_original_language" },
+                { "Language", "ui_language" },
+                { "Left Controller Z Offset", "ui_left_controller_z_offset" },
+                { "Right Controller Z Offset", "ui_right_controller_z_offset" },
+                { "Left Controller Y Offset", "ui_left_controller_y_offset" },
+                { "Right Controller Y Offset", "ui_right_controller_y_offset" },
+                { "Controller Rotation", "ui_controller_rotation_offset" },
+                { "Reset", "ui_reset" },
+                { "Back", "ui_back" },
+                { "RESET", "ui_reset" },
+                { "BACK", "ui_back" }
+            };
+
+            foreach (var text in allTexts)
+            {
+                if (mapping.TryGetValue(text.text, out string key))
+                {
+                    if (text.GetComponent<LocalizedText>() == null)
+                    {
+                        var lt = text.gameObject.AddComponent<LocalizedText>();
+                        lt.localizationKey = key;
+                    }
+                }
+            }
         }
 
         void OnEnable()
@@ -514,12 +556,12 @@ namespace OsuVR
                 languageDropdown.ClearOptions();
                 languageDropdown.AddOptions(new System.Collections.Generic.List<string>(LocalizationManager.GetAllLanguageNames()));
                 languageDropdown.value = LocalizationManager.GetCurrentLanguageIndex();
-                languageDropdown.onValueChanged.AddListener(OnLanguageChanged);
+                languageDropdown.onValueChanged.AddListener(OnLanguageDropdownChanged);
                 AddHoverEffect(languageDropdown.gameObject);
             }
         }
 
-        private void OnLanguageChanged(int index)
+        private void OnLanguageDropdownChanged(int index)
         {
             LocalizationManager.SetLanguageByIndex(index);
             if (SettingsManager.Instance != null)
@@ -568,6 +610,7 @@ namespace OsuVR
                 SettingsManager.Instance.Settings.displayOriginalLanguage = enabled;
                 SettingsManager.Instance.SaveSettings();
             }
+            LocalizationManager.ForceUpdateLanguage();
             PlayClickSound();
         }
 

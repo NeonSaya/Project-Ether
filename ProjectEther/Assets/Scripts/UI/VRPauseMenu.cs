@@ -52,6 +52,8 @@ namespace OsuVR
             canvas = GetComponent<Canvas>();
             canvasGroup = GetComponent<CanvasGroup>();
 
+            AutoAttachLocalizedTexts();
+
             if (canvas.renderMode != RenderMode.WorldSpace)
             {
                 canvas.renderMode = RenderMode.WorldSpace;
@@ -70,6 +72,11 @@ namespace OsuVR
             gameObject.SetActive(false);
         }
 
+        void Start()
+        {
+            LocalizationManager.ReloadAndNotify();
+        }
+
         void OnEnable()
         {
             LocalizationManager.OnLanguageChanged += OnLanguageChanged;
@@ -79,6 +86,30 @@ namespace OsuVR
         void OnDisable()
         {
             LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
+        }
+
+        private void AutoAttachLocalizedTexts()
+        {
+            var allTexts = GetComponentsInChildren<TextMeshProUGUI>(true);
+            var mapping = new System.Collections.Generic.Dictionary<string, string>
+            {
+                { "PAUSED", "ui_pause" },
+                { "Continue", "ui_resume" },
+                { "Retry", "ui_retry" },
+                { "Back to Menu", "ui_main_menu" }
+            };
+
+            foreach (var text in allTexts)
+            {
+                if (mapping.TryGetValue(text.text, out string key))
+                {
+                    if (text.GetComponent<LocalizedText>() == null)
+                    {
+                        var lt = text.gameObject.AddComponent<LocalizedText>();
+                        lt.localizationKey = key;
+                    }
+                }
+            }
         }
 
         private void OnLanguageChanged()

@@ -113,6 +113,8 @@ namespace OsuVR
                 return;
             }
 
+            AutoAttachLocalizedTexts();
+
             // 默认动画曲线
             if (scaleCurve == null || scaleCurve.length == 0)
             {
@@ -132,12 +134,65 @@ namespace OsuVR
             LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
         }
 
+        private void AutoAttachLocalizedTexts()
+        {
+            var allTexts = GetComponentsInChildren<TextMeshProUGUI>(true);
+            var mapping = new System.Collections.Generic.Dictionary<string, string>
+            {
+                { "RESULT", "ui_result_title" },
+                { "Score", "ui_score" },
+                { "Accuracy", "ui_accuracy" },
+                { "Max Combo", "ui_max_combo" },
+                { "Rank", "ui_rank" },
+                { "RETRY", "ui_retry" },
+                { "Back to Menu", "ui_main_menu" },
+                { "Mapper", "ui_mapper" }
+            };
+
+            foreach (var text in allTexts)
+            {
+                if (mapping.TryGetValue(text.text, out string key))
+                {
+                    if (text.GetComponent<LocalizedText>() == null)
+                    {
+                        var lt = text.gameObject.AddComponent<LocalizedText>();
+                        lt.localizationKey = key;
+                    }
+                }
+            }
+        }
+
         private void OnLanguageChanged()
         {
             if (currentResult != null && !isAnimating)
             {
                 SetSongInfo(currentResult);
                 SetModDisplay(currentResult);
+                UpdateStatisticsTexts(currentResult);
+            }
+        }
+
+        private void UpdateStatisticsTexts(ResultData result)
+        {
+            if (textHit300 != null && textHit300.text.Contains(":"))
+                textHit300.text = $"{LocalizationManager.GetText("ui_hit300")}: {result.hit300}";
+            if (textHit100 != null && textHit100.text.Contains(":"))
+                textHit100.text = $"{LocalizationManager.GetText("ui_hit100")}: {result.hit100}";
+            if (textHit50 != null && textHit50.text.Contains(":"))
+                textHit50.text = $"{LocalizationManager.GetText("ui_hit50")}: {result.hit50}";
+            if (textMiss != null && textMiss.text.Contains(":"))
+                textMiss.text = $"{LocalizationManager.GetText("ui_miss")}: {result.hitMiss}";
+
+            if (textSliderInfo != null && result.totalSliders > 0)
+            {
+                string sliderTemplate = LocalizationManager.GetText("ui_sliders_info");
+                textSliderInfo.text = string.Format(sliderTemplate, result.slidersPerfect, result.totalSliders);
+            }
+
+            if (textSpinnerBonus != null && result.spinnerBonus > 0)
+            {
+                string spinnerTemplate = LocalizationManager.GetText("ui_spinner_bonus_text");
+                textSpinnerBonus.text = string.Format(spinnerTemplate, result.spinnerBonus);
             }
         }
 
@@ -203,10 +258,10 @@ namespace OsuVR
                 textRank.text = result.rank;
                 textRank.color = ResultData.GetRankColor(result.rank);
             }
-            if (textHit300 != null) textHit300.text = $"300: {result.hit300}";
-            if (textHit100 != null) textHit100.text = $"100: {result.hit100}";
-            if (textHit50 != null) textHit50.text = $"50: {result.hit50}";
-            if (textMiss != null) textMiss.text = $"Miss: {result.hitMiss}";
+            if (textHit300 != null) textHit300.text = $"{LocalizationManager.GetText("ui_hit300")}: {result.hit300}";
+            if (textHit100 != null) textHit100.text = $"{LocalizationManager.GetText("ui_hit100")}: {result.hit100}";
+            if (textHit50 != null) textHit50.text = $"{LocalizationManager.GetText("ui_hit50")}: {result.hit50}";
+            if (textMiss != null) textMiss.text = $"{LocalizationManager.GetText("ui_miss")}: {result.hitMiss}";
 
             if (resultPanel != null)
                 resultPanel.SetActive(true);
@@ -413,13 +468,13 @@ namespace OsuVR
         /// </summary>
         private IEnumerator AnimateStatistics(ResultData result)
         {
-            yield return StartCoroutine(AnimateNumber(textHit300, result.hit300, "300"));
+            yield return StartCoroutine(AnimateNumber(textHit300, result.hit300, LocalizationManager.GetText("ui_hit300")));
             yield return new WaitForSeconds(0.1f);
-            yield return StartCoroutine(AnimateNumber(textHit100, result.hit100, "100"));
+            yield return StartCoroutine(AnimateNumber(textHit100, result.hit100, LocalizationManager.GetText("ui_hit100")));
             yield return new WaitForSeconds(0.1f);
-            yield return StartCoroutine(AnimateNumber(textHit50, result.hit50, "50"));
+            yield return StartCoroutine(AnimateNumber(textHit50, result.hit50, LocalizationManager.GetText("ui_hit50")));
             yield return new WaitForSeconds(0.1f);
-            yield return StartCoroutine(AnimateNumber(textMiss, result.hitMiss, "Miss", Color.red));
+            yield return StartCoroutine(AnimateNumber(textMiss, result.hitMiss, LocalizationManager.GetText("ui_miss"), Color.red));
 
             // 滑条信息
             if (textSliderInfo != null && result.totalSliders > 0)

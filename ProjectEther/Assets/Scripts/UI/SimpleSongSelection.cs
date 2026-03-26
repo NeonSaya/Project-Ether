@@ -68,6 +68,7 @@ namespace OsuVR
 
         void Start()
         {
+            AutoAttachLocalizedTexts();
             Debug.Log($"[SimpleSongSelection] 歌曲文件夹: {BeatmapImporter.SongsDirectory}");
             BeatmapImporter.ImportNewOszFiles();
             
@@ -87,6 +88,7 @@ namespace OsuVR
             isModPanelActive = false;
 
             UpdateToggleModsButtonText();
+            LocalizationManager.ReloadAndNotify();
         }
 
         void OnEnable()
@@ -99,6 +101,37 @@ namespace OsuVR
             LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
         }
 
+        private void AutoAttachLocalizedTexts()
+        {
+            var allTexts = GetComponentsInChildren<TextMeshProUGUI>(true);
+            var mapping = new System.Collections.Generic.Dictionary<string, string>
+            {
+                { "BEATMAPS", "ui_beatmaps" },
+                { "MODS", "ui_mods" },
+                { "PLAY", "ui_play_button" },
+                { "Back", "ui_back" },
+                { "CS", "ui_cs" },
+                { "AR", "ui_ar" },
+                { "OD", "ui_od" },
+                { "HP", "ui_hp" },
+                { "Length", "ui_length" },
+                { "Select a Beatmap", "ui_select_beatmap" },
+                { "CONFIRM MODS", "ui_confirm_mods" }
+            };
+
+            foreach (var text in allTexts)
+            {
+                if (mapping.TryGetValue(text.text, out string key))
+                {
+                    if (text.GetComponent<LocalizedText>() == null)
+                    {
+                        var lt = text.gameObject.AddComponent<LocalizedText>();
+                        lt.localizationKey = key;
+                    }
+                }
+            }
+        }
+
         private void OnLanguageChanged()
         {
             UpdateToggleModsButtonText();
@@ -106,6 +139,20 @@ namespace OsuVR
             if (selectedDifficulty != null)
             {
                 UpdateInfoPanel(selectedDifficulty);
+            }
+            if (selectedSet != null)
+            {
+                GenerateDifficultyButtons(selectedSet);
+            }
+            
+            // Also update the list of songs if their titles/artists need updating
+            foreach (var view in songItemViews)
+            {
+                if (view != null)
+                {
+                    // Force a UI refresh in the views
+                    view.RefreshDisplay();
+                }
             }
         }
 
