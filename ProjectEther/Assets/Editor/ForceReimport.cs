@@ -12,10 +12,10 @@ public class ForceReimport
 
     static void Run()
     {
-        if (SessionState.GetBool("ForceReimportRun", false))
+        if (SessionState.GetBool("ForceReimportRun4", false))
             return;
         
-        SessionState.SetBool("ForceReimportRun", true);
+        SessionState.SetBool("ForceReimportRun4", true);
         
         Debug.Log("[ForceReimport] Reimporting TMP assets...");
         var tmpSettingsPath = "Assets/TextMesh Pro/Resources";

@@ -15,18 +15,18 @@ namespace OsuVR
         private TMP_FontAsset unicodeFont;
 
         [SerializeField]
-        private bool autoLoadSystemFont = true;
+        private bool autoLoadSystemFont = false;
 
         [SerializeField]
-        [Tooltip("System font names to try loading (in order)")]
+        [Tooltip("System font names to try loading (in order) - Japanese fonts first for proper Japanese support")]
         private readonly string[] systemFontNames = new string[]
         {
+            "Yu Gothic",
+            "Meiryo",
+            "MS Gothic",
             "Microsoft YaHei",
             "SimHei",
             "SimSun",
-            "MS Gothic",
-            "Meiryo",
-            "Yu Gothic",
             "Arial Unicode MS"
         };
 
@@ -80,13 +80,20 @@ namespace OsuVR
                         2048, 2048, 
                         AtlasPopulationMode.Dynamic);
                     
-                    if (fontAsset != null)
+                    // TMP_FontAsset.CreateFontAsset might return an empty/corrupted font asset if it fails
+                    // to load the OS font. We must check if atlasTextures is actually assigned.
+                    if (fontAsset != null && fontAsset.atlasTextures != null && fontAsset.atlasTextures.Length > 0 && fontAsset.atlasTextures[0] != null)
                     {
                         unicodeFont = fontAsset;
                         SetFallbackFont(fontAsset);
                         
                         Debug.Log($"[UnicodeFontLoader] Created dynamic font asset for: {fontName}");
                         return;
+                    }
+                    else if (fontAsset != null)
+                    {
+                        // Clean up the broken asset
+                        Destroy(fontAsset);
                     }
                 }
             }
