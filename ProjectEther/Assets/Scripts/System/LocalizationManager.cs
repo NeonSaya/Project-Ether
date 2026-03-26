@@ -34,10 +34,10 @@ namespace OsuVR
                 {"ui_confirm_mods", new[] {"CONFIRM MODS", "确认修改", "モッド確定"}},
                 {"ui_play", new[] {"PLAY", "开始游戏", "ゲーム開始"}},
                 {"ui_back", new[] {"BACK", "返回", "戻る"}},
-                {"ui_cs", new[] {"CS", "圈距 (CS)", "サークルサイズ"}},
-                {"ui_ar", new[] {"AR", "缩圈 (AR)", "アプローチ率"}},
-                {"ui_od", new[] {"OD", "判定 (OD)", "全体難易度"}},
-                {"ui_hp", new[] {"HP", "血量 (HP)", "HPドレイン"}},
+                {"ui_cs", new[] {"CS", "圈距 (CS)", "CS"}},
+                {"ui_ar", new[] {"AR", "缩圈 (AR)", "AR"}},
+                {"ui_od", new[] {"OD", "判定 (OD)", "OD"}},
+                {"ui_hp", new[] {"HP", "血量 (HP)", "HP"}},
                 {"ui_settings", new[] {"SETTINGS", "游戏设置", "設定"}},
                 {"ui_language", new[] {"Language", "游戏语言", "言語"}},
                 {"ui_lang_name", new[] {"English", "简体中文", "日本語"}},
@@ -93,6 +93,11 @@ namespace OsuVR
                 {"ui_enable_haptics", new[] {"Enable Haptics", "启用手柄震动", "触覚を有効化"}},
                 {"ui_haptic_intensity", new[] {"Haptic Intensity", "震动强度", "触覚強度"}},
                 {"ui_display_original_language", new[] {"Display Song Names in Original Language", "显示歌曲原名", "曲名を原語で表示"}},
+                {"ui_left_controller_z_offset", new[] {"Left Controller Z Offset", "左手控制器Z轴偏移", "左コントローラーZオフセット"}},
+                {"ui_right_controller_z_offset", new[] {"Right Controller Z Offset", "右手控制器Z轴偏移", "右コントローラーZオフセット"}},
+                {"ui_left_controller_y_offset", new[] {"Left Controller Y Offset", "左手控制器Y轴偏移", "左コントローラーYオフセット"}},
+                {"ui_right_controller_y_offset", new[] {"Right Controller Y Offset", "右手控制器Y轴偏移", "右コントローラーYオフセット"}},
+                {"ui_controller_rotation_offset", new[] {"Controller Rotation", "控制器旋转偏移", "コントローラー回転オフセット"}},
                 {"ui_reset", new[] {"RESET", "重置", "リセット"}},
                 {"ui_save", new[] {"SAVE", "保存", "保存"}},
                 {"ui_resume", new[] {"RESUME", "继续", "再開"}},
@@ -155,6 +160,17 @@ namespace OsuVR
             PlayerPrefs.SetInt(PREF_KEY, nextIndex);
             PlayerPrefs.Save();
             
+            OnLanguageChanged?.Invoke();
+        }
+
+        public static void ForceUpdateLanguage()
+        {
+            OnLanguageChanged?.Invoke();
+        }
+
+        public static void ReloadAndNotify()
+        {
+            LoadLanguage();
             OnLanguageChanged?.Invoke();
         }
 
