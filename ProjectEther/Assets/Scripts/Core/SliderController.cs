@@ -470,7 +470,8 @@ namespace OsuVR
                 if (fadeInComponent == null)
                     fadeInComponent = gameObject.AddComponent<ObjectFadeIn>();
             }
-            fadeInComponent.Initialize(sliderData.StartTime, sliderData.TimePreempt, manager);
+            // 使用 SliderBody 模式，这样本体会延迟渐隐
+            fadeInComponent.Initialize(sliderData.StartTime, sliderData.TimePreempt, manager, FadeMode.SliderBody, sliderData.EndTime);
 
             // 重置计数器
             currentNestedIndex = 0;
@@ -823,15 +824,15 @@ namespace OsuVR
                     r.SetPropertyBlock(headMbp);
                 }
 
-                // 初始化缩圈动画组件
-                var scaler = headInstance.GetComponent<ApproachCircleScaler>();
-                if (scaler != null)
-                {
-                    double arMs = sliderData.TimePreempt;
-                    if (arMs < 100 && gameManager != null)
-                        arMs = gameManager.spawnOffsetMs;
-                    scaler.Initialize(sliderData.StartTime, arMs);
-                }
+            // 初始化缩圈动画组件
+            var scaler = headInstance.GetComponent<ApproachCircleScaler>();
+            if (scaler != null)
+            {
+                double arMs = sliderData.TimePreempt;
+                if (arMs < 100 && gameManager != null)
+                    arMs = gameManager.spawnOffsetMs;
+                scaler.Initialize(sliderData.StartTime, arMs, gameManager);
+            }
 
                 // =========================================================
                 // 3. 动态生成滑条头光晕效果
