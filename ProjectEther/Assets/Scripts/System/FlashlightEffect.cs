@@ -37,9 +37,15 @@ namespace OsuVR
 
             flashlightMat = new Material(shader);
             
+            // 调整遮罩颜色，避免纯黑死黑
+            // osu! 原版在较低 combo 时会有环境微光
+            // 这里用 0.95 的 alpha 使得背景不会完全黑死，隐约能感觉到一点空间
+            flashlightMat.SetColor("_Color", new Color(0.0f, 0.0f, 0.0f, 0.96f));
+
             // 设置手电筒的半径和边缘羽化
-            flashlightMat.SetFloat("_Radius", 0.5f); // 0.5米半径
-            flashlightMat.SetFloat("_Feather", 0.15f);
+            // 稍微调大一点点让体验在 VR 里不至于太挣扎
+            flashlightMat.SetFloat("_Radius", 0.55f); 
+            flashlightMat.SetFloat("_Feather", 0.2f);
             flashlightMat.SetFloat("_PlaneZ", DefaultPlaneZ);
 
             // 获取摄像机

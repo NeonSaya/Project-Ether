@@ -9,10 +9,15 @@ Shader "OsuVR/FlashlightMask"
     }
     SubShader
     {
-        Tags { "Queue"="Overlay+100" "RenderType"="Transparent" "IgnoreProjector"="True" }
+        // 将渲染队列调低。通常 osu!VR 的 Note 是 3000(Transparent) ~ 4000 左右
+        // UI 的 Canvas 通常是在 4000+ 或 Overlay
+        // 把遮罩调到 3950，让它盖住 Note，但不盖住 Overlay UI
+        Tags { "Queue"="Transparent+950" "RenderType"="Transparent" "IgnoreProjector"="True" }
         LOD 100
 
         ZWrite Off
+        // ZTest Always
+        // 改为 LEqual 或者保持 Always 都行，只要渲染队列比 UI 低，Canvas UI 就能在它之后渲染并盖过它
         ZTest Always
         Blend SrcAlpha OneMinusSrcAlpha
 
