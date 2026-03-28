@@ -18,18 +18,37 @@ namespace OsuVR
         private double hitTime;
         private double timePreempt;
         private bool isRunning = false;
+        private bool isHidden = false;
 
-        public void Initialize(double hitTimeMs, double timePreemptMs)
+        public void Initialize(double hitTimeMs, double timePreemptMs, RhythmGameManager manager = null)
         {
             this.hitTime = hitTimeMs;
             this.timePreempt = timePreemptMs;
             this.isRunning = true;
+
+            var activeManager = manager != null ? manager : FindObjectOfType<RhythmGameManager>();
+            if (activeManager != null && activeManager.GetModEffects() != null)
+            {
+                this.isHidden = activeManager.GetModEffects().IsHidden;
+            }
+            else
+            {
+                this.isHidden = false;
+            }
 
             // 1. 自动获取引用
             if (targetTransform == null) targetTransform = transform;
 
             // 尝试获取 Renderer (Quad 是 MeshRenderer, Sprite 是 SpriteRenderer)
             _renderer = targetTransform.GetComponent<Renderer>();
+
+            // HD 模式下直接把整个 GameObject 隐藏掉，防止外部脚本通过 Renderer 干扰
+            if (this.isHidden)
+            {
+                targetTransform.gameObject.SetActive(false);
+                isRunning = false;
+                return;
+            }
 
             // 2. 初始状态：4倍大小
             targetTransform.localScale = Vector3.one * 4f;
@@ -44,6 +63,14 @@ namespace OsuVR
         void Update()
         {
             if (!isRunning) return;
+
+            // 双重保险
+            if (isHidden)
+            {
+                targetTransform.gameObject.SetActive(false);
+                isRunning = false;
+                return;
+            }
 
             var manager = FindObjectOfType<RhythmGameManager>();
             if (manager == null) return;

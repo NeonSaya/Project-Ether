@@ -340,9 +340,9 @@ namespace OsuVR
                 var scaler = approachCircleObject.GetComponent<ApproachCircleScaler>();
                 if (scaler == null) scaler = approachCircleObject.gameObject.AddComponent<ApproachCircleScaler>();
 
-                // 确保传入正确的 TimePreempt
-                scaler.Initialize(hitObject.StartTime, hitObject.TimePreempt);
-                approachCircleObject.gameObject.SetActive(true);
+                // 确保传入正确的 TimePreempt，并传入 manager 以便处理 Mod 效果
+                // 这里的 active 在内部已经被 HD 判断处理了，外部不再强制设定 active(true)
+                scaler.Initialize(hitObject.StartTime, hitObject.TimePreempt, manager);
             }
 
             // 创建光晕
@@ -361,7 +361,7 @@ namespace OsuVR
                 if (fadeInComponent == null)
                     fadeInComponent = gameObject.AddComponent<ObjectFadeIn>();
             }
-            fadeInComponent.Initialize(hitObject.StartTime, hitObject.TimePreempt, manager);
+            fadeInComponent.Initialize(hitObject.StartTime, hitObject.TimePreempt, manager, FadeMode.Standard);
 
             // 手动调用一次 Update 确保初始大小正确
             Update();
@@ -414,6 +414,9 @@ namespace OsuVR
             MeshRenderer r = haloObject.GetComponent<MeshRenderer>();
             if (r != null)
             {
+                // 清理可能由于 ObjectFadeIn 在上一轮生命周期残留的透明度数据
+                r.SetPropertyBlock(null);
+                
                 r.material.renderQueue = this.myRenderQueue;
                 Color whiteGlow = new Color(2.5f, 2.5f, 2.5f, 0.75f);
                 if (r.material.HasProperty("_TintColor"))
@@ -439,7 +442,7 @@ namespace OsuVR
             if (approachCircle != null)
             {
                 approachCircle.localScale = Vector3.one * maxApproachScale;
-                approachCircle.gameObject.SetActive(true);
+                // 由 scaler 自动控制显隐
             }
 
             // 恢复颜色 (尤其是 Alpha 值)

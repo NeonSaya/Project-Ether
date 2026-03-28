@@ -659,6 +659,17 @@ namespace OsuVR
 
                 useAutoPlay = modEffects.IsAutoPlay;
 
+                // 初始化 FL Mod 视觉效果
+                if (modEffects.IsFlashlight)
+                {
+                    var flEffect = gameObject.GetComponent<FlashlightEffect>();
+                    if (flEffect == null)
+                    {
+                        flEffect = gameObject.AddComponent<FlashlightEffect>();
+                    }
+                    flEffect.Initialize(this);
+                }
+
                 Debug.Log($"[Mod] 已应用 Mod 效果: {modEffects.GetModString()}");
                 Debug.Log($"[Mod] 速度倍率: {speedMultiplier}x, 分数倍率: {modEffects.ScoreMultiplier}x");
                 Debug.Log($"[Mod] AutoPlay: {useAutoPlay}");

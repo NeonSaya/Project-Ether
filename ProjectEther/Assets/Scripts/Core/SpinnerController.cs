@@ -270,7 +270,7 @@ namespace OsuVR
                 var scaler = approachRingRenderer.GetComponent<ApproachCircleScaler>();
                 if (scaler != null)
                 {
-                    scaler.Initialize(spinnerData.StartTime, spinnerData.EndTime - spinnerData.StartTime);
+                    scaler.Initialize(spinnerData.StartTime, spinnerData.EndTime - spinnerData.StartTime, gameManager);
                 }
             }
 
