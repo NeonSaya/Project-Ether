@@ -6,6 +6,21 @@ namespace OsuVR
     /// <summary>
     /// 音频可视化核心管理器：支持Lasp系统捕获和AudioSource频谱分析
     /// 提供三频段能量数据供视觉系统使用
+    /// 
+    /// 全局Shader变量：
+    /// - _Global_Audio_Bass: 低频能量 (0-150Hz)
+    /// - _Global_Audio_Mid: 中频能量 (200-500Hz)
+    /// - _Global_Audio_Treble: 高频能量 (500Hz-4kHz)
+    /// 
+    /// AudioLink集成：
+    /// - 全局纹理名称：_AudioTexture
+    /// - 通过AudioLinkAdapter自动同步音频源
+    /// - 纹理包含：频谱数据、波形数据、自相关数据等
+    /// 
+    /// 使用方法：
+    /// 1. 在场景中创建AudioVisualizationSystem物体并挂载此脚本
+    /// 2. 配置音频源（自动查找或手动设置）
+    /// 3. 在Shader中读取全局变量或AudioLink纹理
     /// </summary>
     public class AudioVisualizationManager : MonoBehaviour
     {
@@ -41,6 +56,9 @@ namespace OsuVR
         [Header("音频源设置")]
         [Tooltip("目标音频源（留空则自动查找）")]
         public AudioSource targetAudioSource;
+
+        [Tooltip("锁定目标音频源，防止自动查找覆盖")]
+        public bool lockTargetSource = false;
 
         [Header("Lasp系统捕获（可选）")]
         [Tooltip("Lasp频谱分析器组件（可选，用于系统级音频捕获）")]
@@ -105,6 +123,15 @@ namespace OsuVR
 
         void Start()
         {
+            // 如果锁定了目标，跳过自动查找
+            if (lockTargetSource && targetAudioSource != null)
+            {
+                Debug.Log($"[AudioVisualizationManager] 目标已锁定: {targetAudioSource.gameObject.name}");
+                ValidateLaspSetup();
+                InitializeGlobalShaderVariables();
+                return;
+            }
+
             // 尝试自动查找AudioSource
             if (targetAudioSource == null)
             {
@@ -219,11 +246,11 @@ namespace OsuVR
             int spectrumLength = spectrum.Length;
             int sampleRate = AudioSettings.outputSampleRate;
 
-            int bassEnd = Mathf.FloorToInt(150f * spectrumLength / (sampleRate / 2f));
-            int midStart = Mathf.FloorToInt(200f * spectrumLength / (sampleRate / 2f));
-            int midEnd = Mathf.FloorToInt(500f * spectrumLength / (sampleRate / 2f));
-            int trebleStart = Mathf.FloorToInt(500f * spectrumLength / (sampleRate / 2f));
-            int trebleEnd = Mathf.FloorToInt(4000f * spectrumLength / (sampleRate / 2f));
+            int bassEnd = Mathf.Max(1, Mathf.FloorToInt(150f * spectrumLength / (sampleRate / 2f)));
+            int midStart = Mathf.Max(1, Mathf.FloorToInt(200f * spectrumLength / (sampleRate / 2f)));
+            int midEnd = Mathf.Max(midStart + 1, Mathf.FloorToInt(500f * spectrumLength / (sampleRate / 2f)));
+            int trebleStart = midEnd;
+            int trebleEnd = Mathf.Max(trebleStart + 1, Mathf.FloorToInt(4000f * spectrumLength / (sampleRate / 2f)));
 
             float bassSum = 0f;
             int bassCount = 0;
@@ -271,11 +298,11 @@ namespace OsuVR
 
             int sampleRate = AudioSettings.outputSampleRate;
 
-            int bassEnd = Mathf.FloorToInt(150f * spectrumSize / (sampleRate / 2f));
-            int midStart = Mathf.FloorToInt(200f * spectrumSize / (sampleRate / 2f));
-            int midEnd = Mathf.FloorToInt(500f * spectrumSize / (sampleRate / 2f));
-            int trebleStart = Mathf.FloorToInt(500f * spectrumSize / (sampleRate / 2f));
-            int trebleEnd = Mathf.FloorToInt(4000f * spectrumSize / (sampleRate / 2f));
+            int bassEnd = Mathf.Max(1, Mathf.FloorToInt(150f * spectrumSize / (sampleRate / 2f)));
+            int midStart = Mathf.Max(1, Mathf.FloorToInt(200f * spectrumSize / (sampleRate / 2f)));
+            int midEnd = Mathf.Max(midStart + 1, Mathf.FloorToInt(500f * spectrumSize / (sampleRate / 2f)));
+            int trebleStart = midEnd;
+            int trebleEnd = Mathf.Max(trebleStart + 1, Mathf.FloorToInt(4000f * spectrumSize / (sampleRate / 2f)));
 
             float bassSum = 0f;
             int bassCount = 0;

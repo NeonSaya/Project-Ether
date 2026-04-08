@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.llealloo.audiolink": "https://github.com/llealloo/vrc-udon-audio-link.git?path=/Packages/com.llealloo.audiolink",
     "com.unity.2d.sprite": "1.0.0",
     "com.unity.collab-proxy": "2.11.2",
     "com.unity.ide.rider": "3.0.28",

@@ -1,0 +1,25 @@
+{
+    "name": "AudioLink",
+    "rootNamespace": "AudioLink",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.render-pipelines.universal",
+            "expression": "0.0.0",
+            "define": "URP_AVAILABLE"
+        },
+        {
+            "name": "com.unity.render-pipelines.high-definition",
+            "expression": "0.0.0",
+            "define": "HDRP_AVAILABLE"
+        }
+    ],
+    "noEngineReferences": false
+}
