@@ -440,6 +440,13 @@ namespace OsuVR
                 Debug.LogError("无法开始游戏：AudioSource或音乐文件未设置！");
                 return;
             }
+
+            // 注入音频可视化系统（确保在所有检查之后）
+            if (AudioVisualizationManager.Instance != null)
+            {
+                AudioVisualizationManager.Instance.SetTargetAudioSource(musicSource);
+            }
+
             if (scoreManager != null)
             {
                 scoreManager.Initialize(hitObjects);
@@ -616,6 +623,12 @@ namespace OsuVR
                         clip.LoadAudioData();
                         musicSource.clip = clip;
                         musicClip = clip;
+
+                        // 注入音频可视化系统
+                        if (AudioVisualizationManager.Instance != null)
+                        {
+                            AudioVisualizationManager.Instance.SetTargetAudioSource(musicSource);
+                        }
 
                         Debug.Log("[Audio] 正在预热音频引擎...");
 
