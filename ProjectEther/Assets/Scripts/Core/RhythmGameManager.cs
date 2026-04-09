@@ -703,6 +703,11 @@ namespace OsuVR
             return modEffects;
         }
 
+        public Beatmap GetCurrentBeatmap()
+        {
+            return currentBeatmap;
+        }
+
         /// <summary>
         /// 应用 Mod 效果到谱面难度参数
         /// </summary>
