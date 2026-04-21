@@ -145,6 +145,8 @@ namespace OsuVR
             }
             ApplyControlPointSettings(beatmap);
 
+            CalculateKiaiPeriods(beatmap);
+
             StackingProcessor.ApplyStacking(beatmap);
 
             ProcessCombos(beatmap);
@@ -597,26 +599,29 @@ namespace OsuVR
 
             double time = double.Parse(parts[0], CultureInfo.InvariantCulture);
             double beatLength = double.Parse(parts[1], CultureInfo.InvariantCulture);
-            int volume = 100; // 默认 100
+            int volume = 100;
             if (parts.Length > 5) int.TryParse(parts[5], out volume);
 
-            // 第7个参数决定是否继承 (1=Red Line/BPM变化, 0=Green Line/速度倍率变化)
             bool uninherited = parts.Length <= 6 || parts[6] == "1";
+
+            int effects = 0;
+            if (parts.Length > 7) int.TryParse(parts[7], out effects);
+            bool isKiai = (effects & 1) != 0;
 
             if (uninherited)
             {
-                // 红线 (BPM Change)
                 int timeSignature = parts.Length > 2 ? int.Parse(parts[2]) : 4;
                 var tp = new TimingPoint(time, beatLength, timeSignature);
                 tp.Volume = volume;
+                tp.IsKiai = isKiai;
                 controlPoints.Timing.Add(tp);
             }
             else
             {
-                // 绿线 (Velocity Change)
                 double speedMultiplier = beatLength < 0 ? 100.0 / -beatLength : 1.0;
                 var dp = new DifficultyPoint(time, speedMultiplier);
                 dp.Volume = volume;
+                dp.IsKiai = isKiai;
                 controlPoints.Difficulty.Add(dp);
             }
         }
@@ -679,6 +684,47 @@ namespace OsuVR
                     }
                 }
             }
+        }
+
+        private static void CalculateKiaiPeriods(Beatmap beatmap)
+        {
+            var allPoints = new List<(double Time, bool IsKiai)>();
+
+            foreach (var tp in beatmap.ControlPoints.Timing)
+                allPoints.Add((tp.Time, tp.IsKiai));
+
+            foreach (var dp in beatmap.ControlPoints.Difficulty)
+                allPoints.Add((dp.Time, dp.IsKiai));
+
+            allPoints = allPoints.OrderBy(p => p.Time).ToList();
+
+            double? kiaiStartTime = null;
+
+            for (int i = 0; i < allPoints.Count; i++)
+            {
+                var current = allPoints[i];
+                double nextTime = (i + 1 < allPoints.Count) ? allPoints[i + 1].Time : double.MaxValue;
+
+                if (current.IsKiai && !kiaiStartTime.HasValue)
+                {
+                    kiaiStartTime = current.Time;
+                }
+                else if (!current.IsKiai && kiaiStartTime.HasValue)
+                {
+                    beatmap.ControlPoints.KiaiPeriods.Add(new KiaiPeriod(kiaiStartTime.Value, current.Time));
+                    kiaiStartTime = null;
+                }
+            }
+
+            if (kiaiStartTime.HasValue)
+            {
+                double lastHitObjectTime = beatmap.HitObjects.Count > 0 
+                    ? beatmap.HitObjects.Max(h => h.EndTime) 
+                    : double.MaxValue;
+                beatmap.ControlPoints.KiaiPeriods.Add(new KiaiPeriod(kiaiStartTime.Value, lastHitObjectTime));
+            }
+
+            Debug.Log($"[OsuParser] 检测到 {beatmap.ControlPoints.KiaiPeriods.Count} 个 Kiai 时间段");
         }
 
         // [新增] 解析 [Colours] (Combo 颜色)

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -107,36 +107,48 @@ namespace OsuVR
         public BreakPeriod(double start, double end) { StartTime = start; EndTime = end; }
     }
 
+    public class KiaiPeriod
+    {
+        public double StartTime;
+        public double EndTime;
+        public KiaiPeriod(double start, double end) { StartTime = start; EndTime = end; }
+    }
+
     public class ControlPoints
     {
         public List<TimingPoint> Timing { get; set; } = new List<TimingPoint>();
         public List<DifficultyPoint> Difficulty { get; set; } = new List<DifficultyPoint>();
+        public List<KiaiPeriod> KiaiPeriods { get; set; } = new List<KiaiPeriod>();
     }
 
     public class TimingPoint
     {
         public double Time;
-        public double MsPerBeat; // 60000 / BPM
+        public double MsPerBeat;
         public int TimeSignature;
         public int Volume;
+        public bool IsKiai;
         public TimingPoint(double time, double msPerBeat, int timeSignature, int volume = 100)
         {
             Time = time;
             MsPerBeat = msPerBeat;
             TimeSignature = timeSignature;
             Volume = volume;
+            IsKiai = false;
         }
     }
 
     public class DifficultyPoint
     {
         public double Time;
-        public double SpeedMultiplier; // 1.0 = normal, 0.5 = half speed (inherited timing point)
+        public double SpeedMultiplier;
         public int Volume;
+        public bool IsKiai;
 
         public DifficultyPoint(double time, double speedMultiplier, int volume = 100)
         {
             Time = time; SpeedMultiplier = speedMultiplier; Volume = volume;
+            IsKiai = false;
         }
     }
 }

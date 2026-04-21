@@ -45,6 +45,15 @@
       },
       "url": "https://packages.unity.com"
     },
+    "com.unity.ide.trae": {
+      "version": "https://github.com/dennyguotf/com.unity.ide.trae.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.unity.test-framework": "1.1.9"
+      },
+      "hash": "0231d4b833feb294da5fc8fa7e04df85bd73773f"
+    },
     "com.unity.ide.traecn": {
       "version": "https://github.com/dennyguotf/com.unity.ide.traeCN.git",
       "depth": 0,

@@ -55,7 +55,7 @@ namespace OsuVR
         public float crystalsRadius = 18f;
         public float crystalsSize = 0.2f;
 
-        [Header("🎨 色彩映射 (Dreamy Gradients)")]
+        [Header(" 色彩映射 (Dreamy Gradients)")]
         private Gradient gradientIdle;
         private Gradient gradientCombo;
         private Gradient gradientKiai;
