@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -80,7 +81,7 @@ namespace OsuVR
         private void AutoAttachLocalizedTexts()
         {
             var allTexts = GetComponentsInChildren<TextMeshProUGUI>(true);
-            var mapping = new System.Collections.Generic.Dictionary<string, string>
+            var mapping = new Dictionary<string, string>
             {
                 { "Master Volume", "ui_master_volume" },
                 { "Music Volume", "ui_music_volume" },
@@ -149,7 +150,7 @@ namespace OsuVR
             if (qualityDropdown == null) return;
             int currentValue = qualityDropdown.value;
             qualityDropdown.ClearOptions();
-            qualityDropdown.AddOptions(new System.Collections.Generic.List<string> 
+            qualityDropdown.AddOptions(new List<string> 
             { 
                 LocalizationManager.GetText("ui_low"),
                 LocalizationManager.GetText("ui_medium"),
@@ -164,7 +165,7 @@ namespace OsuVR
             if (antiAliasingDropdown == null) return;
             int currentValue = antiAliasingDropdown.value;
             antiAliasingDropdown.ClearOptions();
-            antiAliasingDropdown.AddOptions(new System.Collections.Generic.List<string> 
+            antiAliasingDropdown.AddOptions(new List<string> 
             { 
                 LocalizationManager.GetText("ui_off"),
                 "2x",
@@ -429,7 +430,7 @@ namespace OsuVR
             if (qualityDropdown != null)
             {
                 qualityDropdown.ClearOptions();
-                qualityDropdown.AddOptions(new System.Collections.Generic.List<string> 
+                qualityDropdown.AddOptions(new List<string> 
                 { 
                     LocalizationManager.GetText("ui_low"),
                     LocalizationManager.GetText("ui_medium"),
@@ -444,7 +445,7 @@ namespace OsuVR
             if (antiAliasingDropdown != null)
             {
                 antiAliasingDropdown.ClearOptions();
-                antiAliasingDropdown.AddOptions(new System.Collections.Generic.List<string> 
+                antiAliasingDropdown.AddOptions(new List<string> 
                 { 
                     LocalizationManager.GetText("ui_off"),
                     "2x",
@@ -554,7 +555,7 @@ namespace OsuVR
             if (languageDropdown != null)
             {
                 languageDropdown.ClearOptions();
-                languageDropdown.AddOptions(new System.Collections.Generic.List<string>(LocalizationManager.GetAllLanguageNames()));
+                languageDropdown.AddOptions(new List<string>(LocalizationManager.GetAllLanguageNames()));
                 languageDropdown.value = LocalizationManager.GetCurrentLanguageIndex();
                 languageDropdown.onValueChanged.AddListener(OnLanguageDropdownChanged);
                 AddHoverEffect(languageDropdown.gameObject);

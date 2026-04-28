@@ -15,6 +15,11 @@ namespace OsuVR
     /// </summary>
     public class JudgementVisualizer : MonoBehaviour
     {
+        // 缓存 Shader 属性 ID
+        private static readonly int PropTintColor = Shader.PropertyToID("_TintColor");
+        private static readonly int PropBaseColor = Shader.PropertyToID("_BaseColor");
+        private static readonly int PropColor = Shader.PropertyToID("_Color");
+
         public static JudgementVisualizer Instance { get; private set; }
 
         [Header("核心配置 (必须赋值!)")]
@@ -330,9 +335,9 @@ namespace OsuVR
             r.GetPropertyBlock(_propBlock);
 
             // 注意：这里用 sharedMaterial 判断，绝不产生新实例
-            if (r.sharedMaterial.HasProperty("_TintColor")) _propBlock.SetColor("_TintColor", c);
-            else if (r.sharedMaterial.HasProperty("_BaseColor")) _propBlock.SetColor("_BaseColor", c);
-            else _propBlock.SetColor("_Color", c);
+            if (r.sharedMaterial.HasProperty(PropTintColor)) _propBlock.SetColor(PropTintColor, c);
+            else if (r.sharedMaterial.HasProperty(PropBaseColor)) _propBlock.SetColor(PropBaseColor, c);
+            else _propBlock.SetColor(PropColor, c);
 
             r.SetPropertyBlock(_propBlock);
         }

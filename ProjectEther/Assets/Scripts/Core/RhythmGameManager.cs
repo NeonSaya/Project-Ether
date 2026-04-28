@@ -1542,9 +1542,7 @@ namespace OsuVR
             }
         }
 
-        /// <summary>
-        /// 在编辑器中显示调试按钮和信息
-        /// </summary>
+#if UNITY_EDITOR
         /// <summary>
         /// 在编辑器中显示调试按钮和信息
         /// </summary>
@@ -1616,6 +1614,7 @@ namespace OsuVR
 
             GUILayout.EndArea();
         }
+#endif
 
         /// <summary>
         /// 停止游戏

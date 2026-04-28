@@ -124,8 +124,6 @@ namespace OsuVR
                     beatmap.ComboColors.Add(new Color(1f, 0.8f, 0.2f)); // 黄
                 }
 
-                ApplyStacking(beatmap);
-
                 // 重新计算滑条时间
                 if (hitObject is SliderObject slider)
                 {
@@ -1010,8 +1008,9 @@ namespace OsuVR
             }
         }
 
+#if UNITY_EDITOR
         /// <summary>
-        /// 解析滑条的示例
+        /// 解析滑条的示例（仅编辑器）
         /// </summary>
         public static void TestSliderParsing()
         {
@@ -1032,27 +1031,8 @@ namespace OsuVR
                 Debug.Log($"  像素长度: {slider.PixelLength}");
             }
         }
+#endif
 
-        // 在 OsuParser 类中添加 ApplyStacking 方法（原本定义在 OsuParserExample 内部，需移到 OsuParser 并设为 public）
-        private static void ApplyStacking(Beatmap beatmap)
-        {
-            float stackThreshold = 3.0f; // 坐标判定阈值
-                                         // 遍历物件，如果坐标极其接近，给 StackOrder 计数
-            for (int i = 0; i < beatmap.HitObjects.Count; i++)
-            {
-                var current = beatmap.HitObjects[i];
-                if (i == 0) continue;
-
-                var prev = beatmap.HitObjects[i - 1];
-
-                // 如果位置几乎重叠，且时间间隔小于预取时间 (TimePreempt) 的一部分
-                if (Vector2.Distance(current.Position, prev.Position) < stackThreshold)
-                {
-                    // 给物件打上堆叠标签，Controller 绘图时会用到
-                    current.StackOrder = prev.StackOrder + 1;
-                }
-            }
-        }
     }
 
     /// <summary>
@@ -1077,8 +1057,9 @@ namespace OsuVR
     }
 
     /// <summary>
-    /// 简化版使用示例
+    /// 简化版使用示例（仅编辑器）
     /// </summary>
+#if UNITY_EDITOR
     public class OsuParserExample : MonoBehaviour
     {
         void Start()
@@ -1188,4 +1169,5 @@ namespace OsuVR
             }
         }
     }
+#endif
 }

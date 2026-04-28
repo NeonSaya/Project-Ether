@@ -61,6 +61,9 @@ namespace OsuVR
         private Renderer rotDiscRenderer;
         private Renderer approachRingRenderer;
         private MaterialPropertyBlock _propBlock;
+        private static readonly int PropTintColor = Shader.PropertyToID("_TintColor");
+        private static readonly int PropColor = Shader.PropertyToID("_Color");
+        private static readonly int PropBaseColor = Shader.PropertyToID("_BaseColor");
 
         // RPM 计算
         private float rotationDeltaAccumulator = 0f;
@@ -238,9 +241,9 @@ namespace OsuVR
                 bgDiscRenderer.GetPropertyBlock(_propBlock);
                 // 稍微暗一点，做成底座的感觉
                 Color bgHdr = hdrColor * 0.5f;
-                _propBlock.SetColor("_TintColor", bgHdr); // Particle Shader 用 TintColor
-                _propBlock.SetColor("_Color", bgHdr);     // Standard 用 Color
-                _propBlock.SetColor("_BaseColor", bgHdr); // URP 用 BaseColor
+                _propBlock.SetColor(PropTintColor, bgHdr);
+                _propBlock.SetColor(PropColor, bgHdr);
+                _propBlock.SetColor(PropBaseColor, bgHdr);
                 bgDiscRenderer.SetPropertyBlock(_propBlock);
             }
 
@@ -248,9 +251,9 @@ namespace OsuVR
             if (rotDiscRenderer != null)
             {
                 rotDiscRenderer.GetPropertyBlock(_propBlock);
-                _propBlock.SetColor("_TintColor", hdrColor);
-                _propBlock.SetColor("_Color", hdrColor);
-                _propBlock.SetColor("_BaseColor", hdrColor);
+                _propBlock.SetColor(PropTintColor, hdrColor);
+                _propBlock.SetColor(PropColor, hdrColor);
+                _propBlock.SetColor(PropBaseColor, hdrColor);
                 rotDiscRenderer.SetPropertyBlock(_propBlock);
             }
 
@@ -262,8 +265,8 @@ namespace OsuVR
                 approachRingRenderer.GetPropertyBlock(_propBlock);
                 // 缩圈通常用红色或者警告色，这里假设跟随 HDR 白
                 // 你也可以换成 Color.red * glowIntensity
-                _propBlock.SetColor("_TintColor", hdrColor);
-                _propBlock.SetColor("_Color", hdrColor);
+                _propBlock.SetColor(PropTintColor, hdrColor);
+                _propBlock.SetColor(PropColor, hdrColor);
                 approachRingRenderer.SetPropertyBlock(_propBlock);
 
                 // 别忘了初始化你的缩圈逻辑

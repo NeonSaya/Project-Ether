@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 using UnityEngine.UI;
@@ -1123,7 +1124,7 @@ namespace OsuVR.Editor
             dropdown.itemText = itemLabel;
             dropdown.value = defaultValue;
 
-            var optionsList = new System.Collections.Generic.List<string>(options);
+            var optionsList = new List<string>(options);
             dropdown.ClearOptions();
             dropdown.AddOptions(optionsList);
 

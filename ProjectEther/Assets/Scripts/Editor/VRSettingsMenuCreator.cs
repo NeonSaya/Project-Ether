@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 using UnityEngine.UI;
@@ -972,7 +973,7 @@ namespace OsuVR.Editor
             dropdown.captionText = labelText;
             dropdown.itemText = itemLabelText;
             dropdown.ClearOptions();
-            dropdown.AddOptions(new System.Collections.Generic.List<string>(options));
+            dropdown.AddOptions(new List<string>(options));
             dropdown.value = defaultValue;
 
             DropdownScrollHandler scrollHandler = dropdownObj.AddComponent<DropdownScrollHandler>();

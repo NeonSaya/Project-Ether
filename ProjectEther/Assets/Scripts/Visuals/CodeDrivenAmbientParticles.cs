@@ -247,12 +247,12 @@ namespace OsuVR
             for (int i = 0; i < count; i++)
             {
                 uint seed = particleBuffer[i].randomSeed;
-                System.Random rng = new System.Random((int)seed);
-                float hue = (float)rng.NextDouble();
+                // 使用确定性哈希代替 new System.Random，避免GC压力
+                float hue = HashToFloat(seed);
                 hue = Mathf.Repeat(hue + currentHueOffset, 1f);
 
-                float saturation = 0.7f + (float)rng.NextDouble() * 0.3f;
-                float value = 0.8f + (float)rng.NextDouble() * 0.2f;
+                float saturation = 0.7f + HashToFloat(seed + 1u) * 0.3f;
+                float value = 0.8f + HashToFloat(seed + 2u) * 0.2f;
 
                 Color rgbColor = Color.HSVToRGB(hue, saturation, value);
                 rgbColor.a = particleBuffer[i].startColor.a;
@@ -261,6 +261,19 @@ namespace OsuVR
             }
 
             ps.SetParticles(particleBuffer, count);
+        }
+
+        /// <summary>
+        /// 快速确定性哈希：将 uint 种子映射到 [0,1) 浮点数
+        /// 使用 xorshift 算法，零GC，零分配
+        /// </summary>
+        private static float HashToFloat(uint seed)
+        {
+            uint x = seed;
+            x ^= x << 13;
+            x ^= x >> 17;
+            x ^= x << 5;
+            return (float)(x & 0x7FFFFFFF) / (float)0x7FFFFFFF;
         }
 
         private void LimitInnerParticles()
