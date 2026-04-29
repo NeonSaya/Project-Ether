@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -45,7 +46,7 @@ namespace OsuVR
         private void AutoAttachLocalizedTexts()
         {
             var allTexts = GetComponentsInChildren<TextMeshProUGUI>(true);
-            var mapping = new System.Collections.Generic.Dictionary<string, string>
+            var mapping = new Dictionary<string, string>
             {
                 { "Play", "ui_play_button" },
                 { "Settings", "ui_settings" },

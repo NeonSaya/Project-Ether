@@ -56,6 +56,11 @@ namespace OsuVR
         // [优化] 缓存相机，杜绝 Update 里使用 Camera.main
         private static Camera _cachedMainCamera;
         private float lastDebugTime = 0f;
+        // 缓存 Shader 属性 ID
+        private static readonly int PropColor = Shader.PropertyToID("_Color");
+        private static readonly int PropBaseColor = Shader.PropertyToID("_BaseColor");
+        private static readonly int PropTintColor = Shader.PropertyToID("_TintColor");
+        private static readonly int PropEmissionColor = Shader.PropertyToID("_EmissionColor");
         // 添加一个变量来防止第一帧暴毙
         private bool isFirstFrame = true;
         private MeshRenderer bodyRenderer;
@@ -259,9 +264,9 @@ namespace OsuVR
             if (bodyRenderer != null)
             {
                 bodyRenderer.GetPropertyBlock(_propBlock);
-                _propBlock.SetColor("_Color", hdrColor);          // Standard / Particles
-                _propBlock.SetColor("_BaseColor", hdrColor);      // URP
-                _propBlock.SetColor("_EmissionColor", hdrColor);  // Emission
+                _propBlock.SetColor(PropColor, hdrColor);
+                _propBlock.SetColor(PropBaseColor, hdrColor);
+                _propBlock.SetColor(PropEmissionColor, hdrColor);
                 bodyRenderer.SetPropertyBlock(_propBlock);
             }
 
@@ -272,8 +277,8 @@ namespace OsuVR
                 // Overlay 半透明，不遮挡 Body
                 Color overlayHdr = new Color(glowIntensity, glowIntensity, glowIntensity, 0.3f);
 
-                _propBlock.SetColor("_Color", overlayHdr);
-                _propBlock.SetColor("_BaseColor", overlayHdr);
+                _propBlock.SetColor(PropColor, overlayHdr);
+                _propBlock.SetColor(PropBaseColor, overlayHdr);
                 overlayRenderer.SetPropertyBlock(_propBlock);
             }
 
@@ -317,8 +322,8 @@ namespace OsuVR
                 if (objName.Contains("Overlay")) continue;
 
                 r.GetPropertyBlock(_propBlock);
-                _propBlock.SetColor("_Color", hdrColor);
-                _propBlock.SetColor("_BaseColor", hdrColor);
+                _propBlock.SetColor(PropColor, hdrColor);
+                _propBlock.SetColor(PropBaseColor, hdrColor);
                 r.SetPropertyBlock(_propBlock);
             }
 
@@ -594,10 +599,10 @@ namespace OsuVR
                 if (r == null) continue;
 
                 r.GetPropertyBlock(_propBlock); // 现在 _propBlock 绝对不为空
-                _propBlock.SetColor("_Color", color);
-                _propBlock.SetColor("_BaseColor", color);
-                _propBlock.SetColor("_TintColor", color);
-                _propBlock.SetColor("_EmissionColor", color);
+                _propBlock.SetColor(PropColor, color);
+                _propBlock.SetColor(PropBaseColor, color);
+                _propBlock.SetColor(PropTintColor, color);
+                _propBlock.SetColor(PropEmissionColor, color);
                 r.SetPropertyBlock(_propBlock);
             }
         }
@@ -731,8 +736,8 @@ namespace OsuVR
                 {
                     circleRenderer.GetPropertyBlock(_propBlock);
                     Color c = Color.Lerp(startColor, endColor, t);
-                    _propBlock.SetColor("_Color", c);
-                    _propBlock.SetColor("_BaseColor", c);
+                    _propBlock.SetColor(PropColor, c);
+                    _propBlock.SetColor(PropBaseColor, c);
                     circleRenderer.SetPropertyBlock(_propBlock);
                 }
 

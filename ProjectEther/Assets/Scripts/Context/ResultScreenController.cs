@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using TMPro;
@@ -137,7 +138,7 @@ namespace OsuVR
         private void AutoAttachLocalizedTexts()
         {
             var allTexts = GetComponentsInChildren<TextMeshProUGUI>(true);
-            var mapping = new System.Collections.Generic.Dictionary<string, string>
+            var mapping = new Dictionary<string, string>
             {
                 { "RESULT", "ui_result_title" },
                 { "Score", "ui_score" },

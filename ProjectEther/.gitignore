@@ -98,6 +98,40 @@ InitTestScene*.unity*
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
 
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Thumbs.db:encryptable
+desktop.ini
+
+# IDE / Editor
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+.trae/
+
+# Backup files
+*.bak
+*.bak.meta
+
+# AudioLink local cache
+.audiolink_pipeline
+
+# Burst AOT cache (machine-specific)
+ProjectSettings/BurstAotSettings_*.json
+ProjectSettings/CommonBurstAotSettings.json
+
+# Lighting data cache (local bake output)
+*.lighting
+*.lighting.meta
+
 # --- Project Ether 特有忽略 (避版权) ---
 
 # 忽略歌曲 (版权音乐)

@@ -137,6 +137,7 @@ namespace OsuVR
         // 性能优化：材质属性块（防止材质泄露）
         private MaterialPropertyBlock _propBlock;
         private static readonly int ColorPropertyId = Shader.PropertyToID("_Color"); // 缓存Shader属性ID
+        private static readonly int PropBaseColor = Shader.PropertyToID("_BaseColor");
 
         // 路径数据（优化：增加累计长度缓存）
         private List<Vector3> worldPathPoints = new List<Vector3>();
@@ -819,8 +820,8 @@ namespace OsuVR
                     r.material.SetInt("_ZWrite", 0);
 
                     r.GetPropertyBlock(headMbp);
-                    headMbp.SetColor("_Color", hdrComboColor);
-                    headMbp.SetColor("_BaseColor", hdrComboColor);
+                    headMbp.SetColor(ColorPropertyId, hdrComboColor);
+                    headMbp.SetColor(PropBaseColor, hdrComboColor);
                     r.SetPropertyBlock(headMbp);
                 }
 
@@ -1162,7 +1163,7 @@ namespace OsuVR
                 Color c = customBodyColor;
                 c.a *= currentAlpha; // 结合自定义颜色的初始透明度
                 _propBlock.SetColor(ColorPropertyId, c);
-                _propBlock.SetColor("_BaseColor", c);
+                _propBlock.SetColor(PropBaseColor, c);
                 meshRenderer.SetPropertyBlock(_propBlock);
             }
 
@@ -1178,7 +1179,7 @@ namespace OsuVR
 
                 _propBlock.SetColor(ColorPropertyId, hdrBorder);
                 // 确保兼容 URP/Unlit
-                _propBlock.SetColor("_BaseColor", hdrBorder);
+                _propBlock.SetColor(PropBaseColor, hdrBorder);
 
                 borderMeshRenderer.SetPropertyBlock(_propBlock);
             }

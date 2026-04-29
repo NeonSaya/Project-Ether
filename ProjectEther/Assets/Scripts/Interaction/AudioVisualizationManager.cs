@@ -1,22 +1,25 @@
 using UnityEngine;
+// Lasp 是可选依赖：当 Lasp 包安装时，需在 Player Settings → Scripting Define Symbols 中添加 LASP
+#if LASP
 using Lasp;
+#endif
 
 namespace OsuVR
 {
     /// <summary>
     /// 音频可视化核心管理器：支持Lasp系统捕获和AudioSource频谱分析
     /// 提供三频段能量数据供视觉系统使用
-    /// 
+    ///
     /// 全局Shader变量：
     /// - _Global_Audio_Bass: 低频能量 (0-150Hz)
     /// - _Global_Audio_Mid: 中频能量 (200-500Hz)
     /// - _Global_Audio_Treble: 高频能量 (500Hz-4kHz)
-    /// 
+    ///
     /// AudioLink集成：
     /// - 全局纹理名称：_AudioTexture
     /// - 通过AudioLinkAdapter自动同步音频源
     /// - 纹理包含：频谱数据、波形数据、自相关数据等
-    /// 
+    ///
     /// 使用方法：
     /// 1. 在场景中创建AudioVisualizationSystem物体并挂载此脚本
     /// 2. 配置音频源（自动查找或手动设置）
@@ -60,12 +63,16 @@ namespace OsuVR
         [Tooltip("锁定目标音频源，防止自动查找覆盖")]
         public bool lockTargetSource = false;
 
+#if LASP
         [Header("Lasp系统捕获（可选）")]
         [Tooltip("Lasp频谱分析器组件（可选，用于系统级音频捕获）")]
         public SpectrumAnalyzer spectrumAnalyzer;
 
         [Tooltip("使用Lasp系统捕获（需要配置SpectrumAnalyzer）")]
         public bool useLaspCapture = false;
+#else
+        private bool useLaspCapture = false;
+#endif
 
         // =========================================================
         // 公开属性：三频段能量值（0-1归一化）
@@ -166,11 +173,13 @@ namespace OsuVR
 
         void Update()
         {
+#if LASP
             if (useLaspCapture && spectrumAnalyzer != null)
             {
                 AnalyzeWithLasp();
             }
             else
+#endif
             {
                 AnalyzeWithAudioSource();
             }
@@ -213,17 +222,20 @@ namespace OsuVR
 
         private void ValidateLaspSetup()
         {
+#if LASP
             if (useLaspCapture && spectrumAnalyzer == null)
             {
                 Debug.LogWarning("[AudioVisualizationManager] useLaspCapture为true但未配置SpectrumAnalyzer，将使用AudioSource分析");
                 useLaspCapture = false;
             }
+#endif
         }
 
         // =========================================================
         // Lasp频谱分析
         // =========================================================
 
+#if LASP
         private void AnalyzeWithLasp()
         {
             if (spectrumAnalyzer == null)
@@ -279,6 +291,7 @@ namespace OsuVR
             }
             rawTreble = trebleCount > 0 ? Mathf.Clamp01((trebleSum / trebleCount) * trebleGain * normalizationFactor) : 0f;
         }
+#endif
 
         // =========================================================
         // AudioSource频谱分析

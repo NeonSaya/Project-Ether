@@ -13,12 +13,28 @@ namespace OsuVR
         private GameObject maskQuad;
         private RayController leftRay;
         private RayController rightRay;
+        private RhythmGameManager rhythmGameManager;
 
         // 默认平面Z坐标，对应 CoordinateMapper 中的 TargetDistance
         private const float DefaultPlaneZ = 2.0f;
 
+        // 休息时间光线动画参数
+        private const float BreakRadiusMultiplier = 5.0f;
+        private const float BreakTransitionDuration = 0.5f;
+        private const float BaseRadius = 0.5f;
+        private const float BaseFeather = 0.2f;
+
+        // 当前动画状态
+        private float currentRadiusMultiplier = 1.0f;
+        private float targetRadiusMultiplier = 1.0f;
+        private float transitionProgress = 1.0f;
+        private BreakPeriod currentBreak = null;
+        private bool isInBreak = false;
+
         public void Initialize(RhythmGameManager manager)
         {
+            rhythmGameManager = manager;
+
             // 如果没开启 FL，则不需要初始化
             if (manager == null || manager.GetModEffects() == null || !manager.GetModEffects().IsFlashlight)
             {
@@ -39,13 +55,13 @@ namespace OsuVR
             
             // 调整遮罩颜色，避免纯黑死黑
             // osu! 原版在较低 combo 时会有环境微光
-            // 这里用 0.98 的 alpha 使得背景不会完全黑死，隐约能感觉到一点空间
+            // 这里用 0.99 的 alpha 使得背景不会完全黑死，隐约能感觉到一点空间
             flashlightMat.SetColor("_Color", new Color(0.0f, 0.0f, 0.0f, 0.99f));
 
             // 设置手电筒的半径和边缘羽化
             // 稍微调大一点点让体验在 VR 里不至于太挣扎
-            flashlightMat.SetFloat("_Radius", 0.5f); 
-            flashlightMat.SetFloat("_Feather", 0.2f);
+            flashlightMat.SetFloat("_Radius", BaseRadius); 
+            flashlightMat.SetFloat("_Feather", BaseFeather);
             flashlightMat.SetFloat("_PlaneZ", DefaultPlaneZ);
 
             // 获取摄像机
@@ -109,6 +125,10 @@ namespace OsuVR
         {
             if (flashlightMat == null) return;
 
+            UpdateBreakState();
+
+            UpdateRadiusAnimation();
+
             // 如果射线中途丢失，尝试重新寻找
             if (leftRay == null || rightRay == null)
             {
@@ -138,6 +158,59 @@ namespace OsuVR
                 // 如果没有找到右手，将其方向设为后方
                 flashlightMat.SetVector("_RightRayDir", Vector3.back);
             }
+        }
+
+        private void UpdateBreakState()
+        {
+            if (rhythmGameManager == null) return;
+
+            double currentTimeMs = rhythmGameManager.currentMusicTimeMs;
+            var beatmap = rhythmGameManager.GetCurrentBeatmap();
+            if (beatmap == null || beatmap.Events == null || beatmap.Events.Breaks == null) return;
+
+            bool foundBreak = false;
+            foreach (var breakPeriod in beatmap.Events.Breaks)
+            {
+                if (currentTimeMs >= breakPeriod.StartTime && currentTimeMs <= breakPeriod.EndTime)
+                {
+                    if (!isInBreak || currentBreak != breakPeriod)
+                    {
+                        currentBreak = breakPeriod;
+                        isInBreak = true;
+                        targetRadiusMultiplier = BreakRadiusMultiplier;
+                        transitionProgress = 0f;
+                    }
+                    foundBreak = true;
+                    break;
+                }
+            }
+
+            if (!foundBreak && isInBreak)
+            {
+                isInBreak = false;
+                currentBreak = null;
+                targetRadiusMultiplier = 1.0f;
+                transitionProgress = 0f;
+            }
+        }
+
+        private void UpdateRadiusAnimation()
+        {
+            if (transitionProgress >= 1.0f) return;
+
+            transitionProgress += Time.deltaTime / BreakTransitionDuration;
+            transitionProgress = Mathf.Clamp01(transitionProgress);
+
+            float smoothProgress = Mathf.SmoothStep(0f, 1f, transitionProgress);
+
+            float startMultiplier = isInBreak ? 1.0f : BreakRadiusMultiplier;
+            currentRadiusMultiplier = Mathf.Lerp(startMultiplier, targetRadiusMultiplier, smoothProgress);
+
+            float newRadius = BaseRadius * currentRadiusMultiplier;
+            flashlightMat.SetFloat("_Radius", newRadius);
+
+            float newFeather = BaseFeather * currentRadiusMultiplier;
+            flashlightMat.SetFloat("_Feather", newFeather);
         }
 
         void OnDestroy()

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace OsuVR
@@ -11,6 +12,12 @@ namespace OsuVR
 
     public class ObjectFadeIn : MonoBehaviour
     {
+        // 缓存 Shader 属性 ID
+        private static readonly int PropBaseColor = Shader.PropertyToID("_BaseColor");
+        private static readonly int PropColor = Shader.PropertyToID("_Color");
+        private static readonly int PropTintColor = Shader.PropertyToID("_TintColor");
+        private static readonly int PropEmissionColor = Shader.PropertyToID("_EmissionColor");
+
         private double hitTime;
         private double timePreempt;
         private double timeFadeIn;
@@ -85,7 +92,7 @@ namespace OsuVR
                 propBlock = new MaterialPropertyBlock();
 
             var allRenderers = GetComponentsInChildren<Renderer>(true);
-            var validRenderers = new System.Collections.Generic.List<Renderer>();
+            var validRenderers = new List<Renderer>();
             
             foreach (var r in allRenderers)
             {
@@ -273,9 +280,9 @@ namespace OsuVR
                 // 只修改 Alpha 通道，不要动 RGB，否则普通半透明材质在渐隐时会变黑
                 colorWithAlpha.a = cachedColors[i].a * currentAlpha;
 
-                propBlock.SetColor("_BaseColor", colorWithAlpha);
-                propBlock.SetColor("_Color", colorWithAlpha);
-                propBlock.SetColor("_TintColor", colorWithAlpha);
+                propBlock.SetColor(PropBaseColor, colorWithAlpha);
+                propBlock.SetColor(PropColor, colorWithAlpha);
+                propBlock.SetColor(PropTintColor, colorWithAlpha);
 
                 // 处理发光颜色 (Emission)
                 Color emission = cachedEmissions[i];
@@ -284,7 +291,7 @@ namespace OsuVR
                     Color emissionWithAlpha = emission * currentAlpha; // 缩放 RGB 亮度
                     // 保持 Alpha
                     emissionWithAlpha.a = emission.a * currentAlpha;
-                    propBlock.SetColor("_EmissionColor", emissionWithAlpha);
+                    propBlock.SetColor(PropEmissionColor, emissionWithAlpha);
                 }
 
                 renderer.SetPropertyBlock(propBlock);

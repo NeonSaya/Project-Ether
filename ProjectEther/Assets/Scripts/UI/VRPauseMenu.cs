@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -91,7 +92,7 @@ namespace OsuVR
         private void AutoAttachLocalizedTexts()
         {
             var allTexts = GetComponentsInChildren<TextMeshProUGUI>(true);
-            var mapping = new System.Collections.Generic.Dictionary<string, string>
+            var mapping = new Dictionary<string, string>
             {
                 { "PAUSED", "ui_pause" },
                 { "Continue", "ui_resume" },

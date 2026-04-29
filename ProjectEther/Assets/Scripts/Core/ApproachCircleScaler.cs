@@ -19,6 +19,7 @@ namespace OsuVR
         private double timePreempt;
         private bool isRunning = false;
         private bool isHidden = false;
+        private RhythmGameManager cachedManager;
 
         public void Initialize(double hitTimeMs, double timePreemptMs, RhythmGameManager manager = null)
         {
@@ -26,10 +27,10 @@ namespace OsuVR
             this.timePreempt = timePreemptMs;
             this.isRunning = true;
 
-            var activeManager = manager != null ? manager : FindObjectOfType<RhythmGameManager>();
-            if (activeManager != null && activeManager.GetModEffects() != null)
+            cachedManager = manager != null ? manager : FindFirstObjectByType<RhythmGameManager>();
+            if (cachedManager != null && cachedManager.GetModEffects() != null)
             {
-                this.isHidden = activeManager.GetModEffects().IsHidden;
+                this.isHidden = cachedManager.GetModEffects().IsHidden;
             }
             else
             {
@@ -72,10 +73,9 @@ namespace OsuVR
                 return;
             }
 
-            var manager = FindObjectOfType<RhythmGameManager>();
-            if (manager == null) return;
+            if (cachedManager == null) return;
 
-            double currentTime = manager.GetCurrentMusicTimeMs();
+            double currentTime = cachedManager.GetCurrentMusicTimeMs();
             double timeRemaining = hitTime - currentTime;
 
             // 状态 1: 时间太早 (还没进 AR 范围) -> 隐藏

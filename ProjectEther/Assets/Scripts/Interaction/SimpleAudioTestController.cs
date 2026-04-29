@@ -1,9 +1,11 @@
+#if UNITY_EDITOR
 using UnityEngine;
 
 namespace OsuVR
 {
     /// <summary>
     /// 简单的音频测试控制器：按空格键播放/暂停音频
+    /// 仅在编辑器模式下编译
     /// </summary>
     public class SimpleAudioTestController : MonoBehaviour
     {
@@ -86,3 +88,4 @@ namespace OsuVR
         }
     }
 }
+#endif
