@@ -44,6 +44,11 @@ namespace OsuVR
             public Transform transform;
             public Transform originalParent;
 
+            // 保存用户原始设置，暂停时恢复给玩家
+            public RayController.ControlMode userMode;
+            public float userVerticalOffset;
+            public Vector3 userDirectOffset;
+
             public Queue<HitObject> taskQueue = new Queue<HitObject>();
             public HitObject currentTask;
 
@@ -93,6 +98,57 @@ namespace OsuVR
         }
 
         /// <summary>
+        /// 重试时重置 AutoPlayManager 状态：清空任务队列、已触发判定、重置进度索引
+        /// </summary>
+        public void ResetForRetry()
+        {
+            if (leftHand != null)
+            {
+                leftHand.taskQueue.Clear();
+                leftHand.currentTask = null;
+                leftHand.triggeredNotes.Clear();
+                leftHand.lastHitEndTime = 0;
+                leftHand.lastValidAimPos = Vector3.zero;
+                leftHand.restAnchor = Vector3.zero;
+            }
+            if (rightHand != null)
+            {
+                rightHand.taskQueue.Clear();
+                rightHand.currentTask = null;
+                rightHand.triggeredNotes.Clear();
+                rightHand.lastHitEndTime = 0;
+                rightHand.lastValidAimPos = Vector3.zero;
+                rightHand.restAnchor = Vector3.zero;
+            }
+            _allNotes = null;
+            _noteStartIndex = 0;
+            _assignedNotes.Clear();
+            lastAssignedNote = null;
+            lastAssignedHand = null;
+
+            // 重新获取 hitObjects（谱面可能已重新加载）
+            if (gameManager != null && _notesField != null)
+            {
+                var currentNotes = (List<HitObject>)_notesField.GetValue(gameManager);
+                if (currentNotes != null)
+                {
+                    _allNotes = currentNotes.OrderBy(n => n.StartTime).ToList();
+                    _noteStartIndex = 0;
+                    _assignedNotes.Clear();
+                }
+                var activeObjField = typeof(RhythmGameManager).GetField("activeNoteObjects", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (activeObjField != null) _activeObjectsRef = (Dictionary<HitObject, GameObject>)activeObjField.GetValue(gameManager);
+            }
+
+            // 确保 Auto 模式已接管（重试后立即接管）
+            isPaused = false;
+            TakeOverHandForRestart(leftHand);
+            TakeOverHandForRestart(rightHand);
+
+            Debug.Log("[AutoPlayManager] 重试状态已重置");
+        }
+
+        /// <summary>
         /// 初始化单只手的控制器：禁用 XR 追踪组件，切换到直接控制模式
         /// </summary>
         /// <param name="ray">射线控制器</param>
@@ -108,6 +164,10 @@ namespace OsuVR
             ray.isRightHand = isRight;
 
             var hand = new AutoHand { controller = ray, transform = ray.transform, originalParent = originalParent };
+            // 保存用户原始设置
+            hand.userMode = ray.currentMode;
+            hand.userVerticalOffset = ray.verticalOffset;
+            hand.userDirectOffset = ray.directOffset;
 
             foreach (var d in ray.GetComponents<TrackedPoseDriver>()) { d.enabled = false; hand.disabledComponents.Add(d); }
             foreach (var c in ray.GetComponents<ActionBasedController>()) { c.enabled = false; hand.disabledComponents.Add(c); }
@@ -126,7 +186,7 @@ namespace OsuVR
         {
             RestoreHand(leftHand);
             RestoreHand(rightHand);
-            if (_tempRoot != null) Destroy(_tempRoot);
+            // 不销毁 _tempRoot，重试时可能需要重新使用
         }
 
         /// <summary>
@@ -134,8 +194,8 @@ namespace OsuVR
         /// </summary>
         private void RestoreHand(AutoHand hand)
         {
-            if (hand == null || hand.transform == null) return;
-            if (hand.originalParent != null)
+            if (hand == null || hand.transform == null || hand.transform.Equals(null)) return;
+            if (hand.originalParent != null && !hand.originalParent.Equals(null))
             {
                 hand.transform.SetParent(hand.originalParent, true);
                 hand.transform.localPosition = Vector3.zero;
@@ -149,12 +209,173 @@ namespace OsuVR
         /// 主循环：分配任务并更新双手运动
         /// 使用 Update 而非 LateUpdate，确保手位置在 RayController 射线检测之前更新
         /// </summary>
+        private bool isPaused = false;
+        private Vector3 leftPausePosition;
+        private Quaternion leftPauseRotation;
+        private Vector3 rightPausePosition;
+        private Quaternion rightPauseRotation;
+
+        /// <summary>
+        /// 临时恢复手柄控制：暂停时让玩家能操作暂停菜单
+        /// 恢复 XR 追踪组件，把手柄还给原始父级
+        /// 保持射线偏转方向和正常游玩一致，方便玩家操作
+        /// </summary>
+        public void OnGamePaused()
+        {
+            if (isPaused) return;
+            isPaused = true;
+
+            // 保存暂停时 Auto 空间的手柄位置，恢复时用这些位置避免 miss
+            if (leftHand != null && leftHand.transform != null)
+            {
+                leftPausePosition = leftHand.transform.position;
+                leftPauseRotation = leftHand.transform.rotation;
+            }
+            if (rightHand != null && rightHand.transform != null)
+            {
+                rightPausePosition = rightHand.transform.position;
+                rightPauseRotation = rightHand.transform.rotation;
+            }
+
+            RestoreHandForPlayerControl(leftHand);
+            RestoreHandForPlayerControl(rightHand);
+            Debug.Log("[AutoPlayManager] 暂停 → 手柄已还给玩家");
+        }
+
+        /// <summary>
+        /// 重新接管手柄：恢复游戏时重新禁用 XR 追踪，切换到 Auto 模式
+        /// 立即将手柄设回暂停时的位置，防止 3 秒倒计时期间 miss
+        /// </summary>
+        public void OnGameResumed()
+        {
+            if (!isPaused) return;
+            isPaused = false;
+            TakeOverHand(leftHand, leftPausePosition, leftPauseRotation);
+            TakeOverHand(rightHand, rightPausePosition, rightPauseRotation);
+            Debug.Log("[AutoPlayManager] 恢复 → 手柄已重新接管，位置已还原到暂停时");
+        }
+
+        /// <summary>
+        /// 临时恢复：启用 XR 追踪组件，还原父子关系
+        /// 保持射线的偏转方向和正常游玩一致（verticalOffset, directOffset）
+        /// </summary>
+        private void RestoreHandForPlayerControl(AutoHand hand)
+        {
+            if (hand == null || hand.transform == null || hand.transform.Equals(null)) return;
+
+            // 还原父子关系
+            if (hand.originalParent != null && !hand.originalParent.Equals(null))
+            {
+                hand.transform.SetParent(hand.originalParent, true);
+                hand.transform.localPosition = Vector3.zero;
+                hand.transform.localRotation = Quaternion.identity;
+            }
+
+            // 重新启用 XR 追踪组件
+            foreach (var c in hand.disabledComponents)
+            {
+                if (c != null) c.enabled = true;
+            }
+
+            // 恢复用户原始的射线偏转设置
+            if (hand.controller != null)
+            {
+                hand.controller.currentMode = hand.userMode;
+                hand.controller.verticalOffset = hand.userVerticalOffset;
+                hand.controller.directOffset = hand.userDirectOffset;
+            }
+        }
+
+        /// <summary>
+        /// 重新接管：禁用 XR 追踪组件，移到临时容器，切换到 Auto 模式
+        /// 立即将手柄设回暂停时保存的位置，防止倒计时期间 miss
+        /// </summary>
+        private void TakeOverHand(AutoHand hand, Vector3 savedPosition, Quaternion savedRotation)
+        {
+            if (hand == null || hand.transform == null || hand.transform.Equals(null)) return;
+
+            // 确保 _tempRoot 存在
+            if (_tempRoot == null || _tempRoot.Equals(null))
+            {
+                _tempRoot = new GameObject("[AutoPlay_Temp_Hands]");
+                _tempRoot.transform.position = Vector3.zero;
+                _tempRoot.transform.rotation = Quaternion.identity;
+            }
+
+            // 先禁用 XR 追踪组件（必须在移到临时容器之前，防止 XR 覆盖位置）
+            hand.disabledComponents.Clear();
+            foreach (var d in hand.transform.GetComponents<TrackedPoseDriver>()) { d.enabled = false; hand.disabledComponents.Add(d); }
+            foreach (var c in hand.transform.GetComponents<ActionBasedController>()) { c.enabled = false; hand.disabledComponents.Add(c); }
+
+            // 移回临时容器
+            if (_tempRoot != null)
+            {
+                hand.transform.SetParent(_tempRoot.transform, false);
+            }
+
+            // 立即将手柄设回暂停时的位置（防止 3 秒倒计时期间 miss）
+            hand.transform.position = savedPosition;
+            hand.transform.rotation = savedRotation;
+            hand.lastValidAimPos = savedPosition;
+
+            // 切换到 Auto 模式
+            if (hand.controller != null)
+            {
+                hand.controller.currentMode = RayController.ControlMode.Direct1to1;
+                hand.controller.verticalOffset = 0f;
+                hand.controller.directOffset = Vector3.zero;
+            }
+        }
+
+        /// <summary>
+        /// 重试时接管手柄：不需要还原暂停位置，Auto 会从初始位置重新计算
+        /// 确保 _tempRoot 存在（可能已被 OnDisable 销毁需要重建）
+        /// </summary>
+        private void TakeOverHandForRestart(AutoHand hand)
+        {
+            if (hand == null || hand.transform == null || hand.transform.Equals(null)) return;
+
+            // 确保 _tempRoot 存在
+            if (_tempRoot == null || _tempRoot.Equals(null))
+            {
+                _tempRoot = new GameObject("[AutoPlay_Temp_Hands]");
+                _tempRoot.transform.position = Vector3.zero;
+                _tempRoot.transform.rotation = Quaternion.identity;
+            }
+
+            // 先禁用 XR 追踪组件
+            hand.disabledComponents.Clear();
+            foreach (var d in hand.transform.GetComponents<TrackedPoseDriver>()) { d.enabled = false; hand.disabledComponents.Add(d); }
+            foreach (var c in hand.transform.GetComponents<ActionBasedController>()) { c.enabled = false; hand.disabledComponents.Add(c); }
+
+            // 移到临时容器
+            if (_tempRoot != null)
+            {
+                hand.transform.SetParent(_tempRoot.transform, false);
+            }
+
+            // 重试不需要还原暂停位置，Auto 会从休息位开始
+            // 切换到 Auto 模式
+            if (hand.controller != null)
+            {
+                hand.controller.currentMode = RayController.ControlMode.Direct1to1;
+                hand.controller.verticalOffset = 0f;
+                hand.controller.directOffset = Vector3.zero;
+            }
+        }
+
         void Update()
         {
             if (Camera.main != null && Camera.main.transform.localPosition.y < 0.1f && simulatedHeadHeight > 0.01f)
                 Camera.main.transform.localPosition = new Vector3(0, simulatedHeadHeight, 0);
 
             if (gameManager == null || !gameManager.isPlaying) return;
+
+            // 检查手柄是否有效（重试时可能被 OnDisable 还原导致 transform 无效）
+            if (leftHand != null && (leftHand.transform == null || leftHand.transform.Equals(null)))
+                return;
+            if (rightHand != null && (rightHand.transform == null || rightHand.transform.Equals(null)))
+                return;
 
             double time = gameManager.currentMusicTimeMs;
 
@@ -286,7 +507,7 @@ namespace OsuVR
         /// </summary>
         private void UpdateHandMotion(AutoHand hand, double time)
         {
-            if (hand == null) return;
+            if (hand == null || hand.transform == null || hand.transform.Equals(null)) return;
             CheckTask(hand, time);
 
             Vector3 shoulderPos = GetShoulderPos(hand);

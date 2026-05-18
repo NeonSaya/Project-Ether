@@ -577,8 +577,7 @@ namespace OsuVR
             tempSettings.enableHaptics = enabled;
             if (SettingsManager.Instance != null)
             {
-                SettingsManager.Instance.Settings.enableHaptics = enabled;
-                SettingsManager.Instance.SaveSettings();
+                SettingsManager.Instance.SetHapticsEnabled(enabled);
             }
             PlayClickSound();
         }
@@ -589,8 +588,7 @@ namespace OsuVR
             UpdateHapticIntensityText(value);
             if (SettingsManager.Instance != null)
             {
-                SettingsManager.Instance.Settings.hapticIntensity = value;
-                SettingsManager.Instance.SaveSettings();
+                SettingsManager.Instance.SetHapticIntensity(value);
             }
             PlayHoverSound();
         }
@@ -769,11 +767,11 @@ namespace OsuVR
             {
                 if (rc.isRightHand)
                 {
-                    rc.directOffset = new Vector3(tempSettings.controllerRotationOffset, 0, 0);
+                    rc.directOffset = new Vector3(tempSettings.controllerRotationOffset, tempSettings.rightControllerYOffset, tempSettings.rightControllerZOffset);
                 }
                 else
                 {
-                    rc.directOffset = new Vector3(tempSettings.controllerRotationOffset, 0, 0);
+                    rc.directOffset = new Vector3(tempSettings.controllerRotationOffset, tempSettings.leftControllerYOffset, tempSettings.leftControllerZOffset);
                 }
             }
         }
@@ -878,6 +876,9 @@ namespace OsuVR
             canvasGroup.alpha = 1f;
             canvasGroup.interactable = true;
             canvasGroup.blocksRaycasts = true;
+
+            // 通知 RayController 立即刷新缓存，消除 UI 出现后延迟
+            RayController.NotifyUICanvasChanged();
 
             if (!isInitialized)
             {

@@ -194,9 +194,16 @@ namespace OsuVR
             var rayControllers = FindObjectsOfType<RayController>();
             foreach (var rc in rayControllers)
             {
-                rc.directOffset = new Vector3(settings.controllerRotationOffset, 0, 0);
+                if (rc.isRightHand)
+                {
+                    rc.directOffset = new Vector3(settings.controllerRotationOffset, settings.rightControllerYOffset, settings.rightControllerZOffset);
+                }
+                else
+                {
+                    rc.directOffset = new Vector3(settings.controllerRotationOffset, settings.leftControllerYOffset, settings.leftControllerZOffset);
+                }
             }
-            Debug.Log($"[SettingsManager] Controller offsets applied: Rot={settings.controllerRotationOffset}°");
+            Debug.Log($"[SettingsManager] Controller offsets applied: Rot={settings.controllerRotationOffset}°, L_Z={settings.leftControllerZOffset}, L_Y={settings.leftControllerYOffset}, R_Z={settings.rightControllerZOffset}, R_Y={settings.rightControllerYOffset}");
         }
 
         #endregion

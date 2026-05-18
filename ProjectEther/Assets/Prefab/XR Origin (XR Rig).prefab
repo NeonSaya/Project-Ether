@@ -2495,7 +2495,7 @@ MonoBehaviour:
   m_PhysicsTriggerInteraction: 1
   m_UIDocumentTriggerInteraction: 1
   m_RequirePokeFilter: 1
-  m_EnableUIInteraction: 1
+  m_EnableUIInteraction: 0
   m_ClickUIOnDown: 1
   m_DebugVisualizationsEnabled: 0
   m_UIHoverEntered:
@@ -2872,8 +2872,8 @@ MonoBehaviour:
   m_EnableFarCasting: 1
   m_FarInteractionCaster: {fileID: 8321205874268054102}
   m_FarAttachMode: 1
-  m_EnableUIInteraction: 1
-  m_BlockUIOnInteractableSelection: 1
+  m_EnableUIInteraction: 0
+  m_BlockUIOnInteractableSelection: 0
   m_UIHoverEntered:
     m_PersistentCalls:
       m_Calls: []
@@ -5154,9 +5154,58 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 17ea8e97a6353a648ab86be41ebf20fc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   currentMode: 1
+  isRightHand: 1
+  clickAction:
+    m_InputSourceMode: 2
+    m_InputActionPerformed:
+      m_Name: UI Press
+      m_Type: 1
+      m_ExpectedControlType:
+      m_Id: ded1ccb2-ff18-46c7-ade9-b80985fe2825
+      m_Processors:
+      m_Interactions:
+      m_SingletonActionBindings: []
+      m_Flags: 0
+    m_InputActionValue:
+      m_Name: UI Press Value
+      m_Type: 0
+      m_ExpectedControlType: Axis
+      m_Id: d762660e-30e0-4a4d-8e2a-e6b553e03f11
+      m_Processors:
+      m_Interactions:
+      m_SingletonActionBindings: []
+      m_Flags: 0
+    m_InputActionReferencePerformed: {fileID: 3279264004350380116, guid: c348712bda248c246b8c49b3db54643f,
+      type: 3}
+    m_InputActionReferenceValue: {fileID: -5908353012961274365, guid: c348712bda248c246b8c49b3db54643f,
+      type: 3}
+    m_ObjectReferenceObject: {fileID: 0}
+    m_ManualPerformed: 0
+    m_ManualValue: 0
+    m_ManualQueuePerformed: 0
+    m_ManualQueueWasPerformedThisFrame: 0
+    m_ManualQueueWasCompletedThisFrame: 0
+    m_ManualQueueValue: 0
+    m_ManualQueueTargetFrame: 0
+  rightStickAction:
+    m_InputSourceMode: 2
+    m_InputAction:
+      m_Name: UI Scroll
+      m_Type: 0
+      m_ExpectedControlType: Vector2
+      m_Id: ef5cc4a5-b968-432c-9ae7-45e494178db0
+      m_Processors:
+      m_Interactions:
+      m_SingletonActionBindings: []
+      m_Flags: 0
+    m_InputActionReference: {fileID: -6756787485274679044, guid: c348712bda248c246b8c49b3db54643f,
+      type: 3}
+    m_ObjectReferenceObject: {fileID: 0}
+    m_ManualValue: {x: 0, y: 0}
+  scrollSpeed: 500
   gainFactor: 1.4
   maxInputAngle: 30
   maxOutputAngle: 60
@@ -5371,9 +5420,58 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 17ea8e97a6353a648ab86be41ebf20fc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   currentMode: 1
+  isRightHand: 0
+  clickAction:
+    m_InputSourceMode: 2
+    m_InputActionPerformed:
+      m_Name: UI Press
+      m_Type: 1
+      m_ExpectedControlType:
+      m_Id: ded1ccb2-ff18-46c7-ade9-b80985fe2825
+      m_Processors:
+      m_Interactions:
+      m_SingletonActionBindings: []
+      m_Flags: 0
+    m_InputActionValue:
+      m_Name: UI Press Value
+      m_Type: 0
+      m_ExpectedControlType: Axis
+      m_Id: d762660e-30e0-4a4d-8e2a-e6b553e03f11
+      m_Processors:
+      m_Interactions:
+      m_SingletonActionBindings: []
+      m_Flags: 0
+    m_InputActionReferencePerformed: {fileID: -6395602842196007441, guid: c348712bda248c246b8c49b3db54643f,
+      type: 3}
+    m_InputActionReferenceValue: {fileID: 71106601250685021, guid: c348712bda248c246b8c49b3db54643f,
+      type: 3}
+    m_ObjectReferenceObject: {fileID: 0}
+    m_ManualPerformed: 0
+    m_ManualValue: 0
+    m_ManualQueuePerformed: 0
+    m_ManualQueueWasPerformedThisFrame: 0
+    m_ManualQueueWasCompletedThisFrame: 0
+    m_ManualQueueValue: 0
+    m_ManualQueueTargetFrame: 0
+  rightStickAction:
+    m_InputSourceMode: 2
+    m_InputAction:
+      m_Name: UI Scroll
+      m_Type: 0
+      m_ExpectedControlType: Vector2
+      m_Id: ef5cc4a5-b968-432c-9ae7-45e494178db0
+      m_Processors:
+      m_Interactions:
+      m_SingletonActionBindings: []
+      m_Flags: 0
+    m_InputActionReference: {fileID: 2464016903823916871, guid: c348712bda248c246b8c49b3db54643f,
+      type: 3}
+    m_ObjectReferenceObject: {fileID: 0}
+    m_ManualValue: {x: 0, y: 0}
+  scrollSpeed: 500
   gainFactor: 1.3
   maxInputAngle: 30
   maxOutputAngle: 60
@@ -5640,7 +5738,7 @@ MonoBehaviour:
   m_PhysicsTriggerInteraction: 1
   m_UIDocumentTriggerInteraction: 1
   m_RequirePokeFilter: 1
-  m_EnableUIInteraction: 1
+  m_EnableUIInteraction: 0
   m_ClickUIOnDown: 1
   m_DebugVisualizationsEnabled: 0
   m_UIHoverEntered:
@@ -6050,8 +6148,8 @@ MonoBehaviour:
   m_EnableFarCasting: 1
   m_FarInteractionCaster: {fileID: 1326975425313193161}
   m_FarAttachMode: 1
-  m_EnableUIInteraction: 1
-  m_BlockUIOnInteractableSelection: 1
+  m_EnableUIInteraction: 0
+  m_BlockUIOnInteractableSelection: 0
   m_UIHoverEntered:
     m_PersistentCalls:
       m_Calls: []
@@ -7515,7 +7613,7 @@ MonoBehaviour:
   m_HoverTimeToSelect: 1
   m_AutoDeselect: 1
   m_TimeToAutoDeselect: 0.25
-  m_EnableUIInteraction: 1
+  m_EnableUIInteraction: 0
   m_BlockInteractionsWithScreenSpaceUI: 0
   m_BlockUIOnInteractableSelection: 1
   m_ManipulateAttachTransform: 0
