@@ -67,7 +67,7 @@ Assets/
 ├── Materials/      # 静态材质球库 (发光物件、天空盒、基础UI底图、AudioLink 测试材质)
 ├── Texture/        # 2D 图片素材与 Sprite 精灵图集
 ├── Effekseer/      # 第三方开源粒子特效资源库 (为日后华丽的日系动画级背景做准备)
-├── Songs/          # 你的 osu 谱面仓库！(需手动创建，将歌曲文件夹放入此处)
+├── Songs/          # 测试用谱面目录
 └── Scripts/        # 游戏的心脏与大脑 (所有命名空间归属于 OsuVR)
     ├── Audio/          # 音频管理枢纽 (掌管音乐播放、多普勒消除与音画强同步)
     ├── Context/        # 跨场景数据快递员 (GameContext 负责将选歌数据安全传递到打歌场景、ResultData 结算数据)
@@ -127,9 +127,16 @@ Assets/
    ```
 2. **导入 Unity Hub**: 打开 Unity Hub，点击 `Add` 按钮，选中刚刚克隆下来的 `Project-Ether/ProjectEther` 子目录。首次打开项目时，Unity 会疯狂下载 URP 和 XR 相关的依赖包并编译全项目 Shader，泡杯咖啡耐心等待几分钟。
 3. **准备谱面资源**:
-   * 打开项目后，在底部的 Project 面板中找到 `Assets/`，如果没有 `Songs` 文件夹，右键 `Create -> Folder` 自己建一个。
-   * 打开你电脑里的 `osu!` 游戏根目录，进入 `Songs` 文件夹，挑几个你最爱的谱面文件夹（里面通常包含一堆 `.mp3` / `.ogg` 和 `.osu` 文件）。
-   * 把它们原封不动地复制粘贴到 Unity 的 `Assets/Songs/` 目录下。
+
+   > ⚠️ **注意**：项目运行时扫描的不是 `Assets/Songs`（那个目录仅用于测试），而是系统用户目录下的运行时文件夹。
+
+   * 打开你电脑里的 `osu!` 游戏根目录，进入 `Songs` 文件夹，挑几个你最爱的谱面文件夹。
+   * 找到每个谱面文件夹中的 `.osz` 压缩包（如果没有，可以在 osu! 官网下载页右键谱面选择 "Download .osz"）。
+   * 将 `.osz` 文件放入以下路径：
+     `C:/Users/<你的用户名>/AppData/LocalLow/Nyaon/ProjectEther/Songs/`
+   * 项目启动时会自动扫描并解压 `.osz` 文件，之后就能在选歌界面看到对应的谱面了。
+
+   > **提示**：如果 `.osz` 是文件夹形式（已解压的谱面），也可以直接放入上述目录。确保每个谱面文件夹内包含 `.osu` 文件、音频文件和背景图。太老的 `.osu` 格式（v10 以前）可能不被支持，建议使用较新的谱面。
 4. **启动游戏**:
    * 必须在 Project 面板中双击进入 `Assets/Scenes/MainMenuScene.unity`。
    * 戴上并唤醒你的 VR 头显。
