@@ -835,6 +835,14 @@ namespace OsuVR
                 scaler.Initialize(sliderData.StartTime, arMs, gameManager);
             }
 
+            // 初始化滑条头的独立淡入效果
+            // HD模式下：滑条头像note一样先消失（出现→中间消失），到达hitTime后才开始恢复
+            // 使用 HitCircleDelayed 模式：到达hitTime后才消失（跟随approach circle缩圈消失）
+            var headFadeIn = headInstance.GetComponent<ObjectFadeIn>();
+            if (headFadeIn == null)
+                headFadeIn = headInstance.AddComponent<ObjectFadeIn>();
+            headFadeIn.Initialize(sliderData.StartTime, sliderData.TimePreempt, gameManager, FadeMode.Standard);
+
                 // =========================================================
                 // 3. 动态生成滑条头光晕效果
                 // 使用程序化生成的空心光环贴图，实现边缘柔和的发光效果

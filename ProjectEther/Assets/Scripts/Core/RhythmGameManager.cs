@@ -837,6 +837,12 @@ namespace OsuVR
                 musicSource.Pause();
             }
 
+            // Auto 模式暂停时：把手柄还给玩家，让玩家能操作暂停菜单
+            if (useAutoPlay && autoPlayManager != null)
+            {
+                autoPlayManager.OnGamePaused();
+            }
+
             Debug.Log("游戏已暂停");
         }
         /// <summary>
@@ -845,6 +851,12 @@ namespace OsuVR
         public void ResumeGame()
         {
             if (isPlaying) return;
+
+            // Auto 模式恢复时：重新接管手柄
+            if (useAutoPlay && autoPlayManager != null)
+            {
+                autoPlayManager.OnGameResumed();
+            }
 
             isPlaying = true;
 
@@ -862,6 +874,13 @@ namespace OsuVR
         public void RestartGame()
         {
             StopGame();
+
+            // Auto 模式重试：重置 AutoPlayManager 状态
+            if (useAutoPlay && autoPlayManager != null)
+            {
+                autoPlayManager.ResetForRetry();
+            }
+
             StartGame();
             Debug.Log("游戏已重新开始");
         }
@@ -908,19 +927,16 @@ namespace OsuVR
         /// </summary>
         private void InitializePauseInput()
         {
-            // 创建Cancel输入动作
-            cancelInputAction = new InputAction("Cancel", binding: "*/{Cancel}");
+            // 创建暂停输入动作：绑定左手Y键(primaryButton)和右手B键(primaryButton)
+            cancelInputAction = new InputAction("Pause");
+            cancelInputAction.AddBinding("<XRController>{LeftHand}/primaryButton");
+            cancelInputAction.AddBinding("<XRController>{RightHand}/primaryButton");
+            // 兜底：键盘 Escape
+            cancelInputAction.AddBinding("<Keyboard>/escape");
             cancelInputAction.Enable();
-            
-            if (cancelInputAction != null)
-            {
-                cancelInputAction.performed += OnCancelAction;
-                Debug.Log("[RhythmGameManager] 已绑定菜单按钮输入");
-            }
-            else
-            {
-                Debug.LogWarning("[RhythmGameManager] 未找到Cancel输入动作，暂停功能可能不可用");
-            }
+
+            cancelInputAction.performed += OnCancelAction;
+            Debug.Log("[RhythmGameManager] 已绑定暂停输入 (Y/B键 + Escape)");
         }
 
         /// <summary>

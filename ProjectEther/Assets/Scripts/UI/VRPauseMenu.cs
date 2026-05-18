@@ -204,6 +204,9 @@ namespace OsuVR
             gameObject.SetActive(true);
             HideCountdown();
 
+            // 通知 RayController 立即刷新缓存，消除 UI 出现后2秒延迟
+            RayController.NotifyUICanvasChanged();
+
             if (gameManager != null)
             {
                 gameManager.PauseGame();
@@ -224,11 +227,19 @@ namespace OsuVR
             isCountingDown = false;
             gameObject.SetActive(false);
             HideCountdown();
+            RayController.NotifyUICanvasChanged();
         }
 
         void OnContinueClicked()
         {
             PlayClickSound();
+
+            // Auto 模式：按下继续时立即接管手柄并重置位置
+            if (gameManager != null && gameManager.useAutoPlay && gameManager.autoPlayManager != null)
+            {
+                gameManager.autoPlayManager.OnGameResumed();
+            }
+
             StartCountdown();
         }
 
