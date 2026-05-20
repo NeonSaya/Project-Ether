@@ -85,6 +85,21 @@ namespace OsuVR
                 SyncAudioSource();
                 lastSyncTime = Time.time;
             }
+
+            // 检查音频源是否正在播放，如果是且当前源不匹配，立即同步
+            CheckPlayingAudioSource();
+        }
+
+        /// <summary>
+        /// 检查是否有新的音频源正在播放，及时同步
+        /// </summary>
+        private void CheckPlayingAudioSource()
+        {
+            AudioSource targetSource = GetTargetAudioSource();
+            if (targetSource != null && targetSource.isPlaying && currentAudioSource != targetSource)
+            {
+                SyncAudioSource();
+            }
         }
 
         // =========================================================
@@ -93,11 +108,30 @@ namespace OsuVR
 
         private void FindAudioLinkComponent()
         {
+            // 获取AudioLink类型（只获取一次）
+            var audioLinkType = System.Type.GetType("AudioLink.AudioLink, AudioLink");
+
+            // 检查现有引用是否有效（必须是AudioLink类型）
             if (audioLinkComponent != null)
-                return;
+            {
+                if (audioLinkType != null && audioLinkType.IsInstanceOfType(audioLinkComponent))
+                {
+                    // 引用正确，无需重新查找
+                    if (enableDebugLog)
+                    {
+                        Debug.Log($"[AudioLinkAdapter] AudioLink组件已配置: {audioLinkComponent.gameObject.name}");
+                    }
+                    return;
+                }
+                else
+                {
+                    // 引用错误（可能是Inspector中配置失误），清除并重新查找
+                    Debug.LogWarning($"[AudioLinkAdapter] audioLinkComponent引用错误（类型: {audioLinkComponent.GetType().Name}），重新查找AudioLink...");
+                    audioLinkComponent = null;
+                }
+            }
 
             // 尝试查找AudioLink组件（通过反射，因为AudioLink可能不存在）
-            var audioLinkType = System.Type.GetType("AudioLink, AudioLink");
             if (audioLinkType != null)
             {
                 audioLinkComponent = GetComponent(audioLinkType) as MonoBehaviour;
