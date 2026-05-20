@@ -901,6 +901,101 @@ MonoBehaviour:
   m_FlexibleWidth: 1
   m_FlexibleHeight: -1
   m_LayoutPriority: 1
+--- !u!1001 &708231818
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 939041022165984647, guid: 8c1f201f848804f42aa401d0647f8902,
+        type: 3}
+      propertyPath: m_Name
+      value: AudioLink
+      objectReference: {fileID: 0}
+    - target: {fileID: 4559840160047443413, guid: 8c1f201f848804f42aa401d0647f8902,
+        type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4559840160047443413, guid: 8c1f201f848804f42aa401d0647f8902,
+        type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4559840160047443413, guid: 8c1f201f848804f42aa401d0647f8902,
+        type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4559840160047443413, guid: 8c1f201f848804f42aa401d0647f8902,
+        type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4559840160047443413, guid: 8c1f201f848804f42aa401d0647f8902,
+        type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4559840160047443413, guid: 8c1f201f848804f42aa401d0647f8902,
+        type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4559840160047443413, guid: 8c1f201f848804f42aa401d0647f8902,
+        type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4559840160047443413, guid: 8c1f201f848804f42aa401d0647f8902,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4559840160047443413, guid: 8c1f201f848804f42aa401d0647f8902,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4559840160047443413, guid: 8c1f201f848804f42aa401d0647f8902,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 8295703945185298429, guid: 8c1f201f848804f42aa401d0647f8902, type: 3}
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 939041022165984647, guid: 8c1f201f848804f42aa401d0647f8902,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 708231820}
+  m_SourcePrefab: {fileID: 100100000, guid: 8c1f201f848804f42aa401d0647f8902, type: 3}
+--- !u!1 &708231819 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 939041022165984647, guid: 8c1f201f848804f42aa401d0647f8902,
+    type: 3}
+  m_PrefabInstance: {fileID: 708231818}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &708231820
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 708231819}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ede554c03bc853d428adb1aadcd2720d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  audioLinkComponent: {fileID: 0}
+  autoSync: 1
+  syncInterval: 1
+  enableDebugLog: 1
 --- !u!1 &763438496
 GameObject:
   m_ObjectHideFlags: 0
@@ -1623,12 +1718,32 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxParticles: 3000
   emissionRate: 100
-  sphereRadius: 20
+  outerRadius: 50
+  innerRadius: 4
+  innerMaxParticles: 1500
+  baseParticleSize: 0.4
   maxNoiseStrength: 1.5
   baseNoiseStrength: 0.15
-  maxSizeMultiplier: 2
-  maxColorIntensity: 1.8
+  maxBassBrightness: 2
+  maxBassSizePulse: 0.4
+  bassPulseSpeed: 2
+  trebleHueSpeed: 0.4
+  maxMidRotationSpeed: 0.5
   responseSmoothSpeed: 8
+  beatFlashPeak: 3.5
+  beatSizePeak: 1.8
+  beatFlashDecay: 8
+  beatSizeDecay: 6
+  beatAnticipation: 0.02
+  fallbackBPM: 120
+  kiaiRiseSpeed: 3
+  kiaiMidSpeedBonus: 1.2
+  kiaiBrightnessMultiplier: 1.5
+  kiaiAngularVelocity: 0.8
+  kiaiBurstInterval: 0.5
+  kiaiBurstCount: 30
+  kiaiBeatFlashMultiplier: 1.8
+  kiaiBeatBurstCount: 50
 --- !u!199 &1425666145
 ParticleSystemRenderer:
   serializedVersion: 6
@@ -7350,3 +7465,4 @@ SceneRoots:
   - {fileID: 1397690895}
   - {fileID: 1148476270}
   - {fileID: 1425666147}
+  - {fileID: 708231818}

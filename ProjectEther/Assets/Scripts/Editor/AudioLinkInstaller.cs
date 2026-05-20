@@ -234,7 +234,7 @@ namespace OsuVR.Editor
             if (adapter == null)
             {
                 // 尝试查找AudioLink组件
-                var audioLinkType = System.Type.GetType("AudioLink, AudioLink");
+                var audioLinkType = System.Type.GetType("AudioLink.AudioLink, AudioLink");
                 if (audioLinkType != null)
                 {
                     var audioLink = FindObjectOfType(audioLinkType) as MonoBehaviour;
