@@ -171,12 +171,15 @@ namespace OsuVR
                 {
                     // 回退到标准透明 Shader
                     shader = Shader.Find("Universal Render Pipeline/Unlit");
-                    if (shader == null) shader = Shader.Find("Standard");
+                    if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
                 }
 
                 cachedApproachCircleMaterial = new Material(shader);
                 cachedApproachCircleMaterial.mainTexture = cachedApproachTexture;
-                cachedApproachCircleMaterial.color = Color.white;
+                if (cachedApproachCircleMaterial.HasProperty("_BaseColor"))
+                    cachedApproachCircleMaterial.SetColor("_BaseColor", Color.white);
+                else
+                    cachedApproachCircleMaterial.color = Color.white;
             }
         }
 
@@ -423,7 +426,7 @@ namespace OsuVR
             CreateBodyLayer(root); 
             
             // 2. 【新增】叠加一个绝对实心的圆层！
-            // 这就是你要的“再加一个圆形的贴图贴上去”
+            // 这就是你要的"再加一个圆形的贴图贴上去"
             CreateSolidLayer(root); 
 
             // CreateOverlayLayer(root);   
@@ -455,11 +458,11 @@ namespace OsuVR
             // 1. 尝试找最普通的透明 Shader
             Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
             if (!shader) shader = Shader.Find("Unlit/Transparent");
-            if (!shader) shader = Shader.Find("Standard"); // 兜底
+            if (!shader) shader = Shader.Find("Universal Render Pipeline/Lit"); // 兜底
 
             Material mat = new Material(shader);
-            
-            // 2. 赋予刚才生成的“大实心圆”贴图
+
+            // 2. 赋予刚才生成的"大实心圆"贴图
             if (cachedSolidTexture == null) cachedSolidTexture = CreateSolidCircleTexture();
             mat.mainTexture = cachedSolidTexture;
             if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", cachedSolidTexture);
@@ -473,22 +476,14 @@ namespace OsuVR
             if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
             if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
             
-            // 针对 Standard 的设置
-            if (shader.name == "Standard")
-            {
-                mat.SetFloat("_Mode", 3); // Transparent
-                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                mat.EnableKeyword("_ALPHAPREMULTIPLY_ON");
-                mat.renderQueue = 3000;
-            }
-
             // 关闭深度写入，防止遮挡问题
             mat.SetInt("_ZWrite", 0);
-            
+
             // 颜色设为纯白，等待 NoteController 染色
-            mat.color = Color.white;
-            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+            if (mat.HasProperty("_BaseColor"))
+                mat.SetColor("_BaseColor", Color.white);
+            else
+                mat.color = Color.white;
 
             mr.material = mat;
     
@@ -542,8 +537,10 @@ namespace OsuVR
             // -----------------------------------------------------------
 
             // 设置基础颜色为白色 (NoteController 会通过 MaterialPropertyBlock 染色并应用 HDR 高亮)
-            mat.color = Color.white;
-            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+            if (mat.HasProperty("_BaseColor"))
+                mat.SetColor("_BaseColor", Color.white);
+            else
+                mat.color = Color.white;
 
             mr.material = mat;
             body.layer = 6;
@@ -710,8 +707,11 @@ namespace OsuVR
             
             var mat = new Material(shader);
             mat.mainTexture = cachedBodyTexture;
-            mat.color = new Color(1f, 1f, 1f, 1f);
-            
+            if (mat.HasProperty("_BaseColor"))
+                mat.SetColor("_BaseColor", new Color(1f, 1f, 1f, 1f));
+            else
+                mat.color = new Color(1f, 1f, 1f, 1f);
+
             // 设置 TintColor（Additive Shader 需要）
             if (mat.HasProperty("_TintColor"))
                 mat.SetColor("_TintColor", new Color(1f, 1f, 1f, 1f));
@@ -876,9 +876,12 @@ namespace OsuVR
             if (mat.HasProperty("_MainTex"))
                 mat.SetTexture("_MainTex", cachedBodyTexture);
             mat.mainTexture = cachedBodyTexture;
-            
-            mat.color = Color.white;
-            
+
+            if (mat.HasProperty("_BaseColor"))
+                mat.SetColor("_BaseColor", Color.white);
+            else
+                mat.color = Color.white;
+
             // 如果是 URP/Unlit，需要设置透明模式
             if (mat.HasProperty("_Surface"))
             {
@@ -903,8 +906,11 @@ namespace OsuVR
             if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
 
             var mat = new Material(shader);
-            mat.color = Color.white;
-            
+            if (mat.HasProperty("_BaseColor"))
+                mat.SetColor("_BaseColor", Color.white);
+            else
+                mat.color = Color.white;
+
             // 如果是 URP/Unlit，需要设置透明模式
             if (mat.HasProperty("_Surface"))
             {
@@ -930,8 +936,11 @@ namespace OsuVR
 
             var mat = new Material(shader);
             mat.mainTexture = cachedApproachTexture;
-            mat.color = Color.white;
-            
+            if (mat.HasProperty("_BaseColor"))
+                mat.SetColor("_BaseColor", Color.white);
+            else
+                mat.color = Color.white;
+
             // 如果是 URP/Unlit，需要设置透明模式
             if (mat.HasProperty("_Surface"))
             {
@@ -951,10 +960,13 @@ namespace OsuVR
         private static Material CreateDefaultTickMaterial()
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (shader == null) shader = Shader.Find("Standard");
+            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
 
             var mat = new Material(shader);
-            mat.color = Color.yellow;
+            if (mat.HasProperty("_BaseColor"))
+                mat.SetColor("_BaseColor", Color.yellow);
+            else
+                mat.color = Color.yellow;
             return mat;
         }
 
@@ -963,10 +975,10 @@ namespace OsuVR
             Shader shader = Shader.Find("Mobile/Particles/Additive");
             if (shader == null) shader = Shader.Find("Legacy Shaders/Particles/Additive");
             if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (shader == null) shader = Shader.Find("Standard");
+            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
 
             var mat = new Material(shader);
-            
+
             // HDR 发光白球：亮度适中
             Color whiteGlow = new Color(2.5f, 2.5f, 2.5f, 1.0f);
             if (mat.HasProperty("_TintColor"))

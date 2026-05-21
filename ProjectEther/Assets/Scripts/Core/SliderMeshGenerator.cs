@@ -43,8 +43,8 @@ namespace OsuVR
             Shader osuShader = Shader.Find(SHADER_NAME);
             if (osuShader == null)
             {
-                Debug.LogWarning($"Shader '{SHADER_NAME}' not found! Fallback to Standard.");
-                osuShader = Shader.Find("Standard");
+                Debug.LogWarning($"Shader '{SHADER_NAME}' not found! Fallback to URP Lit.");
+                osuShader = Shader.Find("Universal Render Pipeline/Lit");
             }
 
             // ---------------------------------------------------------
@@ -56,7 +56,10 @@ namespace OsuVR
             // StencilComp = Always: 总是通过模板测试
             // StencilOp = Replace: 把自己的 ID 刻入屏幕
             Material bodyMaterial = new Material(osuShader);
-            bodyMaterial.SetColor("_Color", bodyColor);
+            if (bodyMaterial.HasProperty("_BaseColor"))
+                bodyMaterial.SetColor("_BaseColor", bodyColor);
+            else
+                bodyMaterial.SetColor("_Color", bodyColor);
             bodyMaterial.SetInt("_StencilID", stencilID);
             bodyMaterial.SetInt("_StencilComp", (int)CompareFunction.Always);
             bodyMaterial.SetInt("_StencilOp", (int)StencilOp.Replace);
@@ -66,7 +69,10 @@ namespace OsuVR
             // StencilComp = NotEqual: 只有当模板缓冲区的 ID 不等于自己的 ID 时才渲染
             // StencilOp = Keep: 遇到本体留下的 ID 则自动镂空
             Material borderMaterial = new Material(osuShader);
-            borderMaterial.SetColor("_Color", borderColor);
+            if (borderMaterial.HasProperty("_BaseColor"))
+                borderMaterial.SetColor("_BaseColor", borderColor);
+            else
+                borderMaterial.SetColor("_Color", borderColor);
             borderMaterial.SetInt("_StencilID", stencilID);
             borderMaterial.SetInt("_StencilComp", (int)CompareFunction.NotEqual);
             borderMaterial.SetInt("_StencilOp", (int)StencilOp.Keep);

@@ -37,6 +37,7 @@
 * **VR 交互层**: XR Interaction Toolkit (XRI 3.3.1) —— 官方强大的 XR 封装库，稳定处理头显空间定位、手柄 6DoF 移动以及复杂的射线触发逻辑。
 * **底层 XR 插件**: 采用高度兼容的 OpenXR 1.10.0 协议标准，并内嵌 Oculus XR Plugin 4.2.0。
 * **视觉与文本方案**: 使用 TextMeshPro (TMP 3.0.6) 保证在 VR 近距离观察下依然锐利的字体渲染；结合 Visual Effect Graph (VFX 14.0.10) 驱动 GPU 级别的大规模绚丽粒子特效。
+* **音频可视化栈**: `Lasp` (Keijiro) 提供系统级低延迟 FFT 音频捕获（`#if LASP` 宏已启用），`AudioLink` 通过反射式集成提供 DFT 精细频段数据，`AudioVisualizationManager` 统一管理三频段全局 Shader 参数注入与频谱分析管线。
 * **编程架构**: C# 面向对象设计 —— 严格遵循数据与视图分离的模块化架构，为开源社区的二次开发与大规模魔改提供了极其友好的土壤。
 
 ---
@@ -49,8 +50,8 @@
 * **生理级防眩晕与触觉反馈**: 手柄会根据你的击打结果提供多层次、细腻的震动反馈 (`HapticProfile`)；而在 UI 层面，所有的动态面板不仅通过着色器实现了物理弯折，还自带类似弹簧阻尼的视线平滑跟随 (`HUDFollower`)，彻底告别 VR 眩晕。
 * **完整的国际化支持**: 内置自动本地化系统 (`LocalizationManager`) 与 `LocalizedText` 组件，支持中文、日文等 Unicode 字体的动态加载与渲染，所有 UI 文本自动适配语言偏好。
 * **丰富的 Mod 拓展体系**: 游戏内已集成 AutoPlay（自动完美演示）、HR（HardRock 翻转与缩圈缩小）、FL（Flashlight 手电筒视野限制，含专属休息时段动画）等经典机制，并支持玩家在设置中进行毫秒级的全局音频延迟 (Offset) 微调，自带可扩展的多语言国际化字典。
-* **数据驱动的音频可视化**: 已接入 `AudioLink` 音频数据桥接系统，建立起音频 FFT 数据驱动全局 Shader 材质变幻与环境光照的基础通道，配合精准的 BPM 同步与 Kiai 时段检测，让每一处视觉元素都随节拍律动呼吸。
-* **代码驱动粒子特效系统**: 独创的纯代码运算环境粒子系统与打击粒子引擎，无需依赖 VFX Graph 即可在低配设备上流畅运行，为后续 GPU 粒子方案提供坚实的低配兜底。
+* **数据驱动的音频可视化**: 已接入 `AudioLink` 音频数据桥接系统与 `Lasp` 低延迟音频捕获，建立起从 `AudioSource` 播放 → FFT 频谱分析 → 全局 Shader 参数注入 (`_Global_Audio_Bass/Mid/Treble`) → 128 柱频谱渲染与粒子响应的完整视听闭环。AudioLink 通过反射式集成提供 DFT 精细频段数据，Lasp 提供系统级低延迟音频捕获，双通道自动切换保障不同环境下的最佳表现。
+* **代码驱动粒子特效系统**: 独创的纯代码运算环境粒子系统与打击粒子引擎，配合 BPM 精准节拍同步与 Kiai 时段检测，无需依赖 VFX Graph 即可在低配设备上流畅运行，为后续 GPU 粒子方案提供坚实的低配兜底。
 * **沉浸式物理渐入体验**: 所有音符与游戏物件均配有物理级淡入动画，配合 20ms 硬件音频延迟补偿机制，实现视听反馈的极致同步。
 
 ---
@@ -79,7 +80,7 @@ Assets/
     ├── Rulesets/       # 铁面无私的裁判 (ScoreManager 专职计算判定窗口、准确率与 Combo)
     ├── System/         # 全局基础设施 (GameSettings 配置读取、ModSystem 变异逻辑、ModEffectsApplier Mod效果施加、LocalizationManager 本地化、FlashlightEffect FL手电筒效果、UnicodeFontLoader Unicode字体加载)
     ├── UI/             # 界面交互层 (VRSettingsMenu VR设置、PauseMenu / VRPauseMenu 暂停面板、ModSelectionUI Mod选择、LocalizedText 多语言文本组件)
-    └── Visuals/        # 视觉魔术师 (JudgementVisualizer 纯代码生成特效、CurvedUIEffect UI弯折、CodeDrivenAmbientParticles 环境粒子、AudioVFXDriver 音频驱动特效)
+    └── Visuals/        # 视觉魔术师 (JudgementVisualizer 纯代码生成特效、CurvedUIEffect UI弯折、CodeDrivenAmbientParticles BPM同步环境粒子、EtherealEnvironment 128柱频谱+11层粒子环境、AudioVFXDriver 音频驱动特效)
 ```
 
 ---
@@ -184,17 +185,19 @@ A: 绝对配！Unity 官方非常贴心地提供了 `XR Device Simulator` 插件
 目前的 UI、特效以及全局背景仍处于“毛胚房”阶段。在基础游戏打歌玩法已经定型的前提下，我们未来的重心将完全转移到**视听演出的极致 VR 化**与**多端适配**上。为了让庞大的愿景落地，我们将开发计划拆解为了以下可行的小步目标：
 
 ### 阶段一：视觉特效重构与画面张力提升
-- [ ] **后期管线大升级**: 导入并全面配置 `X-PostProcessing-Library`，为游戏注入 Bloom 泛光溢出、Chromatic Aberration (色差干扰) 等基础大片级电影滤镜。
+- [x] **URP 后期管线基础配置**: 已完成 URP High Fidelity 渲染管线配置（HDR, MSAA 4x, 4096 阴影分辨率），内置 Tonemapping (ACES)、Bloom 泛光与 Vignette 暗角。
 - [x] **物件渐入动画**: 所有音符与游戏物件已实现物理级淡入效果，提升视觉流畅度与沉浸感。
 - [ ] **打击反馈大换血**: 弃用性能受限的基础 Mesh 粒子，初步接入强大的 `Unity VFX Graph` 搭建数以万计的高性能 GPU 粒子系统。
 - [ ] **精细化判定表现**: 为不同的判定结果 (Great / Ok / Miss) 制作独立且极具视觉冲击力的爽快粒子爆炸特效。
 
-### 阶段二：数据驱动的音频可视化舞台 (Audio $\rightarrow$ Visual) — 🟢 基础通道已打通
+### 阶段二：数据驱动的音频可视化舞台 (Audio $\rightarrow$ Visual) — 🟢 视听闭环已达成
 这是本项目的杀手锏。核心逻辑：`音频数据化 (FFT 快速傅里叶变换) -> 数据流全面驱动视觉 (Shader 参数 & 粒子速率)`。
-- [x] **精准音频频段捕获**: 接入 Keijiro 大神的 `Lasp`，实时获取极其低延迟的多频段 FFT 音频数据流。
-- [x] **建立全局视觉通道**: 引入 VRChat 社区的神器 `AudioLink`，建立起音频数据控制全局 Shader 材质变幻与环境光照颜色的基础通道。
-- [x] **BPM 精准同步与 Kiai 检测**: 实现基于谱面 BPM 的精准节拍同步，解析并响应 Kiai 时段，让 Kiai 时光影爆发更具冲击力。
-- [x] **代码驱动环境粒子**: 实现纯代码运算的环境粒子系统，为后续 GPU 粒子方案提供低配兜底。
+- [x] **精准音频频段捕获**: 接入 Keijiro 大神的 `Lasp`，实时获取极其低延迟的多频段 FFT 音频数据流。(`#if LASP` 宏已正式启用)
+- [x] **建立全局视觉通道**: 引入 VRChat 社区的神器 `AudioLink`，通过反射式集成建立音频数据控制全局 Shader 材质变幻与环境光照的基础通道。
+- [x] **128 柱频谱可视化**: `EtherealEnvironment` 驱动 128 根频谱柱渲染，支持 AudioLink DFT 精细频段与三频段 (Bass/Mid/Treble) 自动降级双通道。
+- [x] **BPM 精准同步与 Kiai 检测**: 实现基于谱面 BPM 的精准节拍同步（二分查找 TimingPoints），解析并响应 Kiai 时段，让 Kiai 时光影爆发更具冲击力。
+- [x] **代码驱动环境粒子**: 实现纯代码运算的环境粒子系统（11 层粒子），为后续 GPU 粒子方案提供低配兜底。
+- [x] **URP 材质全面清洗**: 将工程中所有 `Shader.Find("Standard")` 替换为 `Universal Render Pipeline/Lit`，统一 `_Color` → `_BaseColor` 属性名，地板材质配置为深邃空灵镜面效果 (高 Metallic/Smoothness + 微弱 Emission)。
 - [ ] **场景底模彻底焕新**: 深入应用 `Effekseer`，结合 AudioLink 数据，制作第一个能够随音乐频率高低起伏、律动呼吸的 MMD 风格大型动态舞台背景。
 
 ### 阶段三：osu! 经典特性 VR 重塑
