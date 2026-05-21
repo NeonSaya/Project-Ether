@@ -82,7 +82,6 @@ namespace OsuVR
         private EventSystem eventSystem;
         private Camera cachedMainCam;
 
-        private List<GraphicRaycaster> uiRaycasters = new List<GraphicRaycaster>();
         private List<Canvas> cachedCanvases = new List<Canvas>();
         private List<TMP_Dropdown> cachedDropdowns = new List<TMP_Dropdown>();
         private List<ScrollRect> cachedScrollRects = new List<ScrollRect>();
@@ -157,7 +156,8 @@ namespace OsuVR
             if (cacheRefreshTimer >= CACHE_REFRESH_INTERVAL)
             { cacheRefreshTimer = 0f; RefreshHeavyCaches(); }
 
-            cachedMainCam = Camera.main;
+            // Camera.main 内部做 FindGameObjectWithTag，缓存避免每帧调用
+            if (cachedMainCam == null) cachedMainCam = Camera.main;
 
             PerformRaycastAll();
             UpdateDropdownState();
@@ -174,26 +174,18 @@ namespace OsuVR
 
         private void RefreshAllCaches()
         {
-            RefreshRaycasters();
             RefreshHeavyCaches();
             cachedMainCam = Camera.main;
         }
 
-        private void RefreshRaycasters()
-        {
-            uiRaycasters.Clear();
-            uiRaycasters.AddRange(FindObjectsOfType<GraphicRaycaster>());
-        }
-
         private void RefreshHeavyCaches()
         {
-            // 包含 inactive 对象，确保隐藏的 UI（如设置界面）也缓存
             cachedCanvases.Clear();
-            cachedCanvases.AddRange(Resources.FindObjectsOfTypeAll<Canvas>());
+            cachedCanvases.AddRange(FindObjectsOfType<Canvas>());
             cachedDropdowns.Clear();
-            cachedDropdowns.AddRange(Resources.FindObjectsOfTypeAll<TMP_Dropdown>());
+            cachedDropdowns.AddRange(FindObjectsOfType<TMP_Dropdown>());
             cachedScrollRects.Clear();
-            cachedScrollRects.AddRange(Resources.FindObjectsOfTypeAll<ScrollRect>());
+            cachedScrollRects.AddRange(FindObjectsOfType<ScrollRect>());
         }
 
         // ============================================================

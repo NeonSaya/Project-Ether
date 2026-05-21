@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -176,8 +177,8 @@ namespace OsuVR
                 anchoredPos: new Vector2(0f, VersionAnchoredY),
                 sizeDelta: new Vector2(VersionWidth, VersionHeight));
 
-            // ---- 通知 RayController ----
-            RayController.NotifyUICanvasChanged();
+            // ---- 通知 RayController（延迟一帧，确保 Canvas 完全初始化） ----
+            StartCoroutine(NotifyRayControllerNextFrame());
 
             Debug.Log("[SimpleMainMenu] 动态 UI 构建完成 (1:1 复刻 Prefab 布局)");
         }
@@ -277,6 +278,13 @@ namespace OsuVR
         {
             if (audioSource != null && clickSound != null)
                 audioSource.PlayOneShot(clickSound, 0.8f);
+        }
+
+        private IEnumerator NotifyRayControllerNextFrame()
+        {
+            yield return null;
+            RayController.NotifyUICanvasChanged();
+            Debug.Log("[SimpleMainMenu] RayController 缓存已刷新");
         }
 
         // ============================================================
