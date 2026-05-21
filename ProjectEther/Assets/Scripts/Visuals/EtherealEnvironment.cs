@@ -836,24 +836,27 @@ namespace OsuVR
             bubbleMaterial = new Material(additiveShader) { enableInstancing = true, renderQueue = 2001 };
             bubbleMaterial.SetTexture("_MainTex", glowTexture);
 
-            // 镜面地板材质
-            Shader mirrorShader = Shader.Find("Standard");
+            // 镜面地板材质（URP Lit — 深邃空灵镜面）
+            Shader mirrorShader = Shader.Find("Universal Render Pipeline/Lit");
             if (mirrorShader != null)
             {
                 mirrorFloorMaterial = new Material(mirrorShader);
-                mirrorFloorMaterial.SetFloat("_Mode", 3); // Transparent mode
+                // 透明模式
+                mirrorFloorMaterial.SetFloat("_Surface", 1.0f); // Transparent
+                mirrorFloorMaterial.SetFloat("_Blend", 0.0f);    // Alpha
                 mirrorFloorMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
                 mirrorFloorMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
                 mirrorFloorMaterial.SetInt("_ZWrite", 0);
-                mirrorFloorMaterial.DisableKeyword("_ALPHATEST_ON");
-                mirrorFloorMaterial.EnableKeyword("_ALPHABLEND_ON");
-                mirrorFloorMaterial.DisableKeyword("_ALPHAPREMULTIPLY_ON");
                 mirrorFloorMaterial.renderQueue = 3000;
 
-                // 镜面反射效果
-                mirrorFloorMaterial.SetFloat("_Metallic", 0.9f);
-                mirrorFloorMaterial.SetFloat("_Glossiness", 0.95f);
-                mirrorFloorMaterial.SetColor("_Color", new Color(0.7f, 0.75f, 0.8f, mirrorFloorAlpha));
+                // 深邃空灵镜面效果
+                mirrorFloorMaterial.SetColor("_BaseColor", new Color(0.02f, 0.02f, 0.03f, mirrorFloorAlpha));
+                mirrorFloorMaterial.SetFloat("_Metallic", 0.8f);
+                mirrorFloorMaterial.SetFloat("_Smoothness", 0.95f);
+
+                // 发光（极微弱自发光，增强空灵感）
+                mirrorFloorMaterial.EnableKeyword("_EMISSION");
+                mirrorFloorMaterial.SetColor("_EmissionColor", new Color(0.01f, 0.015f, 0.02f, 1f));
             }
         }
 
