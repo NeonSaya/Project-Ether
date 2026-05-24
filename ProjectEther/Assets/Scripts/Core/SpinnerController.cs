@@ -588,7 +588,8 @@ namespace OsuVR
                 HapticManager.Instance.PlayContinuous(true, 0f);
                 HapticManager.Instance.PlayContinuous(false, 0f);
             }
-            float vol = spinnerData.SampleVolume / 100f;
+            // 音量 = TimingPoint音量 × 样本倍率
+            float vol = (spinnerData.TimingPointVolume / 100f) * (spinnerData.SampleVolume / 100f);
             // 判定逻辑
             if (Progress >= 1.0f)
             {

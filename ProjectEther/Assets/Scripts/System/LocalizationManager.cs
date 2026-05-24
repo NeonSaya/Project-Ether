@@ -103,6 +103,7 @@ namespace OsuVR
                 {"ui_resume", new[] {"RESUME", "继续", "再開"}},
                 {"ui_pause", new[] {"PAUSE", "暂停", "一時停止"}},
                 {"ui_main_menu", new[] {"MAIN MENU", "主菜单", "メインメニュー"}},
+                {"ui_song_select", new[] {"BACK", "返回选歌", "選曲へ"}},
                 {"ui_low", new[] {"Low", "低", "低"}},
                 {"ui_medium", new[] {"Medium", "中", "中"}},
                 {"ui_high", new[] {"High", "高", "高"}},

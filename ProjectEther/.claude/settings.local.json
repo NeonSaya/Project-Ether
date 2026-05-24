@@ -4,7 +4,8 @@
       "Bash(for f:*)",
       "Bash(do echo:*)",
       "Bash(wc:*)",
-      "Bash(xxd)"
+      "Bash(xxd)",
+      "Bash(ls -d Assets/*/)"
     ]
   }
 }

@@ -138,6 +138,7 @@ namespace OsuVR
 
         /// <summary>
         /// 播放打击音效 (HitCircle / SliderHead)
+        /// 音量 = TimingPointVolume × (SampleVolume / 100)
         /// </summary>
         public void PlayHitSound(HitObject hitObject)
         {
@@ -147,8 +148,8 @@ namespace OsuVR
                 soundType = HitSoundType.Normal;
             }
 
-            float finalVolume = hitObject.SampleVolume / 100f;
-            if (finalVolume <= 0f) finalVolume = 1.0f;
+            // 最终音量 = TimingPoint音量 × 样本倍率
+            float finalVolume = (hitObject.TimingPointVolume / 100f) * (hitObject.SampleVolume / 100f);
 
             SampleSet set = hitObject.SampleSet;
             if (set == SampleSet.None) set = SampleSet.Normal;
@@ -177,6 +178,7 @@ namespace OsuVR
         /// <summary>
         /// 播放滑条节点音效
         /// osu! 中每个滑条节点都有独立的音效配置
+        /// 音量 = TimingPointVolume × (SampleVolume / 100)
         /// </summary>
         /// <param name="slider">滑条对象</param>
         /// <param name="nodeIndex">节点索引 (0=Head, 1+=Repeat/Tail)</param>
@@ -191,9 +193,8 @@ namespace OsuVR
                 nodeSamples = slider.NodeSamples[nodeIndex];
             }
 
-            // 默认音量和音效库
-            float volume = slider.SampleVolume / 100f;
-            if (volume <= 0f) volume = 1.0f;
+            // 最终音量 = TimingPoint音量 × 样本倍率
+            float volume = (slider.TimingPointVolume / 100f) * (slider.SampleVolume / 100f);
 
             SampleSet sampleSet = slider.SampleSet;
             if (sampleSet == SampleSet.None) sampleSet = SampleSet.Normal;
@@ -278,9 +279,10 @@ namespace OsuVR
         /// <summary>
         /// 播放滑条 Tick 音效
         /// </summary>
+        /// <param name="volume">已计算好的最终音量 (TimingPointVolume × SampleVolume / 100)</param>
         public void PlaySliderTick(SampleSet set, int index, float volume)
         {
-            float finalVol = volume * masterVolume;
+            float finalVol = volume * masterVolume * sfxVolume;
             AudioClip clip = GetClip(set, HitSoundType.Normal, index, false, true);
             if (clip) PlayOneShot(clip, finalVol);
         }
@@ -298,7 +300,7 @@ namespace OsuVR
                     if (clip)
                     {
                         sliderLoopSource.clip = clip;
-                        sliderLoopSource.volume = 0.5f * masterVolume;
+                        sliderLoopSource.volume = 0.5f * masterVolume * sfxVolume;
                         sliderLoopSource.Play();
                     }
                 }
@@ -326,7 +328,7 @@ namespace OsuVR
                     spinnerLoopSource.Play();
                 }
 
-                spinnerLoopSource.volume = Mathf.Clamp01(intensity) * masterVolume;
+                spinnerLoopSource.volume = Mathf.Clamp01(intensity) * masterVolume * sfxVolume;
                 spinnerLoopSource.pitch = 1.0f + (intensity * 0.2f);
             }
             else
@@ -344,7 +346,8 @@ namespace OsuVR
             AudioClip clip = GetClip(set, type, index);
             if (clip != null)
             {
-                PlayOneShot(clip, volume * masterVolume);
+                // 应用谱面音量 × 主音量 × 音效音量
+                PlayOneShot(clip, volume * masterVolume * sfxVolume);
             }
         }
 

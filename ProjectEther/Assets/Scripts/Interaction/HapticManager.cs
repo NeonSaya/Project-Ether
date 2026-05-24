@@ -97,19 +97,12 @@ namespace OsuVR
         /// <summary>
         /// 播放滑条 Tick 震动
         /// </summary>
-        public void PlaySliderTick(bool isRightHand)
+        /// <param name="volume">0.0 ~ 1.0 的音量倍率 (来自谱面 SampleVolume)</param>
+        public void PlaySliderTick(bool isRightHand, float volume = 1.0f)
         {
             XRNode node = isRightHand ? XRNode.RightHand : XRNode.LeftHand;
-            SendHaptic(node, profile.SliderTick.intensity, profile.SliderTick.duration);
-        }
-
-        /// <summary>
-        /// 播放滑条折返震动
-        /// </summary>
-        public void PlaySliderReverse(bool isRightHand)
-        {
-            XRNode node = isRightHand ? XRNode.RightHand : XRNode.LeftHand;
-            SendHaptic(node, profile.SliderReverse.intensity, profile.SliderReverse.duration);
+            float finalIntensity = profile.SliderTick.intensity * Mathf.Clamp01(volume);
+            SendHaptic(node, finalIntensity, profile.SliderTick.duration);
         }
 
         /// <summary>

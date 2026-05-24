@@ -97,7 +97,7 @@ namespace OsuVR
                 { "PAUSED", "ui_pause" },
                 { "Continue", "ui_resume" },
                 { "Retry", "ui_retry" },
-                { "Back to Menu", "ui_main_menu" }
+                { "Back to Menu", "ui_song_select" }
             };
 
             foreach (var text in allTexts)
@@ -125,7 +125,7 @@ namespace OsuVR
             if (retryButtonText != null)
                 retryButtonText.text = LocalizationManager.GetText("ui_retry");
             if (backToMenuButtonText != null)
-                backToMenuButtonText.text = LocalizationManager.GetText("ui_main_menu");
+                backToMenuButtonText.text = LocalizationManager.GetText("ui_song_select");
         }
 
         void Update()
@@ -257,7 +257,10 @@ namespace OsuVR
         {
             PlayClickSound();
             HidePauseMenu();
-            UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenuScene");
+            if (GameContext.Instance != null)
+                UnityEngine.SceneManagement.SceneManager.LoadScene(GameContext.Instance.SongSelectSceneName);
+            else
+                UnityEngine.SceneManagement.SceneManager.LoadScene("SongSelectScene");
         }
 
         void StartCountdown()

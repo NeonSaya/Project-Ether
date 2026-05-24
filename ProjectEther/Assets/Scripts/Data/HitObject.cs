@@ -123,9 +123,15 @@ namespace OsuVR
         public int CustomIndex { get; set; }
 
         /// <summary>
-        /// 音量 (0-100)
+        /// 音量 (0-100)，作为倍率使用
+        /// 最终音量 = TimingPointVolume × (SampleVolume / 100)
         /// </summary>
         public float SampleVolume { get; set; } = 100f;
+
+        /// <summary>
+        /// TimingPoint 的音量 (由 OsuParser 设置)
+        /// </summary>
+        public float TimingPointVolume { get; set; } = 100f;
 
         /// <summary>
         /// 原始音频文件名 (如果有的话)

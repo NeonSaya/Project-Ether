@@ -150,6 +150,7 @@ namespace OsuVR
             if (AudioManager.Instance != null)
             {
                 AudioManager.Instance.SetMasterVolume(settings.masterVolume);
+                AudioManager.Instance.SetSFXVolume(settings.sfxVolume);
             }
         }
 

@@ -62,7 +62,7 @@ namespace OsuVR.Editor
             AddButtonCollider(creditsBtn);
             AddButtonCollider(quitBtn);
 
-            GameObject versionObj = CreateText("Version", canvas.transform, "Demo v0.1", 
+            GameObject versionObj = CreateText("Version", canvas.transform, "v0.6.0 Beta",
                 new Vector2(0, -150), new Vector2(200, 30), 14, TextAlignmentOptions.Center);
 
             AudioSource audioSource = root.AddComponent<AudioSource>();

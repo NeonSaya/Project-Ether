@@ -233,7 +233,8 @@ namespace OsuVR
         /// <summary>
         /// 播放打击特效 (防卡顿/防丢失终极版)
         /// </summary>
-        public void PlayHit(Vector3 pos, Quaternion rot, float size, Color color, Vector3? avoidPos = null)
+        /// <param name="accuracy">判定分数 (300/100/50)，用于缩放粒子强度</param>
+        public void PlayHit(Vector3 pos, Quaternion rot, float size, Color color, Vector3? avoidPos = null, int accuracy = 300)
         {
             // 1. 从池中获取
             ParticleSystem rootPS = pool.Get();
@@ -264,7 +265,15 @@ namespace OsuVR
                 else if (localToNext.normalized.x < -0.1f) leftProbability = 0.2f;
             }
 
-            Color hdrColor = new Color(color.r * hdrIntensity, color.g * hdrIntensity, color.b * hdrIntensity, 1.0f);
+            // 判定衰减：300 保持现状，100/50 逐级衰减
+            float accScale = 1.0f;
+            if (accuracy <= 50) accScale = 0.4f;
+            else if (accuracy <= 100) accScale = 0.7f;
+
+            Color hdrColor = new Color(
+                color.r * hdrIntensity * accScale,
+                color.g * hdrIntensity * accScale,
+                color.b * hdrIntensity * accScale, 1.0f);
 
             // 3. 配置子粒子系统 (直接获取，零GC)
             // 索引 0: Burst_Floating (主爆破)
@@ -272,13 +281,14 @@ namespace OsuVR
             var mainFloating = psFloating.main;
             mainFloating.startColor = hdrColor;
             mainFloating.startSize = new ParticleSystem.MinMaxCurve(cubeSize * size, cubeSize * size * 1.2f);
+            mainFloating.startSpeed = new ParticleSystem.MinMaxCurve(1.5f * accScale, 6.0f * accScale);
 
             var shapeFloating = psFloating.shape;
             shapeFloating.radius = burstRadius * size;
 
             // 设置爆破数量
             var emFloating = psFloating.emission;
-            short burstCount = (short)Random.Range(burstCountMin, burstCountMax);
+            short burstCount = (short)(Random.Range(burstCountMin, burstCountMax) * accScale);
             emFloating.SetBurst(0, new ParticleSystem.Burst(0f, burstCount));
 
             // 索引 1: Burst_Debris (残渣)
@@ -290,7 +300,8 @@ namespace OsuVR
             rootPS.Play(true);
 
             // 4. 手动发射残渣
-            int debrisCount = Random.Range(debrisMin, debrisMax + 1);
+            int debrisCount = (int)(Random.Range(debrisMin, debrisMax + 1) * accScale);
+            if (debrisCount < 1 && accuracy > 0) debrisCount = 1; // 至少保留 1 个残渣
             var emitParams = new ParticleSystem.EmitParams();
             emitParams.startColor = hdrColor;
 
@@ -303,7 +314,7 @@ namespace OsuVR
 
                 Vector3 localDir = new Vector3(dirX, dirY, dirZ).normalized;
                 Vector3 baseVelocity = rot * localDir;
-                float finalSpeed = Random.Range(horizontalSpeed * 0.8f, horizontalSpeed * 1.2f);
+                float finalSpeed = Random.Range(horizontalSpeed * 0.8f, horizontalSpeed * 1.2f) * accScale;
                 Vector3 subtleNoise = Random.insideUnitSphere * 0.5f;
 
                 emitParams.velocity = (baseVelocity * finalSpeed) + subtleNoise;

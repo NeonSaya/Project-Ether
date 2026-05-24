@@ -654,28 +654,31 @@ namespace OsuVR
                     currentVolume = sortedPoints[foundIndex].Volume;
                 }
 
-                // 3. 如果对象自身音量为 0 (未设置)，则使用 TimingPoint 的音量
+                // 存储 TimingPoint 音量，供 AudioManager 计算最终音量
+                obj.TimingPointVolume = currentVolume;
+
+                // 3. 如果对象自身音量为 0 (未设置)，设为 100 表示 100% 倍率
+                // 最终音量 = TimingPointVolume × (SampleVolume / 100)
                 if (obj.SampleVolume <= 0.01f) // 考虑到 float 精度，判断接近0
                 {
-                    obj.SampleVolume = currentVolume;
+                    obj.SampleVolume = 100f;
                 }
 
                 // 4. 特殊处理：滑条的节点音量 (Slider Nodes)
                 if (obj is SliderObject slider)
                 {
                     // 滑条的节点通常在 ParseSliderNodeSamples 中解析
-                    // 如果那里也没解析出音量（也是0），也需要赋值
+                    // 如果那里也没解析出音量（也是0），设为 100 表示 100% 倍率
                     if (slider.NodeSamples != null)
                     {
                         foreach (var nodeSampleList in slider.NodeSamples)
                         {
                             foreach (var sample in nodeSampleList)
                             {
-                                // 注意：FileHitSampleInfo 和 BankHitSampleInfo 可能结构不同，需根据你的定义调整
                                 var bankSample = sample as BankHitSampleInfo;
-                                if (bankSample != null && bankSample.Volume == 0)
+                                if (bankSample != null && bankSample.Volume <= 0.01f)
                                 {
-                                    bankSample.Volume = currentVolume;
+                                    bankSample.Volume = 100;
                                 }
                             }
                         }
