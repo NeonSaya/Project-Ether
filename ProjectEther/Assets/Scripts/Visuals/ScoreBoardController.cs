@@ -42,7 +42,6 @@ namespace OsuVR
 
         private Vector3 comboOriginalScale;     // 连击文本原始缩放
         private Color comboOriginalColor;       // 连击文本原始颜色
-        private bool isComboBroken = false;     // 是否正在播放断连动画
 
         // =========================================================
         // 生命周期
@@ -175,7 +174,6 @@ namespace OsuVR
         {
             if (!textCombo) yield break;
 
-            isComboBroken = true;
             textCombo.color = comboBreakColor;
 
             Vector3 originalPos = textCombo.transform.localPosition;
@@ -199,7 +197,6 @@ namespace OsuVR
             textCombo.alpha = 1f;
             textCombo.transform.localPosition = originalPos;
             textCombo.transform.localScale = comboOriginalScale;
-            isComboBroken = false;
         }
     }
 }

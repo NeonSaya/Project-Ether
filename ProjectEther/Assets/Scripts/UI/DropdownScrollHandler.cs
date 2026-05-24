@@ -19,7 +19,6 @@ namespace OsuVR
         private TMP_Dropdown dropdown;
         private ScrollRect scrollRect;
         private bool isDropdownOpen = false;
-        private float currentScrollVelocity;
         private float targetScrollPosition;
 
         void Awake()
@@ -121,20 +120,6 @@ namespace OsuVR
                     );
                 }
             }
-        }
-
-        public void ScrollToItem(int index)
-        {
-            if (scrollRect == null || dropdown == null) return;
-            
-            int itemCount = dropdown.options.Count;
-            if (itemCount == 0) return;
-            
-            float itemHeight = 1f / itemCount;
-            float targetPos = 1f - (index * itemHeight);
-            
-            targetScrollPosition = Mathf.Clamp01(targetPos);
-            scrollRect.verticalNormalizedPosition = targetScrollPosition;
         }
     }
 }

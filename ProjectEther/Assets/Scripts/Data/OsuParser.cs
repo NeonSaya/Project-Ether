@@ -18,14 +18,14 @@ namespace OsuVR
         private static readonly char[] ColonSeparator = { ':' };
         private static readonly char[] PipeChar = { '|' };
 
-        // [新增] 内部结构：用于存储时间点和对应的数值（例如 BPM 或速度倍率）
+        // 内部结构：用于存储时间点和对应的数值（例如 BPM 或速度倍率）
         private struct VolumePoint
         {
             public double Time;
             public int Volume;
         }
 
-        // [新增] 用于标记当前解析段落的枚举
+        // 标记当前解析段落的枚举
         private enum Section
         {
             None,
@@ -38,7 +38,7 @@ namespace OsuVR
             HitObjects
         }
 
-        // [新增] 完整解析入口：读取文件并分发到各个解析方法
+        // 完整解析入口：读取文件并分发到各个解析方法
         public static Beatmap Parse(string path)
         {
             var beatmap = new Beatmap();
@@ -55,7 +55,7 @@ namespace OsuVR
                 string trim = line.Trim();
                 if (string.IsNullOrWhiteSpace(trim) || trim.StartsWith("//")) continue;
 
-                // [新增] 解析文件版本号 (通常在第一行: osu file format v14)
+                // 解析文件版本号 (通常在第一行: osu file format v14)
                 if (trim.StartsWith("osu file format v"))
                 {
                     if (int.TryParse(trim.Substring(17), out int ver))
@@ -112,7 +112,7 @@ namespace OsuVR
                 }
             }
 
-            // [新增] 后处理：在所有数据解析完毕后，重新校准滑条时间
+            // 后处理：在所有数据解析完毕后，重新校准滑条时间
             // 这样可以防止 TimingPoints 在 HitObjects 后面导致计算错误
             foreach (var hitObject in beatmap.HitObjects)
             {
@@ -193,11 +193,10 @@ namespace OsuVR
                     forceNewCombo = false;
                 }
 
-                // ✅ 关键：把计算出的索引赋值给对象
+                // 把计算出的索引赋值给对象
                 obj.ComboIndex = currentComboIndex;
 
-                // ✅ 关键：根据索引直接分配颜色 (可选，Manager里其实也会算，但这里存一份更稳)
-                // 注意：osu 的 ComboIndex 是从 1 开始的，所以要 -1
+                // 根据索引分配颜色
                 int colorIndex = (obj.ComboIndex - 1) % beatmap.ComboColors.Count;
                 // 防止负数取模问题
                 if (colorIndex < 0) colorIndex += beatmap.ComboColors.Count;
@@ -222,7 +221,7 @@ namespace OsuVR
                 Vector2 position = new Vector2(x, y);
                 double time = double.Parse(parts[2], CultureInfo.InvariantCulture);
 
-                // 2. [优化] 使用位运算解析类型 (更稳健)
+                // 2. 使用位运算解析类型
                 int rawType = int.Parse(parts[3]);
                 int hitSoundInt = int.Parse(parts[4]); // 获取基础 HitSound
 
@@ -380,8 +379,6 @@ namespace OsuVR
 
                 // 将滑条添加到谱面
                 beatmap.HitObjects.Add(slider);
-
-                // Debug.Log($"创建滑条: 时间={time}ms, 持续={slider.Duration:F2}ms, 速度倍率={diffPoint.SpeedMultiplier:F2}");
             }
             catch (FormatException e)
             {
@@ -508,7 +505,7 @@ namespace OsuVR
             if (obj.AdditionSet == SampleSet.None) obj.AdditionSet = SampleSet.Normal;
         }
 
-        // [新增] 解析 [General]
+        // 解析 [General]
         private static void ParseGeneral(string line, GeneralSection general)
         {
             var pair = line.Split(':');
@@ -526,7 +523,7 @@ namespace OsuVR
             }
         }
 
-        // [新增] 解析 [Metadata]
+        // 解析 [Metadata]
         private static void ParseMetadata(string line, MetadataSection metadata)
         {
             var pair = line.Split(':');
@@ -546,7 +543,7 @@ namespace OsuVR
             }
         }
 
-        // [新增] 解析 [Difficulty]
+        // 解析 [Difficulty]
         private static void ParseDifficulty(string line, DifficultySection difficulty)
         {
             var pair = line.Split(':');
@@ -566,7 +563,7 @@ namespace OsuVR
             }
         }
 
-        // [新增] 解析 [Events] (主要是背景图和休息时间)
+        // 解析 [Events] (主要是背景图和休息时间)
         private static void ParseEvents(string line, Beatmap beatmap)
         {
             var parts = line.Split(',');
@@ -589,7 +586,7 @@ namespace OsuVR
             }
         }
 
-        // [新增] 解析 [TimingPoints] (BPM 和 速度变化)
+        // 解析 [TimingPoints] (BPM 和 速度变化)
         private static void ParseTimingPoints(string line, ControlPoints controlPoints)
         {
             var parts = line.Split(',');
@@ -728,7 +725,7 @@ namespace OsuVR
             Debug.Log($"[OsuParser] 检测到 {beatmap.ControlPoints.KiaiPeriods.Count} 个 Kiai 时间段");
         }
 
-        // [新增] 解析 [Colours] (Combo 颜色)
+        // 解析 [Colours] (Combo 颜色)
         private static void ParseColors(string line, List<Color> colors)
         {
             var pair = line.Split(':');
@@ -881,55 +878,7 @@ namespace OsuVR
             }
         }
 
-       
 
-        /// <summary>
-        /// 解析音效信息
-        /// </summary>
-        private static void ParseSampleInfo(HitObject hitObject, string[] sampleParts)
-        {
-            try
-            {
-                // 根据osu!文件格式，音效信息包含：
-                // 正常音效库:打击音效库:自定义音效库:音量:文件名
-                if (sampleParts.Length >= 2)
-                {
-                    // 解析正常音效库和打击音效库
-                    int normalSampleBank = int.Parse(sampleParts[0]);
-                    int addSampleBank = int.Parse(sampleParts[1]);
-
-                    // 创建音效信息
-                    SampleBankInfo bankInfo = new SampleBankInfo
-                    {
-                        Normal = ParseSampleBank(normalSampleBank),
-                        Add = ParseSampleBank(addSampleBank)
-                    };
-
-                    if (sampleParts.Length >= 3)
-                    {
-                        bankInfo.CustomSampleBank = int.Parse(sampleParts[2]);
-                    }
-
-                    if (sampleParts.Length >= 4)
-                    {
-                        bankInfo.Volume = int.Parse(sampleParts[3]);
-                    }
-
-                    if (sampleParts.Length >= 5)
-                    {
-                        bankInfo.Filename = sampleParts[4];
-                    }
-
-                    // 转换音效类型（暂时使用默认音效类型0）
-                    List<HitSampleInfo> samples = ConvertSoundType(0, bankInfo);
-                    hitObject.Samples.AddRange(samples);
-                }
-            }
-            catch (FormatException)
-            {
-                Debug.LogWarning("音效信息格式错误");
-            }
-        }
 
         /// <summary>
         /// 将音效类型转换为音效信息列表
@@ -1059,118 +1008,4 @@ namespace OsuVR
         public int Volume { get; set; }
     }
 
-    /// <summary>
-    /// 简化版使用示例（仅编辑器）
-    /// </summary>
-#if UNITY_EDITOR
-    public class OsuParserExample : MonoBehaviour
-    {
-        void Start()
-        {
-            // 示例：解析不同类型的击打对象
-            Debug.Log("开始解析示例击打对象...");
-
-            Beatmap beatmap = new Beatmap();
-
-            // 1. 解析点击圆圈
-            string circleLine = "256,192,1000,1,0,0:0:0:0:";
-            OsuParser.ParseHitObject(circleLine, beatmap);
-
-            // 2. 解析滑条
-            string sliderLine = "100,200,2000,2,0,B|150:250|200:300,1,100.5";
-            OsuParser.ParseHitObject(sliderLine, beatmap);
-
-            // 3. 解析转盘
-            string spinnerLine = "256,192,4000,12,0,6000";
-            OsuParser.ParseHitObject(spinnerLine, beatmap);
-
-            // 输出结果
-            Debug.Log($"共解析 {beatmap.HitObjects.Count} 个击打对象:");
-
-            foreach (var hitObject in beatmap.HitObjects)
-            {
-                if (hitObject is HitCircle circle)
-                {
-                    Debug.Log($"  点击圆圈 - 时间: {circle.StartTime}ms, 位置: {circle.Position}");
-                }
-                else if (hitObject is SliderObject slider)
-                {
-                    Debug.Log($"  滑条 - 时间: {slider.StartTime}ms, 位置: {slider.Position}, 类型: {slider.CurveType}, 重复: {slider.RepeatCount}");
-                }
-                else if (hitObject is SpinnerObject spinner)
-                {
-                    Debug.Log($"  转盘 - 开始时间: {spinner.StartTime}ms, 结束时间: {spinner.EndTime}ms");
-                }
-            }
-        }
-
-        /// <summary>
-        /// 从文件加载并解析谱面
-        /// </summary>
-        public void LoadBeatmapFromFile(string filePath)
-        {
-            try
-            {
-                // 读取文件所有行
-                string[] lines = System.IO.File.ReadAllLines(filePath);
-
-                Beatmap beatmap = new Beatmap();
-                bool inHitObjectsSection = false;
-
-                // 先解析谱面基本信息
-                foreach (string line in lines)
-                {
-                    string trimmedLine = line.Trim();
-
-                    if (trimmedLine.StartsWith("osu file format v"))
-                    {
-                        // 解析格式版本
-                        string versionStr = trimmedLine.Replace("osu file format v", "");
-                        beatmap.FormatVersion = int.Parse(versionStr);
-                        Debug.Log($"谱面格式版本: {beatmap.FormatVersion}");
-                    }
-                    else if (trimmedLine == "[HitObjects]")
-                    {
-                        inHitObjectsSection = true;
-                        continue;
-                    }
-                    else if (trimmedLine.StartsWith("[") && trimmedLine.EndsWith("]"))
-                    {
-                        // 进入其他部分，结束击打对象解析
-                        inHitObjectsSection = false;
-                        continue;
-                    }
-
-                    // 解析击打对象
-                    if (inHitObjectsSection && !string.IsNullOrEmpty(trimmedLine))
-                    {
-                        OsuParser.ParseHitObject(trimmedLine, beatmap);
-                    }
-                }
-
-                Debug.Log($"谱面加载完成，共 {beatmap.HitObjects.Count} 个击打对象");
-
-                // 统计不同类型击打对象的数量
-                int circleCount = 0;
-                int sliderCount = 0;
-                int spinnerCount = 0;
-
-                foreach (var hitObject in beatmap.HitObjects)
-                {
-                    if (hitObject is HitCircle) circleCount++;
-                    else if (hitObject is SliderObject) sliderCount++;
-                    else if (hitObject is SpinnerObject) spinnerCount++;
-                }
-
-                Debug.Log($"  点击圆圈: {circleCount}");
-                Debug.Log($"  滑条: {sliderCount}");
-                Debug.Log($"  转盘: {spinnerCount}");
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogError($"加载谱面失败: {e.Message}");
-            }
-        }
-    }
-#endif
 }

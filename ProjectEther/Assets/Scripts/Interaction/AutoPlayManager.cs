@@ -441,7 +441,7 @@ namespace OsuVR
 
                     if (hand.currentTask == danger || hand.taskQueue.Contains(danger)) continue;
 
-                    // ✅ 分类处理 1：如果是普通圈 (HitCircle)，缩小警戒圈，别一惊一乍！
+                    // 分类处理 1：如果是普通圈 (HitCircle)，缩小警戒圈
                     if (danger is HitCircle)
                     {
                         Vector3 p1 = CoordinateMapper.MapToWorld(danger.Position);
@@ -452,7 +452,7 @@ namespace OsuVR
                             break;
                         }
                     }
-                    // ✅ 分类处理 2：如果是滑条 (Slider)，保持严密防守！
+                    // 分类处理 2：如果是滑条 (Slider)，保持严密防守
                     else if (danger is SliderObject s)
                     {
                         float minDist = float.MaxValue;
@@ -513,7 +513,7 @@ namespace OsuVR
             Vector3 shoulderPos = GetShoulderPos(hand);
             Vector3 aimTarget = hand.lastValidAimPos;
             bool isHitting = false;
-            bool shouldSnap = false; // ✅ 新增：控制物理引擎是否执行 0 帧瞬移！
+            bool shouldSnap = false;
 
             if (hand.currentTask != null)
             {
@@ -549,7 +549,7 @@ namespace OsuVR
                         if (forceDodge)
                         {
                             aimTarget = targetHover;
-                            shouldSnap = true; // ✅ 指示物理引擎瞬移！
+                            shouldSnap = true;
                         }
                         else
                         {
@@ -587,7 +587,7 @@ namespace OsuVR
                 if (isDodging)
                 {
                     aimTarget = targetHover;
-                    shouldSnap = true; // ✅ 指示物理引擎瞬移！
+                    shouldSnap = true;
                 }
                 else
                 {
@@ -605,7 +605,7 @@ namespace OsuVR
 
             if (isHitting) targetPos += dirToTarget * 0.05f;
 
-            // ✅ 真·瞬移解禁：如果拉响了避难警报，直接用 `=` 赋值覆盖！
+            // 瞬移解禁：如果拉响了避难警报，直接用 `=` 赋值覆盖
             // 这意味着手柄在当前帧会在屏幕中消失，并直接在绝对死角出现，绝不会发生沿途碰撞！
             if (shouldSnap)
             {
@@ -618,7 +618,7 @@ namespace OsuVR
                 hand.transform.rotation = Quaternion.Slerp(hand.transform.rotation, targetRot, Time.deltaTime * 120f);
             }
 
-            // [修复] AutoPlay 直接触发判定，确保音效播放
+            // AutoPlay 直接触发判定，确保音效播放
             // 只有手移动到位才会触发（位置判定仍然生效）
             TryTriggerHit(hand, time);
         }
@@ -784,9 +784,9 @@ namespace OsuVR
             {
                 _allNotes = currentNotes.OrderBy(n => n.StartTime).ToList();
                 _noteStartIndex = 0;
-                _assignedNotes.Clear(); // ✅ 铺面重置时，清空生死簿
+                _assignedNotes.Clear();
 
-                // [修复] 谱面重置时，清空已触发判定的音符记录
+                // 谱面重置时，清空已触发判定的音符记录
                 if (leftHand != null && leftHand.triggeredNotes != null) leftHand.triggeredNotes.Clear();
                 if (rightHand != null && rightHand.triggeredNotes != null) rightHand.triggeredNotes.Clear();
             }
@@ -803,7 +803,7 @@ namespace OsuVR
                 var note = _allNotes[i];
                 if (note.StartTime > currentTime + 2000) break;
 
-                // ✅ 核心防打架：只要在这个表里的，绝对不再看第二眼！
+                // 核心防打架：只要在这个表里的，绝对不再看第二眼
                 if (note.StartTime >= currentTime - 20 && !_assignedNotes.Contains(note))
                 {
                     if (note is SpinnerObject)
@@ -859,13 +859,13 @@ namespace OsuVR
 
             if (lastAssignedNote != null && lastAssignedHand != null)
             {
-                // ✅ 核心修复：测算距离时，用上一个物件的“结束坐标(EndPosition)”来测算！
+                // 测算距离时，用上一个物件的”结束坐标(EndPosition)”来测算
                 float distance = Vector2.Distance(GetNoteEndPosition(lastAssignedNote), note.Position);
                 double timeDelta = note.StartTime - GetTaskEndTime(lastAssignedNote);
 
                 if (timeDelta > 800) return note.Position.x < 256 ? leftHand : rightHand;
 
-                // ✅ 终极堆叠锁定：只要物理距离极近 (< 40)，说明是滑条头尾堆叠或原地连打
+                // 终极堆叠锁定：只要物理距离极近 (< 40)，说明是滑条头尾堆叠或原地连打
                 // 无视一切 Combo 颜色，直接强制使用这只手，绝不打架！
                 if (distance < 40f && IsHandFreeAt(lastAssignedHand, note.StartTime))
                 {

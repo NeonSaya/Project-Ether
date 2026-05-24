@@ -11,7 +11,7 @@ namespace OsuVR
     /// 3. 内存安全 - 避免运行时材质泄漏，支持 Cleanup 清理
     /// 
     /// 生成的对象结构：
-    /// - HitCircle: Sphere(根) + Body + Overlay + ApproachCircle + Halo + NoteController
+    /// - HitCircle: Sphere(根) + Body + SolidBody + ApproachCircle + Halo + NoteController
     /// - SliderHead: Sphere(根) + Body + ApproachCircle + Halo + ApproachCircleScaler
     /// - SliderTick: Quad + Material
     /// - FollowBall: Sphere + SphereCollider
@@ -24,9 +24,7 @@ namespace OsuVR
 
         // 外部传入的材质引用（可选）
         private static Material cachedBodyMaterial;
-        private static Material cachedOverlayMaterial;
         private static Material cachedApproachMaterial;
-        private static Material cachedGlowMaterial;
 
         // 程序化生成的光晕材质（全局唯一）
         private static Material cachedHaloMaterial;
@@ -68,9 +66,7 @@ namespace OsuVR
 
             // 缓存外部材质
             cachedBodyMaterial = bodyMaterial;
-            cachedOverlayMaterial = overlayMaterial;
             cachedApproachMaterial = approachMaterial;
-            cachedGlowMaterial = glowMaterial;
 
             // 创建内部缓存资源
             CreateCachedMeshes();
@@ -88,7 +84,7 @@ namespace OsuVR
         /// </summary>
         private static void CreateCachedMeshes()
         {
-            // 缓存 Quad Mesh（用于 2D 面片：Body、Overlay、ApproachCircle、Halo）
+            // 缓存 Quad Mesh（用于 2D 面片：Body、ApproachCircle、Halo）
             if (cachedQuadMesh == null)
             {
                 GameObject tempQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -408,7 +404,7 @@ namespace OsuVR
         /// ├── Sphere Mesh (主球体碰撞)
         /// ├── NoteController + SphereCollider
         /// ├── Body (Quad) - 主贴图层
-        /// ├── Overlay (Quad) - 覆盖层
+        /// ├── SolidBody (Quad) - 实心层
         /// ├── ApproachCircle (Quad) - 缩圈
         /// └── Halo_Glow (Quad) - 光晕效果
         /// </summary>
@@ -429,7 +425,6 @@ namespace OsuVR
             // 这就是你要的"再加一个圆形的贴图贴上去"
             CreateSolidLayer(root); 
 
-            // CreateOverlayLayer(root);   
             CreateApproachCircle(root);     
             CreateHalo(root);               
             AddNoteController(root);        
@@ -488,62 +483,6 @@ namespace OsuVR
             mr.material = mat;
     
             solidObj.layer = 6;
-        }
-
-        /// <summary>
-        /// 【新方法】专门为 HitCircle 创建实心高亮主体
-        /// 不复用旧逻辑，强制使用 Alpha Blending 混合模式
-        /// </summary>
-        private static void CreateSolidHitCircleBody(GameObject parent)
-        {
-            GameObject body = new GameObject("Body");
-            body.transform.SetParent(parent.transform);
-            body.transform.localPosition = Vector3.zero;
-            body.transform.localRotation = Quaternion.identity;
-            body.transform.localScale = Vector3.one;
-
-            var mf = body.AddComponent<MeshFilter>();
-            mf.sharedMesh = cachedQuadMesh; // 使用缓存的 Quad
-
-            var mr = body.AddComponent<MeshRenderer>();
-
-            // 1. 优先寻找 URP 粒子 Shader (支持发光且支持实心混合)
-            Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
-            
-            // 2. 如果没找到，回退到移动端 Alpha Blended (实心混合，而非 Additive)
-            if (shader == null) shader = Shader.Find("Mobile/Particles/Alpha Blended");
-            
-            // 3. 实在不行用标准 Unlit
-            if (shader == null) shader = Shader.Find("Unlit/Transparent");
-
-            Material mat = new Material(shader);
-
-            // 设置纹理
-            mat.mainTexture = cachedBodyTexture; // 必须使用 CreateBodyTexture 生成的实心圆贴图
-            if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", cachedBodyTexture);
-
-            // 【核心设置】强制设置为 Alpha 混合 (实心遮挡模式)
-            // -----------------------------------------------------------
-            // 如果是 URP Shader，需要设置 Surface Type 为 Transparent，Blend Mode 为 Alpha
-            if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1.0f); // Transparent
-            if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 0.0f);     // Alpha (0) vs Additive (1)
-
-            // 设置混合因子 (SrcAlpha, OneMinusSrcAlpha) -> 这是实现"实心"的关键
-            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-
-            // 关闭深度写入 (防止透明物体由于排序问题遮挡自己)
-            mat.SetInt("_ZWrite", 0); 
-            // -----------------------------------------------------------
-
-            // 设置基础颜色为白色 (NoteController 会通过 MaterialPropertyBlock 染色并应用 HDR 高亮)
-            if (mat.HasProperty("_BaseColor"))
-                mat.SetColor("_BaseColor", Color.white);
-            else
-                mat.color = Color.white;
-
-            mr.material = mat;
-            body.layer = 6;
         }
 
         /// <summary>
@@ -657,7 +596,7 @@ namespace OsuVR
         private static void CreateSphereBody(GameObject parent)
         {
             // 根物体不再添加 MeshFilter 和 MeshRenderer
-            // 所有视觉元素由子物体（Body、Overlay、ApproachCircle、Halo）承担
+            // 所有视觉元素由子物体（Body、SolidBody、ApproachCircle、Halo）承担
             // 碰撞体由 AddCollider 方法单独添加
         }
 
@@ -681,80 +620,6 @@ namespace OsuVR
             mr.material = CreateDefaultBodyMaterial();
 
             body.layer = 6;
-        }
-
-        /// <summary>
-        /// 创建普通 Note 专用的实心 Body 层
-        /// 使用 Particles/Additive Shader 确保透明效果正确
-        /// </summary>
-        private static void CreateNoteBodyLayer(GameObject parent)
-        {
-            GameObject body = new GameObject("Body");
-            body.transform.SetParent(parent.transform);
-            body.transform.localPosition = Vector3.zero;
-            body.transform.localRotation = Quaternion.identity;
-            body.transform.localScale = Vector3.one;
-
-            var mf = body.AddComponent<MeshFilter>();
-            mf.sharedMesh = cachedQuadMesh;
-
-            var mr = body.AddComponent<MeshRenderer>();
-            
-            // 使用 Particles/Additive Shader，确保透明效果
-            Shader shader = Shader.Find("Mobile/Particles/Additive");
-            if (shader == null) shader = Shader.Find("Legacy Shaders/Particles/Additive");
-            if (shader == null) shader = Shader.Find("Particles/Standard Unlit");
-            
-            var mat = new Material(shader);
-            mat.mainTexture = cachedBodyTexture;
-            if (mat.HasProperty("_BaseColor"))
-                mat.SetColor("_BaseColor", new Color(1f, 1f, 1f, 1f));
-            else
-                mat.color = new Color(1f, 1f, 1f, 1f);
-
-            // 设置 TintColor（Additive Shader 需要）
-            if (mat.HasProperty("_TintColor"))
-                mat.SetColor("_TintColor", new Color(1f, 1f, 1f, 1f));
-            
-            mr.material = mat;
-
-            body.layer = 6;
-        }
-
-        /// <summary>
-        /// 创建 Overlay 层（覆盖层）
-        /// 纯 2D 平面模式：与 Body 在同一 Z 平面
-        /// Overlay 用于显示数字/图案，默认半透明
-        /// </summary>
-        private static void CreateOverlayLayer(GameObject parent)
-        {
-            GameObject overlay = new GameObject("Overlay");
-            overlay.transform.SetParent(parent.transform);
-            overlay.transform.localPosition = Vector3.zero;
-            overlay.transform.localRotation = Quaternion.identity;
-            overlay.transform.localScale = Vector3.one;
-
-            var mf = overlay.AddComponent<MeshFilter>();
-            mf.sharedMesh = cachedQuadMesh;
-
-            var mr = overlay.AddComponent<MeshRenderer>();
-            if (cachedOverlayMaterial != null)
-            {
-                mr.material = new Material(cachedOverlayMaterial);
-            }
-            else
-            {
-                mr.material = CreateDefaultOverlayMaterial();
-            }
-            
-            // Overlay 默认半透明，不遮挡 Body
-            Color overlayColor = new Color(1f, 1f, 1f, 0.3f);
-            if (mr.material.HasProperty("_Color"))
-                mr.material.SetColor("_Color", overlayColor);
-            if (mr.material.HasProperty("_BaseColor"))
-                mr.material.SetColor("_BaseColor", overlayColor);
-
-            overlay.layer = 6;
         }
 
         /// <summary>
@@ -898,35 +763,6 @@ namespace OsuVR
             return mat;
         }
 
-        private static Material CreateDefaultOverlayMaterial()
-        {
-            // 使用支持透明的 Shader
-            Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
-            if (shader == null) shader = Shader.Find("Mobile/Particles/Alpha Blended");
-            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
-
-            var mat = new Material(shader);
-            if (mat.HasProperty("_BaseColor"))
-                mat.SetColor("_BaseColor", Color.white);
-            else
-                mat.color = Color.white;
-
-            // 如果是 URP/Unlit，需要设置透明模式
-            if (mat.HasProperty("_Surface"))
-            {
-                mat.SetInt("_Surface", 1); // 1 = Transparent
-                mat.SetInt("_Blend", 0);   // 0 = Alpha
-            }
-            if (mat.HasProperty("_SrcBlend"))
-            {
-                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                mat.SetInt("_ZWrite", 0);
-            }
-            
-            return mat;
-        }
-
         private static Material CreateDefaultApproachMaterial()
         {
             // 使用支持透明的 Shader
@@ -996,17 +832,6 @@ namespace OsuVR
         #region 公共访问器
 
         /// <summary>
-        /// 设置外部材质引用
-        /// </summary>
-        public static void SetMaterials(Material body, Material overlay, Material approach, Material glow)
-        {
-            cachedBodyMaterial = body;
-            cachedOverlayMaterial = overlay;
-            cachedApproachMaterial = approach;
-            cachedGlowMaterial = glow;
-        }
-
-        /// <summary>
         /// 获取光晕材质（用于滑条头动态生成光晕）
         /// </summary>
         public static Material GetHaloMaterial()
@@ -1016,39 +841,12 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 获取缩圈材质（使用置顶 Shader）
-        /// </summary>
-        public static Material GetApproachCircleMaterial()
-        {
-            EnsureInitialized();
-            return cachedApproachCircleMaterial;
-        }
-
-        /// <summary>
         /// 获取缓存的 Quad Mesh
         /// </summary>
         public static Mesh GetQuadMesh()
         {
             EnsureInitialized();
             return cachedQuadMesh;
-        }
-
-        /// <summary>
-        /// 获取缓存的 Sphere Mesh
-        /// </summary>
-        public static Mesh GetSphereMesh()
-        {
-            EnsureInitialized();
-            return cachedSphereMesh;
-        }
-
-        /// <summary>
-        /// 获取光晕纹理
-        /// </summary>
-        public static Texture2D GetGlowTexture()
-        {
-            EnsureInitialized();
-            return cachedGlowTexture;
         }
 
         #endregion
@@ -1089,6 +887,11 @@ namespace OsuVR
             if (cachedSolidTexture != null) {
                 Object.Destroy(cachedSolidTexture);
                 cachedSolidTexture = null;
+            }
+
+            if (cachedBodyTexture != null) {
+                Object.Destroy(cachedBodyTexture);
+                cachedBodyTexture = null;
             }
             isInitialized = false;
         }

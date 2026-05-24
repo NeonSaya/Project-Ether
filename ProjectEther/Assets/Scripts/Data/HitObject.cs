@@ -77,7 +77,7 @@ namespace OsuVR
         public int ComboIndex { get; internal set; }
 
         /// <summary>
-        /// ✅ [修复] 必须定义 Color 属性，否则 OsuParser 无法赋值
+        /// 连击颜色
         /// </summary>
         public Color Color { get; set; } = Color.white;
 
@@ -247,16 +247,6 @@ namespace OsuVR
         /// 游戏玩法中的半径
         /// </summary>
         public double GameplayRadius => OBJECT_RADIUS * GameplayScale;
-
-        /// <summary>
-        /// 屏幕空间中的游戏玩法缩放
-        /// </summary>
-        public float ScreenSpaceGameplayScale => GameplayScale * 720f / 480f; // 假设屏幕高度720
-
-        /// <summary>
-        /// 屏幕空间中的游戏玩法半径
-        /// </summary>
-        public double ScreenSpaceGameplayRadius => OBJECT_RADIUS * ScreenSpaceGameplayScale;
 
         /// <summary>
         /// 游戏玩法中的堆叠偏移

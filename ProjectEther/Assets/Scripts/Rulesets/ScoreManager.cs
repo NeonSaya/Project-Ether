@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -93,7 +92,6 @@ namespace OsuVR
         // Mod 信息
         // ================================================================
         private bool _isAutoPlay = false;
-        private bool _isRelax = false;
         private bool _isHardRock = false;
         private bool _isDoubleTime = false;
         private bool _isHalfTime = false;
@@ -238,19 +236,6 @@ namespace OsuVR
             _mapperName = mapper ?? "";
         }
 
-        /// <summary>
-        /// 设置当前使用的 Mod (旧版兼容接口)
-        /// </summary>
-        public void SetMods(bool autoPlay, bool relax, bool hardRock, bool doubleTime, bool halfTime, bool hidden)
-        {
-            _isAutoPlay = autoPlay;
-            _isRelax = relax;
-            _isHardRock = hardRock;
-            _isDoubleTime = doubleTime;
-            _isHalfTime = halfTime;
-            _isHidden = hidden;
-        }
-
         public void SetModsFromSelection(ModSelection selection)
         {
             if (selection == null)
@@ -375,8 +360,7 @@ namespace OsuVR
             _currentCombo++;
             if (_currentCombo > _maxComboReached) _maxComboReached = _currentCombo;
 
-            // 2. ✅ [关键修改] 计入 Acc 分子和分母
-            // 以前是加到 Bonus，现在加到 BaseScore
+            // 2. 计入 Acc 分子和分母
             _currentBaseScore += scoreValue;
             _currentMaxBaseScore += scoreValue;
 

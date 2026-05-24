@@ -287,14 +287,7 @@ namespace OsuVR
 
         private GameObject CreateSliderHead()
         {
-            if (useProceduralGeneration)
-            {
-                return HitObjectFactory.CreateSliderHead();
-            }
-            else
-            {
-                return HitObjectFactory.CreateSliderHead();
-            }
+            return HitObjectFactory.CreateSliderHead();
         }
 
         public GameObject GetSliderHead()

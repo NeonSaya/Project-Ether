@@ -236,46 +236,6 @@ namespace OsuVR
             StartCoroutine(ShowResultCoroutine(result));
         }
 
-        /// <summary>
-        /// 快速显示结算界面 (无动画，用于调试)
-        /// </summary>
-        /// <param name="result">结算数据</param>
-        public void QuickShow(ResultData result)
-        {
-            bool useOriginalLanguage = false;
-            if (SettingsManager.Instance != null && SettingsManager.Instance.Settings != null)
-            {
-                useOriginalLanguage = SettingsManager.Instance.Settings.displayOriginalLanguage;
-            }
-
-            if (textTitle != null) textTitle.text = result.GetDisplayTitle(useOriginalLanguage);
-            if (textArtist != null) textArtist.text = result.GetDisplayArtist(useOriginalLanguage);
-            if (textDifficulty != null) textDifficulty.text = result.difficultyName;
-            if (textScore != null) textScore.text = result.finalScore.ToString("D7");
-            if (textAccuracy != null) textAccuracy.text = $"{result.accuracy * 100:F2}%";
-            if (textMaxCombo != null) textMaxCombo.text = $"{result.maxCombo}x";
-            if (textRank != null)
-            {
-                textRank.text = result.rank;
-                textRank.color = ResultData.GetRankColor(result.rank);
-            }
-            if (textHit300 != null) textHit300.text = $"{LocalizationManager.GetText("ui_hit300")}: {result.hit300}";
-            if (textHit100 != null) textHit100.text = $"{LocalizationManager.GetText("ui_hit100")}: {result.hit100}";
-            if (textHit50 != null) textHit50.text = $"{LocalizationManager.GetText("ui_hit50")}: {result.hit50}";
-            if (textMiss != null) textMiss.text = $"{LocalizationManager.GetText("ui_miss")}: {result.hitMiss}";
-
-            if (resultPanel != null)
-                resultPanel.SetActive(true);
-        }
-
-        /// <summary>
-        /// 隐藏结算界面
-        /// </summary>
-        public void HideResult()
-        {
-            StartCoroutine(HideResultCoroutine());
-        }
-
         // =========================================================
         // 动画协程
         // =========================================================
@@ -287,8 +247,7 @@ namespace OsuVR
         {
             isAnimating = true;
 
-            // 1. [修复] 先清空占位符，再显示面板
-            // 这样就不会看到原来的占位符
+            // 1. 先清空占位符，再显示面板
             ResetPlaceholders();
 
             // 2. 初始化面板状态

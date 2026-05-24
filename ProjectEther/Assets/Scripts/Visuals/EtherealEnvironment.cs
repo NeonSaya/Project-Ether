@@ -344,7 +344,7 @@ namespace OsuVR
                 // 如果实例已缓存，使用缓存；否则查找新实例
                 if (audioLinkCachedInstance == null)
                 {
-                    audioLinkCachedInstance = FindObjectOfType(audioLinkCachedType) as MonoBehaviour;
+                    audioLinkCachedInstance = FindAnyObjectByType(audioLinkCachedType) as MonoBehaviour;
                 }
 
                 if (audioLinkCachedInstance != null)
@@ -375,13 +375,13 @@ namespace OsuVR
                             if (enableReadbackMethod != null)
                             {
                                 enableReadbackMethod.Invoke(audioLinkCachedInstance, null);
-                                Debug.Log("[EtherealEnvironment] ✅ 已启用 AudioLink 数据回读 (EnableReadback)");
+                                Debug.Log("[EtherealEnvironment] 已启用 AudioLink 数据回读 (EnableReadback)");
                             }
                             else
                             {
                                 // 直接设置字段
                                 audioDataToggleField.SetValue(audioLinkCachedInstance, true);
-                                Debug.Log("[EtherealEnvironment] ✅ 已启用 AudioLink 数据回读 (直接设置 audioDataToggle)");
+                                Debug.Log("[EtherealEnvironment] 已启用 AudioLink 数据回读 (直接设置 audioDataToggle)");
                             }
                         }
                     }
@@ -400,7 +400,7 @@ namespace OsuVR
                     {
                         fadeExpFalloffField.SetValue(audioLinkCachedInstance, 0.9f); // 更快的指数衰减
                     }
-                    Debug.Log("[EtherealEnvironment] ✅ 已优化 AudioLink fade 参数，实现即时响应");
+                    Debug.Log("[EtherealEnvironment] 已优化 AudioLink fade 参数，实现即时响应");
 
                     // 检查 AudioDataIsAvailable() 方法确认数据可用
                     if (audioLinkIsAvailableMethod != null)
@@ -409,7 +409,7 @@ namespace OsuVR
                         if (dataAvailable)
                         {
                             audioLinkAvailable = true;
-                            Debug.Log("[EtherealEnvironment] ✅ AudioLink 数据已可用，频谱功能启用");
+                            Debug.Log("[EtherealEnvironment] AudioLink 数据已可用，频谱功能启用");
                         }
                         else
                         {
@@ -421,7 +421,7 @@ namespace OsuVR
                     else
                     {
                         audioLinkAvailable = true;
-                        Debug.Log("[EtherealEnvironment] ✅ AudioLink 已检测到，频谱数据可用");
+                        Debug.Log("[EtherealEnvironment] AudioLink 已检测到，频谱数据可用");
                     }
                     return;
                 }

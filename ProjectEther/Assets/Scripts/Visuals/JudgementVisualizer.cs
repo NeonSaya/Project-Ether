@@ -98,7 +98,7 @@ namespace OsuVR
             foreach (var item in tempItems) pool.Release(item);
 
             isPrewarmed = true;
-            Debug.Log("✅ JudgementVisualizer 预热完成 (层级已优化)");
+            Debug.Log("[JudgementVisualizer] 预热完成");
         }
 
         private void PrepareResources()
@@ -124,10 +124,9 @@ namespace OsuVR
                 flashMat.SetFloat("_Blend", 0);
                 flashMat.SetInt("_ZWrite", 0);
 
-                // ✅ 彻底置顶三板斧
-                flashMat.SetInt("_ZTest", 8); // 8 = Always (无视深度遮挡)
-                flashMat.SetInt("_Cull", 0);  // 0 = Off (双面渲染，绝不会因为背面朝向而隐形)
-                flashMat.renderQueue = 4000;  // 4000 = Overlay (最后渲染，凌驾于所有物体之上)
+                flashMat.SetInt("_ZTest", 8); // 8 = Always
+                flashMat.SetInt("_Cull", 0);
+                flashMat.renderQueue = 4000;
 
                 flashMat.mainTexture = _softDotTex;
                 if (flashMat.HasProperty("_BaseMap")) flashMat.SetTexture("_BaseMap", _softDotTex);
@@ -142,7 +141,6 @@ namespace OsuVR
                 missMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
                 missMat.SetInt("_ZWrite", 0);
 
-                // ✅ 彻底置顶三板斧 (红叉专属)
                 missMat.SetInt("_ZTest", 8);
                 missMat.SetInt("_Cull", 0);
                 missMat.renderQueue = 4000;
@@ -156,7 +154,7 @@ namespace OsuVR
             {
                 overlayFontMat = new Material(mainFont.material);
 
-                // ✅ 字体置顶
+                // 字体置顶
                 overlayFontMat.SetInt("_ZTestMode", 8);
                 overlayFontMat.SetInt("unity_GUIZTestMode", 8);
                 overlayFontMat.SetInt("_ZTest", 8);
@@ -202,11 +200,9 @@ namespace OsuVR
             TextMeshPro tmp = textObj.AddComponent<TextMeshPro>();
             RectTransform rect = textObj.GetComponent<RectTransform>();
 
-            // ✅ 改动 1：加大容器尺寸以容纳大字
             rect.sizeDelta = new Vector2(120, 30);
 
             tmp.alignment = TextAlignmentOptions.Center;
-            // ✅ 改动 2：基础字号直接拉到 100，这样 globalScale 就可以填 1.0 了
             tmp.fontSize = 100;
             tmp.fontStyle = FontStyles.Bold;
             tmp.enableWordWrapping = false;
@@ -313,7 +309,7 @@ namespace OsuVR
                 Vector3 dir = item.Root.transform.position - Camera.main.transform.position;
                 item.Root.transform.rotation = Quaternion.LookRotation(dir);
 
-                // ✅ 防穿模：稍微往玩家方向拉近 0.05 米，防止陷进滑条模型里看不见
+                // 稍微往玩家方向拉近，防止陷进滑条模型里看不见
                 item.Root.transform.position -= dir.normalized * 0.05f;
             }
 
@@ -375,7 +371,7 @@ namespace OsuVR
                         float flashScale = 1.0f + t * 1.5f;
                         item.FlashRenderer.transform.localScale = new Vector3(flashScale, flashScale, 1f);
 
-                        // ✅ 修复卡顿：直接操作传进来的颜色，不要 GetColor()，且用无泄漏的 SetRendererColor
+                        // 直接操作传进来的颜色，用无泄漏的 SetRendererColor
                         flashCol.a = Mathf.Lerp(0.6f, 0f, t * 2.5f);
                         SetRendererColor(item.FlashRenderer, flashCol);
                     }
@@ -405,7 +401,7 @@ namespace OsuVR
             float duration = 0.5f;
             float time = 0f;
 
-            // ✅ 必须初始为 0
+            // 初始为 0
             item.XRoot.transform.localScale = Vector3.zero;
 
             while (time < duration)
@@ -413,7 +409,7 @@ namespace OsuVR
                 time += Time.deltaTime;
                 float t = time / duration;
 
-                // ✅ 核心修复：加上 Mathf.Clamp01，防止曲线数值突破天际！
+                // 加上 Mathf.Clamp01，防止曲线数值溢出
                 float scaleT = EaseOutBack(Mathf.Clamp01(t * 4f));
                 item.XRoot.transform.localScale = Vector3.one * (scaleT * globalScale * 4.0f);
                 if (t > 0.5f)

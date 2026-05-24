@@ -102,13 +102,5 @@ namespace OsuVR
         {
             return audioSource;
         }
-
-        /// <summary>
-        /// 音乐是否正在播放
-        /// </summary>
-        public bool IsPlaying()
-        {
-            return audioSource != null && audioSource.isPlaying;
-        }
     }
 }

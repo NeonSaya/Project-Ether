@@ -139,7 +139,7 @@ namespace OsuVR
         private ModEffectsApplier modEffects;
         private float speedMultiplier = 1f;
 
-        // [新增] 1. 静态计算公式
+        // 静态计算公式
         public static double CalculateTimePreempt(float ar)
         {
             // 限制 AR 在 0 到 10 之间
@@ -574,7 +574,7 @@ namespace OsuVR
                     ApplyHardRockMirror();
                 }
 
-                Debug.Log($"✅ 谱面数据解析成功: {currentBeatmap.Metadata.Title}");
+                Debug.Log($"[RhythmGameManager] 谱面数据解析成功: {currentBeatmap.Metadata.Title}");
 
                 string folderPath = Path.GetDirectoryName(absoluteOsuFilePath);
                 string audioFileName = currentBeatmap.General.AudioFilename.Trim();
@@ -713,23 +713,6 @@ namespace OsuVR
         public Beatmap GetCurrentBeatmap()
         {
             return currentBeatmap;
-        }
-
-        /// <summary>
-        /// 应用 Mod 效果到谱面难度参数
-        /// </summary>
-        private void ApplyModEffectsToBeatmap()
-        {
-            if (modEffects == null || currentBeatmap == null || currentBeatmap.Difficulty == null)
-                return;
-
-            var diff = currentBeatmap.Difficulty;
-
-            // 应用 CS/AR 修改 (OD 固定为 250ms 判定窗口，不修改)
-            diff.CircleSize = modEffects.GetModifiedCS(diff.CircleSize);
-            diff.ApproachRate = modEffects.GetModifiedAR(diff.ApproachRate);
-
-            Debug.Log($"[Mod] 已应用难度修改: CS={diff.CircleSize:F1}, AR={diff.ApproachRate:F1}");
         }
 
         /// <summary>
@@ -927,7 +910,7 @@ namespace OsuVR
             }
 
             // 尝试查找场景中已有的暂停菜单
-            var existingPauseMenu = FindObjectOfType<VRPauseMenu>();
+            var existingPauseMenu = FindFirstObjectByType<VRPauseMenu>();
             if (existingPauseMenu != null)
             {
                 isUsingPrefab = false;
@@ -1099,9 +1082,6 @@ namespace OsuVR
                 // 根据谱面中的AR设置计算spawnOffsetMs
                 if (currentBeatmap != null && currentBeatmap.Difficulty != null)
                 {
-                    // === 注释掉这一行！防止CS和AR被乘两次 ===
-                    // ApplyModEffectsToBeatmap();
-
                     float baseAR = currentBeatmap.Difficulty.ApproachRate;
                     float modifiedAR = modEffects != null ? modEffects.GetModifiedAR(baseAR) : baseAR;
                     spawnOffsetMs = (float)CalculateTimePreempt(modifiedAR);
@@ -1122,7 +1102,7 @@ namespace OsuVR
                     ApplyHardRockMirror();
                 }
 
-                Debug.Log($"✅ 谱面加载完成: {currentBeatmap.Metadata.Title} - {currentBeatmap.Metadata.Version}");
+                Debug.Log($"[RhythmGameManager] 谱面加载完成: {currentBeatmap.Metadata.Title} - {currentBeatmap.Metadata.Version}");
                 Debug.Log($"  Audio: {currentBeatmap.General.AudioFilename}");
                 Debug.Log($"  CS:{currentBeatmap.Difficulty.CircleSize} AR:{currentBeatmap.Difficulty.ApproachRate}");
                 Debug.Log($"  总音符: {totalNotes} (圈:{hitCircleCount}, 滑:{sliderCount}, 转:{spinnerCount})");
@@ -1424,7 +1404,7 @@ namespace OsuVR
                 GameObject noteObject = activeNoteObjects[hitObject];
                 activeNoteObjects.Remove(hitObject);
                 activeNotes = activeNoteObjects.Count;
-                // ✅ [新增] 视觉反馈
+                // 视觉反馈
                 // 1. 确定判定位置 (使用物体位置)
                 Vector3 hitPos = noteObject.transform.position;
                 // 2. 确定颜色
@@ -1435,7 +1415,7 @@ namespace OsuVR
 
                 if (scoreManager != null)
                 {
-                    // ✅ [修复核心]：将毫秒误差转换为 0-1 的准确率
+                    // 将毫秒误差转换为 0-1 的准确率
                     // 1.0 = 完美 (0ms误差), 0.0 = 极限 (250ms误差)
                     double maxWindow = 250.0; // 对应 NoteController 的 hitWindow
                     double absDiff = System.Math.Abs(timeDiff);
@@ -1510,26 +1490,6 @@ namespace OsuVR
             }
         }
 
-        /// <summary>
-        /// 当转盘完成时调用
-        /// </summary>
-        public void OnSpinnerCompleted(SpinnerObject spinnerObject)
-        {
-            Debug.Log($"转盘完成: 开始时间={spinnerObject.StartTime}ms");
-
-            if (activeNoteObjects.ContainsKey(spinnerObject))
-            {
-                activeNoteObjects.Remove(spinnerObject);
-                activeNotes = activeNoteObjects.Count;
-            }
-
-            if (scoreManager != null)
-            {
-                
-            }
-
-        }
-
         public static int CalculateScoreFromAccuracy(double accuracy01)
         {
             // accuracy01: 1.0 是完美重合，0.0 是判定边缘
@@ -1584,12 +1544,11 @@ namespace OsuVR
         {
             if (!Application.isPlaying) return;
 
-            // [修改] 增加高度到 500 以容纳更多信息
             GUILayout.BeginArea(new Rect(10, 10, 350, 500));
 
             GUILayout.Label("=== 节奏游戏调试 (多类型音符) ===");
 
-            // [新增] 显示谱面元数据
+            // 显示谱面元数据
             if (currentBeatmap != null && currentBeatmap.Metadata != null)
             {
                 GUILayout.Space(5);
@@ -1746,7 +1705,7 @@ namespace OsuVR
                 mr.sharedMaterial = globalGlowMaterial;
             }
 
-            // 2. ✅ 双重保险：不要用 GetComponentsInChildren(true) 暴力替换！
+            // 2. 不要用 GetComponentsInChildren(true) 暴力替换
             // 因为 SliderBorder 是由代码动态生成的子物体，我们精准查找到它并替换即可，放过 Tick。
             Transform border = obj.transform.Find("SliderBorder");
             if (border != null)
@@ -1789,23 +1748,6 @@ namespace OsuVR
             // 3. 缩圈 (ApproachCircle) 和 文字 (Text) 
             // 因为我们没去查找它们，所以它们会保持原样！安全！
         }
-
-        /// <summary>
-        /// 根据文件扩展名获取 AudioType
-        /// </summary>
-        private AudioType GetAudioTypeFromPath(string path)
-        {
-            string extension = Path.GetExtension(path).ToLower();
-            switch (extension)
-            {
-                case ".mp3": return AudioType.MPEG;
-                case ".ogg": return AudioType.OGGVORBIS;
-                case ".wav": return AudioType.WAV;
-                case ".aiff": return AudioType.AIFF;
-                default: return AudioType.UNKNOWN; // 让 Unity 自己猜
-            }
-        }
-
 
     }
 }

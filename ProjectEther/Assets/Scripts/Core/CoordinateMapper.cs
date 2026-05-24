@@ -50,48 +50,5 @@ namespace OsuVR
 
             return worldPosition;
         }
-
-        /// <summary>
-        /// 批量映射多个osu坐标到世界坐标
-        /// </summary>
-        /// <param name="osuPositions">osu坐标数组</param>
-        /// <returns>世界坐标数组</returns>
-        public static Vector3[] MapMultipleToWorld(Vector2[] osuPositions)
-        {
-            Vector3[] worldPositions = new Vector3[osuPositions.Length];
-
-            for (int i = 0; i < osuPositions.Length; i++)
-            {
-                worldPositions[i] = MapToWorld(osuPositions[i]);
-            }
-
-            return worldPositions;
-        }
-
-        /// <summary>
-        /// 获取目标平面的边界框（用于调试或碰撞检测）
-        /// </summary>
-        /// <returns>平面中心、宽度、高度</returns>
-        public static (Vector3 center, float width, float height) GetTargetPlaneInfo()
-        {
-            return (TargetCenter, TargetWidth, TargetHeight);
-        }
-
-        /// <summary>
-        /// 计算从当前位置到目标平面的方向向量（用于音符移动）
-        /// </summary>
-        /// <param name="currentPosition">当前位置</param>
-        /// <returns>朝向目标平面的标准化方向</returns>
-        public static Vector3 GetDirectionToPlane(Vector3 currentPosition)
-        {
-            // 方向是从当前位置指向目标平面
-            Vector3 direction = TargetCenter - currentPosition;
-
-            // 保持相同的X和Y，但只考虑Z轴方向（让音符正对着玩家飞来）
-            // 也可以直接标准化整个向量
-            direction.Normalize();
-
-            return direction;
-        }
     }
 }

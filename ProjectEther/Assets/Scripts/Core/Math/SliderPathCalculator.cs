@@ -398,40 +398,6 @@ namespace OsuVR
 
             return points[points.Count - 1];
         }
-
-        /// <summary>
-        /// 简化路径点（移除过于接近的点）
-        /// </summary>
-        /// <param name="points">原始点集</param>
-        /// <param name="tolerance">容差（小于此距离的点将被移除）</param>
-        /// <returns>简化后的点集</returns>
-        public static List<Vector2> SimplifyPath(List<Vector2> points, float tolerance = 0.01f)
-        {
-            if (points == null || points.Count < 3)
-                return new List<Vector2>(points);
-
-            List<Vector2> simplified = new List<Vector2>();
-            simplified.Add(points[0]);
-
-            float sqrTolerance = tolerance * tolerance;
-
-            for (int i = 1; i < points.Count - 1; i++)
-            {
-                // 如果点之间的距离足够大，则保留
-                if ((points[i] - simplified[simplified.Count - 1]).sqrMagnitude > sqrTolerance)
-                {
-                    simplified.Add(points[i]);
-                }
-            }
-
-            // 确保最后一个点被添加
-            if (simplified[simplified.Count - 1] != points[points.Count - 1])
-            {
-                simplified.Add(points[points.Count - 1]);
-            }
-
-            return simplified;
-        }
     }
 
     /// <summary>

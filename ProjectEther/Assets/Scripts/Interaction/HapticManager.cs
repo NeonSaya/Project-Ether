@@ -28,7 +28,7 @@ namespace OsuVR
             if (Instance == null)
             {
                 Instance = this;
-                DontDestroyOnLoad(gameObject); // ✅ 加上这句
+                DontDestroyOnLoad(gameObject);
             }
             else
             {

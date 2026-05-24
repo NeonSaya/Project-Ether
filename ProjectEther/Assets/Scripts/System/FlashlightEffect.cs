@@ -74,7 +74,7 @@ namespace OsuVR
             }
 
             // [新增优化] 让 ScoreManager 的 UI 在 FL 模式下自发光，使其能在黯淡的背景下易于看清
-            var scoreManager = FindObjectOfType<ScoreManager>();
+            var scoreManager = FindFirstObjectByType<ScoreManager>();
             if (scoreManager != null && scoreManager.boardController != null)
             {
                 var texts = scoreManager.boardController.GetComponentsInChildren<TMPro.TextMeshProUGUI>(true);

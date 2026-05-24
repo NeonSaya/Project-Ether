@@ -192,7 +192,7 @@ namespace OsuVR
         {
             if (gameManager == null)
             {
-                gameManager = FindObjectOfType<RhythmGameManager>();
+                gameManager = FindFirstObjectByType<RhythmGameManager>();
             }
 
             isPaused = true;
@@ -326,14 +326,6 @@ namespace OsuVR
         public bool IsPaused()
         {
             return isPaused || isCountingDown;
-        }
-
-        public void ResetMenu()
-        {
-            HidePauseMenu();
-            isPaused = false;
-            isCountingDown = false;
-            countdownTimer = 0f;
         }
 
         void OnDestroy()

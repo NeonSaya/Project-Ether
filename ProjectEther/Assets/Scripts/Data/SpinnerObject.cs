@@ -55,36 +55,5 @@ namespace OsuVR
         {
             _endTime = endTime;
         }
-
-        /// <summary>
-        /// 获取转盘需要旋转的角度（基于时间进度）
-        /// </summary>
-        /// <param name="currentTime">当前时间</param>
-        /// <returns>所需旋转角度（度）</returns>
-        public float GetRequiredRotation(double currentTime)
-        {
-            if (currentTime < StartTime)
-                return 0f;
-
-            if (currentTime > EndTime)
-                return 1080f; // 完成3圈
-
-            double progress = (currentTime - StartTime) / Duration;
-            return (float)(progress * 1080f); // 3圈 = 1080度
-        }
-
-        /// <summary>
-        /// 检查是否完成转盘
-        /// </summary>
-        /// <param name="totalRotation">玩家累计旋转角度</param>
-        /// <param name="currentTime">当前时间</param>
-        /// <returns>是否完成</returns>
-        public bool IsCompleted(float totalRotation, double currentTime)
-        {
-            if (currentTime > EndTime)
-                return false; // 超时
-
-            return totalRotation >= GetRequiredRotation(currentTime);
-        }
     }
 }
