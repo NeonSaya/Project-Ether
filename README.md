@@ -44,15 +44,11 @@
 
 ## ✨ 核心游戏特色 (Features)
 
-* **原生级的“翻译引擎”**: 内置纯 C# 编写的高性能谱面解析器 (`OsuParser`)。无需任何第三方工具转换，直接拖入从官网下载的 `.osu` 文件即可秒读元数据、时间轴与复杂物件坐标。
-* **原汁原味的严苛算分**: 告别“碰到就算对”的快乐表机制！无论是滑条的起点 (Head)、途径的节点 (Tick)、折返点 (Repeat)，还是转盘随 OD 难度变化的转速上限，全都严格参照 `osu! Lazer` 源码的规则进行精确结算。
-* **奇妙的曲面空间投影**: 独家编写的 `CoordinateMapper` 空间映射算法，将原本基于 512x384 像素平面的 osu 传统坐标，通过数学曲面函数，完美且无损地弯折成环绕在玩家视场角 (FOV) 前方的 3D 全景曲面。
-* **生理级防眩晕与触觉反馈**: 手柄会根据你的击打结果提供多层次、细腻的震动反馈 (`HapticProfile`)；而在 UI 层面，所有的动态面板不仅通过着色器实现了物理弯折，还自带类似弹簧阻尼的视线平滑跟随 (`HUDFollower`)，彻底告别 VR 眩晕。
-* **完整的国际化支持**: 内置自动本地化系统 (`LocalizationManager`) 与 `LocalizedText` 组件，支持中文、日文等 Unicode 字体的动态加载与渲染，所有 UI 文本自动适配语言偏好。
-* **丰富的 Mod 拓展体系**: 游戏内已集成 AutoPlay（自动完美演示）、HR（HardRock 翻转与缩圈缩小）、FL（Flashlight 手电筒视野限制，含专属休息时段动画）等经典机制，并支持玩家在设置中进行毫秒级的全局音频延迟 (Offset) 微调，自带可扩展的多语言国际化字典。
-* **数据驱动的音频可视化**: 已接入 `AudioLink` 音频数据桥接系统与 `Lasp` 低延迟音频捕获，建立起从 `AudioSource` 播放 → FFT 频谱分析 → 全局 Shader 参数注入 (`_Global_Audio_Bass/Mid/Treble`) → 128 柱频谱渲染与粒子响应的完整视听闭环。AudioLink 通过反射式集成提供 DFT 精细频段数据，Lasp 提供系统级低延迟音频捕获，双通道自动切换保障不同环境下的最佳表现。
-* **代码驱动粒子特效系统**: 独创的纯代码运算环境粒子系统与打击粒子引擎，配合 BPM 精准节拍同步与 Kiai 时段检测，无需依赖 VFX Graph 即可在低配设备上流畅运行，为后续 GPU 粒子方案提供坚实的低配兜底。
-* **沉浸式物理渐入体验**: 所有音符与游戏物件均配有物理级淡入动画，配合 20ms 硬件音频延迟补偿机制，实现视听反馈的极致同步。
+* **原生解析与精准判定**: 内置纯 C# 高性能谱面解析器 (`OsuParser`)，直接读取 `.osu` 文件无需转换；严格复刻 `osu! Lazer` 的判定逻辑，从滑条节点 (Tick)、折返点 (Repeat) 到转盘转速，全链路精确结算。
+* **奇妙的 3D 曲面投影**: 独家 `CoordinateMapper` 空间映射算法，将 512x384 平面坐标通过数学曲面函数弯折为环绕玩家 FOV 的 3D 全景曲面，配合物理级淡入动画与 60ms 固有音频延迟补偿，实现极致视听同步。
+* **沉浸式 VR 交互体验**: 射线悬停交互机制实现”指哪打哪”；手柄震动反馈 (`HapticProfile`) 根据谱面音量与判定结果动态调整；UI 面板通过 `CurvedUIEffect` 物理弯折与 `HUDFollower` 弹簧跟随，彻底告别 VR 眩晕。
+* **完整的游戏系统**: 集成 AutoPlay / HR / FL 等经典 Mod，内置自动本地化系统 (`LocalizationManager`) 支持多语言 Unicode 渲染，音效与震动采用 `TimingPoint × SampleVolume × 设置` 的完整乘法链路，精准可控。
+* **数据驱动的视听演出**: 接入 `AudioLink` 与 `Lasp` 建立音频数据闭环，128 柱频谱渲染与 11 层环境粒子实时响应 BPM 节拍与 Kiai 时段；纯代码粒子引擎 (`CodeOnlyVFX`) 为低配设备提供流畅兜底方案。
 
 ---
 
@@ -62,25 +58,23 @@
 
 ```text
 Assets/
-├── Scenes/         # 游戏核心场景 (MainMenuScene 主菜单, SongSelectScene 选歌, GameScene 打歌, ResultScene 结算, AudioLinkTest 音频可视化测试)
+├── Scenes/         # 游戏核心场景 (MainMenuScene 主菜单, SongSelectScene 选歌, GameScene 打歌, ResultScene 结算)
 ├── Prefabs/        # 资源预制体 (各类交互 UI 面板、飞行的音符实体、判定特效球等)
 ├── Shader/         # 自定义 URP 材质着色器 (包括滑条曲线渲染、UI 弯曲计算、AudioLink 响应着色器等)
-├── Materials/      # 静态材质球库 (发光物件、天空盒、基础UI底图、AudioLink 测试材质)
+├── Materials/      # 静态材质球库 (发光物件、天空盒、基础UI底图)
 ├── Texture/        # 2D 图片素材与 Sprite 精灵图集
-├── Effekseer/      # 第三方开源粒子特效资源库 (为日后华丽的日系动画级背景做准备)
+├── Effekseer/      # 第三方开源粒子特效资源库 (为后续华丽的日系动画级舞台做准备)
 ├── Songs/          # 测试用谱面目录
 └── Scripts/        # 游戏的心脏与大脑 (所有命名空间归属于 OsuVR)
-    ├── Audio/          # 音频管理枢纽 (掌管音乐播放、多普勒消除与音画强同步)
+    ├── Core/           # 玩法循环控制 (RhythmGameManager 调度器、NoteController/SliderController/SpinnerController 物件控制、CoordinateMapper 空间映射)
+    ├── Data/           # 纯净的数据模型层 (OsuParser 文本解析、Beatmap / HitObject 实体类、TimingPoint 时间点)
+    ├── Interaction/    # 玩家物理交互层 (RayController 射线逻辑、HapticManager 震动分发、AudioManager 音效管理)
+    ├── System/         # 全局基础设施 (SettingsManager 设置管理、GameSettings 配置、LocalizationManager 本地化、ModEffectsApplier Mod效果)
+    ├── UI/             # 界面交互层 (SimpleMainMenu 主菜单、SimpleSongSelection 选歌、VRSettingsMenu VR设置、PauseMenu 暂停面板)
+    ├── Visuals/        # 视觉魔术师 (CodeOnlyVFX 纯代码打击特效、JudgementVisualizer 判定显示、EtherealEnvironment 128柱频谱环境)
     ├── Context/        # 跨场景数据快递员 (GameContext 负责将选歌数据安全传递到打歌场景、ResultData 结算数据)
-    ├── Core/           # 玩法循环控制 (RhythmGameManager 调度器、NotePoolManager 对象池、CoordinateMapper 空间映射、ObjectFadeIn 渐入动画)
-    ├── Data/           # 纯净的数据模型层 (OsuParser 文本解析、Beatmap / HitObject 实体类、BeatmapImporter 谱面导入)
-    ├── Editor/         # 编辑器扩展工具 (AudioLinkInstaller 一键集成、AudioLinkTestSceneCreator 测试场景生成)
-    ├── Interaction/    # 玩家物理交互层 (RayController 射线逻辑、HapticManager 震动分发、AudioVisualizationManager 音频可视化管线、AudioLinkAdapter 桥接适配)
-    ├── Profile/        # 性能与调试工具
     ├── Rulesets/       # 铁面无私的裁判 (ScoreManager 专职计算判定窗口、准确率与 Combo)
-    ├── System/         # 全局基础设施 (GameSettings 配置读取、ModSystem 变异逻辑、ModEffectsApplier Mod效果施加、LocalizationManager 本地化、FlashlightEffect FL手电筒效果、UnicodeFontLoader Unicode字体加载)
-    ├── UI/             # 界面交互层 (VRSettingsMenu VR设置、PauseMenu / VRPauseMenu 暂停面板、ModSelectionUI Mod选择、LocalizedText 多语言文本组件)
-    └── Visuals/        # 视觉魔术师 (JudgementVisualizer 纯代码生成特效、CurvedUIEffect UI弯折、CodeDrivenAmbientParticles BPM同步环境粒子、EtherealEnvironment 128柱频谱+11层粒子环境、AudioVFXDriver 音频驱动特效)
+    └── Editor/         # 编辑器扩展工具 (UIPrefabUpdater UI生成、SimpleSceneSetup 场景配置)
 ```
 
 ---
@@ -187,8 +181,9 @@ A: 绝对配！Unity 官方非常贴心地提供了 `XR Device Simulator` 插件
 ### 阶段一：视觉特效重构与画面张力提升
 - [x] **URP 后期管线基础配置**: 已完成 URP High Fidelity 渲染管线配置（HDR, MSAA 4x, 4096 阴影分辨率），内置 Tonemapping (ACES)、Bloom 泛光与 Vignette 暗角。
 - [x] **物件渐入动画**: 所有音符与游戏物件已实现物理级淡入效果，提升视觉流畅度与沉浸感。
-- [ ] **打击反馈大换血**: 弃用性能受限的基础 Mesh 粒子，初步接入强大的 `Unity VFX Graph` 搭建数以万计的高性能 GPU 粒子系统。
-- [ ] **精细化判定表现**: 为不同的判定结果 (Great / Ok / Miss) 制作独立且极具视觉冲击力的爽快粒子爆炸特效。
+- [x] **打击反馈大换血**: 已实现纯代码驱动的高性能粒子特效系统 (`CodeOnlyVFX`)，支持对象池复用与 HDR 高亮爆发效果。
+- [x] **精细化判定表现**: 已实现判定可视化器 (`JudgementVisualizer`)，为 300/100/50/Miss 四种判定结果配置独立颜色编码与弹出渐隐动画。
+- [ ] **后期处理深度定制**: 引入 `X-PostProcessing-Library`，实现更高级的视觉滤镜效果（如径向模糊、色差、胶片颗粒等），进一步提升画面电影感。
 
 ### 阶段二：数据驱动的音频可视化舞台 (Audio $\rightarrow$ Visual) — 🟢 视听闭环已达成
 这是本项目的杀手锏。核心逻辑：`音频数据化 (FFT 快速傅里叶变换) -> 数据流全面驱动视觉 (Shader 参数 & 粒子速率)`。
@@ -204,6 +199,7 @@ A: 绝对配！Unity 官方非常贴心地提供了 `XR Device Simulator` 插件
 - [ ] **多媒体引擎解析**: 提取并支持 `.osu` 谱面资源中包含的高清背景视频 (Video) 在 3D 巨幕上的播放。
 - [ ] **Storyboard 基础指令搭建**: 编写全新的解析模块，读取并翻译故事板中的基础控制指令 (如 Fade 淡入淡出, Move 移动, Scale 缩放)。
 - [ ] **震撼的 3D 投影演出**: 将原本受限于平面屏幕的传统 2D 故事板元素，通过深度计算，精准投射并交错在环绕玩家的 3D VR 空间之中。
+- [ ] **Effekseer 特效演出**: 利用 `Effekseer` 制作与 Storyboard 联动的华丽粒子特效（如樱花飘落、烟花绽放、光束扫射等），打造沉浸式舞台演出体验。
 
 ### 阶段四：多平台设备全面适配 (PC / Quest / Pico)
 - [ ] **底层解耦与抽象隔离**: 剥离现有强绑定于 PC VR 环境的冗余输入逻辑，封装一层高度统一的跨平台 Input 管理层。
