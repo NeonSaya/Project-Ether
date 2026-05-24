@@ -478,6 +478,12 @@ namespace OsuVR
         /// </summary>
         void ApplyPhase(GamePhase phase)
         {
+            // 切换到非 Playing 阶段时，重置频谱状态（防止结算场景频谱残留）
+            if (currentPhase == GamePhase.Playing && phase != GamePhase.Playing)
+            {
+                ResetSpectrumState();
+            }
+
             currentPhase = phase;
 
             // 背景色平滑切换
@@ -1976,11 +1982,41 @@ namespace OsuVR
         }
 
         /// <summary>
+        /// 重置所有频谱数据和全局 Shader 变量（阶段切换时调用）
+        /// </summary>
+        private void ResetSpectrumState()
+        {
+            if (spectrumBandValues != null)
+                System.Array.Clear(spectrumBandValues, 0, spectrumBandValues.Length);
+            if (spectrumBandSmoothed != null)
+                System.Array.Clear(spectrumBandSmoothed, 0, spectrumBandSmoothed.Length);
+            if (spectrumBarHeights != null)
+                System.Array.Clear(spectrumBarHeights, 0, spectrumBarHeights.Length);
+            if (spectrumBarHeightsSmoothed != null)
+                System.Array.Clear(spectrumBarHeightsSmoothed, 0, spectrumBarHeightsSmoothed.Length);
+
+            Shader.SetGlobalFloat("_Global_Audio_Bass", 0f);
+            Shader.SetGlobalFloat("_Global_Audio_Mid", 0f);
+            Shader.SetGlobalFloat("_Global_Audio_Treble", 0f);
+
+            SetEnvironmentState(EnvironmentState.Idle);
+        }
+
+        /// <summary>
         /// 从AudioLink获取完整频谱数据，压缩为8频段
         /// 如果AudioLink不可用，则从AudioVisualizationManager获取三频段并扩展
         /// </summary>
         private void UpdateSpectrumFromAudioLink()
         {
+            // 非游戏阶段：跳过频谱更新，清零 AudioVisualizationManager 设置的全局 Shader 变量
+            if (currentPhase != GamePhase.Playing)
+            {
+                Shader.SetGlobalFloat("_Global_Audio_Bass", 0f);
+                Shader.SetGlobalFloat("_Global_Audio_Mid", 0f);
+                Shader.SetGlobalFloat("_Global_Audio_Treble", 0f);
+                return;
+            }
+
             float dt = Time.deltaTime;
             // 即时响应模式：使用更高的平滑因子（接近1），几乎无延迟
             float smoothFactor = instantResponseMode ? instantSmoothFactor : (1f - Mathf.Exp(-spectrumSmoothSpeed * dt));
