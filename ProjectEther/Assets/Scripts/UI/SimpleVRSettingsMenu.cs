@@ -39,8 +39,8 @@ namespace OsuVR
         private const float CanvasLocalZ = 1.5f;
         private const float CanvasScale = 0.0025f;
         private const int SortingOrder = 100;
-        private const float CanvasWidth = 1000f;
-        private const float CanvasHeight = 600f;
+        private const float CanvasWidth = 600f;
+        private const float CanvasHeight = 450f;
         private const float TabBarHeight = 50f;
 
         // ---- Prefab 精确颜色 ----
@@ -493,7 +493,6 @@ namespace OsuVR
         {
             yield return null;
             RayController.NotifyUICanvasChanged();
-            Debug.Log("[SimpleVRSettingsMenu] RayController 缓存已刷新");
         }
     }
 }

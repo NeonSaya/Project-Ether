@@ -12,6 +12,7 @@ namespace OsuVR
         public override string TabLocalizationKey => "ui_tab_audio";
 
         private Slider audioOffsetSlider;
+        private TextMeshProUGUI audioOffsetValueText;
         private Slider masterVolumeSlider;
         private Slider musicVolumeSlider;
         private Slider sfxVolumeSlider;
@@ -60,9 +61,19 @@ namespace OsuVR
                     tempSettings.audioOffsetMs = newVal;
                     SettingsManager.Instance.SetAudioOffset(newVal);
                     audioOffsetSlider.SetValueWithoutNotify(newVal);
-                    // FineTune 后播放点击音效
+                    if (audioOffsetValueText != null)
+                        audioOffsetValueText.text = string.Format(OffsetFormat, newVal);
                     PlayClickSound();
                 });
+
+            // 缓存 Header/Value 引用（RefreshUI 需要直接更新）
+            if (audioOffsetSlider != null)
+            {
+                var row = audioOffsetSlider.transform.parent;
+                var header = row?.Find("Header");
+                var valueTf = header?.Find("Value");
+                audioOffsetValueText = valueTf?.GetComponent<TextMeshProUGUI>();
+            }
         }
 
         public override void RefreshUI(GameSettings tempSettings)
@@ -70,7 +81,12 @@ namespace OsuVR
             SetSliderValueWithoutNotify(masterVolumeSlider, tempSettings.masterVolume, VolumeFormat, 100f);
             SetSliderValueWithoutNotify(musicVolumeSlider, tempSettings.musicVolume, VolumeFormat, 100f);
             SetSliderValueWithoutNotify(sfxVolumeSlider, tempSettings.sfxVolume, VolumeFormat, 100f);
-            SetSliderValueWithoutNotify(audioOffsetSlider, tempSettings.audioOffsetMs, OffsetFormat);
+            if (audioOffsetSlider != null)
+            {
+                audioOffsetSlider.SetValueWithoutNotify(tempSettings.audioOffsetMs);
+                if (audioOffsetValueText != null)
+                    audioOffsetValueText.text = string.Format(OffsetFormat, tempSettings.audioOffsetMs);
+            }
         }
 
         protected override string GetFormatForSlider(Slider slider)
