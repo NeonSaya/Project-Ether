@@ -629,7 +629,8 @@ namespace OsuVR
             hasBeenHit = true;
             isActive = false;
 
-            float vol = hitObject.SampleVolume / 100f;
+            // 音量 = TimingPoint音量 × 样本倍率
+            float vol = (hitObject.TimingPointVolume / 100f) * (hitObject.SampleVolume / 100f);
 
             if (HapticManager.Instance == null)
             {
@@ -651,13 +652,18 @@ namespace OsuVR
             }
             // 播放特效
             if (CodeOnlyVFX.Instance != null)
+            {
+                double acc01 = 1.0 - (System.Math.Abs(accuracy) / 250.0);
+                int score = RhythmGameManager.CalculateScoreFromAccuracy(acc01);
                 CodeOnlyVFX.Instance.PlayHit(
                     transform.position,
                     transform.rotation,
                     transform.localScale.x,
                     originalColor,
-                    this.nextNotePosition
+                    this.nextNotePosition,
+                    score
                 );
+            }
 
             // 播放音效 
             if (AudioManager.Instance == null)

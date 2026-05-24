@@ -115,9 +115,15 @@ namespace OsuVR
         [SerializeField]
         private double gameStartDspTime = 0;
 
+        private double pauseStartDspTime = 0; // 暂停时的 DSP 时间
+
         [Header("校准设置")]
         [Tooltip("全局偏移 (毫秒)：调整音画同步。正数表示Note出现得更晚，负数表示Note出现得更早")]
         public float universalOffsetMs = 0f;
+
+        // 固有音频系统延迟补偿 (Unity DSP缓冲区 + 音频驱动 + VR音频管线)
+        // 这个值使得用户设置0ms时音符就能对齐节拍
+        private const double INHERENT_AUDIO_LATENCY_MS = 63.3;
 
         private double audioSystemLatency = 0;
 
@@ -381,7 +387,8 @@ namespace OsuVR
                     countdownTime = preparationTime + ((spawnOffsetMs / 1000.0) / speedMultiplier) - elapsedBufferTime;
 
                     // 修复: 乘上 speedMultiplier 让游戏时间与加速的音乐匹配
-                    currentMusicTimeMs = (((currentDspTime - dspStartTime) * 1000.0) * speedMultiplier) - universalOffsetMs;
+                    // 同时应用固有延迟补偿和用户偏移
+                    currentMusicTimeMs = (((currentDspTime - dspStartTime) * 1000.0) * speedMultiplier) - universalOffsetMs - INHERENT_AUDIO_LATENCY_MS;
                 }
                 else
                 {
@@ -395,9 +402,10 @@ namespace OsuVR
                 if (dspStartTime > 0)
                 {
                     double currentDspTime = AudioSettings.dspTime;
-                    
+
                     // 修复: 乘上 speedMultiplier 让游戏时间与加速的音乐匹配
-                    currentMusicTimeMs = (((currentDspTime - dspStartTime) * 1000.0) * speedMultiplier) - universalOffsetMs;
+                    // 同时应用固有延迟补偿和用户偏移
+                    currentMusicTimeMs = (((currentDspTime - dspStartTime) * 1000.0) * speedMultiplier) - universalOffsetMs - INHERENT_AUDIO_LATENCY_MS;
 
                     // 检查音乐是否应该开始但还未开始
                     if (!isMusicPlaying && currentMusicTimeMs >= 0)
@@ -814,10 +822,12 @@ namespace OsuVR
             currentMusicTimeMs = 0;
             isPlaying = false;
             isMusicPlaying = false;
-            
+            isGameEnded = false;
+            pauseStartDspTime = 0;
+
             // 修复：除以 speedMultiplier
             countdownTime = preparationTime + ((spawnOffsetMs / 1000.0) / speedMultiplier);
-            
+
             spawnedNotes = 0;
             activeNotes = 0;
         }
@@ -830,6 +840,7 @@ namespace OsuVR
             if (!isPlaying) return;
 
             isPlaying = false;
+            pauseStartDspTime = AudioSettings.dspTime;
 
             if (musicSource.isPlaying)
             {
@@ -850,6 +861,15 @@ namespace OsuVR
         public void ResumeGame()
         {
             if (isPlaying) return;
+
+            // 偏移 dspStartTime，扣除暂停时长，防止时间跳转
+            if (pauseStartDspTime > 0)
+            {
+                double pauseDuration = AudioSettings.dspTime - pauseStartDspTime;
+                dspStartTime += pauseDuration;
+                gameStartDspTime += pauseDuration;
+                pauseStartDspTime = 0;
+            }
 
             // Auto 模式恢复时：重新接管手柄
             if (useAutoPlay && autoPlayManager != null)
@@ -1638,10 +1658,8 @@ namespace OsuVR
             isPlaying = false;
             isMusicPlaying = false;
 
-            if (musicSource.isPlaying)
-            {
-                musicSource.Stop();
-            }
+            musicSource.Stop();
+            musicSource.time = 0; // 显式重置播放位置，确保重试时从头开始
 
             if (autoPlayManager != null)
             {
@@ -1688,8 +1706,8 @@ namespace OsuVR
             if (dspStartTime > 0)
             {
                 double currentDspTime = AudioSettings.dspTime;
-                // 修复: 必须乘上 speedMultiplier，并减去全局偏移
-                return (((currentDspTime - dspStartTime) * 1000.0) * speedMultiplier) - universalOffsetMs;
+                // 修复: 必须乘上 speedMultiplier，并减去全局偏移和固有延迟
+                return (((currentDspTime - dspStartTime) * 1000.0) * speedMultiplier) - universalOffsetMs - INHERENT_AUDIO_LATENCY_MS;
             }
 
             return 0;

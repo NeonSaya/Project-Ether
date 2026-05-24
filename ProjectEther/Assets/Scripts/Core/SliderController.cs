@@ -56,6 +56,11 @@ namespace OsuVR
         // [新增] 折返粒子特效引用
         private ParticleSystem headReversePS;
         private ParticleSystem tailReversePS;
+        private ParticleSystem.ColorOverLifetimeModule headColorOL;
+        private ParticleSystem.ColorOverLifetimeModule tailColorOL;
+        private bool tailShowing = true;  // 尾部标记当前是否显示
+        private bool headShowing = false; // 头部标记当前是否显示
+        private Gradient reverseGradient; // 缓存 Gradient，避免每帧 new
 
         // [新增] 这里的颜色用于生成 Vertex Colors
         public Color customBodyColor = new Color(0.2f, 0.6f, 1f, 0.9f); // 默认 osu! 蓝
@@ -266,9 +271,8 @@ namespace OsuVR
             // ✅ [核心] 设为 1，确保粒子在半圆"内部"随机生成，而不是只在边缘
             shape.radiusThickness = 1.0f;
 
-            // 3. 发射率：更高密度，粒子更多更明显
+            // 3. 发射率：持续发射，由 Stop/Play 控制开关
             emission.rateOverTime = 800f;
-            emission.enabled = false;
 
             // 4. ✅ [新增] 噪声模块：制造"朦胧"和"扰动"的关键
             noise.enabled = true;
@@ -345,6 +349,10 @@ namespace OsuVR
 
             headHit = false;
             finished = false;
+
+            // 重置折返标记状态（对象池复用时必须重置）
+            tailShowing = true;
+            headShowing = false;
         }
 
 
@@ -938,22 +946,27 @@ namespace OsuVR
                 // 世界位置
                 Vector3 headWorldPos = transform.TransformPoint(worldPathPoints[0]);
                 headReversePS = CreateReverseParticle(headWorldPos, headRot, currentComboColor);
+                if (headReversePS)
+                {
+                    headColorOL = headReversePS.colorOverLifetime;
+                    // 头部初始透明（不可见）
+                    SetReverseAlpha(headColorOL, currentComboColor, 0f);
+                }
 
 
                 // 2. 尾部粒子 (位置：point[last])
                 int last = worldPathPoints.Count - 1;
-                // 计算本地流出方向 (从 p[last-1] -> p[last])
                 Vector3 tailLocalDir = (worldPathPoints[last] - worldPathPoints[last - 1]);
-
                 float tailAngle = Mathf.Atan2(tailLocalDir.y, tailLocalDir.x) * Mathf.Rad2Deg;
-
                 Quaternion tailRot = transform.rotation * Quaternion.Euler(0, 0, tailAngle - 90f);
-
                 Vector3 tailWorldPos = transform.TransformPoint(worldPathPoints[last]);
                 tailReversePS = CreateReverseParticle(tailWorldPos, tailRot, currentComboColor);
-
-                // 3. 初始激活
-                UpdateReverseVFX(1);
+                if (tailReversePS)
+                {
+                    tailColorOL = tailReversePS.colorOverLifetime;
+                    // 尾部初始可见
+                    SetReverseAlpha(tailColorOL, currentComboColor, 0.75f);
+                }
             }
         }
 
@@ -966,8 +979,8 @@ namespace OsuVR
             // 1. 如果已经跑完了所有段落，立刻关闭所有
             if (nextSpanIndex > sliderData.RepeatCount)
             {
-                if (headReversePS) { var em = headReversePS.emission; em.enabled = false; }
-                if (tailReversePS) { var em = tailReversePS.emission; em.enabled = false; }
+                if (headReversePS) { var em = headReversePS.emission; em.enabled = false; headReversePS.Clear(); }
+                if (tailReversePS) { var em = tailReversePS.emission; em.enabled = false; tailReversePS.Clear(); }
                 return;
             }
 
@@ -985,14 +998,18 @@ namespace OsuVR
             if (tailReversePS)
             {
                 var em = tailReversePS.emission;
-                // 检查状态是否发生了改变 (从关 -> 开)
                 bool wasEnabled = em.enabled;
                 em.enabled = showTail;
 
-                // ✅ [关键] 如果刚被开启，手动发射一波粒子，填补"前摇"
-                if (!wasEnabled && showTail)
+                if (showTail && !wasEnabled)
                 {
-                    tailReversePS.Emit(30); // 瞬间生成30个粒子
+                    // 刚开启：瞬间发射，消除前摇
+                    tailReversePS.Emit(30);
+                }
+                else if (!showTail && wasEnabled)
+                {
+                    // 刚关闭：立刻清除残留粒子，消除延迟消失感
+                    tailReversePS.Clear();
                 }
             }
 
@@ -1003,11 +1020,115 @@ namespace OsuVR
                 bool wasEnabled = em.enabled;
                 em.enabled = showHead;
 
-                // ✅ [关键] 同理，瞬间发射
-                if (!wasEnabled && showHead)
+                if (showHead && !wasEnabled)
                 {
                     headReversePS.Emit(30);
                 }
+                else if (!showHead && wasEnabled)
+                {
+                    headReversePS.Clear();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 设置折返粒子的透明度（0=不可见，1=完全可见）
+        /// 通过 colorOverLifetime 的 alpha 通道控制
+        /// </summary>
+        private void SetReverseAlpha(ParticleSystem.ColorOverLifetimeModule colorOL, Color baseColor, float alpha)
+        {
+            if (reverseGradient == null) reverseGradient = new Gradient();
+            Color c = baseColor * 6.0f; // HDR 亮度
+            c.a = alpha;
+            reverseGradient.SetKeys(
+                new GradientColorKey[] {
+                    new GradientColorKey(new Color(c.r, c.g, c.b), 0f),
+                    new GradientColorKey(new Color(c.r, c.g, c.b), 1f)
+                },
+                new GradientAlphaKey[] {
+                    new GradientAlphaKey(0f, 0f),
+                    new GradientAlphaKey(alpha, 0.2f),
+                    new GradientAlphaKey(alpha, 0.6f),
+                    new GradientAlphaKey(0f, 1f)
+                }
+            );
+            colorOL.color = reverseGradient;
+        }
+
+        /// <summary>
+        /// 折返标记：时间驱动 + alpha 控制可见性
+        /// 两个粒子系统始终 Play + 持续发射，通过 alpha 0/1 切换可见性
+        ///
+        /// 尾部标记：尾部位置（偶数 span）还有后续 Repeat → 保持显示
+        /// 头部标记：头部位置（奇数 span）还有后续 Repeat 且 headHit → 保持显示
+        /// 自己位置的最后一个 Repeat 打完才关闭
+        /// </summary>
+        private void UpdateReverseMarkerByTime()
+        {
+            if (sliderData == null || sliderData.RepeatCount <= 1) return;
+            if (headReversePS == null || tailReversePS == null) return;
+
+            // 滑条还没开始，保持初始状态
+            if (currentMusicTimeCache < sliderData.StartTime) return;
+
+            // 滑条结束，隐藏所有
+            if (currentMusicTimeCache > sliderData.EndTime)
+            {
+                if (tailShowing) { tailShowing = false; SetReverseAlpha(tailColorOL, currentComboColor, 0f); tailReversePS.Clear(); }
+                if (headShowing) { headShowing = false; SetReverseAlpha(headColorOL, currentComboColor, 0f); headReversePS.Clear(); }
+                return;
+            }
+
+            // 当前处于第几个 span（基于时间）
+            double totalDur = sliderData.EndTime - sliderData.StartTime;
+            double spanDur = totalDur / sliderData.RepeatCount;
+            double timeSinceStart = currentMusicTimeCache - sliderData.StartTime;
+            int currentSpan = Mathf.Clamp((int)((timeSinceStart + 0.01) / spanDur), 0, sliderData.RepeatCount - 1);
+
+            // 尾部位置（偶数 span）是否还有未处理的 Repeat（当前或之后）
+            bool tailHasRepeat = false;
+            for (int i = currentNestedIndex; i < sliderData.NestedHitObjects.Count; i++)
+            {
+                var obj = sliderData.NestedHitObjects[i];
+                if (obj.Type == SliderEventType.Repeat && obj.SpanIndex % 2 == 0)
+                {
+                    tailHasRepeat = true;
+                    break;
+                }
+            }
+
+            // 头部位置（奇数 span）是否还有未处理的 Repeat（当前或之后）
+            bool headHasRepeat = false;
+            for (int i = currentNestedIndex; i < sliderData.NestedHitObjects.Count; i++)
+            {
+                var obj = sliderData.NestedHitObjects[i];
+                if (obj.Type == SliderEventType.Repeat && obj.SpanIndex % 2 == 1)
+                {
+                    headHasRepeat = true;
+                    break;
+                }
+            }
+
+            // 尾部标记：当前在前往尾部 或 尾部还有未处理的 Repeat → 保持显示
+            bool headingToTail = (currentSpan % 2 == 0);
+            bool showTail = headingToTail || tailHasRepeat;
+            // 头部标记：headHit 且 头部还有未处理的 Repeat
+            bool showHead = headHit && headHasRepeat;
+
+            // 更新尾部标记
+            if (showTail != tailShowing)
+            {
+                tailShowing = showTail;
+                if (showTail) { SetReverseAlpha(tailColorOL, currentComboColor, 0.75f); }
+                else { SetReverseAlpha(tailColorOL, currentComboColor, 0f); tailReversePS.Clear(); }
+            }
+
+            // 更新头部标记
+            if (showHead != headShowing)
+            {
+                headShowing = showHead;
+                if (showHead) { SetReverseAlpha(headColorOL, currentComboColor, 0.75f); }
+                else { SetReverseAlpha(headColorOL, currentComboColor, 0f); headReversePS.Clear(); }
             }
         }
 
@@ -1132,6 +1253,12 @@ namespace OsuVR
         {
             isFadingOut = true;
             fadeOutStartTime = Time.time;
+
+            // 隐藏折返标记
+            if (headReversePS) { SetReverseAlpha(headColorOL, currentComboColor, 0f); headReversePS.Clear(); }
+            if (tailReversePS) { SetReverseAlpha(tailColorOL, currentComboColor, 0f); tailReversePS.Clear(); }
+            headShowing = false;
+            tailShowing = false;
         }
 
         private void UpdateFadeOut()
@@ -1266,34 +1393,8 @@ namespace OsuVR
                 }
             }
 
-            // 实时驱动折返特效 (0延迟的核心)
-            // -------------------------------------------------------------
-            if (sliderData != null && !finished)
-            {
-                // 计算单程持续时间
-                double totalDur = sliderData.EndTime - sliderData.StartTime;
-                double spanDur = totalDur / sliderData.RepeatCount;
-
-                // 计算当前时间相对于开始时间的进度
-                double timeSinceStart = currentMusicTimeCache - sliderData.StartTime;
-
-                // 如果还没开始 (负数)，就是第0段 (去往尾部)
-                // 如果已经开始，计算当前处于第几段 (0, 1, 2...)
-                int currentSpanIndex = 0;
-
-                if (timeSinceStart > 0)
-                {
-                    currentSpanIndex = (int)(timeSinceStart / spanDur);
-                }
-
-                // 下一段的索引 = 当前段 + 1
-                // 比如当前在跑第0段，目标就是第1个折返点
-                int nextTargetIndex = currentSpanIndex + 1;
-
-                // 实时更新特效
-                UpdateReverseVFX(nextTargetIndex);
-            }
-            // -------------------------------------------------------------
+            // 5. 时间驱动折返标记（独立于判定事件，0延迟）
+            UpdateReverseMarkerByTime();
         }
 
         /// <summary>
@@ -1466,13 +1567,23 @@ namespace OsuVR
                 else isLeftHandTracking = true;
 
                 // 2. 视觉与触觉反馈
-                if (followBall) followBall.SetActive(true);
+                if (followBall)
+                {
+                    followBall.SetActive(true);
+                    StartCoroutine(FollowBallPulse());
+                }
                 // Head 使用节点索引 0 的音效
                 if (AudioManager.Instance != null) AudioManager.Instance.PlaySliderNodeSound(sliderData, 0);
-                float vol = sliderData.SampleVolume / 100f;
+                // 音量 = TimingPoint音量 × 样本倍率
+                float vol = (sliderData.TimingPointVolume / 100f) * (sliderData.SampleVolume / 100f);
 
                 if (HapticManager.Instance != null) HapticManager.Instance.PlayHitHaptic(isRightHand, (int)sliderData.HitSound, vol);
-                if (CodeOnlyVFX.Instance != null) CodeOnlyVFX.Instance.PlayHit(transform.position, transform.rotation, this.sliderWidth, currentComboColor, this.nextNotePosition);
+                if (CodeOnlyVFX.Instance != null)
+                {
+                    double absDiff01 = 1.0 - (System.Math.Abs(offset) / 250.0);
+                    int vfxScore = RhythmGameManager.CalculateScoreFromAccuracy(System.Math.Clamp(absDiff01, 0.0, 1.0));
+                    CodeOnlyVFX.Instance.PlayHit(transform.position, transform.rotation, this.sliderWidth, currentComboColor, this.nextNotePosition, vfxScore);
+                }
 
                 headHitValid = true;
                 ticksGot++;
@@ -1647,11 +1758,17 @@ namespace OsuVR
 
                             if (HapticManager.Instance != null)
                             {
-                                // [修复] 双手独立震动
-                                if (isRightHandTracking) HapticManager.Instance.PlaySliderTick(true);
-                                if (isLeftHandTracking) HapticManager.Instance.PlaySliderTick(false);
+                                // [修复] 双手独立震动，应用谱面音量 = TimingPoint × 样本倍率
+                                float tickVol = (sliderData.TimingPointVolume / 100f) * (sliderData.SampleVolume / 100f);
+                                if (isRightHandTracking) HapticManager.Instance.PlaySliderTick(true, tickVol);
+                                if (isLeftHandTracking) HapticManager.Instance.PlaySliderTick(false, tickVol);
                             }
-                            if (AudioManager.Instance != null) AudioManager.Instance.PlaySliderTick(sliderData.SampleSet, sliderData.CustomIndex, sliderData.SampleVolume / 100f);
+                            if (AudioManager.Instance != null)
+                            {
+                                // 音量 = TimingPoint × 样本倍率
+                                float tickVol = (sliderData.TimingPointVolume / 100f) * (sliderData.SampleVolume / 100f);
+                                AudioManager.Instance.PlaySliderTick(sliderData.SampleSet, sliderData.CustomIndex, tickVol);
+                            }
 
                             if (gameManager?.scoreManager != null) gameManager.scoreManager.RegisterComboHit(10);
 
@@ -1664,8 +1781,8 @@ namespace OsuVR
                             if (AudioManager.Instance != null) AudioManager.Instance.PlaySliderNodeSound(sliderData, repeatNodeIndex);
                             if (HapticManager.Instance != null)
                             {
-                                // [修复] 双手独立震动
-                                float vol = sliderData.SampleVolume / 100f;
+                                // [修复] 双手独立震动，音量 = TimingPoint × 样本倍率
+                                float vol = (sliderData.TimingPointVolume / 100f) * (sliderData.SampleVolume / 100f);
                                 int soundType = (int)sliderData.HitSound;
                                 if (isRightHandTracking) HapticManager.Instance.PlayHitHaptic(true, soundType, vol);
                                 if (isLeftHandTracking) HapticManager.Instance.PlayHitHaptic(false, soundType, vol);
@@ -1675,11 +1792,11 @@ namespace OsuVR
                             {
                                 bool atTail = (nestedObject.SpanIndex % 2 == 0);
                                 Vector3 vfxLocalPos = atTail ? worldPathPoints[worldPathPoints.Count - 1] : worldPathPoints[0];
-                                CodeOnlyVFX.Instance.PlayHit(transform.TransformPoint(vfxLocalPos), transform.rotation, this.sliderWidth, currentComboColor, this.nextNotePosition);
+                                CodeOnlyVFX.Instance.PlayHit(transform.TransformPoint(vfxLocalPos), transform.rotation, this.sliderWidth, currentComboColor, this.nextNotePosition, 300);
                             }
 
                             if (gameManager?.scoreManager != null) gameManager.scoreManager.RegisterComboHit(30);
-                            UpdateReverseVFX(nestedObject.SpanIndex + 1);
+                            // 折返标记已由 UpdateReverseMarkerByTime() 在 Update() 中实时驱动，无需在此更新
                             break;
 
                         case SliderEventType.Tail:
@@ -1691,7 +1808,7 @@ namespace OsuVR
                             {
                                 bool endsAtTail = (sliderData.RepeatCount % 2 != 0);
                                 Vector3 endLocalPos = endsAtTail ? worldPathPoints[worldPathPoints.Count - 1] : worldPathPoints[0];
-                                CodeOnlyVFX.Instance.PlayHit(transform.TransformPoint(endLocalPos), transform.rotation, this.sliderWidth, currentComboColor, this.nextNotePosition);
+                                CodeOnlyVFX.Instance.PlayHit(transform.TransformPoint(endLocalPos), transform.rotation, this.sliderWidth, currentComboColor, this.nextNotePosition, 300);
                             }
                             break;
                     }
@@ -1699,9 +1816,10 @@ namespace OsuVR
                 else
                 {
                     // --- MISS 处理 ---
+                    // 折返标记已由 UpdateReverseMarkerByTime() 在 Update() 中实时驱动，无需在此更新
                     if (nestedObject.Type == SliderEventType.Repeat)
                     {
-                        UpdateReverseVFX(nestedObject.SpanIndex + 1);
+                        // 标记更新已由时间驱动处理
                     }
                     else if (nestedObject.Type == SliderEventType.Tail)
                     {
@@ -1743,8 +1861,8 @@ namespace OsuVR
                         // 滑条成功完成：Tail 音效已在 UpdateJudgement 的 Tail case 中播放
                         if (HapticManager.Instance != null)
                         {
-                            // [修复] 双手独立震动
-                            float vol = sliderData.SampleVolume / 100f;
+                            // [修复] 双手独立震动，音量 = TimingPoint × 样本倍率
+                            float vol = (sliderData.TimingPointVolume / 100f) * (sliderData.SampleVolume / 100f);
                             int soundType = (int)sliderData.HitSound;
                             if (isRightHandTracking) HapticManager.Instance.PlayHitHaptic(true, soundType, vol);
                             if (isLeftHandTracking) HapticManager.Instance.PlayHitHaptic(false, soundType, vol);
@@ -2011,7 +2129,11 @@ namespace OsuVR
                     DestroyImmediate(obj);
                 }
             }
-            garbageList.Clear(); // 清空列表，断开所有“尸体”引用
+            garbageList.Clear(); // 清空列表，断开所有”尸体”引用
+
+            // 清空折返粒子引用（GameObject 已被 Destroy，引用变成”假非空”）
+            headReversePS = null;
+            tailReversePS = null;
 
             // 2. 清理 Tick (池化)
             if (tickVisuals != null && tickPool != null)

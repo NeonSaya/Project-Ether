@@ -7,7 +7,7 @@ namespace OsuVR
     /// 作为 ScriptableObject 存储在项目中，可在 Inspector 中配置
     /// 支持的震动类型：
     /// - 基础打击：NormalHit, WhistleHit, FinishHit, ClapHit
-    /// - 滑条：SliderSlide, SliderTick, SliderReverse
+    /// - 滑条：SliderSlide, SliderTick
     /// - 转盘：SpinnerMinIntensity, SpinnerMaxIntensity
     /// </summary>
     [CreateAssetMenu(fileName = "NewHapticProfile", menuName = "OsuVR/Haptic Profile")]
@@ -25,9 +25,6 @@ namespace OsuVR
 
         [Tooltip("滑条经过 Tick (小豆豆) 的震动")]
         public HapticData SliderTick = new HapticData(0.3f, 0.05f);
-
-        [Tooltip("滑条折返 (Reverse Arrow) 的震动")]
-        public HapticData SliderReverse = new HapticData(0.5f, 0.08f);
 
         [Header("转盘 (Spinner)")]
         [Tooltip("转盘刚开始转的最小震动")]
