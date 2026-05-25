@@ -110,17 +110,5 @@ namespace OsuVR
                     return Mathf.RoundToInt(value).ToString();
             }
         }
-
-        public void Initialize(Slider slider, TextMeshProUGUI text, float min, float max, string fmt)
-        {
-            targetSlider = slider;
-            valueText = text;
-            minValue = min;
-            maxValue = max;
-            format = fmt;
-            
-            SetupButtons();
-            UpdateValueText();
-        }
     }
 }

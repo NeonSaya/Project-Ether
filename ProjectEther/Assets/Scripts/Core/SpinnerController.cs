@@ -56,7 +56,7 @@ namespace OsuVR
         private float targetVisualRotation = 0f;
         private float angleRequirement = 0f;
 
-        // [新增] 缓存渲染器引用
+        // 缓存渲染器引用
         private Renderer bgDiscRenderer;
         private Renderer rotDiscRenderer;
         private Renderer approachRingRenderer;
@@ -73,10 +73,9 @@ namespace OsuVR
 
         private IObjectPool<GameObject> myPool;
 
-        // [新增] 指环对象池（如果你想重用指环视觉而不是每次都销毁重建）
+        // 指环对象池
         private Queue<Transform> ringPool = new Queue<Transform>();
 
-        // ✅ [数据结构升级] 
         // 记录: <手柄, (上一帧角度, 上次时间, 虚拟圆心位置)>
         private Dictionary<RayController, HandState> handStates = new Dictionary<RayController, HandState>();
 
@@ -90,9 +89,9 @@ namespace OsuVR
             public Transform ringInstance;
             public TrailRenderer trail; // 是否刚进入
         }
-        // [新增] 记录最大允许旋转角度（分数上限）
+        // 记录最大允许旋转角度（分数上限）
         private float maxPossibleRotation = 0f;
-        // [新增] 下一次获得 Bonus 的阈值
+        // 下一次获得 Bonus 的阈值
         private float nextBonusThreshold = 0f;
 
 
@@ -370,7 +369,7 @@ namespace OsuVR
             // 2. 获取或初始化状态 (如果是新进来的手)
             if (!handStates.ContainsKey(source))
             {
-                // ✅ [新增] 克隆指环视觉
+                // 克隆指环视觉
                 Transform newRing = null;
                 TrailRenderer newTrail = null;
 
@@ -521,7 +520,7 @@ namespace OsuVR
             }
         }
 
-        // [新增] 计算 RPM 的辅助函数
+        // 计算 RPM 的辅助函数
         float CalculateMaxRPM(float od)
         {
             if (od < 5) return 250f + (od * 26f); // (380-250)/5 = 26
@@ -566,7 +565,7 @@ namespace OsuVR
                     bonusText.transform.localScale = Vector3.one * 1.5f;
                 }
 
-                // ✅ 加分
+                // 加分
                 if (gameManager != null && gameManager.scoreManager != null)
                 {
                     gameManager.scoreManager.RegisterBonus(50);

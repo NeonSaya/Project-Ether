@@ -5,7 +5,10 @@
       "Bash(do echo:*)",
       "Bash(wc:*)",
       "Bash(xxd)",
-      "Bash(ls -d Assets/*/)"
+      "Bash(ls -d Assets/*/)",
+      "Bash(done)",
+      "Bash(grep -v \"//.*Instance\")",
+      "Bash(grep -v \"///\")"
     ]
   }
 }

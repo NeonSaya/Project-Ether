@@ -14,13 +14,5 @@ namespace OsuVR
             : base(startTime, position, HitObjectType.Circle, isNewCombo, comboOffset)
         {
         }
-
-        /// <summary>
-        /// 获取圆圈的大小（基于缩放）
-        /// </summary>
-        public float GetCircleSize()
-        {
-            return OBJECT_RADIUS * GameplayScale;
-        }
     }
 }

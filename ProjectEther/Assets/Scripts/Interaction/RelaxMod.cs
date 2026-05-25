@@ -52,7 +52,7 @@ namespace OsuVR
             // --- 1. 处理 Note ---
             if (noteController != null && noteController.isActive)
             {
-                // ✅ 更新记忆：只要指着，就刷新最后接触时间
+                // 更新记忆：只要指着，就刷新最后接触时间
                 if (noteController.isHovered)
                 {
                     lastNoteHoverTime = currentTime;
@@ -65,7 +65,7 @@ namespace OsuVR
             // --- 2. 处理 Slider ---
             if (sliderController != null)
             {
-                // ✅ 更新记忆
+                // 更新记忆
                 if (sliderController.isTracking)
                 {
                     lastSliderHoverTime = currentTime;
@@ -77,7 +77,7 @@ namespace OsuVR
         }
 
 
-        // ✅ [新增] 核心压点逻辑方法
+        // 核心压点逻辑方法
         private void CheckHitTiming(double currentTime, double targetTime, bool isNote, double lastHoverTime)
         {
             // 1. 检查瞄准状态 (核心优化)
@@ -98,7 +98,7 @@ namespace OsuVR
         }
 
 
-        // --- 执行打击 (使用 SendMessage 调用私有方法) ---
+        // --- 执行打击 (直接方法调用) ---
 
         private void PerformNoteHit()
         {
@@ -107,19 +107,8 @@ namespace OsuVR
             // 1. 告诉 GameManager 加分 (模拟完美判定)
             gameManager.OnNoteHit(noteController.hitObject, 0); // 0 代表 300分/完美
 
-            // 2. 播放打击音效 (如果有独立音效管理，可以在这里加)
-            // gameManager.PlayHitSound(); 
-
-            // 3. 销毁 Note
-            // 技巧：NoteController 里有一个 "ReturnToPool" 私有方法
-            // 我们用 SendMessage 强行调用它，这样不用改代码也能回收物体
-            SendMessage("ReturnToPool", SendMessageOptions.DontRequireReceiver);
-
-            // 双重保险：如果 SendMessage 没起作用（比如方法名改了），直接隐藏
-            if (gameObject.activeSelf)
-            {
-                gameObject.SetActive(false);
-            }
+            // 2. 销毁 Note
+            noteController.ReturnToPool();
         }
 
         private void PerformSliderHeadHit()
@@ -127,10 +116,9 @@ namespace OsuVR
             hasTriggered = true;
 
             // 1. 触发 Slider 的打击逻辑 (让球开始动)
-            SendMessage("HitHead", SendMessageOptions.DontRequireReceiver);
+            sliderController.TryHitHead(true, transform.position);
 
-            // 2. ✅ [新增] 强制视觉反馈：打中瞬间隐藏滑条头
-            // 这会让滑条的手感和 Note 一样干脆 (打中 -> 头消失 -> 球滑出)
+            // 2. 打中瞬间隐藏滑条头
 
             // 尝试查找常见的头部子物体名称
             Transform head = transform.Find("HitCircle");
@@ -142,17 +130,12 @@ namespace OsuVR
             {
                 head.gameObject.SetActive(false);
             }
-            else
-            {
-                // 如果找不到特定名字，尝试寻找第一个 MeshRenderer 且不是滑条轨道的物体 (备选方案)
-                // var renderer = GetComponentInChildren<MeshRenderer>();
-                // if (renderer) renderer.enabled = false;
-            }
-            }
-            /// <summary>
-            /// 当物体被对象池回收再复用时，重置状态
-            /// </summary>
-            void OnEnable()
+        }
+
+        /// <summary>
+        /// 当物体被对象池回收再复用时，重置状态
+        /// </summary>
+        void OnEnable()
         {
             hasTriggered = false;
         }

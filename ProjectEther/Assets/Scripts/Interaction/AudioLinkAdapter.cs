@@ -137,7 +137,7 @@ namespace OsuVR
                 audioLinkComponent = GetComponent(audioLinkType) as MonoBehaviour;
                 if (audioLinkComponent == null)
                 {
-                    audioLinkComponent = FindObjectOfType(audioLinkType) as MonoBehaviour;
+                    audioLinkComponent = FindAnyObjectByType(audioLinkType) as MonoBehaviour;
                 }
 
                 if (audioLinkComponent != null && enableDebugLog)

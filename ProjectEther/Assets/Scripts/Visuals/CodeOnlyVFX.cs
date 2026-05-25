@@ -30,7 +30,7 @@ namespace OsuVR
 
         [Tooltip("直飞时间占比 (0.1-0.9，值越大直飞越久)")]
         [Range(0.1f, 0.9f)]
-        public float hoverTimeFraction = 0.2f; // ✅ 核心参数：控制直飞多久
+        public float hoverTimeFraction = 0.2f;
 
         [Tooltip("下落阶段的重力倍率")]
         public float gravityScale = 12.0f;

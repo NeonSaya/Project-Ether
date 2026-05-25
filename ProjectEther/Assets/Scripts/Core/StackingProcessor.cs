@@ -79,7 +79,7 @@ namespace OsuVR
                     // B. 空间检查：距离是否足够近 (3 osu!pixels)
                     if (Vector2.Distance(currentObj.Position, nextObj.Position) < STACK_DISTANCE_THRESHOLD)
                     {
-                        // ✅ 命中！我被后面的 Note 压住了！
+                        // 命中！我被后面的 Note 压住了
                         // 我的层级 = 压着我的那个 Note 的层级 + 1
                         currentObj.StackOrder = nextObj.StackOrder + 1;
 

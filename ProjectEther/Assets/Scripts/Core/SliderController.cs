@@ -22,7 +22,7 @@ namespace OsuVR
         [Tooltip("滑条本体宽度")]
         public float sliderWidth = 0.05f;
 
-        [Tooltip("滑条边框宽度 (必须比本体宽)")] // [新增]
+        [Tooltip("滑条边框宽度 (必须比本体宽)")]
         public float borderWidth = 0.06f;
 
         [Tooltip("滑条高度（轻微凸起效果）")]
@@ -53,7 +53,7 @@ namespace OsuVR
 
         private bool headHitValid = false;
 
-        // [新增] 折返粒子特效引用
+        // 折返粒子特效引用
         private ParticleSystem headReversePS;
         private ParticleSystem tailReversePS;
         private ParticleSystem.ColorOverLifetimeModule headColorOL;
@@ -62,11 +62,11 @@ namespace OsuVR
         private bool headShowing = false; // 头部标记当前是否显示
         private Gradient reverseGradient; // 缓存 Gradient，避免每帧 new
 
-        // [新增] 这里的颜色用于生成 Vertex Colors
+        // 用于生成 Vertex Colors
         public Color customBodyColor = new Color(0.2f, 0.6f, 1f, 0.9f); // 默认 osu! 蓝
         public Color customBorderColor = Color.white;
 
-        // [新增] 专用材质球 (拖入 Mat_Osu_Slider)
+        // 专用材质球 (拖入 Mat_Osu_Slider)
         [Tooltip("osu! 风格专用材质 (使用 OsuSlider Shader)")]
         public Material sharedMaterial;
 
@@ -79,7 +79,7 @@ namespace OsuVR
         private List<TickVisualInfo> tickVisuals = new List<TickVisualInfo>();
 
         // 私有组件引用
-        private MeshRenderer borderMeshRenderer; // [新增] 用于同步透明度
+        private MeshRenderer borderMeshRenderer; // 用于同步透明度
         private RhythmGameManager gameManager;
         private MeshFilter meshFilter;
         private MeshRenderer meshRenderer;
@@ -88,21 +88,21 @@ namespace OsuVR
         private Renderer followBallRenderer; // 缓存球体渲染器
         private Mesh combinedMesh;
 
-        // [新增] 用于记录球体的基础大小，防止吃Tick后变大回不去
+        // 记录球体的基础大小，防止吃Tick后变大回不去
         private float baseBallScale = 1.0f;
-        // [新增] 用于管理协程，防止连续吃Tick时动画冲突
+        // 管理协程，防止连续吃Tick时动画冲突
         private Coroutine pulseCoroutine;
-        // [新增] 嵌套物件判定索引
+        // 嵌套物件判定索引
         private int currentNestedIndex = 0;
         private int nextVisualIndex = 0;
 
-        // [新增] 记录获得了多少个 Tick (用于计算最终分数)
+        // 记录获得了多少个 Tick (用于计算最终分数)
         private int ticksGot = 0;
 
-        // [新增] 判定相关变量
+        // 判定相关变量
         private SphereCollider ballCollider; // 用于射线的碰撞体
 
-        // [新增] 淡入效果组件
+        // 淡入效果组件
         private ObjectFadeIn fadeInComponent;
 
         // 状态变量
@@ -113,30 +113,30 @@ namespace OsuVR
         private bool headHit = false;        // 滑条头是否被击中
         private bool finished = false;       // 滑条是否结束
 
-        // [新增] 公共属性：供 AutoPlayManager 访问
+        // 公共属性：供 AutoPlayManager 访问
         public bool IsHeadHit => headHit;
 
-        // [重构] 双手独立跟踪状态
+        // 双手独立跟踪状态
         private bool isLeftHandTracking = false;
         private bool isRightHandTracking = false;
         private Vector3 leftHandPos;
         private Vector3 rightHandPos;
 
-        // [新增] 辅助属性：只要有一只手在跟踪，就视为有效（替换原来的 isTracking）
+        // 辅助属性：只要有一只手在跟踪，就视为有效
         public bool isTracking => isLeftHandTracking || isRightHandTracking;
 
-        // [新增] 脱离容错计时器（秒）- 允许脱离约1帧（60fps ≈ 16.67ms）后才算断滑条
+        // 脱离容错计时器（秒）- 允许脱离约1帧（60fps ≈ 16.67ms）后才算断滑条
         private float leftHandGraceTimer = 0f;
         private float rightHandGraceTimer = 0f;
         private const float GRACE_PERIOD_SECONDS = 0.018f; // 约1帧的容错时间
 
-        // [新增] 防短滑条断机制：记录最后一次有效跟踪的时间（音乐时间，毫秒）
+        // 防短滑条断机制：记录最后一次有效跟踪的时间（音乐时间，毫秒）
         // 滑条结束前约2帧内离开判定范围，仍算接住尾巴
         private double lastEffectiveTrackTime = 0;
         private const double TAIL_GRACE_PERIOD_MS = 33.0; // 约2帧的容错时间
 
 
-        // [新增] 避免每帧重复获取时间的缓存
+        // 避免每帧重复获取时间的缓存
         private double currentMusicTimeCache;
 
         // 性能优化：材质属性块（防止材质泄露）
@@ -161,7 +161,7 @@ namespace OsuVR
         private IObjectPool<GameObject> myPool;
         private IObjectPool<GameObject> tickPool;
 
-        // [新增] 缓存 Combo 颜色给头部使用
+        // 缓存 Combo 颜色给头部使用
         private Color currentComboColor;
 
         // 全局唯一的 Stencil ID 计数器
@@ -184,7 +184,7 @@ namespace OsuVR
         private static Material cachedReverseMat;
 
         /// <summary>
-        /// [新增] 生成实心柔光粒子贴图 (用于打击粒子和折返粒子)
+        /// 生成实心柔光粒子贴图 (用于打击粒子和折返粒子)
         /// </summary>
         private Texture2D GetSoftDotTexture()
         {
@@ -238,21 +238,19 @@ namespace OsuVR
 
             var emission = ps.emission;
             var shape = ps.shape;
-            var noise = ps.noise; // ✅ [新增] 噪声模块
-            var colOL = ps.colorOverLifetime; // ✅ [新增] 颜色/透明度渐变
-            var limitVel = ps.limitVelocityOverLifetime; // ✅ [新增] 阻力模块
+            var noise = ps.noise;
+            var colOL = ps.colorOverLifetime;
+            var limitVel = ps.limitVelocityOverLifetime;
             var renderer = go.GetComponent<ParticleSystemRenderer>();
 
             // 1. 基础设置：彻底打乱
             main.duration = 1.0f;
             main.loop = true;
 
-            // ✅ [随机化] 寿命范围拉大 (0.4 ~ 0.8)
-            // 更长的寿命让粒子更明显
+            // 寿命范围 (0.4 ~ 0.8)，更长的寿命让粒子更明显
             main.startLifetime = new ParticleSystem.MinMaxCurve(0.4f, 0.8f);
 
-            // ✅ [随机化] 速度极慢且差异大
-            // 模拟悬浮微尘，只有微弱的向外趋势
+            // 速度极慢且差异大，模拟悬浮微尘
             main.startSpeed = new ParticleSystem.MinMaxCurve(0.5f, 1.0f);
             // 尺寸更大更明显
             float baseSize = sliderWidth * 0.18f;
@@ -268,27 +266,25 @@ namespace OsuVR
             shape.arc = 180f;
             shape.radius = sliderWidth * 0.25f; // 稍微扩大一点范围
 
-            // ✅ [核心] 设为 1，确保粒子在半圆"内部"随机生成，而不是只在边缘
+            // 设为 1，确保粒子在半圆"内部"随机生成
             shape.radiusThickness = 1.0f;
 
             // 3. 发射率：持续发射，由 Stop/Play 控制开关
             emission.rateOverTime = 800f;
 
-            // 4. ✅ [新增] 噪声模块：制造"朦胧"和"扰动"的关键
+            // 4. 噪声模块：制造"朦胧"和"扰动"
             noise.enabled = true;
             noise.strength = new ParticleSystem.MinMaxCurve(0.05f, 0.15f);
             noise.frequency = 0.5f; // 扰动频率 (低频显得更像烟雾)
             noise.scrollSpeed = 0.5f; // 噪声纹理滚动
             noise.damping = true; // 阻尼，让乱动更柔和
 
-            // 5. ✅ [新增] 阻力 (关键！)
-            // 让粒子飞出来后迅速减速，停在半空中变成"散沙"
+            // 5. 阻力：让粒子飞出来后迅速减速
             limitVel.enabled = true;
             limitVel.limit = 0.1f; // 限制最大速度为 0.1 (几乎静止)
             limitVel.dampen = 0.2f; // 阻尼系数 (0~1)，越大减速越快
 
-            // 5. ✅ [新增] 透明度渐变 (Fade In -> Fade Out)
-            // 这是消除"边缘感"的神器，让粒子在半空中慢慢消失
+            // 6. 透明度渐变 (Fade In -> Fade Out)
             colOL.enabled = true;
             Gradient grad = new Gradient();
             grad.SetKeys(
@@ -332,16 +328,13 @@ namespace OsuVR
         void OnEnable()
         {
             isActive = true;
-            // [修复] 重置具体的双手状态
             isLeftHandTracking = false;
             isRightHandTracking = false;
 
-            // [新增] 重置容错计时器
             leftHandGraceTimer = 0f;
             rightHandGraceTimer = 0f;
             lastEffectiveTrackTime = 0;
 
-            // [新增] 重置淡入组件
             if (fadeInComponent != null)
             {
                 fadeInComponent.ResetState();
@@ -472,7 +465,7 @@ namespace OsuVR
             CreateFollowBall();
             CreateVisuals(); // 内部会处理 Tick 的池化生成
 
-            // [新增] 初始化淡入效果（必须在所有视觉元素创建和颜色设置之后）
+            // 初始化淡入效果（必须在所有视觉元素创建和颜色设置之后）
             if (fadeInComponent == null)
             {
                 fadeInComponent = gameObject.GetComponent<ObjectFadeIn>();
@@ -523,11 +516,9 @@ namespace OsuVR
             headHit = false;
             finished = false;
 
-            // [新增] 重置双手状态
             isLeftHandTracking = false;
             isRightHandTracking = false;
 
-            // [新增] 重置容错计时器
             leftHandGraceTimer = 0f;
             rightHandGraceTimer = 0f;
             lastEffectiveTrackTime = 0;
@@ -537,7 +528,7 @@ namespace OsuVR
             if (arrowInstance) arrowInstance.SetActive(false);
             if (followBall) followBall.SetActive(false);
 
-            // ✅ 核心修复：销毁旧的调试文本
+            // 销毁旧的调试文本
             // 如果变量引用还在，直接销毁
             if (debugTextInstance != null)
             {
@@ -712,7 +703,7 @@ namespace OsuVR
             borderMeshRenderer = borderObject.AddComponent<MeshRenderer>();
             borderMeshRenderer.sharedMaterial = borderMat;
 
-            // [新增] 调试校验逻辑
+            // 调试校验逻辑
             bool isMeshValid = (combinedMesh != null && combinedMesh.vertexCount > 0);
 
             if (!isMeshValid)
@@ -843,14 +834,6 @@ namespace OsuVR
                 scaler.Initialize(sliderData.StartTime, arMs, gameManager);
             }
 
-            // 初始化滑条头的独立淡入效果
-            // HD模式下：滑条头像note一样先消失（出现→中间消失），到达hitTime后才开始恢复
-            // 使用 HitCircleDelayed 模式：到达hitTime后才消失（跟随approach circle缩圈消失）
-            var headFadeIn = headInstance.GetComponent<ObjectFadeIn>();
-            if (headFadeIn == null)
-                headFadeIn = headInstance.AddComponent<ObjectFadeIn>();
-            headFadeIn.Initialize(sliderData.StartTime, sliderData.TimePreempt, gameManager, FadeMode.Standard);
-
                 // =========================================================
                 // 3. 动态生成滑条头光晕效果
                 // 使用程序化生成的空心光环贴图，实现边缘柔和的发光效果
@@ -878,6 +861,15 @@ namespace OsuVR
 
                 // 禁用阴影投射，保持纯净的发光效果
                 dstMR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+                // 初始化滑条头的独立淡入效果
+                // [Fix] 必须在光晕(Head_Halo)创建之后初始化，否则 ObjectFadeIn
+                // 的缓存扫描不会包含光晕的 Renderer，导致 HD 模式下光晕无法淡出。
+                // 对齐 NoteController 的做法：先 CreateHalo，再 Initialize ObjectFadeIn。
+                var headFadeIn = headInstance.GetComponent<ObjectFadeIn>();
+                if (headFadeIn == null)
+                    headFadeIn = headInstance.AddComponent<ObjectFadeIn>();
+                headFadeIn.Initialize(sliderData.StartTime, sliderData.TimePreempt, gameManager, FadeMode.Standard);
             }
 
             // =========================================================
@@ -928,9 +920,7 @@ namespace OsuVR
 
             if (sliderData.RepeatCount > 1 && worldPathPoints.Count > 1)
             {
-                // =========================================================
-                // ✅ [终极修复] 基于本地坐标的 2D 旋转计算
-                // =========================================================
+                // 基于本地坐标的 2D 旋转计算
 
                 // 1. 头部粒子 (位置：point[0])
                 // 计算本地流出方向 (从 p[1] -> p[0])
@@ -1110,8 +1100,10 @@ namespace OsuVR
             }
 
             // 尾部标记：当前在前往尾部 或 尾部还有未处理的 Repeat → 保持显示
+            // 最后一程不显示折返符号（已无下一段可折返）
+            bool isLastSpan = (currentSpan == sliderData.RepeatCount - 1);
             bool headingToTail = (currentSpan % 2 == 0);
-            bool showTail = headingToTail || tailHasRepeat;
+            bool showTail = (headingToTail && !isLastSpan) || tailHasRepeat;
             // 头部标记：headHit 且 头部还有未处理的 Repeat
             bool showHead = headHit && headHasRepeat;
 
@@ -1302,7 +1294,7 @@ namespace OsuVR
                 meshRenderer.SetPropertyBlock(_propBlock);
             }
 
-            // 2. [新增] 更新边框透明度
+            // 2. 更新边框透明度
             if (borderMeshRenderer)
             {
                 borderMeshRenderer.GetPropertyBlock(_propBlock);
@@ -1332,7 +1324,7 @@ namespace OsuVR
 
         void Update()
         {
-            // [修复] 优先处理渐隐逻辑
+            // 优先处理渐隐逻辑
             // 如果正在渐隐，我们需要继续更新 Alpha 值，直到完全消失
             if (isFadingOut)
             {
@@ -1398,7 +1390,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// [新增] 更新容错计时器 - 实现1帧容错机制
+        /// 更新容错计时器 - 实现1帧容错机制
         /// 当手脱离2x判定范围时，给予约1帧的缓冲时间
         /// </summary>
         private void UpdateGraceTimers()
@@ -1447,7 +1439,7 @@ namespace OsuVR
                 rightHandGraceTimer -= dt;
             }
 
-            // [新增] 记录最后一次有效跟踪的时间（用于防短滑条断机制）
+            // 记录最后一次有效跟踪的时间（用于防短滑条断机制）
             if (anyHandEffective)
             {
                 lastEffectiveTrackTime = currentMusicTimeCache;
@@ -1459,7 +1451,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// [新增] 检查手是否在有效跟踪状态（考虑容错期）
+        /// 检查手是否在有效跟踪状态（考虑容错期）
         /// </summary>
         private bool IsHandEffectivelyTracking(bool isRightHand)
         {
@@ -1475,7 +1467,7 @@ namespace OsuVR
 
         public void OnRayExit(bool isRightHand)
         {
-            // [重构] 只重置对应手柄的状态，绝不干扰另一只手
+            // 只重置对应手柄的状态
             if (isRightHand)
                 isRightHandTracking = false;
             else
@@ -1497,7 +1489,7 @@ namespace OsuVR
         /// </summary>
         public void OnRayStay(bool isRightHand, Vector3 hitPosition)
         {
-            // [重构] 独立记录每只手的位置和状态
+            // 独立记录每只手的位置和状态
             if (isRightHand)
             {
                 isRightHandTracking = true;
@@ -1560,9 +1552,8 @@ namespace OsuVR
 
             if (offset >= earlyWindow && offset <= 250)
             {
-                // ✅ 1. 立即锁定状态，防止下一帧重复触发
                 headHit = true;
-                // [修复] 根据传入的手更新独立状态
+
                 if (isRightHand) isRightHandTracking = true;
                 else isLeftHandTracking = true;
 
@@ -1605,7 +1596,7 @@ namespace OsuVR
                     gameManager.scoreManager.RegisterHit(headScore);
                 }
 
-                // ✅ 5. 确保只有这里有唯一的一次 ShowJudgement 调用！
+                // 5. ShowJudgement 调用
                 if (JudgementVisualizer.Instance != null)
                 {
                     JudgementVisualizer.Instance.ShowJudgement(transform.position, headScore, currentComboColor);
@@ -1713,13 +1704,13 @@ namespace OsuVR
                         minDist = Mathf.Min(minDist, Vector3.Distance(rightHandPos, followBall.transform.position));
                     }
 
-                    // [核心修改] 只要任意手在容错期内且距离有效，就算hit
+                    // 只要任意手在容错期内且距离有效，就算hit
                     if ((leftEffective || rightEffective) && minDist <= allowedRadius)
                     {
                         hit = true;
                     }
 
-                    // [新增] 防短滑条断机制：Tail特殊处理
+                    // 防短滑条断机制：Tail特殊处理
                     // 如果最后有效跟踪时间在滑条结束前约2帧内，仍算接住尾巴
                     if (!hit && nestedObject.Type == SliderEventType.Tail)
                     {
@@ -1758,14 +1749,12 @@ namespace OsuVR
 
                             if (HapticManager.Instance != null)
                             {
-                                // [修复] 双手独立震动，应用谱面音量 = TimingPoint × 样本倍率
                                 float tickVol = (sliderData.TimingPointVolume / 100f) * (sliderData.SampleVolume / 100f);
                                 if (isRightHandTracking) HapticManager.Instance.PlaySliderTick(true, tickVol);
                                 if (isLeftHandTracking) HapticManager.Instance.PlaySliderTick(false, tickVol);
                             }
                             if (AudioManager.Instance != null)
                             {
-                                // 音量 = TimingPoint × 样本倍率
                                 float tickVol = (sliderData.TimingPointVolume / 100f) * (sliderData.SampleVolume / 100f);
                                 AudioManager.Instance.PlaySliderTick(sliderData.SampleSet, sliderData.CustomIndex, tickVol);
                             }
@@ -1781,7 +1770,6 @@ namespace OsuVR
                             if (AudioManager.Instance != null) AudioManager.Instance.PlaySliderNodeSound(sliderData, repeatNodeIndex);
                             if (HapticManager.Instance != null)
                             {
-                                // [修复] 双手独立震动，音量 = TimingPoint × 样本倍率
                                 float vol = (sliderData.TimingPointVolume / 100f) * (sliderData.SampleVolume / 100f);
                                 int soundType = (int)sliderData.HitSound;
                                 if (isRightHandTracking) HapticManager.Instance.PlayHitHaptic(true, soundType, vol);
@@ -1796,7 +1784,6 @@ namespace OsuVR
                             }
 
                             if (gameManager?.scoreManager != null) gameManager.scoreManager.RegisterComboHit(30);
-                            // 折返标记已由 UpdateReverseMarkerByTime() 在 Update() 中实时驱动，无需在此更新
                             break;
 
                         case SliderEventType.Tail:
@@ -1823,7 +1810,7 @@ namespace OsuVR
                     }
                     else if (nestedObject.Type == SliderEventType.Tail)
                     {
-                        // ✅ [正确逻辑] 只有尾巴漏了，才在尾巴的真实坐标显示小红叉！
+                        // 只有尾巴漏了，才在尾巴的真实坐标显示小红叉
                         if (JudgementVisualizer.Instance != null)
                         {
                             bool endsAtTail = (sliderData.RepeatCount % 2 != 0);
@@ -1856,12 +1843,19 @@ namespace OsuVR
                     finished = true;
                     float finalAcc = CalculateFinalScore();
 
+                    // 注册滑条统计结果
+                    if (gameManager?.scoreManager != null)
+                    {
+                        bool isPerfect = finalAcc > 0.9f;
+                        bool isOk = finalAcc > 0.5f;
+                        gameManager.scoreManager.RegisterSliderResult(isPerfect, isOk);
+                    }
+
                     if (ticksGot > 0)
                     {
                         // 滑条成功完成：Tail 音效已在 UpdateJudgement 的 Tail case 中播放
                         if (HapticManager.Instance != null)
                         {
-                            // [修复] 双手独立震动，音量 = TimingPoint × 样本倍率
                             float vol = (sliderData.TimingPointVolume / 100f) * (sliderData.SampleVolume / 100f);
                             int soundType = (int)sliderData.HitSound;
                             if (isRightHandTracking) HapticManager.Instance.PlayHitHaptic(true, soundType, vol);
@@ -1997,7 +1991,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// [新增] 根据时间计算路径上的本地坐标 (复用 Ping-Pong 逻辑)
+        /// 根据时间计算路径上的本地坐标 (复用 Ping-Pong 逻辑)
         /// </summary>
         private Vector3 GetPositionAtTime(double time)
         {
@@ -2190,13 +2184,13 @@ namespace OsuVR
             if (oldBorder != null)
             {
                 MeshFilter mf = oldBorder.GetComponent<MeshFilter>();
-                if (mf != null && mf.sharedMesh != null) DestroyImmediate(mf.sharedMesh); // [修复] 立即销毁
+                if (mf != null && mf.sharedMesh != null) DestroyImmediate(mf.sharedMesh);
 
 
                 MeshRenderer mr = oldBorder.GetComponent<MeshRenderer>();
                 if (mr != null)
                 {
-                    // ✅ [新增] 边框也要洗干净
+                    // 清理边框材质属性
                     mr.SetPropertyBlock(null);
 
                     if (mr.sharedMaterial != null)

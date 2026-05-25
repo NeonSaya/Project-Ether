@@ -206,24 +206,20 @@ namespace OsuVR
 
         /// <summary>
         /// Hidden: 音符逐渐消失
-        /// [视觉 Mod - 待实现]
+        /// 在 ObjectFadeIn 中实现：前 40% 时间淡入，40%-70% 时间淡出
         /// </summary>
         private void ApplyHidden()
         {
             IsHidden = true;
-            // TODO: 实现音符渐隐效果
-            // 音符在接近打击时间时逐渐消失
         }
 
         /// <summary>
         /// Flashlight: 视野受限
-        /// [视觉 Mod - 待实现]
+        /// 在 FlashlightEffect 中实现：手电筒遮罩跟随射线位置
         /// </summary>
         private void ApplyFlashlight()
         {
             IsFlashlight = true;
-            // TODO: 实现视野限制效果
-            // 只能看到光标周围一定范围内的音符
         }
 
         // =========================================================
@@ -273,20 +269,6 @@ namespace OsuVR
         public double GetHitWindow()
         {
             return FIXED_HIT_WINDOW;
-        }
-
-        /// <summary>
-        /// 获取 Y 轴镜像翻转后的坐标
-        /// HR Mod 专用：将 Y 坐标镜像翻转
-        /// </summary>
-        public float GetMirroredY(float originalY, float centerY = 192f)
-        {
-            if (!IsHardRock)
-                return originalY;
-
-            // osu! 标准谱面高度为 384，中心为 192
-            // 镜像翻转：newY = 2 * centerY - originalY
-            return 2f * centerY - originalY;
         }
 
         // =========================================================

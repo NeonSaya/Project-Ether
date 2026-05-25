@@ -55,13 +55,12 @@ namespace OsuVR
                 // 如果文件夹已存在，说明解压过了（或者为了安全起见跳过）
                 if (Directory.Exists(targetFolder))
                 {
-                    // Debug.LogWarning($"文件夹已存在，跳过: {fileName}");
                     return;
                 }
 
                 Debug.Log($"正在解压: {fileName}...");
 
-                // ✅ 核心解压
+                // 核心解压
                 ZipFile.ExtractToDirectory(oszPath, targetFolder);
 
                 // 解压成功后，删除原 .osz 文件以节省空间 (可选，如果想保留就把下面这行注释掉)

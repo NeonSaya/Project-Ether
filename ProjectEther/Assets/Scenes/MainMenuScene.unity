@@ -248,7 +248,7 @@ MonoBehaviour:
   clickSound: {fileID: 0}
   gameTitle: Project Ether
   subtitle: "\u4EE5\u592A\u8BA1\u5212"
-  version: Demo v0.1
+  version: v0.6.0 Beta
 --- !u!4 &1045524143
 Transform:
   m_ObjectHideFlags: 0
@@ -258,7 +258,7 @@ Transform:
   m_GameObject: {fileID: 1045524141}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -0.5}
+  m_LocalPosition: {x: 0, y: 0, z: -0.25}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

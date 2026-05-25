@@ -47,15 +47,11 @@ namespace OsuVR
         private Renderer[] allRenderers;
         public Vector3? nextNotePosition;
 
-        // [优化] 缓存 Scaler 组件，避免每次 Initialize 都 Get
+        // 缓存组件
         private ApproachCircleScaler cachedScaler;
-
-        // [新增] 淡入效果组件
         private ObjectFadeIn fadeInComponent;
-
-        // [优化] 缓存相机，杜绝 Update 里使用 Camera.main
         private static Camera _cachedMainCamera;
-        private float lastDebugTime = 0f;
+
         // 缓存 Shader 属性 ID
         private static readonly int PropColor = Shader.PropertyToID("_Color");
         private static readonly int PropBaseColor = Shader.PropertyToID("_BaseColor");
@@ -100,8 +96,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ✅ [核心修复] 确保组件已缓存
-        /// 防止 Prefab 是隐藏状态导致 Awake 不执行，从而引发空引用
+        /// 确保组件已缓存
         /// </summary>
         private void EnsureComponentsCached()
         {
@@ -112,7 +107,7 @@ namespace OsuVR
                 allRenderers = GetComponentsInChildren<Renderer>(true);
         }
 
-        // ✅ 新增：对应 RayController 的离开调用
+        // 对应 RayController 的离开调用
         public void OnRayExit()
         {
             isHovered = false;
@@ -336,7 +331,6 @@ namespace OsuVR
                 hitObject.TimePreempt = defaultAR;
             }
 
-            //if (Camera.main) transform.LookAt(Camera.main.transform);
             if (MainCamera != null) transform.LookAt(MainCamera.transform);
 
             // 初始化视觉 (缩圈)
@@ -359,7 +353,7 @@ namespace OsuVR
                 CreateHalo(targetRenderer.gameObject, comboColor);
             }
 
-            // [新增] 初始化淡入效果（必须在所有颜色设置和光晕创建之后）
+            // 初始化淡入效果（必须在所有颜色设置和光晕创建之后）
             if (fadeInComponent == null)
             {
                 fadeInComponent = gameObject.GetComponent<ObjectFadeIn>();
@@ -456,7 +450,7 @@ namespace OsuVR
                 circleRenderer.enabled = true;
             }
 
-            // [新增] 重置淡入组件
+            // 重置淡入组件
             if (fadeInComponent != null)
             {
                 fadeInComponent.ResetState();
@@ -482,16 +476,14 @@ namespace OsuVR
             // 3. 更新缩圈动画 (Progress: 1.0 -> 0.0)
             if (approachCircle != null)
             {
-                // [修复] 获取 AR 的双重保险
-                // 优先用 hitObject 自带的，没有就用 Manager 的全局 AR，还没有就默认 1200
+                // 获取 AR：优先用 hitObject 自带的，没有就用 Manager 的全局 AR，还没有就默认 1200
                 double preempt = hitObject.TimePreempt > 0.1 ? hitObject.TimePreempt : (gameManager ? gameManager.spawnOffsetMs : 1200);
 
                 // 计算进度 (1.0 -> 0.0)
                 float progress = (float)(timeToHit / preempt);
                 progress = Mathf.Clamp01(progress);
 
-                // [手感优化] 视觉平滑处理：
-                // 使用 Lerp 线性缩放是标准的 osu! 行为
+                // 视觉平滑处理：使用 Lerp 线性缩放是标准的 osu! 行为
                 float currentScale = 1f + (maxApproachScale - 1f) * progress;
 
                 // [视觉修复] 强制压扁 Z 轴
@@ -527,7 +519,7 @@ namespace OsuVR
             double now = gameManager.GetCurrentMusicTimeMs();
             double diff = now - hitObject.StartTime;
 
-            // ✅ 调试日志：如果刚生成 diff 就很大，说明 Manager 的时间同步有问题
+            // 如果刚生成 diff 就很大，说明 Manager 的时间同步有问题
             if (isFirstFrame)
             {
                 isFirstFrame = false;
@@ -537,8 +529,7 @@ namespace OsuVR
                     Debug.LogWarning($"[Timing Lag] 音符生成延迟！Diff: {diff:F2}ms (Window: {hitWindow})");
                 }
 
-                // ✅ 核心保护：如果是第一帧且判定为 Miss，强制不判 Miss，给它一次机会
-                // 这防止了“刚生成就立刻销毁”的问题
+                // 如果是第一帧且判定为 Miss，强制不判 Miss，给它一次机会
                 if (diff > hitWindow)
                 {
                     return;
@@ -587,7 +578,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// ✅ [核心修复] 安全染色方法
+        /// 安全染色方法
         /// </summary>
         private void ApplyColor(Color color)
         {
@@ -641,12 +632,10 @@ namespace OsuVR
                 // 如果不为空，尝试震动
                 if (((int)hitObject.HitSound & 4) > 0)
                 {
-                    // [修复] 传入音量 vol
                     HapticManager.Instance.PlayHitHapticBoth((int)hitObject.HitSound, vol);
                 }
                 else
                 {
-                    // [修复] 传入音量 vol
                     HapticManager.Instance.PlayHitHaptic(isRightHand, (int)hitObject.HitSound, vol);
                 }
             }
@@ -769,7 +758,7 @@ namespace OsuVR
                 yield return null;
             }
 
-            ReturnToPool(); // ✅ 替换 Destroy(gameObject)
+            ReturnToPool();
         }
 
         /// <summary>
@@ -785,7 +774,7 @@ namespace OsuVR
         /// <summary>
         /// Destory
         /// </summary>
-        private void ReturnToPool()
+        public void ReturnToPool()
         {
             StopAllCoroutines();
 

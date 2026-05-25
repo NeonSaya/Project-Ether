@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace OsuVR
 {
-    // [新增] 定义滑条内部的事件类型
+    // 定义滑条内部的事件类型
     public enum SliderEventType
     {
         Tick,
@@ -12,7 +12,7 @@ namespace OsuVR
         Tail
     }
 
-    // [新增] 滑条嵌套物件（代表滑条过程中的每一个判定点）
+    // 滑条嵌套物件（代表滑条过程中的每一个判定点）
     public class SliderNestedObject
     {
         public double Time;          // 判定时间
@@ -89,7 +89,7 @@ namespace OsuVR
         /// </summary>
         public double Velocity { get; set; } = 1.0;
 
-        // [新增] 存储所有 Tick (检查点) 的时间
+        // 存储所有 Tick (检查点) 的时间
         public List<SliderNestedObject> NestedHitObjects { get; private set; } = new List<SliderNestedObject>();
 
         /// <summary>
@@ -309,11 +309,11 @@ namespace OsuVR
                     double absoluteTime = spanStartTime + currentTickTime;
 
                     // 计算 Tick 的位置 (用于特效生成等)
+                    // GetPositionAtProgress 期望 overall progress (0-1 across ALL spans)
                     double progressInSpan = currentTickTime / spanDuration;
-                    // 如果是反向跨度，位置也要反过来算
-                    if (reversed) progressInSpan = 1.0 - progressInSpan;
+                    double overallProgress = (span + progressInSpan) / RepeatCount;
 
-                    Vector2 pos = GetPositionAtProgress(progressInSpan); // 这里是简化调用，实际需要 GetPositionOnPath
+                    Vector2 pos = GetPositionAtProgress(overallProgress);
 
                     NestedHitObjects.Add(new SliderNestedObject
                     {

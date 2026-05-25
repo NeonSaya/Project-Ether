@@ -214,7 +214,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Demo v0.1
+  m_text: v0.6.0 Beta
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 1acc6c82055414f468ce2751513dab16, type: 2}
   m_sharedMaterial: {fileID: -5168871395213266841, guid: 1acc6c82055414f468ce2751513dab16,
@@ -1006,7 +1006,7 @@ MonoBehaviour:
   clickSound: {fileID: 0}
   gameTitle: Project Ether
   subtitle: "\u4EE5\u592A\u8BA1\u5212"
-  version: Demo v0.1
+  version: v0.6.0 Beta
 --- !u!82 &2743956342249609387
 AudioSource:
   m_ObjectHideFlags: 0

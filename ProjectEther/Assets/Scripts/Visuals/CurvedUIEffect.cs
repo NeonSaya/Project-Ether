@@ -40,7 +40,7 @@ namespace OsuVR
         {
             if (!IsActive() || vh.currentVertCount == 0) return;
 
-            // 🛑 [修复] 安全检查：防止半径为 0 导致除零错误 (Invalid AABB)
+            // 安全检查：防止半径为 0 导致除零错误
             if (Mathf.Abs(curveRadius) < 0.1f)
             {
                 // 如果半径太小，就不弯曲（或者强制设为一个极小值）

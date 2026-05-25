@@ -77,7 +77,7 @@ namespace OsuVR
         public int ComboIndex { get; internal set; }
 
         /// <summary>
-        /// ✅ [修复] 必须定义 Color 属性，否则 OsuParser 无法赋值
+        /// 连击颜色
         /// </summary>
         public Color Color { get; set; } = Color.white;
 
@@ -247,16 +247,6 @@ namespace OsuVR
         /// 游戏玩法中的半径
         /// </summary>
         public double GameplayRadius => OBJECT_RADIUS * GameplayScale;
-
-        /// <summary>
-        /// 屏幕空间中的游戏玩法缩放
-        /// </summary>
-        public float ScreenSpaceGameplayScale => GameplayScale * 720f / 480f; // 假设屏幕高度720
-
-        /// <summary>
-        /// 屏幕空间中的游戏玩法半径
-        /// </summary>
-        public double ScreenSpaceGameplayRadius => OBJECT_RADIUS * ScreenSpaceGameplayScale;
 
         /// <summary>
         /// 游戏玩法中的堆叠偏移
@@ -514,10 +504,10 @@ namespace OsuVR
         public const string HIT_FINISH = "hitfinish";
         public const string HIT_CLAP = "hitclap";
 
-        public string Name { get; set; }
-        public SampleBank Bank { get; set; }
+        public new string Name { get; set; }
+        public new SampleBank Bank { get; set; }
         public int CustomSampleBank { get; set; }
-        public int Volume { get; set; }
+        public new int Volume { get; set; }
         public bool IsLayered { get; set; }
         // 注意最后参数 isLayered = false 是默认值，这样也可以兼容 4 个参数的调用
         public BankHitSampleInfo(string name, SampleBank bank, int customBank, int volume, bool isLayered = false)

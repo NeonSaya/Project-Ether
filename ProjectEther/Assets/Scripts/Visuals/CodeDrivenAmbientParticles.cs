@@ -930,27 +930,5 @@ namespace OsuVR
             cachedFadeGradient.SetKeys(cachedColorKeys, cachedAlphaKeys);
             colorOverLifetimeModule.color = cachedFadeGradient;
         }
-
-        // =========================================================
-        // 公开接口
-        // =========================================================
-
-        public void TriggerBurst(int count = 50)
-        {
-            if (ps == null) return;
-            ps.Emit(count);
-        }
-
-        public void SetDensity(float density)
-        {
-            density = Mathf.Clamp01(density);
-            mainModule.maxParticles = Mathf.RoundToInt(maxParticles * density);
-            emissionModule.rateOverTime = new ParticleSystem.MinMaxCurve(Mathf.RoundToInt(emissionRate * density));
-        }
-
-        public (float noiseStrength, float brightness, float hueOffset) GetCurrentState()
-        {
-            return (currentNoiseStrength, currentBrightness, currentHueOffset);
-        }
     }
 }
