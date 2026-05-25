@@ -61,6 +61,12 @@ namespace OsuVR
 
         void Awake()
         {
+            if (Instance != null && Instance != this)
+            {
+                Debug.LogWarning("[NotePoolManager] 重复实例，销毁自身");
+                Destroy(gameObject);
+                return;
+            }
             Instance = this;
 
             useProceduralGeneration = forceProceduralGeneration ||

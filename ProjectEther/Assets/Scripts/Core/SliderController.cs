@@ -834,14 +834,6 @@ namespace OsuVR
                 scaler.Initialize(sliderData.StartTime, arMs, gameManager);
             }
 
-            // 初始化滑条头的独立淡入效果
-            // HD模式下：滑条头像note一样先消失（出现→中间消失），到达hitTime后才开始恢复
-            // 使用 HitCircleDelayed 模式：到达hitTime后才消失（跟随approach circle缩圈消失）
-            var headFadeIn = headInstance.GetComponent<ObjectFadeIn>();
-            if (headFadeIn == null)
-                headFadeIn = headInstance.AddComponent<ObjectFadeIn>();
-            headFadeIn.Initialize(sliderData.StartTime, sliderData.TimePreempt, gameManager, FadeMode.Standard);
-
                 // =========================================================
                 // 3. 动态生成滑条头光晕效果
                 // 使用程序化生成的空心光环贴图，实现边缘柔和的发光效果
@@ -869,6 +861,15 @@ namespace OsuVR
 
                 // 禁用阴影投射，保持纯净的发光效果
                 dstMR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+                // 初始化滑条头的独立淡入效果
+                // [Fix] 必须在光晕(Head_Halo)创建之后初始化，否则 ObjectFadeIn
+                // 的缓存扫描不会包含光晕的 Renderer，导致 HD 模式下光晕无法淡出。
+                // 对齐 NoteController 的做法：先 CreateHalo，再 Initialize ObjectFadeIn。
+                var headFadeIn = headInstance.GetComponent<ObjectFadeIn>();
+                if (headFadeIn == null)
+                    headFadeIn = headInstance.AddComponent<ObjectFadeIn>();
+                headFadeIn.Initialize(sliderData.StartTime, sliderData.TimePreempt, gameManager, FadeMode.Standard);
             }
 
             // =========================================================
@@ -1841,6 +1842,14 @@ namespace OsuVR
                 {
                     finished = true;
                     float finalAcc = CalculateFinalScore();
+
+                    // 注册滑条统计结果
+                    if (gameManager?.scoreManager != null)
+                    {
+                        bool isPerfect = finalAcc > 0.9f;
+                        bool isOk = finalAcc > 0.5f;
+                        gameManager.scoreManager.RegisterSliderResult(isPerfect, isOk);
+                    }
 
                     if (ticksGot > 0)
                     {

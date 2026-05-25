@@ -1005,7 +1005,7 @@ namespace OsuVR
     public class FileHitSampleInfo : HitSampleInfo
     {
         public string Filename { get; set; }
-        public int Volume { get; set; }
+        public new int Volume { get; set; }
     }
 
 }

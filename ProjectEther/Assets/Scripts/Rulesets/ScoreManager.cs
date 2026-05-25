@@ -173,6 +173,8 @@ namespace OsuVR
             // 模拟一次完美的 Full Combo (AutoPlay)
             // 以此计算出准确的分母：_maxComboPortionTotal 和 _totalMapJudgements
 
+            _totalNoteCount = allHitObjects.Count;
+
             int simCombo = 0;
             _maxComboPortionTotal = 0;
             _totalMapJudgements = 0; // 这个将作为 Accuracy Progress 的分母
@@ -192,6 +194,7 @@ namespace OsuVR
                 else if (obj is SliderObject slider)
                 {
                     // Slider: 包含 Head, Ticks, Repeats, Tail
+                    _totalSliders++;
 
                     // 1. Head (300分)
                     SimulateHit(ref simCombo, 300);
@@ -436,7 +439,9 @@ namespace OsuVR
                 accuracy = _currentBaseScore / _currentMaxBaseScore;
 
             bool isFullCombo = _hitMiss == 0;
-            bool isPerfectPlay = isFullCombo && _hit300 == _totalNoteCount && _hit100 == 0 && _hit50 == 0;
+            // _hit300 包含 Circle(1次) + Slider Head(1次) + Slider Tail(1次) + Spinner(1次)
+            // 所以完美时 _hit300 = _totalNoteCount + _totalSliders (每个 slider 额外贡献一次 tail 判定)
+            bool isPerfectPlay = isFullCombo && _hit300 == _totalNoteCount + _totalSliders && _hit100 == 0 && _hit50 == 0;
 
             string rank = ResultData.CalculateRank(accuracy, isPerfectPlay, isFullCombo);
 

@@ -309,11 +309,11 @@ namespace OsuVR
                     double absoluteTime = spanStartTime + currentTickTime;
 
                     // 计算 Tick 的位置 (用于特效生成等)
+                    // GetPositionAtProgress 期望 overall progress (0-1 across ALL spans)
                     double progressInSpan = currentTickTime / spanDuration;
-                    // 如果是反向跨度，位置也要反过来算
-                    if (reversed) progressInSpan = 1.0 - progressInSpan;
+                    double overallProgress = (span + progressInSpan) / RepeatCount;
 
-                    Vector2 pos = GetPositionAtProgress(progressInSpan); // 这里是简化调用，实际需要 GetPositionOnPath
+                    Vector2 pos = GetPositionAtProgress(overallProgress);
 
                     NestedHitObjects.Add(new SliderNestedObject
                     {

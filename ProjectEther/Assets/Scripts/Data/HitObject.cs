@@ -504,10 +504,10 @@ namespace OsuVR
         public const string HIT_FINISH = "hitfinish";
         public const string HIT_CLAP = "hitclap";
 
-        public string Name { get; set; }
-        public SampleBank Bank { get; set; }
+        public new string Name { get; set; }
+        public new SampleBank Bank { get; set; }
         public int CustomSampleBank { get; set; }
-        public int Volume { get; set; }
+        public new int Volume { get; set; }
         public bool IsLayered { get; set; }
         // 注意最后参数 isLayered = false 是默认值，这样也可以兼容 4 个参数的调用
         public BankHitSampleInfo(string name, SampleBank bank, int customBank, int volume, bool isLayered = false)

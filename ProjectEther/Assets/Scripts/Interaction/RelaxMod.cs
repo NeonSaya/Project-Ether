@@ -98,7 +98,7 @@ namespace OsuVR
         }
 
 
-        // --- 执行打击 (使用 SendMessage 调用私有方法) ---
+        // --- 执行打击 (直接方法调用) ---
 
         private void PerformNoteHit()
         {
