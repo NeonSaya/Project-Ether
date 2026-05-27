@@ -75,6 +75,15 @@ namespace OsuVR.Storyboard.Engine
                 _layers[i]?.Reset();
         }
 
+        /// <summary>
+        /// 遍历所有图层的所有 Sprite (用于渲染器缓存纹理索引)
+        /// </summary>
+        public void ForEachSprite(System.Action<int, SBPlayingSprite> action)
+        {
+            for (int i = 0; i < 5; i++)
+                _layers[i]?.ForEachSprite(s => action(i, s));
+        }
+
         public void Unload()
         {
             for (int i = 0; i < 5; i++)

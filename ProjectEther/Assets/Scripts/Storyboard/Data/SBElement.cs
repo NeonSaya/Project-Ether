@@ -60,6 +60,7 @@ namespace OsuVR.Storyboard.Data
         public List<SBMoveAxisCommand> MoveXCommands = new List<SBMoveAxisCommand>();
         public List<SBMoveAxisCommand> MoveYCommands = new List<SBMoveAxisCommand>();
         public List<SBScaleCommand> ScaleCommands = new List<SBScaleCommand>();
+        public List<SBScaleVectorCommand> ScaleVectorCommands = new List<SBScaleVectorCommand>();
         public List<SBRotateCommand> RotateCommands = new List<SBRotateCommand>();
         public List<SBColorCommand> ColorCommands = new List<SBColorCommand>();
         public List<SBParameterCommand> ParameterCommands = new List<SBParameterCommand>();
@@ -303,6 +304,7 @@ namespace OsuVR.Storyboard.Data
         public List<SBMoveAxisCommand> MoveXCommands = new List<SBMoveAxisCommand>();
         public List<SBMoveAxisCommand> MoveYCommands = new List<SBMoveAxisCommand>();
         public List<SBScaleCommand> ScaleCommands = new List<SBScaleCommand>();
+        public List<SBScaleVectorCommand> ScaleVectorCommands = new List<SBScaleVectorCommand>();
         public List<SBRotateCommand> RotateCommands = new List<SBRotateCommand>();
         public List<SBColorCommand> ColorCommands = new List<SBColorCommand>();
 

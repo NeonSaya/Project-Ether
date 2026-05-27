@@ -114,5 +114,12 @@ namespace OsuVR.Storyboard.Engine
                 }
             }
         }
+
+        public void ForEachSprite(System.Action<SBPlayingSprite> action)
+        {
+            if (_sprites == null) return;
+            for (int i = 0; i < _sprites.Length; i++)
+                action(_sprites[i]);
+        }
     }
 }

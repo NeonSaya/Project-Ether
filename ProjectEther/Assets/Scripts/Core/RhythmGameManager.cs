@@ -595,11 +595,18 @@ namespace OsuVR
                         || SettingsManager.Instance.Settings == null
                         || SettingsManager.Instance.Settings.enableStoryboardPlayback;
 
-                    bool hasSBData = mediaScan.HasStoryboard && currentBeatmap.Events.StoryboardLines.Count > 0;
+                    bool hasInlineSB = currentBeatmap.Events.StoryboardLines.Count > 0;
+                    bool hasOsbFile = !string.IsNullOrEmpty(mediaScan.OsbPath);
                     SBStoryboard sbData = null;
 
-                    if (sbPlaybackEnabled && hasSBData)
-                        sbData = StoryboardParser.Parse(currentBeatmap.Events.StoryboardLines);
+                    if (sbPlaybackEnabled && mediaScan.HasStoryboard)
+                    {
+                        // 优先加载 .osb 文件，其次加载内联 SB
+                        if (hasOsbFile)
+                            sbData = StoryboardParser.ParseFile(mediaScan.OsbPath);
+                        else if (hasInlineSB)
+                            sbData = StoryboardParser.Parse(currentBeatmap.Events.StoryboardLines);
+                    }
 
                     var renderer = StoryboardRenderer.Instance;
 

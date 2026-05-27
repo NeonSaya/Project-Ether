@@ -16,6 +16,7 @@ namespace OsuVR.Storyboard.Engine
 
         // ---- 静态数据 (来自 SBElement) ----
         public SBElement Element;
+        public int CachedTexIndex = -1;  // 渲染器缓存的纹理索引 (非动画)
 
         // ---- 动态渲染状态 (每帧由 Timeline 更新) ----
         public SBRenderState State;

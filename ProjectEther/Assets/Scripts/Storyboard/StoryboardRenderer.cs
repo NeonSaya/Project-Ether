@@ -8,20 +8,15 @@ using OsuVR.Storyboard.Engine;
 namespace OsuVR.Storyboard
 {
     /// <summary>
-    /// Storyboard 渲染隔离区 ("地下绿幕放映室")
+    /// 纯 GPU 实例化 Storyboard 渲染器
     ///
-    /// 在偏远坐标 (Y=-1000) 建立正交摄像机 + RenderTexture，与玩家 3D 舞台物理隔离。
-    /// 支持三种复合模式:
-    ///   1. 纯 Storyboard: 仅 SB 精灵渲染
-    ///   2. 纯 Video: 仅视频背景
-    ///   3. Video + Storyboard: 视频作为远景背景 + SB 精灵叠加其上
-    ///
-    /// 关键设计:
-    ///   - 视频渲染为正交相机最远端 (z=50) 的巨型 Quad，作为实景背景
-    ///   - SB 精灵在 z=0 层渲染，天然覆盖在视频之上
-    ///   - 视频音频强制静音，防止与 AudioManager 重音
-    ///   - VideoOffset 与 CurrentDSPTime 精准对齐
-    ///   - 16:9 视频自动 letterbox 适配 4:3 画布
+    /// 零运行时 GameObject (SB 精灵全部通过 DrawMeshInstancedIndirect 提交)
+    /// 架构:
+    ///   - Texture2DArray: 加载时打包所有 SB 纹理到一张纹理数组
+    ///   - ComputeBuffer: 每帧填充 SpriteInstanceData[] → GPU
+    ///   - 双 Pass: Alpha Blend (Pass 0) / Additive (Pass 1)
+    ///   - 按 Layer 顺序遍历 (Background→Overlay)，保证深度正确
+    ///   - 视频背景通过 Graphics.DrawMesh 渲染 (无 GameObject)
     /// </summary>
     public class StoryboardRenderer : MonoBehaviour
     {
@@ -40,11 +35,31 @@ namespace OsuVR.Storyboard
         const string LayerName = "Storyboard";
         const int FallbackLayer = 31;
 
-        // ---- 视频背景 Quad 深度 (正交相机最远端) ----
+        // ---- GPU 实例化参数 ----
+        const int MaxInstancesPerPass = 2048;
+        const int InstanceDataStride = 96; // sizeof(SpriteInstanceData)
+
+        // ---- 视频 Quad 深度 ----
         const float VideoQuadZ = 50f;
         const float SBQuadZ = 0f;
 
-        // ---- 运行时对象 ----
+        // =========================================================
+        //  GPU 实例数据结构 (与 SBInstanced.shader 精确对齐)
+        //  全部使用 4 字节对齐类型，禁止 bool/int 混用
+        // =========================================================
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        struct SpriteInstanceData
+        {
+            public Matrix4x4 objectToWorld; // 64 bytes (16 floats)
+            public Vector4 color;           // 16 bytes (RGBA 0~1)
+            public Vector4 params0;         // 16 bytes (x=texIndex, y=blendMode, z=flipH, w=flipV)
+        }   // Total: 96 bytes, 16-byte aligned
+
+        // =========================================================
+        //  运行时对象
+        // =========================================================
+
         Camera renderCamera;
         RenderTexture renderTexture;
         GameObject isolatedRoot;
@@ -56,32 +71,52 @@ namespace OsuVR.Storyboard
 
         // ---- 视频 ----
         VideoPlayer videoPlayer;
-        GameObject videoQuadGo;
         bool hasVideo;
         int videoOffsetMs;
+        Material videoMaterial;
+        Mesh videoQuadMesh;
+        Matrix4x4 videoQuadMatrix;
 
-        // ---- 纹理缓存 ----
-        Dictionary<string, Texture2D> textureCache = new Dictionary<string, Texture2D>();
-        Dictionary<string, Sprite> spriteCache = new Dictionary<string, Sprite>();
+        // ---- 纹理数组 ----
+        Texture2DArray textureArray;
+        Dictionary<string, int> textureIndexMap; // ImagePath → Texture2DArray layer index
+        Vector2Int[] textureDimensions;          // 每层纹理的像素尺寸 (width, height)
+        int[] cachedTextureIndex;                // 每个元素缓存的纹理索引 (非动画)
         static Texture2D whitePixel;
 
-        // ---- 对象池 ----
-        Dictionary<int, PooledSprite> activePool = new Dictionary<int, PooledSprite>();
-        Stack<PooledSprite> freePool = new Stack<PooledSprite>();
-        MaterialPropertyBlock sharedMPB;
+        // ---- GPU 缓冲区 ----
+        SpriteInstanceData[] alphaData;
+        SpriteInstanceData[] additiveData;
+        ComputeBuffer alphaBuffer;
+        ComputeBuffer additiveBuffer;
 
+        // ---- 共享资源 ----
+        Material sbMaterial;
+        Mesh quadMesh;
+        MaterialPropertyBlock videoMPB;
+
+        // ---- 状态 ----
         bool isRendering;
 
-        // =========================================================
-        //  Pooled Sprite
-        // =========================================================
 
-        class PooledSprite
+        // ---- Origin 偏移缓存 ----
+        // 索引必须匹配 SBOrigin 枚举值:
+        //   TopLeft=0, Centre=1, CentreLeft=2, TopRight=3, BottomCentre=4,
+        //   TopCentre=5, Custom=6, CentreRight=7, BottomLeft=8, BottomRight=9
+        // 偏移含义: 精灵中心到 origin 点的偏移 (归一化, [-0.5, 0.5])
+        static readonly Vector2[] OriginOffsets = new Vector2[]
         {
-            public GameObject Go;
-            public SpriteRenderer Sr;
-            public int CurrentId;
-        }
+            new Vector2(-0.5f,  0.5f),  // [0] TopLeft
+            new Vector2( 0.0f,  0.0f),  // [1] Centre
+            new Vector2(-0.5f,  0.0f),  // [2] CentreLeft
+            new Vector2( 0.5f,  0.5f),  // [3] TopRight
+            new Vector2( 0.0f, -0.5f),  // [4] BottomCentre
+            new Vector2( 0.0f,  0.5f),  // [5] TopCentre
+            new Vector2( 0.0f,  0.0f),  // [6] Custom → fallback to Centre
+            new Vector2( 0.5f,  0.0f),  // [7] CentreRight
+            new Vector2(-0.5f, -0.5f),  // [8] BottomLeft
+            new Vector2( 0.5f, -0.5f),  // [9] BottomRight
+        };
 
         // =========================================================
         //  Lifecycle
@@ -103,7 +138,14 @@ namespace OsuVR.Storyboard
             Instance = this;
             DontDestroyOnLoad(gameObject);
 
-            sharedMPB = new MaterialPropertyBlock();
+            // 预分配实例数据数组
+            alphaData = new SpriteInstanceData[MaxInstancesPerPass];
+            additiveData = new SpriteInstanceData[MaxInstancesPerPass];
+
+            // 创建 GPU 缓冲区
+            alphaBuffer = new ComputeBuffer(MaxInstancesPerPass, InstanceDataStride);
+            additiveBuffer = new ComputeBuffer(MaxInstancesPerPass, InstanceDataStride);
+
             EnsureLayerExists();
         }
 
@@ -111,9 +153,6 @@ namespace OsuVR.Storyboard
         //  公开 API
         // =========================================================
 
-        /// <summary>
-        /// 加载 Storyboard 数据并启动引擎 + 渲染
-        /// </summary>
         public void LoadStoryboard(SBStoryboard storyboard, string beatmapFolder)
         {
             UnloadStoryboard();
@@ -126,18 +165,24 @@ namespace OsuVR.Storyboard
 
             EnsureCameraSetup();
             currentBeatmapFolder = beatmapFolder;
-            PreloadTextures(storyboard, beatmapFolder);
 
+            // 打包纹理到 Texture2DArray
+            BuildTextureArray(storyboard, beatmapFolder);
+
+            // 创建 SB 材质 (使用自定义 instanced shader)
+            EnsureSBMaterial();
+
+            // 启动引擎
             osbPlayer = new SBOsbPlayer();
             osbPlayer.LoadStoryboard(storyboard);
 
+            // 缓存非动画精灵的纹理索引 (避免每帧 Dictionary 查找)
+            CacheTextureIndices();
+
             isRendering = true;
-            Debug.Log($"[SBRenderer] 已加载 Storyboard: {storyboard.TotalElementCount} 个元素, RT={RT_Width}x{RT_Height}");
+            Debug.Log($"[SBRenderer] 已加载 Storyboard: {storyboard.TotalElementCount} 个元素, 纹理数组 {textureArray.depth} 层");
         }
 
-        /// <summary>
-        /// 加载视频并开始播放
-        /// </summary>
         public void LoadVideo(string videoPath, int videoOffset)
         {
             if (string.IsNullOrEmpty(videoPath)) return;
@@ -152,20 +197,13 @@ namespace OsuVR.Storyboard
             Debug.Log($"[SBRenderer] 已加载视频: {System.IO.Path.GetFileName(videoPath)}, offset={videoOffset}ms");
         }
 
-        /// <summary>
-        /// 同时加载视频 + Storyboard (复合模式)
-        /// </summary>
         public void LoadVideoAndStoryboard(string videoPath, int videoOffset,
             SBStoryboard storyboard, string beatmapFolder)
         {
-            // 先加载 SB，再加载视频 (视频在底层)
             LoadStoryboard(storyboard, beatmapFolder);
             LoadVideo(videoPath, videoOffset);
         }
 
-        /// <summary>
-        /// 停止渲染并释放所有资源
-        /// </summary>
         public void UnloadStoryboard()
         {
             isRendering = false;
@@ -173,23 +211,12 @@ namespace OsuVR.Storyboard
             osbPlayer?.Unload();
             osbPlayer = null;
 
-            // 回收所有活跃对象
-            foreach (var kvp in activePool)
-                ReturnToPool(kvp.Value);
-            activePool.Clear();
+            // 释放纹理数组
+            if (textureArray != null) { Destroy(textureArray); textureArray = null; }
+            textureIndexMap?.Clear();
 
-            // 释放纹理缓存
-            foreach (var kvp in textureCache)
-            {
-                if (kvp.Value != null && kvp.Value != whitePixel) Destroy(kvp.Value);
-            }
-            textureCache.Clear();
-
-            foreach (var kvp in spriteCache)
-            {
-                if (kvp.Value != null) Destroy(kvp.Value);
-            }
-            spriteCache.Clear();
+            // 释放 SB 材质
+            if (sbMaterial != null) { Destroy(sbMaterial); sbMaterial = null; }
         }
 
         public void UnloadVideo()
@@ -204,11 +231,8 @@ namespace OsuVR.Storyboard
                 videoPlayer = null;
             }
 
-            if (videoQuadGo != null)
-            {
-                Destroy(videoQuadGo);
-                videoQuadGo = null;
-            }
+            if (videoMaterial != null) { Destroy(videoMaterial); videoMaterial = null; }
+            if (videoQuadMesh != null) { Destroy(videoQuadMesh); videoQuadMesh = null; }
         }
 
         public void UnloadAll()
@@ -220,7 +244,7 @@ namespace OsuVR.Storyboard
         public RenderTexture GetRenderTexture() => renderTexture;
 
         // =========================================================
-        //  每帧更新
+        //  每帧更新 — GPU 实例化渲染管线
         // =========================================================
 
         void LateUpdate()
@@ -231,74 +255,189 @@ namespace OsuVR.Storyboard
 
             double musicTime = GetCurrentMusicTime();
 
-            // 1. 同步视频时间轴
+            // 1. 视频时间同步
             if (hasVideo && videoPlayer != null && videoPlayer.isPrepared)
                 SyncVideoTime(musicTime);
 
-            // 2. 推进纯计算引擎
+            // 2. 推进引擎
             if (osbPlayer != null)
-            {
                 osbPlayer.Update(musicTime);
 
-                // 3. 对象池调度
-                var currentFrame = CollectActiveSprites();
+            // 3. 绘制视频背景 Quad (z=50, 最远端)
+            if (hasVideo && videoMaterial != null && videoQuadMesh != null)
+                DrawVideoQuad();
 
-                // 归还消失的
-                var toReturn = new List<int>();
-                foreach (var kvp in activePool)
-                {
-                    if (!currentFrame.ContainsKey(kvp.Key))
-                        toReturn.Add(kvp.Key);
-                }
-                for (int i = 0; i < toReturn.Count; i++)
-                {
-                    ReturnToPool(activePool[toReturn[i]]);
-                    activePool.Remove(toReturn[i]);
-                }
+            // 4. GPU 实例化绘制 SB 精灵 (z=0, 覆盖在视频上方)
+            if (osbPlayer != null && sbMaterial != null && textureArray != null)
+                DrawStoryboardInstances(musicTime);
 
-                // 处理活跃 sprite
-                foreach (var kvp in currentFrame)
-                {
-                    int id = kvp.Key;
-                    var playingSprite = kvp.Value;
-
-                    if (!activePool.TryGetValue(id, out var pooled))
-                    {
-                        pooled = GetFromPool(id, playingSprite.Element);
-                        activePool[id] = pooled;
-                    }
-
-                    UpdatePooledSprite(pooled, playingSprite.State, playingSprite.Element);
-                }
-            }
-
-            // 4. 手动触发摄像机渲染
-            renderCamera.Render();
+            // 注意: 不要调用 Camera.Render()！
+            // DrawMeshInstancedProcedural 的命令会在 Unity 自动渲染阶段被处理。
+            // 红屏测试证明: 不调用 Camera.Render() 时，绘制命令能正常执行。
         }
 
-        Dictionary<int, SBPlayingSprite> CollectActiveSprites()
+        // =========================================================
+        //  GPU 实例化核心: 收集 → 填充 → 提交
+        // =========================================================
+
+        void DrawStoryboardInstances(double musicTime)
         {
-            var frame = new Dictionary<int, SBPlayingSprite>();
+            int alphaCount = 0;
+            int additiveCount = 0;
+
+            // 按 Layer 顺序遍历 (0=Background → 4=Overlay)
             for (int layer = 0; layer < 5; layer++)
             {
                 var sprite = osbPlayer.GetLayerActiveHead(layer);
                 var tail = osbPlayer.GetLayerActiveTail(layer);
+
                 while (sprite != tail)
                 {
-                    frame[sprite.GetHashCode()] = sprite;
+                    var state = sprite.State;
+
+                    // 可见性裁剪
+                    if (state.Alpha > 0.001f)
+                    {
+                        // 纹理索引: 优先使用缓存，动画才走 Dictionary
+                        int texIndex = sprite.CachedTexIndex;
+                        if (texIndex < 0)
+                            texIndex = ResolveTextureIndex(sprite.Element, musicTime);
+
+                        if (texIndex >= 0)
+                        {
+                            Vector2Int texSize = textureDimensions[texIndex];
+                            Matrix4x4 matrix = BuildInstanceMatrix(state, sprite.Element, texSize);
+
+                            var instance = new SpriteInstanceData
+                            {
+                                objectToWorld = matrix,
+                                color = new Vector4(state.R, state.G, state.B, state.Alpha),
+                                params0 = new Vector4(
+                                    texIndex,
+                                    state.Additive ? 1f : 0f,
+                                    state.FlipH ? 1f : 0f,
+                                    state.FlipV ? 1f : 0f),
+                            };
+
+                            if (state.Additive)
+                            {
+                                if (additiveCount < MaxInstancesPerPass)
+                                    additiveData[additiveCount++] = instance;
+                            }
+                            else
+                            {
+                                if (alphaCount < MaxInstancesPerPass)
+                                    alphaData[alphaCount++] = instance;
+                            }
+                        }
+                    }
+
                     sprite = sprite.Next;
                 }
             }
-            return frame;
+
+            // 提交 GPU 绘制 (bounds 极大, camera=null 自动匹配)
+            var bounds = new Bounds(IsolatedPosition, new Vector3(10000000f, 10000000f, 10000000f));
+
+            if (alphaCount > 0)
+            {
+                alphaBuffer.SetData(alphaData, 0, 0, alphaCount);
+                sbMaterial.SetBuffer("_InstanceData", alphaBuffer);
+                sbMaterial.SetTexture("_MainTexArray", textureArray);
+                Graphics.DrawMeshInstancedProcedural(quadMesh, 0, sbMaterial, bounds, alphaCount,
+                    null, ShadowCastingMode.Off, false, storyboardLayer, null);
+            }
+
+            if (additiveCount > 0)
+            {
+                additiveBuffer.SetData(additiveData, 0, 0, additiveCount);
+                sbMaterial.SetBuffer("_InstanceData", additiveBuffer);
+                sbMaterial.SetTexture("_MainTexArray", textureArray);
+                Graphics.DrawMeshInstancedProcedural(quadMesh, 1, sbMaterial, bounds, additiveCount,
+                    null, ShadowCastingMode.Off, false, storyboardLayer, null);
+            }
         }
 
+
+        /// <summary>
+        /// 构建实例矩阵: osu! 坐标 → Unity 世界坐标
+        /// 处理 Origin 偏移、缩放、旋转、翻转
+        /// </summary>
+        Matrix4x4 BuildInstanceMatrix(SBRenderState state, SBElement element, Vector2Int texSize)
+        {
+            float x = state.X - CanvasWidth * 0.5f;
+            float y = -(state.Y - CanvasHeight * 0.5f) + IsolatedPosition.y;
+
+            float scaleX = texSize.x * state.ScaleX;
+            float scaleY = texSize.y * state.ScaleY;
+
+            int originIdx = (int)element.Origin;
+            if ((uint)originIdx >= (uint)OriginOffsets.Length) originIdx = 1;
+            Vector2 pivot = OriginOffsets[originIdx];
+
+            if (state.FlipH) pivot.x = -pivot.x;
+            if (state.FlipV) pivot.y = -pivot.y;
+
+            Matrix4x4 m = Matrix4x4.identity;
+
+            // 快速路径: 无旋转时跳过 trig
+            if (state.Rotation == 0f)
+            {
+                m.m00 = scaleX;
+                m.m11 = scaleY;
+                m.m03 = x - pivot.x * scaleX;
+                m.m13 = y - pivot.y * scaleY;
+            }
+            else
+            {
+                float cosR = Mathf.Cos(-state.Rotation);
+                float sinR = Mathf.Sin(-state.Rotation);
+                float px = pivot.x * scaleX;
+                float py = pivot.y * scaleY;
+                m.m00 = scaleX * cosR;
+                m.m01 = -scaleY * sinR;
+                m.m03 = x - (px * cosR - py * sinR);
+                m.m10 = scaleX * sinR;
+                m.m11 = scaleY * cosR;
+                m.m13 = y - (px * sinR + py * cosR);
+            }
+
+            m.m23 = SBQuadZ;
+            return m;
+        }
+
+        /// <summary>
+        /// 解析元素的纹理索引 (动画按当前帧解析)
+        /// </summary>
+        int ResolveTextureIndex(SBElement element, double musicTime)
+        {
+            string path = element.ImagePath;
+            if (string.IsNullOrEmpty(path)) return -1;
+
+            // 动画: 根据当前时间确定帧
+            if (element is SBStoryboardAnimation anim)
+            {
+                int frame = anim.GetCurrentFrame(musicTime, 0); // startTime 已在引擎内部处理
+                path = anim.BuildFramePath(frame);
+            }
+
+            if (textureIndexMap != null && textureIndexMap.TryGetValue(path, out int idx))
+                return idx;
+
+            // fallback: 尝试原始路径
+            if (textureIndexMap != null && textureIndexMap.TryGetValue(element.ImagePath, out int fallbackIdx))
+                return fallbackIdx;
+
+            return -1;
+        }
+
+
         // =========================================================
-        //  视频播放
+        //  视频渲染 (Graphics.DrawMesh, 无 GameObject)
         // =========================================================
 
         void CreateVideoPlayer(string videoPath)
         {
-            // 创建 VideoPlayer GameObject
             var vpGo = new GameObject("[SB_VideoPlayer]");
             vpGo.transform.SetParent(transform);
 
@@ -308,102 +447,92 @@ namespace OsuVR.Storyboard
             videoPlayer.playOnAwake = false;
             videoPlayer.isLooping = true;
             videoPlayer.skipOnDrop = true;
-
-            // 关键: 强制静音，防止与 AudioManager 重音
             videoPlayer.audioOutputMode = VideoAudioOutputMode.None;
 
-            // 渲染到 RenderTexture (我们自己的 RT)
-            videoPlayer.renderMode = VideoRenderMode.RenderTexture;
-            videoPlayer.targetTexture = renderTexture;
+            // APIOnly: 视频帧仅通过 videoPlayer.texture 提供给材质，
+            // 不自动渲染到任何 RT。由 DrawVideoQuad 负责将视频 Quad 绘制到孤立摄像机的 RT 上。
+            videoPlayer.renderMode = VideoRenderMode.APIOnly;
 
-            // 准备完成后自动播放
             videoPlayer.prepareCompleted += (vp) =>
             {
                 vp.Play();
+                UpdateVideoQuadScale();
                 Debug.Log("[SBRenderer] 视频准备完成，开始播放");
             };
 
-            // 创建视频背景 Quad (位于正交相机最远端)
-            CreateVideoBackgroundQuad();
+            // 创建视频 Quad (Graphics.DrawMesh 方式)
+            CreateVideoQuad();
 
             videoPlayer.Prepare();
         }
 
-        /// <summary>
-        /// 创建视频背景 Quad: 放置在正交相机最远端 (z=50)
-        /// 自动计算 16:9 → 4:3 的 letterbox 缩放
-        /// </summary>
-        void CreateVideoBackgroundQuad()
+        void CreateVideoQuad()
         {
-            videoQuadGo = new GameObject("[SB_VideoQuad]");
-            videoQuadGo.layer = storyboardLayer;
-            videoQuadGo.transform.SetParent(isolatedRoot.transform, false);
-            videoQuadGo.transform.localPosition = new Vector3(0, 0, VideoQuadZ);
+            videoQuadMesh = CreateFullScreenQuad();
 
-            // 使用 Quad Mesh
-            var meshFilter = videoQuadGo.AddComponent<MeshFilter>();
-            meshFilter.mesh = CreateFullScreenQuad();
+            var shader = Shader.Find("Universal Render Pipeline/Unlit")
+                ?? Shader.Find("Unlit/Texture");
+            videoMaterial = new Material(shader);
+            videoMaterial.SetFloat("_Surface", 0); // Opaque
+            videoMaterial.SetFloat("_ZWrite", 1);
+            videoMaterial.renderQueue = (int)RenderQueue.Geometry;
 
-            // 材质: URP Unlit, 渲染视频纹理
-            var renderer = videoQuadGo.AddComponent<MeshRenderer>();
-            var mat = new Material(Shader.Find("Universal Render Pipeline/Unlit")
-                ?? Shader.Find("Unlit/Texture"));
-            mat.SetFloat("_Surface", 0); // Opaque
-            mat.SetFloat("_ZWrite", 1);
-            mat.renderQueue = (int)RenderQueue.Geometry;
-            renderer.sharedMaterial = mat;
-            renderer.shadowCastingMode = ShadowCastingMode.Off;
-            renderer.receiveShadows = false;
+            videoMPB = new MaterialPropertyBlock();
 
-            // 16:9 视频适配 4:3 画布的 letterbox 缩放
-            // 视频纹理由 VideoPlayer 直接写入 RT，这里只是占位
-            // 实际缩放在 UpdateVideoQuadScale 中动态计算
-            UpdateVideoQuadScale();
+            // 初始矩阵 (位置在相机最远端)
+            videoQuadMatrix = Matrix4x4.TRS(
+                new Vector3(0, 0, VideoQuadZ),
+                Quaternion.identity,
+                new Vector3(CanvasWidth, CanvasHeight, 1f));
         }
 
-        /// <summary>
-        /// 动态计算视频 Quad 缩放，确保 16:9 视频在 4:3 画布中不变形
-        /// 策略: "Fit" 模式 — 等比缩放以完全显示，多余区域留黑
-        /// </summary>
         void UpdateVideoQuadScale()
         {
-            if (videoQuadGo == null || videoPlayer == null) return;
+            if (videoPlayer == null) return;
 
             float videoW = videoPlayer.width;
             float videoH = videoPlayer.height;
             if (videoW <= 0 || videoH <= 0) return;
 
-            float canvasAspect = (float)CanvasWidth / CanvasHeight;  // 4:3 = 1.333
-            float videoAspect = videoW / videoH;                      // 16:9 = 1.778
+            float canvasAspect = (float)CanvasWidth / CanvasHeight;
+            float videoAspect = videoW / videoH;
 
             float scaleX, scaleY;
             if (videoAspect > canvasAspect)
             {
-                // 视频更宽: 宽度填满，高度留黑 (上下 letterbox)
                 scaleX = CanvasWidth;
                 scaleY = CanvasWidth / videoAspect;
             }
             else
             {
-                // 视频更高: 高度填满，宽度留黑 (左右 pillarbox)
                 scaleY = CanvasHeight;
                 scaleX = CanvasHeight * videoAspect;
             }
 
-            videoQuadGo.transform.localScale = new Vector3(scaleX, scaleY, 1f);
+            videoQuadMatrix = Matrix4x4.TRS(
+                new Vector3(0, 0, VideoQuadZ),
+                Quaternion.identity,
+                new Vector3(scaleX, scaleY, 1f));
         }
 
-        /// <summary>
-        /// 同步视频时间轴: videoPlayer.time = musicTime + videoOffset
-        /// 处理负偏移 (视频在音乐之前开始) 和大跳转
-        /// </summary>
+        void DrawVideoQuad()
+        {
+            if (videoPlayer != null && videoPlayer.texture != null)
+            {
+                videoMaterial.mainTexture = videoPlayer.texture;
+            }
+
+            Graphics.DrawMesh(videoQuadMesh, videoQuadMatrix, videoMaterial,
+                storyboardLayer, renderCamera, 0, videoMPB,
+                ShadowCastingMode.Off, false, null, LightProbeUsage.Off, null);
+        }
+
         void SyncVideoTime(double musicTimeMs)
         {
             double targetVideoTime = (musicTimeMs + videoOffsetMs) / 1000.0;
 
             if (targetVideoTime < 0)
             {
-                // 视频尚未到起始点，暂停并等待
                 if (videoPlayer.isPlaying) videoPlayer.Pause();
                 return;
             }
@@ -411,7 +540,6 @@ namespace OsuVR.Storyboard
             if (!videoPlayer.isPlaying)
                 videoPlayer.Play();
 
-            // 如果时间差超过 0.1 秒，执行跳转 (防止累积漂移)
             double drift = videoPlayer.time - targetVideoTime;
             if (drift > 0.1 || drift < -0.1)
             {
@@ -420,146 +548,243 @@ namespace OsuVR.Storyboard
         }
 
         // =========================================================
-        //  对象池操作
+        //  纹理数组打包
         // =========================================================
 
-        PooledSprite GetFromPool(int id, SBElement element)
+        void BuildTextureArray(SBStoryboard storyboard, string beatmapFolder)
         {
-            PooledSprite pooled;
+            // 收集所有唯一的 ImagePath (含动画帧)
+            var paths = new List<string>();
+            var pathSet = new HashSet<string>();
 
-            if (freePool.Count > 0)
+            foreach (var element in storyboard.GetAllElementsInRenderOrder())
             {
-                pooled = freePool.Pop();
-                pooled.Go.SetActive(true);
+                if (string.IsNullOrEmpty(element.ImagePath)) continue;
+
+                if (element is SBStoryboardAnimation anim)
+                {
+                    // 为动画的每一帧生成路径
+                    for (int f = 0; f < anim.FrameCount; f++)
+                    {
+                        string framePath = anim.BuildFramePath(f);
+                        if (pathSet.Add(framePath))
+                            paths.Add(framePath);
+                    }
+                }
+                else
+                {
+                    if (pathSet.Add(element.ImagePath))
+                        paths.Add(element.ImagePath);
+                }
             }
-            else
+
+            if (paths.Count == 0)
             {
-                pooled = CreatePooledSprite();
+                Debug.LogWarning("[SBRenderer] 无纹理需要打包");
+                return;
             }
 
-            pooled.CurrentId = id;
+            // 加载所有纹理并找到最大尺寸
+            var textures = new Texture2D[paths.Count];
+            int maxWidth = 0, maxHeight = 0;
 
-            Sprite sprite = GetSpriteForElement(element);
-            if (sprite != null)
-                pooled.Sr.sprite = sprite;
+            for (int i = 0; i < paths.Count; i++)
+            {
+                textures[i] = LoadTexture(System.IO.Path.Combine(beatmapFolder, paths[i]));
+                if (textures[i].width > maxWidth) maxWidth = textures[i].width;
+                if (textures[i].height > maxHeight) maxHeight = textures[i].height;
+            }
 
-            return pooled;
+            // 限制最大尺寸 (节省显存)
+            maxWidth = Mathf.Min(maxWidth, 2048);
+            maxHeight = Mathf.Min(maxHeight, 2048);
+
+            // 创建 Texture2DArray
+            textureArray = new Texture2DArray(maxWidth, maxHeight, paths.Count,
+                TextureFormat.RGBA32, true, false);
+            textureArray.filterMode = FilterMode.Bilinear;
+            textureArray.wrapMode = TextureWrapMode.Clamp;
+
+            // 逐层复制纹理数据 (使用 SetPixels 而非 CopyTexture, 更可靠)
+            var tempRT = RenderTexture.GetTemporary(maxWidth, maxHeight, 0, RenderTextureFormat.ARGB32);
+            var prevRT = RenderTexture.active;
+
+            for (int i = 0; i < textures.Length; i++)
+            {
+                var src = textures[i];
+                Graphics.Blit(src, tempRT);
+                RenderTexture.active = tempRT;
+
+                var slice = new Texture2D(maxWidth, maxHeight, TextureFormat.RGBA32, false);
+                slice.ReadPixels(new Rect(0, 0, maxWidth, maxHeight), 0, 0);
+                slice.Apply();
+
+                textureArray.SetPixels(slice.GetPixels(), i, 0);
+                Destroy(slice);
+            }
+
+            // 验证: 在 Apply 之前读回像素 (Apply 会释放 CPU 副本导致不可读)
+            var verifyPixels = textureArray.GetPixels(0, 0);
+            bool allBlack = true;
+            for (int p = 0; p < verifyPixels.Length; p++)
+            {
+                if (verifyPixels[p].r > 0.01f || verifyPixels[p].g > 0.01f || verifyPixels[p].b > 0.01f)
+                { allBlack = false; break; }
+            }
+            Debug.Log($"[SBRenderer] 纹理数组验证: layer[0] {(allBlack ? "全黑!" : "有内容")} ({verifyPixels.Length} 像素)");
+
+            textureArray.Apply(true, true); // 生成 mipmap, 释放 CPU 副本
+
+            RenderTexture.active = prevRT;
+            RenderTexture.ReleaseTemporary(tempRT);
+
+            // 构建路径→索引映射 + 纹理像素尺寸缓存 (必须在销毁源纹理之前!)
+            textureIndexMap = new Dictionary<string, int>(paths.Count);
+            textureDimensions = new Vector2Int[paths.Count];
+            for (int i = 0; i < paths.Count; i++)
+            {
+                textureIndexMap[paths[i]] = i;
+                textureDimensions[i] = new Vector2Int(textures[i].width, textures[i].height);
+            }
+
+            // 释放源纹理
+            for (int i = 0; i < textures.Length; i++)
+            {
+                if (textures[i] != null && textures[i] != whitePixel)
+                    Destroy(textures[i]);
+            }
+
+            Debug.Log($"[SBRenderer] 纹理数组打包完成: {paths.Count} 层, {maxWidth}x{maxHeight}");
+            for (int i = 0; i < paths.Count; i++)
+                Debug.Log($"  Tex[{i}] {paths[i]} → {textureDimensions[i].x}x{textureDimensions[i].y}");
         }
 
-        void ReturnToPool(PooledSprite pooled)
+        /// <summary>
+        /// 预缓存所有非动画精灵的纹理索引，避免每帧 Dictionary 查找
+        /// </summary>
+        void CacheTextureIndices()
         {
-            if (pooled == null) return;
-            pooled.Go.SetActive(false);
-            pooled.Sr.sprite = null;
-            pooled.CurrentId = 0;
-            freePool.Push(pooled);
+            if (osbPlayer == null || textureIndexMap == null) return;
+            osbPlayer.ForEachSprite((layer, sprite) =>
+            {
+                var element = sprite.Element;
+                if (element is SBStoryboardAnimation)
+                {
+                    sprite.CachedTexIndex = -1; // 动画需要每帧解析
+                }
+                else if (!string.IsNullOrEmpty(element.ImagePath) &&
+                         textureIndexMap.TryGetValue(element.ImagePath, out int idx))
+                {
+                    sprite.CachedTexIndex = idx;
+                }
+            });
         }
 
-        PooledSprite CreatePooledSprite()
+        Texture2D LoadTexture(string path)
         {
-            var go = new GameObject("SB_Sprite");
-            go.layer = storyboardLayer;
-            go.transform.SetParent(isolatedRoot.transform, false);
+            try
+            {
+                if (!System.IO.File.Exists(path))
+                    return GetWhitePixel();
 
-            var sr = go.AddComponent<SpriteRenderer>();
-            sr.sharedMaterial = CreateSBMaterial();
-            sr.shadowCastingMode = ShadowCastingMode.Off;
-            sr.receiveShadows = false;
-            sr.sortingOrder = 0;
+                byte[] data = System.IO.File.ReadAllBytes(path);
+                var tex = new Texture2D(2, 2, TextureFormat.RGBA32, true);
+                if (tex.LoadImage(data))
+                {
+                    tex.filterMode = FilterMode.Bilinear;
+                    return tex;
+                }
 
-            return new PooledSprite { Go = go, Sr = sr };
+                return GetWhitePixel();
+            }
+            catch
+            {
+                return GetWhitePixel();
+            }
+        }
+
+        static Texture2D GetWhitePixel()
+        {
+            if (whitePixel == null)
+            {
+                whitePixel = new Texture2D(4, 4, TextureFormat.RGBA32, false);
+                var colors = new Color[16];
+                for (int i = 0; i < 16; i++) colors[i] = Color.white;
+                whitePixel.SetPixels(colors);
+                whitePixel.Apply();
+            }
+            return whitePixel;
         }
 
         // =========================================================
-        //  视觉更新: SBRenderState → Transform + SpriteRenderer
+        //  共享资源创建
         // =========================================================
 
-        void UpdatePooledSprite(PooledSprite pooled, SBRenderState state, SBElement element)
+        void EnsureSBMaterial()
         {
-            var go = pooled.Go;
-            var sr = pooled.Sr;
+            if (sbMaterial != null) return;
 
-            // 可见性
-            bool visible = state.Alpha > 0.001f;
-            if (go.activeSelf != visible)
-                go.SetActive(visible);
-            if (!visible) return;
-
-            // 位置 (osu! → Unity 坐标)
-            float worldX = state.X - CanvasWidth * 0.5f;
-            float worldY = CanvasHeight * 0.5f - state.Y;
-            go.transform.localPosition = new Vector3(worldX, worldY, SBQuadZ);
-
-            // 缩放
-            go.transform.localScale = new Vector3(state.ScaleX, state.ScaleY, 1f);
-
-            // 旋转 (osu! 弧度顺时针 → Unity 逆时针)
-            go.transform.localRotation = Quaternion.Euler(0, 0, -state.Rotation * Mathf.Rad2Deg);
-
-            // 颜色 + 透明度
-            sharedMPB.Clear();
-            sr.GetPropertyBlock(sharedMPB);
-            Color c = new Color(state.R, state.G, state.B, state.Alpha);
-            sharedMPB.SetColor("_Color", c);
-            sr.SetPropertyBlock(sharedMPB);
-
-            // 翻转
-            sr.flipX = state.FlipH;
-            sr.flipY = state.FlipV;
-
-            // 混合模式
-            var mat = sr.sharedMaterial;
-            if (state.Additive)
+            var shader = Shader.Find("OsuVR/SBInstanced");
+            if (shader == null)
             {
-                mat.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
-                mat.SetFloat("_DstBlend", (float)BlendMode.One);
+                Debug.LogError("[SBRenderer] 找不到 Shader 'OsuVR/SBInstanced'!");
+                return;
             }
-            else
-            {
-                mat.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
-                mat.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
-            }
+            sbMaterial = new Material(shader);
+            sbMaterial.enableInstancing = true;
+            Debug.Log($"[SBRenderer] 材质创建成功: shader={shader.name}, isSupported={shader.isSupported}, enableInstancing={sbMaterial.enableInstancing}");
         }
 
-        // =========================================================
-        //  Sprite 纹理管理
-        // =========================================================
-
-        Sprite GetSpriteForElement(SBElement element)
+        Mesh EnsureQuadMesh()
         {
-            string path = element.ImagePath;
-            if (string.IsNullOrEmpty(path)) return null;
+            if (quadMesh != null) return quadMesh;
 
-            if (spriteCache.TryGetValue(path, out var cached))
-                return cached;
+            quadMesh = new Mesh();
+            quadMesh.name = "SB_InstancedQuad";
 
-            Texture2D tex = null;
-            if (textureCache.TryGetValue(path, out tex) && tex != null)
+            // 居中 quad, [-0.5, 0.5] 范围
+            // UV: 左下(0,0) → 右上(1,1), 与 osu! 坐标系一致
+            quadMesh.vertices = new Vector3[]
             {
-                Vector2 pivot = GetPivotForOrigin(element.Origin);
-                var sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), pivot, 100f);
-                spriteCache[path] = sprite;
-                return sprite;
-            }
+                new Vector3(-0.5f, -0.5f, 0),
+                new Vector3(-0.5f,  0.5f, 0),
+                new Vector3( 0.5f,  0.5f, 0),
+                new Vector3( 0.5f, -0.5f, 0),
+            };
+            quadMesh.uv = new Vector2[]
+            {
+                new Vector2(0, 0),
+                new Vector2(0, 1),
+                new Vector2(1, 1),
+                new Vector2(1, 0),
+            };
+            quadMesh.triangles = new int[] { 0, 1, 2, 0, 2, 3 };
+            quadMesh.RecalculateNormals();
 
-            return null;
+            return quadMesh;
         }
 
-        Vector2 GetPivotForOrigin(SBOrigin origin)
+        static Mesh CreateFullScreenQuad()
         {
-            switch (origin)
+            var mesh = new Mesh();
+            mesh.name = "SB_VideoQuad";
+            mesh.vertices = new Vector3[]
             {
-                case SBOrigin.TopLeft:      return new Vector2(0f, 1f);
-                case SBOrigin.TopCentre:    return new Vector2(0.5f, 1f);
-                case SBOrigin.TopRight:     return new Vector2(1f, 1f);
-                case SBOrigin.CentreLeft:   return new Vector2(0f, 0.5f);
-                case SBOrigin.Centre:       return new Vector2(0.5f, 0.5f);
-                case SBOrigin.CentreRight:  return new Vector2(1f, 0.5f);
-                case SBOrigin.BottomLeft:   return new Vector2(0f, 0f);
-                case SBOrigin.BottomCentre: return new Vector2(0.5f, 0f);
-                case SBOrigin.BottomRight:  return new Vector2(1f, 0f);
-                default:                    return new Vector2(0.5f, 0.5f);
-            }
+                new Vector3(-0.5f, -0.5f, 0),
+                new Vector3(-0.5f,  0.5f, 0),
+                new Vector3( 0.5f,  0.5f, 0),
+                new Vector3( 0.5f, -0.5f, 0),
+            };
+            mesh.uv = new Vector2[]
+            {
+                new Vector2(0, 0),
+                new Vector2(0, 1),
+                new Vector2(1, 1),
+                new Vector2(1, 0),
+            };
+            mesh.triangles = new int[] { 0, 1, 2, 0, 2, 3 };
+            mesh.RecalculateNormals();
+            return mesh;
         }
 
         // =========================================================
@@ -612,6 +837,9 @@ namespace OsuVR.Storyboard
         {
             if (renderCamera != null) return;
 
+            // 确保 quad mesh 已创建
+            EnsureQuadMesh();
+
             isolatedRoot = new GameObject("[SB_IsolatedRoot]");
             isolatedRoot.transform.SetParent(transform);
             isolatedRoot.transform.position = IsolatedPosition;
@@ -623,108 +851,18 @@ namespace OsuVR.Storyboard
             renderCamera = camGo.AddComponent<Camera>();
             renderCamera.orthographic = true;
             renderCamera.orthographicSize = CanvasHeight * 0.5f;
-            renderCamera.aspect = (float)CanvasWidth / CanvasHeight;
-            renderCamera.nearClipPlane = 0.1f;
+            // 不设置 aspect，让它自动使用 RT 的 16:9 比例，避免 4:3→16:9 拉伸变形
+            renderCamera.nearClipPlane = -100f;
             renderCamera.farClipPlane = 100f;
             renderCamera.cullingMask = 1 << storyboardLayer;
             renderCamera.clearFlags = CameraClearFlags.SolidColor;
-            renderCamera.backgroundColor = Color.black;
+            renderCamera.backgroundColor = new Color(0.15f, 0.0f, 0.15f, 1.0f); // 深紫色背景 (调试用)
             renderCamera.stereoTargetEye = StereoTargetEyeMask.None;
 
             renderTexture = new RenderTexture(RT_Width, RT_Height, 0, RenderTextureFormat.ARGB32);
             renderTexture.antiAliasing = 1;
             renderTexture.Create();
             renderCamera.targetTexture = renderTexture;
-        }
-
-        // =========================================================
-        //  纹理管理
-        // =========================================================
-
-        void PreloadTextures(SBStoryboard storyboard, string beatmapFolder)
-        {
-            foreach (var element in storyboard.GetAllElementsInRenderOrder())
-            {
-                if (string.IsNullOrEmpty(element.ImagePath)) continue;
-                if (textureCache.ContainsKey(element.ImagePath)) continue;
-
-                string fullPath = System.IO.Path.Combine(beatmapFolder, element.ImagePath);
-                textureCache[element.ImagePath] = LoadTexture(fullPath);
-            }
-        }
-
-        Texture2D LoadTexture(string path)
-        {
-            try
-            {
-                if (!System.IO.File.Exists(path))
-                    return GetWhitePixel();
-
-                byte[] data = System.IO.File.ReadAllBytes(path);
-                var tex = new Texture2D(2, 2, TextureFormat.RGBA32, true);
-                if (tex.LoadImage(data))
-                {
-                    tex.filterMode = FilterMode.Bilinear;
-                    return tex;
-                }
-
-                return GetWhitePixel();
-            }
-            catch
-            {
-                return GetWhitePixel();
-            }
-        }
-
-        static Texture2D GetWhitePixel()
-        {
-            if (whitePixel == null)
-            {
-                whitePixel = new Texture2D(4, 4, TextureFormat.RGBA32, false);
-                var colors = new Color[16];
-                for (int i = 0; i < 16; i++) colors[i] = Color.white;
-                whitePixel.SetPixels(colors);
-                whitePixel.Apply();
-            }
-            return whitePixel;
-        }
-
-        Material CreateSBMaterial()
-        {
-            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (shader == null) shader = Shader.Find("Unlit/Transparent");
-            var mat = new Material(shader);
-            mat.SetFloat("_Surface", 1);
-            mat.SetFloat("_Blend", 0);
-            mat.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
-            mat.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
-            mat.SetFloat("_ZWrite", 0);
-            mat.renderQueue = (int)RenderQueue.Transparent;
-            mat.enableInstancing = true;
-            return mat;
-        }
-
-        static Mesh CreateFullScreenQuad()
-        {
-            var mesh = new Mesh();
-            mesh.name = "SB_FullScreenQuad";
-            mesh.vertices = new Vector3[]
-            {
-                new Vector3(-0.5f, -0.5f, 0),
-                new Vector3(-0.5f,  0.5f, 0),
-                new Vector3( 0.5f,  0.5f, 0),
-                new Vector3( 0.5f, -0.5f, 0),
-            };
-            mesh.uv = new Vector2[]
-            {
-                new Vector2(0, 0),
-                new Vector2(0, 1),
-                new Vector2(1, 1),
-                new Vector2(1, 0),
-            };
-            mesh.triangles = new int[] { 0, 1, 2, 0, 2, 3 };
-            mesh.RecalculateNormals();
-            return mesh;
         }
 
         // =========================================================
@@ -748,12 +886,17 @@ namespace OsuVR.Storyboard
         {
             UnloadAll();
 
+            // 释放 GPU 缓冲区
+            alphaBuffer?.Release();
+            additiveBuffer?.Release();
+
             if (renderTexture != null)
             {
                 renderTexture.Release();
                 Destroy(renderTexture);
             }
 
+            if (quadMesh != null) Destroy(quadMesh);
             if (whitePixel != null) { Destroy(whitePixel); whitePixel = null; }
 
             if (Instance == this) Instance = null;

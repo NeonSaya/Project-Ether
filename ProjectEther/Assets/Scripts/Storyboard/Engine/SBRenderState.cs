@@ -18,7 +18,7 @@ namespace OsuVR.Storyboard.Engine
         {
             ScaleX = 1f,
             ScaleY = 1f,
-            Alpha = 1f,
+            Alpha = 1f,  // osu! 默认可见
             R = 1f,
             G = 1f,
             B = 1f,

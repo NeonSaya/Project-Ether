@@ -20,6 +20,7 @@ namespace OsuVR.Storyboard.Engine
                 + element.MoveXCommands.Count
                 + element.MoveYCommands.Count
                 + element.ScaleCommands.Count * 2
+                + element.ScaleVectorCommands.Count * 2
                 + element.RotateCommands.Count
                 + element.ColorCommands.Count
                 + element.ParameterCommands.Count
@@ -78,6 +79,18 @@ namespace OsuVR.Storyboard.Engine
                     cmd.StartValue, cmd.EndValue));
             }
 
+            // Vector Scale → ScaleX + ScaleY (非均匀缩放)
+            for (int i = 0; i < element.ScaleVectorCommands.Count; i++)
+            {
+                var cmd = element.ScaleVectorCommands[i];
+                group.Commands.Add(new SBFloatCommand(
+                    SBCommandTarget.ScaleX, cmd.Easing, cmd.StartTime, cmd.EndTime,
+                    cmd.StartValueX, cmd.EndValueX));
+                group.Commands.Add(new SBFloatCommand(
+                    SBCommandTarget.ScaleY, cmd.Easing, cmd.StartTime, cmd.EndTime,
+                    cmd.StartValueY, cmd.EndValueY));
+            }
+
             // Rotate → Rotation
             for (int i = 0; i < element.RotateCommands.Count; i++)
             {
@@ -134,6 +147,7 @@ namespace OsuVR.Storyboard.Engine
                 + loop.MoveXCommands.Count
                 + loop.MoveYCommands.Count
                 + loop.ScaleCommands.Count * 2
+                + loop.ScaleVectorCommands.Count * 2
                 + loop.RotateCommands.Count
                 + loop.ColorCommands.Count;
 
@@ -183,6 +197,17 @@ namespace OsuVR.Storyboard.Engine
                 group.Commands.Add(new SBFloatCommand(
                     SBCommandTarget.ScaleY, cmd.Easing, cmd.StartTime, cmd.EndTime,
                     cmd.StartValue, cmd.EndValue));
+            }
+
+            for (int i = 0; i < loop.ScaleVectorCommands.Count; i++)
+            {
+                var cmd = loop.ScaleVectorCommands[i];
+                group.Commands.Add(new SBFloatCommand(
+                    SBCommandTarget.ScaleX, cmd.Easing, cmd.StartTime, cmd.EndTime,
+                    cmd.StartValueX, cmd.EndValueX));
+                group.Commands.Add(new SBFloatCommand(
+                    SBCommandTarget.ScaleY, cmd.Easing, cmd.StartTime, cmd.EndTime,
+                    cmd.StartValueY, cmd.EndValueY));
             }
 
             for (int i = 0; i < loop.RotateCommands.Count; i++)

@@ -147,6 +147,23 @@ namespace OsuVR.Storyboard.Data
     }
 
     /// <summary>
+    /// Vector Scale 命令：非均匀缩放 (V 命令)
+    /// </summary>
+    public class SBScaleVectorCommand : SBCommand
+    {
+        public float StartValueX, StartValueY;
+        public float EndValueX, EndValueY;
+
+        public SBScaleVectorCommand(SBEasing easing, double start, double end,
+            float startX, float startY, float endX, float endY)
+            : base(SBCommandType.S, easing, start, end)
+        {
+            StartValueX = startX; StartValueY = startY;
+            EndValueX = endX; EndValueY = endY;
+        }
+    }
+
+    /// <summary>
     /// Rotate 命令：旋转弧度
     /// </summary>
     public class SBRotateCommand : SBCommand
