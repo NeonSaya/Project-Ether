@@ -273,6 +273,7 @@ namespace OsuVR
         private double currentMsPerBeat = 500;   // 默认 120BPM
         private int currentTimingPointIndex = -1;
         private Beatmap cachedBeatmapRef;
+        private Camera _cachedCam;
         private RhythmGameManager rhythmGameManager;
         private float beatBrightnessPulse = 0f;  // 节拍亮度脉冲值
         private bool isKiaiActive = false;
@@ -696,11 +697,11 @@ namespace OsuVR
 
         void SetupCamera()
         {
-            Camera mainCam = Camera.main;
-            if (mainCam != null)
+            _cachedCam = Camera.main;
+            if (_cachedCam != null)
             {
-                mainCam.clearFlags = CameraClearFlags.SolidColor;
-                mainCam.backgroundColor = currentBackgroundColor;
+                _cachedCam.clearFlags = CameraClearFlags.SolidColor;
+                _cachedCam.backgroundColor = currentBackgroundColor;
             }
         }
 
@@ -1847,6 +1848,8 @@ namespace OsuVR
             }
         }
 
+        private int _frameCounter;
+
         void Update()
         {
             UpdateKiaiState();
@@ -1856,7 +1859,12 @@ namespace OsuVR
             UpdateSpectrumBars();           // 两侧频谱粒子更新
             UpdateAudioResponse();          // 已包含晶体频谱响应
             UpdateBackgroundColor();
-            ReduceNearbyParticles();        // 降低近距离粒子密度
+
+            // 降低近距离粒子密度：每3帧执行一次（~26k粒子遍历开销大）
+            if (++_frameCounter % 3 == 0)
+            {
+                ReduceNearbyParticles();
+            }
         }
 
         // =========================================================
@@ -1871,10 +1879,10 @@ namespace OsuVR
         /// </summary>
         private void ReduceNearbyParticles()
         {
-            Camera mainCam = Camera.main;
-            if (mainCam == null) return;
+            if (_cachedCam == null) _cachedCam = Camera.main;
+            if (_cachedCam == null) return;
 
-            Vector3 playerPos = mainCam.transform.position;
+            Vector3 playerPos = _cachedCam.transform.position;
             float nearbyRadius = 0.5f;
             float reduceFactor = 0.5f; // 降低50%
 
@@ -2431,13 +2439,13 @@ namespace OsuVR
         /// </summary>
         private void UpdateBackgroundColor()
         {
-            Camera mainCam = Camera.main;
-            if (mainCam == null) return;
+            if (_cachedCam == null) _cachedCam = Camera.main;
+            if (_cachedCam == null) return;
 
-            Color current = mainCam.backgroundColor;
+            Color current = _cachedCam.backgroundColor;
             if (current != currentBackgroundColor)
             {
-                mainCam.backgroundColor = Color.Lerp(current, currentBackgroundColor, Time.deltaTime * 3f);
+                _cachedCam.backgroundColor = Color.Lerp(current, currentBackgroundColor, Time.deltaTime * 3f);
             }
         }
 
