@@ -1194,7 +1194,9 @@ namespace OsuVR
                 // 检查音符是否已经过期（超过250ms未生成则视为Miss）
                 if (currentMusicTimeMs > hitObject.StartTime + 250f)
                 {
+#if UNITY_EDITOR
                     Debug.LogWarning($"[Manager] 丢弃过期音符: {hitObject.StartTime}ms (当前: {currentMusicTimeMs:F0})");
+#endif
                     if (scoreManager != null) scoreManager.RegisterMiss(300);
                     nextNoteIndex++;
                     continue;
@@ -1453,7 +1455,9 @@ namespace OsuVR
 
 
                 }
+#if UNITY_EDITOR
                 Debug.Log($"击打音符: 误差={timeDiff:F1}ms, 转换后Acc={timeDiff:F2}");
+#endif
             }
         }
 

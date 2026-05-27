@@ -620,11 +620,11 @@ namespace OsuVR
                 GameContext.Instance.ShouldRetry = false;
 
                 // 跳转到菜单场景
-                SceneManager.LoadScene(GameContext.Instance.MenuSceneName);
+                SceneManager.LoadScene(GameContext.Instance.SongSelectSceneName);
             }
             else
             {
-                SceneManager.LoadScene("MenuScene");
+                SceneManager.LoadScene("SongSelectScene");
             }
         }
 

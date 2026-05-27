@@ -421,7 +421,7 @@ namespace OsuVR
 
             // 颜色设置 (腹黑滑条)
             this.customBodyColor = new Color(0.05f, 0.05f, 0.05f, 0.7f);
-            this.customBorderColor = new Color(0.2f, 0.2f, 0.2f, 0.9f);
+            this.customBorderColor = new Color(0.5f, 0.5f, 0.5f, 0.9f);
 
             
 
@@ -1602,7 +1602,9 @@ namespace OsuVR
                     JudgementVisualizer.Instance.ShowJudgement(transform.position, headScore, currentComboColor);
                 }
 
+#if UNITY_EDITOR
                 Debug.Log($"<color=green>Slider Head HIT!</color> Offset: {offset:F2}ms, Score: {headScore}");
+#endif
             }
             else if (offset < earlyWindow)
             {
@@ -1652,7 +1654,9 @@ namespace OsuVR
                 if (isTimeoutMiss)
                 {
                     headHit = true; // 锁定状态，防止重复触发
+#if UNITY_EDITOR
                     Debug.Log($"<color=red>Slider Head MISS</color>");
+#endif
 
                     // 1. 立即隐藏滑条头 (视觉上 Head 直接消失)
                     if (headInstance != null) headInstance.SetActive(false);

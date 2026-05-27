@@ -14,6 +14,7 @@ namespace OsuVR
         private RayController leftRay;
         private RayController rightRay;
         private RhythmGameManager rhythmGameManager;
+        private float _findRayCooldown;
 
         // 默认平面Z坐标，对应 CoordinateMapper 中的 TargetDistance
         private const float DefaultPlaneZ = 2.0f;
@@ -129,10 +130,15 @@ namespace OsuVR
 
             UpdateRadiusAnimation();
 
-            // 如果射线中途丢失，尝试重新寻找
+            // 如果射线中途丢失，限频重试（避免每帧 FindObjectsOfType）
             if (leftRay == null || rightRay == null)
             {
-                FindRayControllers();
+                _findRayCooldown -= Time.deltaTime;
+                if (_findRayCooldown <= 0f)
+                {
+                    FindRayControllers();
+                    _findRayCooldown = 1f; // 每秒重试一次
+                }
             }
 
             // 传递左手射线信息
@@ -163,6 +169,18 @@ namespace OsuVR
         private void UpdateBreakState()
         {
             if (rhythmGameManager == null) return;
+
+            // 歌曲结束时，与休息模式一样放大视野
+            if (rhythmGameManager.isGameEnded)
+            {
+                if (!isInBreak)
+                {
+                    isInBreak = true;
+                    targetRadiusMultiplier = BreakRadiusMultiplier;
+                    transitionProgress = 0f;
+                }
+                return;
+            }
 
             double currentTimeMs = rhythmGameManager.currentMusicTimeMs;
             var beatmap = rhythmGameManager.GetCurrentBeatmap();

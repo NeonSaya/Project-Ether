@@ -28,6 +28,8 @@ namespace OsuVR
         [Tooltip("右手射线控制器")]
         public RayController rightRay;
 
+        private Camera _cachedMainCam;
+
         [Header("拟人化参数 (Lazy Relax Style)")]
         [Tooltip("模拟头部高度（米），用于计算肩膀位置")]
         public float simulatedHeadHeight = 0.0f;
@@ -84,6 +86,8 @@ namespace OsuVR
         void Start()
         {
             if (gameManager == null) return;
+
+            _cachedMainCam = Camera.main;
 
             _notesField = typeof(RhythmGameManager).GetField("hitObjects", BindingFlags.NonPublic | BindingFlags.Instance);
             var activeObjField = typeof(RhythmGameManager).GetField("activeNoteObjects", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -366,8 +370,9 @@ namespace OsuVR
 
         void Update()
         {
-            if (Camera.main != null && Camera.main.transform.localPosition.y < 0.1f && simulatedHeadHeight > 0.01f)
-                Camera.main.transform.localPosition = new Vector3(0, simulatedHeadHeight, 0);
+            if (_cachedMainCam == null) _cachedMainCam = Camera.main;
+            if (_cachedMainCam != null && _cachedMainCam.transform.localPosition.y < 0.1f && simulatedHeadHeight > 0.01f)
+                _cachedMainCam.transform.localPosition = new Vector3(0, simulatedHeadHeight, 0);
 
             if (gameManager == null || !gameManager.isPlaying) return;
 
@@ -391,7 +396,7 @@ namespace OsuVR
         /// </summary>
         private Vector3 GetShoulderPos(AutoHand hand)
         {
-            Vector3 headPos = Camera.main ? Camera.main.transform.position : new Vector3(0, simulatedHeadHeight, 0);
+            Vector3 headPos = _cachedMainCam ? _cachedMainCam.transform.position : new Vector3(0, simulatedHeadHeight, 0);
             float sign = hand.controller.isRightHand ? 1f : -1f;
             return headPos + new Vector3(sign * 0.2f, -0.25f, 0.0f);
         }

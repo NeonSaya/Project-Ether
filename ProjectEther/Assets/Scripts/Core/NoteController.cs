@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Pool;
 
@@ -57,6 +58,8 @@ namespace OsuVR
         private static readonly int PropBaseColor = Shader.PropertyToID("_BaseColor");
         private static readonly int PropTintColor = Shader.PropertyToID("_TintColor");
         private static readonly int PropEmissionColor = Shader.PropertyToID("_EmissionColor");
+        // 缓存已克隆的材质，避免 .material 每次复用时泄漏新实例
+        private static readonly Dictionary<int, Material> _clonedMaterials = new Dictionary<int, Material>();
         // 添加一个变量来防止第一帧暴毙
         private bool isFirstFrame = true;
         private MeshRenderer bodyRenderer;
@@ -79,6 +82,19 @@ namespace OsuVR
 
         // 存池接口
         private IObjectPool<GameObject> myPool;
+
+        /// <summary>
+        /// 获取或创建材质实例（避免 .material 每次访问都克隆）
+        /// </summary>
+        private static Material GetOrCloneMaterial(Renderer r)
+        {
+            int id = r.GetInstanceID();
+            if (_clonedMaterials.TryGetValue(id, out var mat) && mat != null)
+                return mat;
+            mat = r.material; // 首次访问会克隆
+            _clonedMaterials[id] = mat;
+            return mat;
+        }
 
         // 光晕对象
         private GameObject haloObject;
@@ -310,8 +326,9 @@ namespace OsuVR
                 else if (objName.Contains("Overlay")) targetQueue = baseQueue + 6;
                 else if (objName.Contains("ApproachCircle")) targetQueue = baseQueue + 8;
 
-                r.material.renderQueue = targetQueue;
-                r.material.SetInt("_ZWrite", 0);
+                var mat = GetOrCloneMaterial(r);
+                mat.renderQueue = targetQueue;
+                mat.SetInt("_ZWrite", 0);
 
                 // Overlay 保持半透明白色，不应用 combo 颜色
                 if (objName.Contains("Overlay")) continue;
@@ -416,12 +433,13 @@ namespace OsuVR
                 // 清理可能由于 ObjectFadeIn 在上一轮生命周期残留的透明度数据
                 r.SetPropertyBlock(null);
                 
-                r.material.renderQueue = this.myRenderQueue;
+                var mat = GetOrCloneMaterial(r);
+                mat.renderQueue = this.myRenderQueue;
                 Color whiteGlow = new Color(2.5f, 2.5f, 2.5f, 0.75f);
-                if (r.material.HasProperty("_TintColor"))
-                    r.material.SetColor("_TintColor", whiteGlow);
+                if (mat.HasProperty("_TintColor"))
+                    mat.SetColor("_TintColor", whiteGlow);
                 else
-                    r.material.SetColor("_Color", whiteGlow);
+                    mat.SetColor("_Color", whiteGlow);
             }
         }
 
@@ -492,7 +510,7 @@ namespace OsuVR
                 approachCircle.localScale = new Vector3(currentScale, currentScale, 1f);
 
                 // [可选] 确保它朝向摄像机 (如果是 VR，这一步很重要，让圆圈始终正面朝你)
-                approachCircle.LookAt(Camera.main.transform);
+                approachCircle.LookAt(MainCamera.transform);
             }
         }
 

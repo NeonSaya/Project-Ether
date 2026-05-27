@@ -221,8 +221,7 @@ namespace OsuVR
             UpdateBeatTiming();
             UpdateAudioReactivity();
             UpdateBeatFlash();
-            UpdateParticleColors();
-            LimitInnerParticles();
+            UpdateParticles();
         }
 
         // =========================================================
@@ -496,7 +495,11 @@ namespace OsuVR
             }
         }
 
-        private void UpdateParticleColors()
+        /// <summary>
+        /// 合并 UpdateParticleColors + LimitInnerParticles 为单次遍历
+        /// 避免每帧两次 GetParticles + SetParticles
+        /// </summary>
+        private void UpdateParticles()
         {
             if (ps == null) return;
 
@@ -508,14 +511,16 @@ namespace OsuVR
             int count = ps.GetParticles(particleBuffer);
 
             bool shouldFlash = beatFlashIntensity > 0.1f;
+            float innerRadiusSq = innerRadius * innerRadius;
+            int innerCount = 0;
 
             for (int i = 0; i < count; i++)
             {
+                // --- 颜色更新 ---
                 uint seed = particleBuffer[i].randomSeed;
                 float hue = HashToFloat(seed);
                 hue = Mathf.Repeat(hue + currentHueOffset, 1f);
 
-                // 在 Kiai 时偏向暖色系
                 if (isKiaiActive)
                 {
                     float warmHue = Mathf.Lerp(hue, 0.08f + HashToFloat(seed + 3u) * 0.1f, 0.4f);
@@ -528,7 +533,6 @@ namespace OsuVR
                 Color rgbColor = Color.HSVToRGB(hue, saturation, value);
                 rgbColor.a = particleBuffer[i].startColor.a;
 
-                // 节拍闪烁：对 alpha 乘以闪烁系数
                 if (shouldFlash)
                 {
                     float flashFactor = 1f + beatFlashIntensity * 0.3f;
@@ -539,6 +543,17 @@ namespace OsuVR
                 }
 
                 particleBuffer[i].startColor = rgbColor;
+
+                // --- 内圈限制 ---
+                float distSq = particleBuffer[i].position.sqrMagnitude;
+                if (distSq < innerRadiusSq)
+                {
+                    innerCount++;
+                    if (innerCount > innerMaxParticles)
+                    {
+                        particleBuffer[i].remainingLifetime = 0f;
+                    }
+                }
             }
 
             ps.SetParticles(particleBuffer, count);
@@ -562,42 +577,6 @@ namespace OsuVR
             {
                 bufferCapacity = Mathf.Max(particleCount + 64, 256);
                 particleBuffer = new ParticleSystem.Particle[bufferCapacity];
-            }
-        }
-
-        private void LimitInnerParticles()
-        {
-            if (ps == null) return;
-
-            int particleCount = ps.particleCount;
-            if (particleCount == 0) return;
-
-            EnsureParticleBuffer(particleCount);
-
-            int count = ps.GetParticles(particleBuffer);
-
-            int innerCount = 0;
-            int killed = 0;
-
-            float innerRadiusSq = innerRadius * innerRadius;
-
-            for (int i = 0; i < count; i++)
-            {
-                float distSq = particleBuffer[i].position.sqrMagnitude;
-                if (distSq < innerRadiusSq)
-                {
-                    innerCount++;
-                    if (innerCount > innerMaxParticles)
-                    {
-                        particleBuffer[i].remainingLifetime = 0f;
-                        killed++;
-                    }
-                }
-            }
-
-            if (killed > 0)
-            {
-                ps.SetParticles(particleBuffer, count);
             }
         }
 
