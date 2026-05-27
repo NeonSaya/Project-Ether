@@ -39,9 +39,9 @@ namespace OsuVR
         private const float CanvasLocalZ = 1.5f;
         private const float CanvasScale = 0.0025f;
         private const int SortingOrder = 100;
-        private const float CanvasWidth = 600f;
-        private const float CanvasHeight = 450f;
-        private const float TabBarHeight = 50f;
+        private const float CanvasWidth = 660f;
+        private const float CanvasHeight = 495f;
+        private const float TabBarHeight = 55f;
 
         // ---- Prefab 精确颜色 ----
         private static readonly Color ContainerBgColor = new Color(0.05f, 0.05f, 0.08f, 0.85f);
@@ -162,8 +162,8 @@ namespace OsuVR
             tabBarRt.anchoredPosition = Vector2.zero;
 
             var tabHlg = tabBarGo.AddComponent<HorizontalLayoutGroup>();
-            tabHlg.padding = new RectOffset(25, 25, 8, 8);
-            tabHlg.spacing = 8f;
+            tabHlg.padding = new RectOffset(28, 28, 9, 9);
+            tabHlg.spacing = 9f;
             tabHlg.childAlignment = TextAnchor.LowerCenter;
             tabHlg.childControlWidth = true;
             tabHlg.childControlHeight = true;
@@ -188,8 +188,8 @@ namespace OsuVR
             var contentAreaRt = contentAreaGo.AddComponent<RectTransform>();
             contentAreaRt.anchorMin = Vector2.zero;
             contentAreaRt.anchorMax = Vector2.one;
-            contentAreaRt.sizeDelta = new Vector2(-50, -130);
-            contentAreaRt.anchoredPosition = new Vector2(0, 10);
+            contentAreaRt.sizeDelta = new Vector2(-55, -143);
+            contentAreaRt.anchoredPosition = new Vector2(0, 11);
 
             // 初始化 tempSettings
             tempSettings = SettingsManager.Instance.Settings.Clone();
@@ -225,8 +225,8 @@ namespace OsuVR
 
                 // Prefab: VLG padding(15,15,10,10), spacing=6, childAlignment=UpperCenter, childControlWidth=1
                 var vlg = panelGo.AddComponent<VerticalLayoutGroup>();
-                vlg.padding = new RectOffset(15, 15, 10, 10);
-                vlg.spacing = 6f;
+                vlg.padding = new RectOffset(16, 16, 11, 11);
+                vlg.spacing = 7f;
                 vlg.childAlignment = TextAnchor.UpperCenter;
                 vlg.childControlWidth = true;
                 vlg.childControlHeight = false;
@@ -254,11 +254,11 @@ namespace OsuVR
             bottomRt.anchorMin = new Vector2(0.5f, 0);
             bottomRt.anchorMax = new Vector2(0.5f, 0);
             bottomRt.pivot = new Vector2(0.5f, 0);
-            bottomRt.sizeDelta = new Vector2(400, 50);
+            bottomRt.sizeDelta = new Vector2(440, 55);
             bottomRt.anchoredPosition = new Vector2(0, 20);
 
             var bottomHlg = bottomGo.AddComponent<HorizontalLayoutGroup>();
-            bottomHlg.spacing = 40f;
+            bottomHlg.spacing = 44f;
             bottomHlg.childAlignment = TextAnchor.MiddleCenter;
             bottomHlg.childControlWidth = true;
             bottomHlg.childControlHeight = true;

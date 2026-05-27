@@ -8,6 +8,8 @@ using UnityEngine.EventSystems;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
 using OsuVR;
+using OsuVR.Storyboard;
+using OsuVR.Storyboard.Data;
 
 namespace OsuVR
 {
@@ -323,6 +325,9 @@ namespace OsuVR
             if (isGameEnded) yield break;
 
             isGameEnded = true;
+            // 隐藏全息幕布并释放 Storyboard + Video 渲染资源
+            HolographicScreenManager.Instance?.Hide();
+            StoryboardRenderer.Instance?.UnloadAll();
             // 注意：不设置 isPlaying = false，让音乐继续播放
 
             Debug.Log("[RhythmGame] 游戏结束！等待2秒后显示结算...");
@@ -575,6 +580,68 @@ namespace OsuVR
                 }
 
                 Debug.Log($"[RhythmGameManager] 谱面数据解析成功: {currentBeatmap.Metadata.Title}");
+
+                // --- 全息幕布：嗅探 → 解析 → 渲染 → 投影 ---
+                var mediaScan = MediaAssetScanner.Scan(currentBeatmap, absoluteOsuFilePath);
+                string beatmapFolder = Path.GetDirectoryName(absoluteOsuFilePath);
+
+                if (mediaScan.HasVideo || mediaScan.HasStoryboard || !string.IsNullOrEmpty(mediaScan.BackgroundPath))
+                {
+                    // 1. 搭建幕布 (始终加载背景图)
+                    HolographicScreenManager.Instance?.Setup(mediaScan, beatmapFolder);
+
+                    // 2. 故事板播放开关：开启时才解析和渲染 SB/视频
+                    bool sbPlaybackEnabled = SettingsManager.Instance == null
+                        || SettingsManager.Instance.Settings == null
+                        || SettingsManager.Instance.Settings.enableStoryboardPlayback;
+
+                    bool hasInlineSB = currentBeatmap.Events.StoryboardLines.Count > 0;
+                    bool hasOsbFile = !string.IsNullOrEmpty(mediaScan.OsbPath);
+                    SBStoryboard sbData = null;
+
+                    if (sbPlaybackEnabled && mediaScan.HasStoryboard)
+                    {
+                        // 优先加载 .osb 文件，其次加载内联 SB
+                        if (hasOsbFile)
+                            sbData = StoryboardParser.ParseFile(mediaScan.OsbPath);
+                        else if (hasInlineSB)
+                            sbData = StoryboardParser.Parse(currentBeatmap.Events.StoryboardLines);
+                    }
+
+                    var renderer = StoryboardRenderer.Instance;
+
+                    // 3. 三种复合模式加载
+                    if (renderer != null)
+                    {
+                        bool hasValidSB = sbData != null && sbData.TotalElementCount > 0;
+                        string videoPath = mediaScan.HasVideo ? mediaScan.VideoPath : null;
+
+                        if (hasValidSB && mediaScan.HasVideo)
+                        {
+                            // 复合模式: Video + Storyboard
+                            renderer.LoadVideoAndStoryboard(videoPath, mediaScan.VideoOffset, sbData, beatmapFolder);
+                        }
+                        else if (hasValidSB)
+                        {
+                            // 纯 Storyboard
+                            renderer.LoadStoryboard(sbData, beatmapFolder);
+                        }
+                        else if (mediaScan.HasVideo)
+                        {
+                            // 纯 Video
+                            renderer.LoadVideo(videoPath, mediaScan.VideoOffset);
+                        }
+
+                        // 4. 光纤对接：将 RenderTexture 注入幕布
+                        var rt = renderer.GetRenderTexture();
+                        if (rt != null)
+                            HolographicScreenManager.Instance?.SetRenderTexture(rt);
+                    }
+                }
+                else
+                {
+                    HolographicScreenManager.Instance?.Hide();
+                }
 
                 string folderPath = Path.GetDirectoryName(absoluteOsuFilePath);
                 string audioFileName = currentBeatmap.General.AudioFilename.Trim();

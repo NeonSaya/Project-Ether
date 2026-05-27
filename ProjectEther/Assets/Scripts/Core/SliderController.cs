@@ -1831,7 +1831,8 @@ namespace OsuVR
                         if (nestedObject.Type == SliderEventType.Tick) maxScore = 10;
                         else if (nestedObject.Type == SliderEventType.Repeat) maxScore = 30;
 
-                        gameManager.scoreManager.RegisterMiss(maxScore);
+                        // 按物件统计：滑条内部扣分不重复计 Miss，只扣分断连
+                        gameManager.scoreManager.RegisterMissScoreOnly(maxScore);
                     }
                 }
                 currentNestedIndex++;

@@ -78,6 +78,20 @@ namespace OsuVR
         [Tooltip("Display song names in original language (Unicode) instead of Romanized")]
         public bool displayOriginalLanguage = false;
 
+        [Tooltip("Enable background screen")]
+        public bool enableStoryboard = true;
+
+        [Tooltip("Enable storyboard/video playback (off = only show background image)")]
+        public bool enableStoryboardPlayback = true;
+
+        [Tooltip("Storyboard screen distance from player in meters")]
+        [Range(7.5f, 15f)]
+        public float storyboardScreenDistance = 12.5f;
+
+        [Tooltip("Storyboard screen opacity")]
+        [Range(0f, 1f)]
+        public float storyboardScreenAlpha = 0.5f;
+
         [Header("Editor Only")]
         [Tooltip("Reset to defaults on next load (Editor only)")]
         public bool resetToDefaults = false;
@@ -103,6 +117,10 @@ namespace OsuVR
             clone.controllerRotationOffset = this.controllerRotationOffset;
             clone.showAccuracy = this.showAccuracy;
             clone.displayOriginalLanguage = this.displayOriginalLanguage;
+            clone.enableStoryboard = this.enableStoryboard;
+            clone.enableStoryboardPlayback = this.enableStoryboardPlayback;
+            clone.storyboardScreenDistance = this.storyboardScreenDistance;
+            clone.storyboardScreenAlpha = this.storyboardScreenAlpha;
             return clone;
         }
 
@@ -127,6 +145,10 @@ namespace OsuVR
             controllerRotationOffset = other.controllerRotationOffset;
             showAccuracy = other.showAccuracy;
             displayOriginalLanguage = other.displayOriginalLanguage;
+            enableStoryboard = other.enableStoryboard;
+            enableStoryboardPlayback = other.enableStoryboardPlayback;
+            storyboardScreenDistance = other.storyboardScreenDistance;
+            storyboardScreenAlpha = other.storyboardScreenAlpha;
         }
 
         public void ResetToDefaults()
@@ -149,6 +171,10 @@ namespace OsuVR
             controllerRotationOffset = 0f;
             showAccuracy = true;
             displayOriginalLanguage = false;
+            enableStoryboard = true;
+            enableStoryboardPlayback = true;
+            storyboardScreenDistance = 12.5f;
+            storyboardScreenAlpha = 0.5f;
         }
     }
 }

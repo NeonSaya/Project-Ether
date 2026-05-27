@@ -302,6 +302,21 @@ namespace OsuVR
             ComputeScore();
         }
 
+        /// <summary>
+        /// 扣分但不增加 Miss 计数（用于滑条内部 Tick/Repeat/Tail 漏打）
+        /// 按物件统计：一个滑条只算 1 个 Miss（头部），内部扣分不重复计数
+        /// </summary>
+        public void RegisterMissScoreOnly(int maxScoreValue)
+        {
+            _totalHitsPerformed++;
+            _currentCombo = 0;
+
+            _currentBaseScore += 0;
+            _currentMaxBaseScore += maxScoreValue;
+
+            ComputeScore();
+        }
+
         public void RegisterHit(int scoreValue)
         {
             _totalHitsPerformed++;
