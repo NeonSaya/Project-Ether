@@ -97,6 +97,11 @@ namespace OsuVR
     {
         public string BackgroundFilename { get; set; }
         public List<BreakPeriod> Breaks { get; set; } = new List<BreakPeriod>();
+
+        // --- 视频 & 故事板 (全息幕布子系统) ---
+        public string VideoFilename { get; set; }
+        public int VideoOffset { get; set; }
+        public List<string> StoryboardLines { get; set; } = new List<string>();
     }
 
     public class BreakPeriod

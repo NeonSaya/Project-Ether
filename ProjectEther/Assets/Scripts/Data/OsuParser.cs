@@ -55,6 +55,13 @@ namespace OsuVR
                 string trim = line.Trim();
                 if (string.IsNullOrWhiteSpace(trim) || trim.StartsWith("//")) continue;
 
+                // Storyboard 子命令：以空格或下划线开头的行，归属 [Events] 段
+                if (section == Section.Events && (line.StartsWith(" ") || line.StartsWith("_")))
+                {
+                    beatmap.Events.StoryboardLines.Add(line);
+                    continue;
+                }
+
                 // 解析文件版本号 (通常在第一行: osu file format v14)
                 if (trim.StartsWith("osu file format v"))
                 {
@@ -563,7 +570,7 @@ namespace OsuVR
             }
         }
 
-        // 解析 [Events] (主要是背景图和休息时间)
+        // 解析 [Events] (背景图、休息时间、视频、故事板)
         private static void ParseEvents(string line, Beatmap beatmap)
         {
             var parts = line.Split(',');
@@ -575,6 +582,14 @@ namespace OsuVR
                 string filename = parts[2].Trim('"');
                 beatmap.Events.BackgroundFilename = filename;
             }
+            // 视频事件: 1,0,"video.mp4",offset
+            else if (parts[0] == "1")
+            {
+                string filename = parts[2].Trim('"');
+                int offset = parts.Length > 3 && int.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out int off) ? off : 0;
+                beatmap.Events.VideoFilename = filename;
+                beatmap.Events.VideoOffset = offset;
+            }
             // 休息时间: 2,Start,End 或 Break,Start,End
             else if (parts[0] == "2" || parts[0] == "Break")
             {
@@ -583,6 +598,11 @@ namespace OsuVR
                 {
                     beatmap.Events.Breaks.Add(new BreakPeriod(start, end));
                 }
+            }
+            // 故事板主对象: Sprite(4), Animation(5), Sample(6)
+            else if (parts[0] == "4" || parts[0] == "5" || parts[0] == "6")
+            {
+                beatmap.Events.StoryboardLines.Add(line);
             }
         }
 

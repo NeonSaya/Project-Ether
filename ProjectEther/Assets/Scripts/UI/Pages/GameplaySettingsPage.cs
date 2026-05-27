@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using OsuVR.Storyboard;
 
 namespace OsuVR
 {
@@ -16,6 +17,11 @@ namespace OsuVR
         private Slider hapticIntensitySlider;
         private Toggle displayOriginalLanguageToggle;
         private TMP_Dropdown languageDropdown;
+
+        private Toggle enableStoryboardToggle;
+        private Toggle enableStoryboardPlaybackToggle;
+        private Slider storyboardDistanceSlider;
+        private Slider storyboardAlphaSlider;
 
         private const string PercentFormat = "{0:F0}%";
 
@@ -48,6 +54,58 @@ namespace OsuVR
                     PlayClickSound();
                 });
 
+            // --- 背景板设置 ---
+
+            // 背景板总开关
+            enableStoryboardToggle = CreateToggle(parent,
+                "Background Screen", "ui_enable_storyboard",
+                tempSettings.enableStoryboard,
+                v =>
+                {
+                    tempSettings.enableStoryboard = v;
+                    SettingsManager.Instance.Settings.enableStoryboard = v;
+                    SettingsManager.Instance.SaveSettings();
+                    HolographicScreenManager.Instance?.OnSettingsChanged();
+                    PlayClickSound();
+                });
+
+            // 故事板播放开关 (关闭后仅显示背景图)
+            enableStoryboardPlaybackToggle = CreateToggle(parent,
+                "Storyboard Playback", "ui_enable_storyboard_playback",
+                tempSettings.enableStoryboardPlayback,
+                v =>
+                {
+                    tempSettings.enableStoryboardPlayback = v;
+                    SettingsManager.Instance.Settings.enableStoryboardPlayback = v;
+                    SettingsManager.Instance.SaveSettings();
+                    HolographicScreenManager.Instance?.OnSettingsChanged();
+                    PlayClickSound();
+                });
+
+            // 屏幕距离
+            storyboardDistanceSlider = CreateSlider(parent, "Screen Distance", "ui_storyboard_distance",
+                7.5f, 15f, tempSettings.storyboardScreenDistance, "{0:F1}m",
+                v =>
+                {
+                    tempSettings.storyboardScreenDistance = v;
+                    SettingsManager.Instance.Settings.storyboardScreenDistance = v;
+                    SettingsManager.Instance.SaveSettings();
+                    HolographicScreenManager.Instance?.OnSettingsChanged();
+                });
+
+            // 屏幕透明度
+            storyboardAlphaSlider = CreateSlider(parent, "Screen Opacity", "ui_storyboard_alpha",
+                0f, 1f, tempSettings.storyboardScreenAlpha, PercentFormat,
+                v =>
+                {
+                    tempSettings.storyboardScreenAlpha = v;
+                    SettingsManager.Instance.Settings.storyboardScreenAlpha = v;
+                    SettingsManager.Instance.SaveSettings();
+                    HolographicScreenManager.Instance?.OnSettingsChanged();
+                }, valueScale: 100f);
+
+            // --- Haptics 设置 ---
+
             // Haptic intensity slider
             hapticIntensitySlider = CreateSlider(parent, "Haptic Intensity", "ui_haptic_intensity",
                 0f, 1f, tempSettings.hapticIntensity, PercentFormat,
@@ -72,6 +130,10 @@ namespace OsuVR
         {
             SetDropdownValueWithoutNotify(languageDropdown, LocalizationManager.GetCurrentLanguageIndex());
             SetToggleValueWithoutNotify(displayOriginalLanguageToggle, tempSettings.displayOriginalLanguage);
+            SetToggleValueWithoutNotify(enableStoryboardToggle, tempSettings.enableStoryboard);
+            SetToggleValueWithoutNotify(enableStoryboardPlaybackToggle, tempSettings.enableStoryboardPlayback);
+            SetSliderValueWithoutNotify(storyboardDistanceSlider, tempSettings.storyboardScreenDistance, "{0:F1}m");
+            SetSliderValueWithoutNotify(storyboardAlphaSlider, tempSettings.storyboardScreenAlpha, PercentFormat, 100f);
             SetSliderValueWithoutNotify(hapticIntensitySlider, tempSettings.hapticIntensity, PercentFormat, 100f);
             SetToggleValueWithoutNotify(hapticsToggle, tempSettings.enableHaptics);
         }
