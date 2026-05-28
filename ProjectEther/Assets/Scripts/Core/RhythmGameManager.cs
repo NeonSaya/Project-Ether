@@ -601,14 +601,40 @@ namespace OsuVR
 
                     if (sbPlaybackEnabled && mediaScan.HasStoryboard)
                     {
-                        // 优先加载 .osb 文件，其次加载内联 SB
+                        // 分别解析 .osb 和 .osu 内联 SB，然后合并
+                        SBStoryboard osbData = null;
+                        SBStoryboard inlineData = null;
+
                         if (hasOsbFile)
-                            sbData = StoryboardParser.ParseFile(mediaScan.OsbPath);
-                        else if (hasInlineSB)
-                            sbData = StoryboardParser.Parse(currentBeatmap.Events.StoryboardLines);
+                        {
+                            osbData = StoryboardParser.ParseFile(mediaScan.OsbPath);
+                            SBDebugLog.Log($"[RhythmGame] .osb 解析完成: {osbData?.TotalElementCount ?? 0} 元素, inline SB 行数={currentBeatmap.Events.StoryboardLines.Count}");
+                        }
+
+                        if (hasInlineSB)
+                            inlineData = StoryboardParser.Parse(
+                                currentBeatmap.Events.StoryboardLines,
+                                currentBeatmap.Events.Variables);
+
+                        // 合并: .osb 为共享素材，.osu 为难度专属
+                        if (osbData != null && inlineData != null)
+                        {
+                            sbData = osbData;
+                            for (int i = 0; i < 5; i++)
+                            {
+                                foreach (var elem in inlineData.Layers[i])
+                                    sbData.Layers[i].Add(elem);
+                            }
+                            SBDebugLog.Log($"[RhythmGame] 合并后: {sbData.TotalElementCount} 元素 (.osb={osbData.TotalElementCount}, inline={inlineData.TotalElementCount})");
+                        }
+                        else
+                        {
+                            sbData = osbData ?? inlineData;
+                        }
                     }
 
                     var renderer = StoryboardRenderer.Instance;
+                    bool widescreen = currentBeatmap.General.WidescreenStoryboard;
 
                     // 3. 三种复合模式加载
                     if (renderer != null)
@@ -619,12 +645,12 @@ namespace OsuVR
                         if (hasValidSB && mediaScan.HasVideo)
                         {
                             // 复合模式: Video + Storyboard
-                            renderer.LoadVideoAndStoryboard(videoPath, mediaScan.VideoOffset, sbData, beatmapFolder);
+                            renderer.LoadVideoAndStoryboard(videoPath, mediaScan.VideoOffset, sbData, beatmapFolder, widescreen);
                         }
                         else if (hasValidSB)
                         {
                             // 纯 Storyboard
-                            renderer.LoadStoryboard(sbData, beatmapFolder);
+                            renderer.LoadStoryboard(sbData, beatmapFolder, widescreen);
                         }
                         else if (mediaScan.HasVideo)
                         {
@@ -1706,6 +1732,10 @@ namespace OsuVR
         /// </summary>
         void OnDestroy()
         {
+            // 隐藏全息幕布并释放 Storyboard 渲染资源
+            HolographicScreenManager.Instance?.Hide();
+            StoryboardRenderer.Instance?.UnloadAll();
+
             // 清理Cancel输入动作
             if (cancelInputAction != null)
             {

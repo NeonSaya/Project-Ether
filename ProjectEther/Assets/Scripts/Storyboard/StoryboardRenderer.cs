@@ -22,7 +22,7 @@ namespace OsuVR.Storyboard
     {
         public static StoryboardRenderer Instance { get; private set; }
 
-        // ---- osu! 标准画布 (4:3) ----
+        // ---- osu! 标准画布 (始终 640x480，宽屏只扩展可视区域) ----
         const int CanvasWidth = 640;
         const int CanvasHeight = 480;
         const int RT_Width = 1920;
@@ -91,7 +91,8 @@ namespace OsuVR.Storyboard
         ComputeBuffer additiveBuffer;
 
         // ---- 共享资源 ----
-        Material sbMaterial;
+        Material sbMaterialAlpha;
+        Material sbMaterialAdditive;
         Mesh quadMesh;
         MaterialPropertyBlock videoMPB;
 
@@ -112,7 +113,7 @@ namespace OsuVR.Storyboard
             new Vector2( 0.5f,  0.5f),  // [3] TopRight
             new Vector2( 0.0f, -0.5f),  // [4] BottomCentre
             new Vector2( 0.0f,  0.5f),  // [5] TopCentre
-            new Vector2( 0.0f,  0.0f),  // [6] Custom → fallback to Centre
+            new Vector2(-0.5f,  0.5f),  // [6] Custom → fallback to TopLeft (matches osu!lazer)
             new Vector2( 0.5f,  0.0f),  // [7] CentreRight
             new Vector2(-0.5f, -0.5f),  // [8] BottomLeft
             new Vector2( 0.5f, -0.5f),  // [9] BottomRight
@@ -153,7 +154,7 @@ namespace OsuVR.Storyboard
         //  公开 API
         // =========================================================
 
-        public void LoadStoryboard(SBStoryboard storyboard, string beatmapFolder)
+        public void LoadStoryboard(SBStoryboard storyboard, string beatmapFolder, bool widescreen = false)
         {
             UnloadStoryboard();
 
@@ -163,11 +164,16 @@ namespace OsuVR.Storyboard
                 return;
             }
 
+            SBDebugLog.Begin();
+            SBDebugLog.Mem("LoadStoryboard 开始");
+            SBDebugLog.Log($"元素数={storyboard.TotalElementCount}");
+
             EnsureCameraSetup();
             currentBeatmapFolder = beatmapFolder;
 
             // 打包纹理到 Texture2DArray
             BuildTextureArray(storyboard, beatmapFolder);
+            SBDebugLog.Mem("纹理打包完成");
 
             // 创建 SB 材质 (使用自定义 instanced shader)
             EnsureSBMaterial();
@@ -175,12 +181,14 @@ namespace OsuVR.Storyboard
             // 启动引擎
             osbPlayer = new SBOsbPlayer();
             osbPlayer.LoadStoryboard(storyboard);
+            SBDebugLog.Mem("引擎加载完成");
 
             // 缓存非动画精灵的纹理索引 (避免每帧 Dictionary 查找)
             CacheTextureIndices();
 
             isRendering = true;
-            Debug.Log($"[SBRenderer] 已加载 Storyboard: {storyboard.TotalElementCount} 个元素, 纹理数组 {textureArray.depth} 层");
+            SBDebugLog.Log($"[SBRenderer] 加载完成: {storyboard.TotalElementCount} 元素, {textureArray.depth} 纹理层");
+            SBDebugLog.End();
         }
 
         public void LoadVideo(string videoPath, int videoOffset)
@@ -198,9 +206,9 @@ namespace OsuVR.Storyboard
         }
 
         public void LoadVideoAndStoryboard(string videoPath, int videoOffset,
-            SBStoryboard storyboard, string beatmapFolder)
+            SBStoryboard storyboard, string beatmapFolder, bool widescreen = false)
         {
-            LoadStoryboard(storyboard, beatmapFolder);
+            LoadStoryboard(storyboard, beatmapFolder, widescreen);
             LoadVideo(videoPath, videoOffset);
         }
 
@@ -216,7 +224,8 @@ namespace OsuVR.Storyboard
             textureIndexMap?.Clear();
 
             // 释放 SB 材质
-            if (sbMaterial != null) { Destroy(sbMaterial); sbMaterial = null; }
+            if (sbMaterialAlpha != null) { Destroy(sbMaterialAlpha); sbMaterialAlpha = null; }
+            if (sbMaterialAdditive != null) { Destroy(sbMaterialAdditive); sbMaterialAdditive = null; }
         }
 
         public void UnloadVideo()
@@ -268,7 +277,7 @@ namespace OsuVR.Storyboard
                 DrawVideoQuad();
 
             // 4. GPU 实例化绘制 SB 精灵 (z=0, 覆盖在视频上方)
-            if (osbPlayer != null && sbMaterial != null && textureArray != null)
+            if (osbPlayer != null && sbMaterialAlpha != null && textureArray != null)
                 DrawStoryboardInstances(musicTime);
 
             // 注意: 不要调用 Camera.Render()！
@@ -295,8 +304,10 @@ namespace OsuVR.Storyboard
                 {
                     var state = sprite.State;
 
-                    // 可见性裁剪
-                    if (state.Alpha > 0.001f)
+                    // 可见性裁剪 + alpha flicker (osu! stable 行为: alpha > 1 时取模)
+                    float alpha = state.Alpha;
+                    if (alpha > 1f) alpha = alpha % 1f;
+                    if (alpha > 0.001f)
                     {
                         // 纹理索引: 优先使用缓存，动画才走 Dictionary
                         int texIndex = sprite.CachedTexIndex;
@@ -311,12 +322,12 @@ namespace OsuVR.Storyboard
                             var instance = new SpriteInstanceData
                             {
                                 objectToWorld = matrix,
-                                color = new Vector4(state.R, state.G, state.B, state.Alpha),
+                                color = new Vector4(state.R, state.G, state.B, alpha),
                                 params0 = new Vector4(
                                     texIndex,
                                     state.Additive ? 1f : 0f,
-                                    state.FlipH ? 1f : 0f,
-                                    state.FlipV ? 1f : 0f),
+                                    (state.FlipH ^ (state.ScaleX < 0)) ? 1f : 0f,
+                                    (state.FlipV ^ (state.ScaleY < 0)) ? 1f : 0f),
                             };
 
                             if (state.Additive)
@@ -342,18 +353,18 @@ namespace OsuVR.Storyboard
             if (alphaCount > 0)
             {
                 alphaBuffer.SetData(alphaData, 0, 0, alphaCount);
-                sbMaterial.SetBuffer("_InstanceData", alphaBuffer);
-                sbMaterial.SetTexture("_MainTexArray", textureArray);
-                Graphics.DrawMeshInstancedProcedural(quadMesh, 0, sbMaterial, bounds, alphaCount,
+                sbMaterialAlpha.SetBuffer("_InstanceData", alphaBuffer);
+                sbMaterialAlpha.SetTexture("_MainTexArray", textureArray);
+                Graphics.DrawMeshInstancedProcedural(quadMesh, 0, sbMaterialAlpha, bounds, alphaCount,
                     null, ShadowCastingMode.Off, false, storyboardLayer, null);
             }
 
             if (additiveCount > 0)
             {
                 additiveBuffer.SetData(additiveData, 0, 0, additiveCount);
-                sbMaterial.SetBuffer("_InstanceData", additiveBuffer);
-                sbMaterial.SetTexture("_MainTexArray", textureArray);
-                Graphics.DrawMeshInstancedProcedural(quadMesh, 1, sbMaterial, bounds, additiveCount,
+                sbMaterialAdditive.SetBuffer("_InstanceData", additiveBuffer);
+                sbMaterialAdditive.SetTexture("_MainTexArray", textureArray);
+                Graphics.DrawMeshInstancedProcedural(quadMesh, 0, sbMaterialAdditive, bounds, additiveCount,
                     null, ShadowCastingMode.Off, false, storyboardLayer, null);
             }
         }
@@ -375,8 +386,9 @@ namespace OsuVR.Storyboard
             if ((uint)originIdx >= (uint)OriginOffsets.Length) originIdx = 1;
             Vector2 pivot = OriginOffsets[originIdx];
 
-            if (state.FlipH) pivot.x = -pivot.x;
-            if (state.FlipV) pivot.y = -pivot.y;
+            // osu!lazer: AdjustOrigin — flip XOR negative scale
+            if (state.FlipH ^ (state.ScaleX < 0)) pivot.x = -pivot.x;
+            if (state.FlipV ^ (state.ScaleY < 0)) pivot.y = -pivot.y;
 
             Matrix4x4 m = Matrix4x4.identity;
 
@@ -584,6 +596,8 @@ namespace OsuVR.Storyboard
                 return;
             }
 
+            SBDebugLog.Log($"[BuildTextureArray] {paths.Count} 纹理待加载");
+
             // 加载所有纹理并找到最大尺寸
             var textures = new Texture2D[paths.Count];
             int maxWidth = 0, maxHeight = 0;
@@ -595,6 +609,8 @@ namespace OsuVR.Storyboard
                 if (textures[i].height > maxHeight) maxHeight = textures[i].height;
             }
 
+            SBDebugLog.Mem($"纹理加载完成: max={maxWidth}x{maxHeight}");
+
             // 限制最大尺寸 (节省显存)
             maxWidth = Mathf.Min(maxWidth, 2048);
             maxHeight = Mathf.Min(maxHeight, 2048);
@@ -604,6 +620,7 @@ namespace OsuVR.Storyboard
                 TextureFormat.RGBA32, true, false);
             textureArray.filterMode = FilterMode.Bilinear;
             textureArray.wrapMode = TextureWrapMode.Clamp;
+            SBDebugLog.Mem($"Texture2DArray 创建: {maxWidth}x{maxHeight}x{paths.Count}");
 
             // 逐层复制纹理数据 (使用 SetPixels 而非 CopyTexture, 更可靠)
             var tempRT = RenderTexture.GetTemporary(maxWidth, maxHeight, 0, RenderTextureFormat.ARGB32);
@@ -634,6 +651,7 @@ namespace OsuVR.Storyboard
             Debug.Log($"[SBRenderer] 纹理数组验证: layer[0] {(allBlack ? "全黑!" : "有内容")} ({verifyPixels.Length} 像素)");
 
             textureArray.Apply(true, true); // 生成 mipmap, 释放 CPU 副本
+            SBDebugLog.Mem("Texture2DArray.Apply 完成");
 
             RenderTexture.active = prevRT;
             RenderTexture.ReleaseTemporary(tempRT);
@@ -653,6 +671,7 @@ namespace OsuVR.Storyboard
                 if (textures[i] != null && textures[i] != whitePixel)
                     Destroy(textures[i]);
             }
+            SBDebugLog.Mem("源纹理释放完成");
 
             Debug.Log($"[SBRenderer] 纹理数组打包完成: {paths.Count} 层, {maxWidth}x{maxHeight}");
             for (int i = 0; i < paths.Count; i++)
@@ -722,7 +741,7 @@ namespace OsuVR.Storyboard
 
         void EnsureSBMaterial()
         {
-            if (sbMaterial != null) return;
+            if (sbMaterialAlpha != null) return;
 
             var shader = Shader.Find("OsuVR/SBInstanced");
             if (shader == null)
@@ -730,9 +749,18 @@ namespace OsuVR.Storyboard
                 Debug.LogError("[SBRenderer] 找不到 Shader 'OsuVR/SBInstanced'!");
                 return;
             }
-            sbMaterial = new Material(shader);
-            sbMaterial.enableInstancing = true;
-            Debug.Log($"[SBRenderer] 材质创建成功: shader={shader.name}, isSupported={shader.isSupported}, enableInstancing={sbMaterial.enableInstancing}");
+
+            // Alpha blend material (Pass 0)
+            sbMaterialAlpha = new Material(shader);
+            sbMaterialAlpha.enableInstancing = true;
+            sbMaterialAlpha.SetShaderPassEnabled("SB_Additive", false);
+
+            // Additive material (Pass 1)
+            sbMaterialAdditive = new Material(shader);
+            sbMaterialAdditive.enableInstancing = true;
+            sbMaterialAdditive.SetShaderPassEnabled("SB_AlphaBlend", false);
+
+            Debug.Log($"[SBRenderer] 材质创建成功: shader={shader.name}");
         }
 
         Mesh EnsureQuadMesh()

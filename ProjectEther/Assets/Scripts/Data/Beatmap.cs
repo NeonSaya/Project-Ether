@@ -67,6 +67,7 @@ namespace OsuVR
         public float StackLeniency { get; set; } = 0.7f;
         public int Mode { get; set; }
         public bool LetterboxInBreaks { get; set; }
+        public bool WidescreenStoryboard { get; set; }
     }
 
     public class MetadataSection
@@ -102,6 +103,9 @@ namespace OsuVR
         public string VideoFilename { get; set; }
         public int VideoOffset { get; set; }
         public List<string> StoryboardLines { get; set; } = new List<string>();
+
+        // --- Storyboard 变量 ([Variables] 段) ---
+        public Dictionary<string, string> Variables { get; set; } = new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase);
     }
 
     public class BreakPeriod

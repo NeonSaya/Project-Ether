@@ -226,6 +226,22 @@ namespace OsuVR.Storyboard.Engine
                     cmd.StartColor, cmd.EndColor));
             }
 
+            // Parameter → Bool (P,H → FlipH; P,V → FlipV; P,A → BlendingMode)
+            for (int i = 0; i < loop.ParameterCommands.Count; i++)
+            {
+                var cmd = loop.ParameterCommands[i];
+                SBCommandTarget target;
+                switch (cmd.Parameter)
+                {
+                    case "H": target = SBCommandTarget.FlipH; break;
+                    case "V": target = SBCommandTarget.FlipV; break;
+                    case "A": target = SBCommandTarget.BlendingMode; break;
+                    default: continue;
+                }
+                group.Commands.Add(new SBBoolCommand(
+                    target, cmd.Easing, cmd.StartTime, cmd.EndTime, true, false));
+            }
+
             return group;
         }
     }

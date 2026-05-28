@@ -1,4 +1,5 @@
 using UnityEngine;
+using OsuVR.Storyboard;
 using OsuVR.Storyboard.Data;
 
 namespace OsuVR.Storyboard.Engine
@@ -36,11 +37,23 @@ namespace OsuVR.Storyboard.Engine
                     continue;
                 }
 
+                // 统计每层的命令数（含循环展开前）
+                int loopCount = 0;
+                int cmdCount = 0;
+                foreach (var elem in elements)
+                {
+                    cmdCount += elem.FadeCommands.Count + elem.MoveCommands.Count
+                        + elem.MoveXCommands.Count + elem.MoveYCommands.Count
+                        + elem.ScaleCommands.Count + elem.ScaleVectorCommands.Count
+                        + elem.RotateCommands.Count + elem.ColorCommands.Count
+                        + elem.ParameterCommands.Count;
+                    loopCount += elem.Loops.Count;
+                }
+                SBDebugLog.Log($"[OsbPlayer] Layer {i}: {elements.Count} sprites, {cmdCount} direct cmds, {loopCount} loops");
+
                 var layer = new SBPlayingLayer();
                 layer.LoadSprites(elements, SBCommandGroupBuilder.Build);
                 _layers[i] = layer;
-
-                Debug.Log($"[OsbPlayer] Layer {i} loaded: {elements.Count} sprites");
             }
         }
 

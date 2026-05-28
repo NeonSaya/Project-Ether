@@ -38,7 +38,8 @@ namespace OsuVR
             Events,
             TimingPoints,
             Colours,
-            HitObjects
+            HitObjects,
+            Variables
         }
 
         // 完整解析入口：读取文件并分发到各个解析方法
@@ -103,6 +104,9 @@ namespace OsuVR
                             break;
                         case Section.Events:
                             ParseEvents(trim, beatmap);
+                            break;
+                        case Section.Variables:
+                            ParseVariable(trim, beatmap.Events.Variables);
                             break;
                         case Section.TimingPoints:
                             ParseTimingPoints(trim, beatmap.ControlPoints);
@@ -532,7 +536,19 @@ namespace OsuVR
                 case "PreviewTime": int.TryParse(value, NumberStyles.Integer, Inv, out int preview); general.PreviewTime = preview; break;
                 case "Mode": int.TryParse(value, NumberStyles.Integer, Inv, out int mode); general.Mode = mode; break;
                 case "StackLeniency": float.TryParse(value, NumberStyles.Float, Inv, out float stack); general.StackLeniency = stack; break;
+                case "WidescreenStoryboard": general.WidescreenStoryboard = value == "1"; break;
             }
+        }
+
+        // 解析 [Variables] ($key=value)
+        private static void ParseVariable(string line, Dictionary<string, string> variables)
+        {
+            if (string.IsNullOrEmpty(line) || !line.StartsWith("$")) return;
+            int eqIndex = line.IndexOf('=');
+            if (eqIndex < 0) return;
+            string key = line.Substring(0, eqIndex).Trim();
+            string value = line.Substring(eqIndex + 1).Trim();
+            variables[key] = value;
         }
 
         // 解析 [Metadata]

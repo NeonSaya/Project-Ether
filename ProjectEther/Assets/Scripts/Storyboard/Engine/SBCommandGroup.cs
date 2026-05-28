@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using OsuVR.Storyboard;
 
 namespace OsuVR.Storyboard.Engine
 {
@@ -61,20 +62,15 @@ namespace OsuVR.Storyboard.Engine
         }
 
         /// <summary>
-        /// 将所有 SBLoopCommand 展开为偏移后的普通命令
-        /// 递归处理嵌套 Loop
+        /// 递归展平内层嵌套 Loop，但保留 SBLoopCommand 本身（运行时动态评估）
         /// </summary>
         public void ToFlatGroup()
         {
-            var expanded = new List<SBSpriteCommand>(Commands.Count);
             for (int i = 0; i < Commands.Count; i++)
             {
                 if (Commands[i] is SBLoopCommand loop)
-                    ExpandLoop(expanded, loop);
-                else
-                    expanded.Add(Commands[i]);
+                    loop.InnerGroup.ToFlatGroup();
             }
-            Commands = expanded;
             InvalidateCache();
         }
 
@@ -82,28 +78,6 @@ namespace OsuVR.Storyboard.Engine
         {
             Commands.Clear();
             InvalidateCache();
-        }
-
-        void ExpandLoop(List<SBSpriteCommand> target, SBLoopCommand loop)
-        {
-            // 递归展开内层 Loop
-            loop.InnerGroup.ToFlatGroup();
-
-            var inner = loop.InnerGroup;
-            if (inner.Commands.Count == 0) return;
-
-            double innerStart = inner.StartTime();
-            double innerEnd = inner.EndTime();
-            double loopLength = innerEnd - innerStart;
-            if (loopLength <= 0) return;
-
-            double loopTime = loop.StartTime;
-            for (int i = 0; i < loop.LoopCount; i++)
-            {
-                for (int j = 0; j < inner.Commands.Count; j++)
-                    target.Add(inner.Commands[j].CreateOffsetCommand(loopTime));
-                loopTime += loopLength;
-            }
         }
 
         void InvalidateCache()
