@@ -96,7 +96,7 @@ namespace OsuVR
                 {"ui_enable_storyboard", new[] {"Background Screen", "背景板", "背景スクリーン"}},
                 {"ui_enable_storyboard_playback", new[] {"Storyboard Playback", "故事板", "ストーリーボード"}},
                 {"ui_storyboard_distance", new[] {"Screen Distance", "屏幕距离", "スクリーン距離"}},
-                {"ui_storyboard_alpha", new[] {"Screen Opacity", "屏幕透明度", "スクリーン透明度"}},
+                {"ui_storyboard_alpha", new[] {"Screen Opacity", "屏幕不透明度", "スクリーン不透明度"}},
                 {"ui_left_controller_z_offset", new[] {"Left Controller Z Offset", "左手控制器Z轴偏移", "左コントローラーZオフセット"}},
                 {"ui_right_controller_z_offset", new[] {"Right Controller Z Offset", "右手控制器Z轴偏移", "右コントローラーZオフセット"}},
                 {"ui_left_controller_y_offset", new[] {"Left Controller Y Offset", "左手控制器Y轴偏移", "左コントローラーYオフセット"}},

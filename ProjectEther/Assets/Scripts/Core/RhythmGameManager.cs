@@ -136,6 +136,8 @@ namespace OsuVR
         private Dictionary<HitObject, GameObject> activeNoteObjects = new Dictionary<HitObject, GameObject>();
 
         private double bufferStartDspTime = 0;
+        /// <summary>是否处于缓冲期（音乐尚未开始但已启动游戏）</summary>
+        public bool isBufferPhase => !isPlaying && bufferStartDspTime > 0;
         private int currentRenderBaseline = 0;
 
         private ModEffectsApplier modEffects;
@@ -286,8 +288,8 @@ namespace OsuVR
                 UpdateCountdown();
             }
 
-            // 如果游戏进行中，生成音符
-            if (isPlaying)
+            // 游戏进行中或缓冲期内都要生成音符（缓冲期生成早期音符的缩圈）
+            if (isPlaying || (bufferStartDspTime > 0))
             {
                 SpawnNotes();
                 CheckGameEnd();
@@ -304,6 +306,7 @@ namespace OsuVR
         private void CheckGameEnd()
         {
             if (isGameEnded) return;
+            if (!isPlaying) return; // 缓冲期内不检查游戏结束
 
             // 所有音符已生成且已判定 = 游戏结束
             // 不需要等歌曲播放完毕，打完最后一个note就结算
@@ -388,8 +391,9 @@ namespace OsuVR
                     double currentDspTime = AudioSettings.dspTime;
                     double elapsedBufferTime = currentDspTime - bufferStartDspTime;
 
-                    // 修复: 倒计时等待阶段，spawnOffset的真实等待时间也受变速影响
-                    countdownTime = preparationTime + ((spawnOffsetMs / 1000.0) / speedMultiplier) - elapsedBufferTime;
+                    // 倒计时 = 缓冲总时长(2倍准备时间 + spawnOffset) - 已过时间
+                    double bufferDuration = System.Math.Max(preparationTime * 2.0, 1.0) + ((spawnOffsetMs / 1000.0) / speedMultiplier);
+                    countdownTime = bufferDuration - elapsedBufferTime;
 
                     // 修复: 乘上 speedMultiplier 让游戏时间与加速的音乐匹配
                     // 同时应用固有延迟补偿和用户偏移
@@ -485,7 +489,8 @@ namespace OsuVR
             // 这样音乐会在准备时间 + spawnOffset秒后开始播放
             double currentDspTime = AudioSettings.dspTime;
 
-            double startTimeBuffer = System.Math.Max(preparationTime, 0.5);
+            // 缓冲时间 = 2倍准备时间，确保早期音符的缩圈有足够可见时间
+            double startTimeBuffer = System.Math.Max(preparationTime * 2.0, 1.0);
             dspStartTime = currentDspTime + startTimeBuffer;
 
             // 记录缓冲期开始时间（用于倒计时）
@@ -511,6 +516,13 @@ namespace OsuVR
 
             // 清理现有的音符（确保开始前没有残留音符）
             ClearAllNotes();
+
+            // 缓冲期就启用 AutoPlay，让手柄提前 1s+ 移动到首个音符位置
+            if (useAutoPlay && autoPlayManager != null)
+            {
+                autoPlayManager.enabled = true;
+                Debug.Log("<color=cyan>[AutoPlay] AI 已接管控制权（缓冲期）</color>");
+            }
         }
 
         /// <summary>
@@ -877,13 +889,13 @@ namespace OsuVR
             isPlaying = true;
             bufferStartDspTime = 0; // 清除缓冲期开始时间
 
-            // 重置下一个音符索引
-            nextNoteIndex = 0;
+            // 注意: 不重置 nextNoteIndex！缓冲期已正确推进了它。
+            // 重置会导致早期生成的音符被重复生成并被误判为 miss。
 
+            // AutoPlay 在缓冲期就启用，让手柄提前移动到首个音符位置
             if (useAutoPlay && autoPlayManager != null)
             {
                 autoPlayManager.enabled = true;
-                Debug.Log("<color=cyan>[AutoPlay] AI 已接管控制权</color>");
             }
 
             Debug.Log($"游戏正式开始，总音符数: {totalNotes}");
@@ -901,8 +913,8 @@ namespace OsuVR
             isGameEnded = false;
             pauseStartDspTime = 0;
 
-            // 修复：除以 speedMultiplier
-            countdownTime = preparationTime + ((spawnOffsetMs / 1000.0) / speedMultiplier);
+            // 倒计时 = 缓冲总时长(2倍准备时间 + spawnOffset)
+            countdownTime = System.Math.Max(preparationTime * 2.0, 1.0) + ((spawnOffsetMs / 1000.0) / speedMultiplier);
 
             spawnedNotes = 0;
             activeNotes = 0;
