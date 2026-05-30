@@ -117,6 +117,11 @@ namespace OsuVR.Storyboard
         }
 
         /// <summary>
+        /// 获取已加载的背景图纹理 (供 StoryboardRenderer 注册为 sprite)
+        /// </summary>
+        public Texture2D GetBackgroundTexture() => backgroundTexture;
+
+        /// <summary>
         /// 恢复为静态背景图纹理
         /// </summary>
         public void RestoreBackgroundTexture()

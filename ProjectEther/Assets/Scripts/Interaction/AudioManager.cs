@@ -387,8 +387,12 @@ namespace OsuVR
 
         private void PlayOneShot(AudioClip clip, float vol)
         {
-            // 找一个空闲的 AudioSource，如果找不到就创建新的
-            var src = oneShotPool.Find(s => !s.isPlaying);
+            // 找一个空闲的 AudioSource（for 循环替代 Lambda，消除 GC 分配）
+            AudioSource src = null;
+            for (int i = 0; i < oneShotPool.Count; i++)
+            {
+                if (!oneShotPool[i].isPlaying) { src = oneShotPool[i]; break; }
+            }
             if (src == null)
             {
                 // 池用完了，动态创建新的 AudioSource
