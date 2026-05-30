@@ -94,6 +94,15 @@ namespace OsuVR
         void OnEnable()
         {
             LocalizationManager.OnLanguageChanged += OnLanguageChanged;
+
+            // 从设置返回时，检测是否有新歌曲导入并刷新列表
+            if (BeatmapImporter.HasNewImport)
+            {
+                BeatmapImporter.HasNewImport = false;
+                BeatmapImporter.ImportNewOszFiles();
+                RefreshSongList();
+                Debug.Log("[SimpleSongSelection] 检测到新导入，歌曲列表已刷新");
+            }
         }
 
         void OnDisable()
@@ -726,7 +735,7 @@ namespace OsuVR
         {
             if (selectedDifficulty == null)
             {
-                Debug.LogWarning("[SimpleSongSelection] 未选中任何歌曲，无法开始游戏！");
+                ShowToast(LocalizationManager.GetText("ui_select_song_prompt"));
                 return;
             }
 
@@ -750,6 +759,71 @@ namespace OsuVR
         public void GoBack()
         {
             SceneManager.LoadScene("MainMenuScene");
+        }
+
+        // ============================================================
+        //  Toast 提示
+        // ============================================================
+
+        private GameObject _toastObj;
+        private Coroutine _toastCoroutine;
+
+        private void ShowToast(string message)
+        {
+            if (_toastObj == null)
+            {
+                // 独立世界空间 Canvas，悬浮在玩家面前
+                _toastObj = new GameObject("Toast_Prompt");
+                _toastObj.transform.position = new Vector3(0f, 2.5f, 1f);
+                _toastObj.transform.localScale = Vector3.one * 0.002f;
+
+                var canvas = _toastObj.AddComponent<Canvas>();
+                canvas.renderMode = RenderMode.WorldSpace;
+                var scaler = _toastObj.AddComponent<CanvasScaler>();
+                scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
+                scaler.dynamicPixelsPerUnit = 10f;
+                _toastObj.AddComponent<CanvasGroup>();
+
+                var toastText = new GameObject("Text");
+                toastText.transform.SetParent(_toastObj.transform, false);
+                var rt = toastText.AddComponent<RectTransform>();
+                rt.sizeDelta = new Vector2(600f, 60f);
+
+                var tmp = toastText.AddComponent<TextMeshProUGUI>();
+                tmp.fontSize = 28f;
+                tmp.fontStyle = FontStyles.Bold;
+                tmp.color = new Color(1f, 0.85f, 0.3f, 1f);
+                tmp.alignment = TextAlignmentOptions.Center;
+                tmp.enableAutoSizing = false;
+            }
+
+            var text = _toastObj.GetComponentInChildren<TextMeshProUGUI>();
+            text.text = message;
+            text.color = new Color(1f, 0.85f, 0.3f, 1f);
+            _toastObj.SetActive(true);
+
+            if (_toastCoroutine != null) StopCoroutine(_toastCoroutine);
+            _toastCoroutine = StartCoroutine(ToastFadeOut(text, 2.5f));
+        }
+
+        private System.Collections.IEnumerator ToastFadeOut(TextMeshProUGUI tmp, float duration)
+        {
+            yield return new WaitForSeconds(duration * 0.6f);
+
+            float fadeTime = duration * 0.4f;
+            float elapsed = 0f;
+            Color startColor = tmp.color;
+
+            while (elapsed < fadeTime)
+            {
+                elapsed += Time.deltaTime;
+                float alpha = 1f - (elapsed / fadeTime);
+                tmp.color = new Color(startColor.r, startColor.g, startColor.b, alpha);
+                yield return null;
+            }
+
+            _toastObj.SetActive(false);
+            _toastCoroutine = null;
         }
     }
 }

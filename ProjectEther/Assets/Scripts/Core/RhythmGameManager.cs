@@ -1245,7 +1245,7 @@ namespace OsuVR
             Debug.Log($"开始加载谱面文件: {osuFileName}");
 
             // 1. 修正路径：指向 Assets/Songs
-            string filePath = System.IO.Path.Combine(Application.dataPath, "Songs", osuFileName);
+            string filePath = System.IO.Path.Combine(BeatmapImporter.SongsDirectory, osuFileName);
 
             // 检查文件是否存在
             if (!System.IO.File.Exists(filePath))
