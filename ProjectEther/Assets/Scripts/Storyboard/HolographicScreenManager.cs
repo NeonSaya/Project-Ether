@@ -8,6 +8,11 @@ namespace OsuVR.Storyboard
     /// 全息幕布管理器：在玩家正前方动态生成带有边缘羽化的半透明屏幕。
     /// 纯代码驱动，不依赖 Prefab。遵循 EtherealEnvironment 的 Singleton 模式。
     /// 支持通过设置面板调整距离、透明度和开关。
+    ///
+    /// 双层架构:
+    ///   - 底层: 静态背景图 (screenMaterial) — 始终存在, 作为兜底
+    ///   - 顶层: SB/视频 Overlay (overlayMaterial) — 叠加在背景图之上
+    ///   - SB 的 RenderTexture alpha=0 区域自动穿透, 显示底层背景图
     /// </summary>
     public class HolographicScreenManager : MonoBehaviour
     {
@@ -21,10 +26,10 @@ namespace OsuVR.Storyboard
         const float EdgeFadeWidth = 0.15f;
 
         // --- 弯曲参数 ---
-        const float CurveRadius = 50f;   // 曲率半径 (越大越平, 边缘凹进约 0.36m)
-        const int CurveSegments = 32;    // 水平细分数 (越高越平滑)
+        const float CurveRadius = 50f;
+        const int CurveSegments = 32;
 
-        // --- 运行时对象 ---
+        // --- 底层: 静态背景图 ---
         GameObject screenObject;
         MeshRenderer screenRenderer;
         MeshFilter screenFilter;
@@ -32,9 +37,11 @@ namespace OsuVR.Storyboard
         Texture2D edgeFadeTexture;
         Texture2D backgroundTexture;
 
-        /// <summary>
-        /// 幕布是否已完成 Setup 且有可展示的内容
-        /// </summary>
+        // --- 顶层: SB/视频 Overlay ---
+        GameObject overlayObject;
+        MeshRenderer overlayRenderer;
+        Material overlayMaterial;
+
         bool _hasContent;
 
         public bool IsActive => screenObject != null && screenObject.activeSelf;
@@ -65,12 +72,10 @@ namespace OsuVR.Storyboard
         // =========================================================
 
         /// <summary>
-        /// 根据嗅探结果搭建幕布。有背景图则加载，否则显示半透明占位。
-        /// 自动读取设置中的开关、距离、透明度。
+        /// 搭建幕布: 加载静态背景图到底层
         /// </summary>
         public void Setup(MediaAssetScanner.ScanResult scan, string beatmapFolder)
         {
-            // 检查全局开关
             if (!IsStoryboardEnabled())
             {
                 Hide();
@@ -79,7 +84,7 @@ namespace OsuVR.Storyboard
 
             EnsureScreenCreated();
 
-            // 加载静态背景图
+            // 加载静态背景图到底层
             if (!string.IsNullOrEmpty(scan.BackgroundPath))
             {
                 LoadBackgroundTexture(scan.BackgroundPath);
@@ -92,63 +97,68 @@ namespace OsuVR.Storyboard
             Debug.Log($"[HolographicScreen] 已搭建 (Video={scan.HasVideo}, SB={scan.HasStoryboard}, BG={!string.IsNullOrEmpty(scan.BackgroundPath)})");
         }
 
-        /// <summary>
-        /// 隐藏幕布（游戏结束、返回菜单时调用）
-        /// </summary>
         public void Hide()
         {
             _hasContent = false;
             if (screenObject != null) screenObject.SetActive(false);
+            if (overlayObject != null) overlayObject.SetActive(false);
         }
 
         /// <summary>
-        /// 将 StoryboardRenderer 的 RenderTexture 注入到幕布材质 (光纤对接)
+        /// 将 SB 的 RenderTexture 叠加到背景图之上 (不覆盖!)
+        /// 背景图始终在底层作为兜底
         /// </summary>
         public void SetRenderTexture(RenderTexture rt)
         {
             EnsureScreenCreated();
-            if (screenMaterial != null && rt != null)
+            if (rt == null) return;
+
+            // 确保 Overlay 层存在
+            EnsureOverlayCreated();
+
+            if (overlayMaterial != null)
             {
-                screenMaterial.mainTexture = rt;
-                _hasContent = true;
-                ApplySettings();
-                ApplyVisibility();
+                overlayMaterial.mainTexture = rt;
+                overlayObject.SetActive(true);
+
+                // 同步 Overlay 的距离/透明度
+                float z = GetScreenDistance();
+                var pos = overlayObject.transform.localPosition;
+                pos.z = z;
+                overlayObject.transform.localPosition = pos;
+
+                Color c = overlayMaterial.color;
+                c.a = GetScreenAlpha();
+                overlayMaterial.color = c;
             }
+
+            _hasContent = true;
+            ApplySettings();
+            ApplyVisibility();
         }
 
         /// <summary>
-        /// 获取已加载的背景图纹理 (供 StoryboardRenderer 注册为 sprite)
-        /// </summary>
-        public Texture2D GetBackgroundTexture() => backgroundTexture;
-
-        /// <summary>
-        /// 恢复为静态背景图纹理
+        /// 隐藏 Overlay, 恢复只显示静态背景图
         /// </summary>
         public void RestoreBackgroundTexture()
         {
-            if (screenMaterial != null)
-            {
-                screenMaterial.mainTexture = backgroundTexture != null
-                    ? (Texture)backgroundTexture
-                    : (Texture)edgeFadeTexture;
-            }
+            if (overlayObject != null)
+                overlayObject.SetActive(false);
         }
 
-        /// <summary>
-        /// 未来接入 VideoPlayer 时调用，将视频纹理设置到幕布
-        /// </summary>
         public void SetVideoTexture(Texture videoTexture)
         {
-            if (screenMaterial != null && videoTexture != null)
+            if (videoTexture != null)
             {
-                screenMaterial.mainTexture = videoTexture;
+                EnsureOverlayCreated();
+                if (overlayMaterial != null)
+                {
+                    overlayMaterial.mainTexture = videoTexture;
+                    overlayObject.SetActive(true);
+                }
             }
         }
 
-        /// <summary>
-        /// 设置变更时调用（由 GameplaySettingsPage 触发）
-        /// 实时应用距离、透明度、开关等变更
-        /// </summary>
         public void OnSettingsChanged()
         {
             if (!IsStoryboardEnabled())
@@ -199,20 +209,15 @@ namespace OsuVR.Storyboard
             screenObject.SetActive(_hasContent);
         }
 
-        /// <summary>
-        /// 将设置面板的参数实时应用到幕布
-        /// </summary>
         void ApplySettings()
         {
             if (screenObject == null) return;
 
-            // 更新 Z 距离
             float z = GetScreenDistance();
             var pos = screenObject.transform.localPosition;
             pos.z = z;
             screenObject.transform.localPosition = pos;
 
-            // 更新透明度
             float alpha = GetScreenAlpha();
             if (screenMaterial != null)
             {
@@ -220,13 +225,28 @@ namespace OsuVR.Storyboard
                 c.a = alpha;
                 screenMaterial.color = c;
             }
+
+            // 同步 Overlay 设置
+            if (overlayObject != null && overlayObject.activeSelf)
+            {
+                var opos = overlayObject.transform.localPosition;
+                opos.z = z;
+                overlayObject.transform.localPosition = opos;
+
+                if (overlayMaterial != null)
+                {
+                    Color oc = overlayMaterial.color;
+                    oc.a = alpha;
+                    overlayMaterial.color = oc;
+                }
+            }
         }
 
         void EnsureScreenCreated()
         {
             if (screenObject != null) return;
 
-            // 1. 创建 GameObject
+            // 1. 创建底层 GameObject (静态背景图)
             screenObject = new GameObject("[HolographicScreen]");
             screenObject.transform.SetParent(transform);
             screenObject.transform.localPosition = new Vector3(0, ScreenY, GetScreenDistance());
@@ -236,24 +256,30 @@ namespace OsuVR.Storyboard
             screenFilter = screenObject.AddComponent<MeshFilter>();
             screenFilter.mesh = CreateCurvedMesh(ScreenWidth, ScreenHeight, CurveRadius, CurveSegments);
 
-            // 3. 创建材质 (优先自定义 shader，fallback 到 URP Unlit)
+            // 3. 创建背景材质 (支持透明, 跟随不透明度设置)
             Shader shader = Shader.Find("OsuVR/HolographicScreen");
             if (shader == null)
             {
-                Debug.LogWarning("[HolographicScreen] 自定义 Shader 未找到，fallback 到 URP Unlit (无边缘羽化)");
+                Debug.LogWarning("[HolographicScreen] 自定义 Shader 未找到，fallback 到 URP Unlit");
                 shader = Shader.Find("Universal Render Pipeline/Unlit");
             }
             screenMaterial = new Material(shader);
 
-            // 4. 应用初始透明度
-            float alpha = GetScreenAlpha();
-            screenMaterial.color = new Color(1f, 1f, 1f, alpha);
+            // 确保材质支持透明 (自定义 shader 可能不需要, 但 fallback 必须设置)
+            if (screenMaterial.HasProperty("_Surface")) screenMaterial.SetFloat("_Surface", 1); // Transparent
+            if (screenMaterial.HasProperty("_Blend")) screenMaterial.SetFloat("_Blend", 0);     // Alpha
+            if (screenMaterial.HasProperty("_SrcBlend")) screenMaterial.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
+            if (screenMaterial.HasProperty("_DstBlend")) screenMaterial.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+            if (screenMaterial.HasProperty("_ZWrite")) screenMaterial.SetInt("_ZWrite", 0);
 
-            // 5. 生成边缘羽化纹理 (同时作为 fallback 和 shader 的主纹理)
+            float alpha = GetScreenAlpha();
+            // 背景层固定亮度 0.5
+            screenMaterial.color = new Color(0.5f, 0.5f, 0.5f, alpha);
+
             edgeFadeTexture = CreateEdgeFadeTexture(512, 512, EdgeFadeWidth);
             screenMaterial.mainTexture = edgeFadeTexture;
 
-            // 6. 设置渲染器
+            // 4. 设置渲染器
             screenRenderer = screenObject.AddComponent<MeshRenderer>();
             screenRenderer.sharedMaterial = screenMaterial;
             screenRenderer.shadowCastingMode = ShadowCastingMode.Off;
@@ -261,9 +287,59 @@ namespace OsuVR.Storyboard
         }
 
         /// <summary>
-        /// 程序化生成圆柱弯曲 Mesh，面向玩家 (法线朝 -Z)
-        /// 使用抛物线公式 z = -(x²) / (2R) 实现平滑弯曲
+        /// 创建 Overlay 层 (SB/视频叠加层)
+        /// 与底层使用相同 Mesh, 稍微前移避免 Z-Fighting
         /// </summary>
+        void EnsureOverlayCreated()
+        {
+            if (overlayObject != null) return;
+
+            EnsureScreenCreated(); // 确保底层已创建
+
+            // 1. 创建 Overlay GameObject
+            overlayObject = new GameObject("[HolographicScreen_Overlay]");
+            overlayObject.transform.SetParent(transform);
+            overlayObject.transform.localPosition = new Vector3(0, ScreenY, GetScreenDistance() - 0.01f); // 稍微前移
+            overlayObject.transform.localRotation = Quaternion.identity;
+
+            // 2. 共享底层 Mesh
+            var overlayFilter = overlayObject.AddComponent<MeshFilter>();
+            overlayFilter.mesh = screenFilter.mesh;
+
+            // 3. Overlay 材质: SB RenderTexture × 边缘羽化纹理
+            Shader overlayShader = Shader.Find("OsuVR/SBOverlay");
+            if (overlayShader == null)
+            {
+                Debug.LogWarning("[HolographicScreen] SBOverlay shader 未找到, fallback 到 URP Unlit");
+                overlayShader = Shader.Find("Universal Render Pipeline/Unlit");
+            }
+            overlayMaterial = new Material(overlayShader);
+            overlayMaterial.renderQueue = (int)RenderQueue.Transparent + 1;
+
+            // 传入边缘羽化纹理
+            if (edgeFadeTexture != null)
+                overlayMaterial.SetTexture("_EdgeFadeTex", edgeFadeTexture);
+
+            Color c = Color.white;
+            c.a = GetScreenAlpha();
+            overlayMaterial.color = c;
+
+            // 4. 设置渲染器
+            overlayRenderer = overlayObject.AddComponent<MeshRenderer>();
+            overlayRenderer.sharedMaterial = overlayMaterial;
+            overlayRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            overlayRenderer.receiveShadows = false;
+
+            // 默认隐藏 (等 SetRenderTexture 调用时才激活)
+            overlayObject.SetActive(false);
+
+            Debug.Log("[HolographicScreen] Overlay 层已创建");
+        }
+
+        // =========================================================
+        //  Mesh / Texture 生成
+        // =========================================================
+
         static Mesh CreateCurvedMesh(float width, float height, float radius, int segments)
         {
             var mesh = new Mesh();
@@ -273,7 +349,7 @@ namespace OsuVR.Storyboard
             float hh = height * 0.5f;
 
             int vertCountX = segments + 1;
-            int vertCountY = 2; // 上下两排即可
+            int vertCountY = 2;
             int vertCount = vertCountX * vertCountY;
 
             var vertices = new Vector3[vertCount];
@@ -281,15 +357,13 @@ namespace OsuVR.Storyboard
 
             for (int yi = 0; yi < vertCountY; yi++)
             {
-                float v = yi; // 0 或 1
+                float v = yi;
                 float y = Mathf.Lerp(-hh, hh, v);
 
                 for (int xi = 0; xi < vertCountX; xi++)
                 {
                     float u = (float)xi / segments;
                     float x = Mathf.Lerp(-hw, hw, u);
-
-                    // 抛物线弯曲：x 偏离中心越远，z 越往后凹
                     float z = -(x * x) / (2f * radius);
 
                     int idx = yi * vertCountX + xi;
@@ -298,7 +372,6 @@ namespace OsuVR.Storyboard
                 }
             }
 
-            // 生成三角形索引
             int triCount = segments * 2 * 3;
             var triangles = new int[triCount];
             int ti = 0;
@@ -310,12 +383,10 @@ namespace OsuVR.Storyboard
                 int br = bl + 1;
                 int tr = tl + 1;
 
-                // 三角形 1
                 triangles[ti++] = bl;
                 triangles[ti++] = tl;
                 triangles[ti++] = tr;
 
-                // 三角形 2
                 triangles[ti++] = bl;
                 triangles[ti++] = tr;
                 triangles[ti++] = br;
@@ -329,9 +400,6 @@ namespace OsuVR.Storyboard
             return mesh;
         }
 
-        /// <summary>
-        /// 生成边缘羽化纹理：中心完全不透明，四周 SmoothStep 渐变透明
-        /// </summary>
         static Texture2D CreateEdgeFadeTexture(int w, int h, float fadeWidth)
         {
             var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
@@ -372,7 +440,6 @@ namespace OsuVR.Storyboard
                 var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
                 if (tex.LoadImage(data))
                 {
-                    // 释放旧的背景纹理
                     if (backgroundTexture != null) Destroy(backgroundTexture);
                     backgroundTexture = tex;
                     screenMaterial.mainTexture = tex;
@@ -391,6 +458,7 @@ namespace OsuVR.Storyboard
         void OnDestroy()
         {
             if (screenMaterial != null) Destroy(screenMaterial);
+            if (overlayMaterial != null) Destroy(overlayMaterial);
             if (edgeFadeTexture != null) Destroy(edgeFadeTexture);
             if (backgroundTexture != null) Destroy(backgroundTexture);
             if (Instance == this) Instance = null;

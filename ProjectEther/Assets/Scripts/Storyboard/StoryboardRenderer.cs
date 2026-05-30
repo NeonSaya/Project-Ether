@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.PostProcessing;
 using UnityEngine.Video;
 using Unity.Jobs;
 using Unity.Burst;
@@ -191,11 +192,6 @@ namespace OsuVR.Storyboard
         Mesh videoQuadMesh;
         Matrix4x4 videoQuadMatrix;
 
-        // ---- 背景图 (注册为 sprite, 走 GPU 实例化管线) ----
-        Texture2D bgTexture;
-        int bgTexIndex = -1;       // 背景图在 Texture2DArray 中的索引 (0)
-        Vector2Int bgTexSize;      // 背景图纹理尺寸
-
         // ---- 纹理数组 ----
         Texture2DArray textureArray;
         Dictionary<string, int> textureIndexMap;
@@ -376,9 +372,6 @@ namespace OsuVR.Storyboard
 
             if (sbMaterialAlpha != null) { Destroy(sbMaterialAlpha); sbMaterialAlpha = null; }
             if (sbMaterialAdditive != null) { Destroy(sbMaterialAdditive); sbMaterialAdditive = null; }
-
-            bgTexture = null;
-            bgTexIndex = -1;
         }
 
         public void UnloadVideo()
@@ -405,18 +398,6 @@ namespace OsuVR.Storyboard
 
         public RenderTexture GetRenderTexture() => renderTexture;
 
-        /// <summary>
-        /// 设置背景图纹理, 注册为 SB 精灵系统的最底层 sprite
-        /// 必须在 LoadStoryboard 之前调用, 以便加入 Texture2DArray
-        /// </summary>
-        public void SetBackgroundTexture(Texture2D tex)
-        {
-            if (tex == null) return;
-            bgTexture = tex;
-            bgTexSize = new Vector2Int(tex.width, tex.height);
-            Debug.Log($"[SBRenderer] 背景图已设置: {tex.width}x{tex.height}");
-        }
-
         // =========================================================
         //  Update: 引擎推进 + 精灵收集 + Schedule Job
         //  (约束 1: 拉开调度间距, Update 极早阶段 Schedule)
@@ -438,7 +419,7 @@ namespace OsuVR.Storyboard
             if (osbPlayer != null)
                 osbPlayer.Update(musicTime);
 
-            // 3. 绘制视频背景 Quad (z=50, 背景图之上)
+            // 3. 绘制视频背景 Quad
             if (hasVideo && videoMaterial != null && videoQuadMesh != null)
                 DrawVideoQuad();
 
@@ -472,27 +453,6 @@ namespace OsuVR.Storyboard
         int CollectSpritesToNativeArray(double musicTime)
         {
             int count = 0;
-
-            // 背景图 sprite: 铺满整个 osu! 画布 (640x480), 永远可见
-            if (bgTexIndex >= 0 && bgTexture != null)
-            {
-                _jobInputs[count] = new SpriteInputData
-                {
-                    X = CanvasWidth * 0.5f,   // 画布中心
-                    Y = CanvasHeight * 0.5f,
-                    ScaleX = (float)CanvasWidth / bgTexSize.x,    // 适配屏幕宽度
-                    ScaleY = (float)CanvasHeight / bgTexSize.y,   // 适配屏幕高度
-                    Rotation = 0f,
-                    Alpha = 1f,
-                    R = 1f, G = 1f, B = 1f,
-                    FlipH = 0, FlipV = 0, Additive = 0,
-                    TexIndex = bgTexIndex,
-                    OriginIndex = 1,  // Centre
-                    TexWidth = bgTexSize.x,
-                    TexHeight = bgTexSize.y
-                };
-                count++;
-            }
 
             for (int layer = 0; layer < 5; layer++)
             {
@@ -757,18 +717,14 @@ namespace OsuVR.Storyboard
                 }
             }
 
-            bool hasBG = bgTexture != null;
-            int bgLayerCount = hasBG ? 1 : 0;
-
-            if (paths.Count == 0 && !hasBG)
+            if (paths.Count == 0)
             {
                 Debug.LogWarning("[SBRenderer] 无纹理需要打包");
                 return;
             }
 
-            SBDebugLog.Log($"[BuildTextureArray] {paths.Count} SB纹理 + {(hasBG ? "1背景" : "0背景")} 待加载");
+            SBDebugLog.Log($"[BuildTextureArray] {paths.Count} 纹理待加载");
 
-            // 加载 SB 纹理
             var textures = new Texture2D[paths.Count];
             int maxWidth = 0, maxHeight = 0;
 
@@ -779,46 +735,20 @@ namespace OsuVR.Storyboard
                 if (textures[i].height > maxHeight) maxHeight = textures[i].height;
             }
 
-            // 背景图也参与尺寸计算
-            if (hasBG)
-            {
-                if (bgTexture.width > maxWidth) maxWidth = bgTexture.width;
-                if (bgTexture.height > maxHeight) maxHeight = bgTexture.height;
-            }
-
             SBDebugLog.Mem($"纹理加载完成: max={maxWidth}x{maxHeight}");
 
             maxWidth = Mathf.Min(maxWidth, 2048);
             maxHeight = Mathf.Min(maxHeight, 2048);
 
-            int totalLayers = bgLayerCount + paths.Count;
-            textureArray = new Texture2DArray(maxWidth, maxHeight, totalLayers,
+            textureArray = new Texture2DArray(maxWidth, maxHeight, paths.Count,
                 TextureFormat.RGBA32, true, false);
             textureArray.filterMode = FilterMode.Bilinear;
             textureArray.wrapMode = TextureWrapMode.Clamp;
-            SBDebugLog.Mem($"Texture2DArray 创建: {maxWidth}x{maxHeight}x{totalLayers}");
+            SBDebugLog.Mem($"Texture2DArray 创建: {maxWidth}x{maxHeight}x{paths.Count}");
 
             var tempRT = RenderTexture.GetTemporary(maxWidth, maxHeight, 0, RenderTextureFormat.ARGB32);
             var prevRT = RenderTexture.active;
 
-            int layerOffset = 0;
-
-            // Layer 0: 背景图 (如果有)
-            if (hasBG)
-            {
-                Graphics.Blit(bgTexture, tempRT);
-                RenderTexture.active = tempRT;
-                var slice = new Texture2D(maxWidth, maxHeight, TextureFormat.RGBA32, false);
-                slice.ReadPixels(new Rect(0, 0, maxWidth, maxHeight), 0, 0);
-                slice.Apply();
-                textureArray.SetPixels(slice.GetPixels(), 0, 0);
-                Destroy(slice);
-                bgTexIndex = 0;
-                layerOffset = 1;
-                Debug.Log($"[SBRenderer] 背景图已加入 Texture2DArray layer[0]");
-            }
-
-            // 后续层: SB 纹理
             for (int i = 0; i < textures.Length; i++)
             {
                 var src = textures[i];
@@ -829,9 +759,18 @@ namespace OsuVR.Storyboard
                 slice.ReadPixels(new Rect(0, 0, maxWidth, maxHeight), 0, 0);
                 slice.Apply();
 
-                textureArray.SetPixels(slice.GetPixels(), layerOffset + i, 0);
+                textureArray.SetPixels(slice.GetPixels(), i, 0);
                 Destroy(slice);
             }
+
+            var verifyPixels = textureArray.GetPixels(0, 0);
+            bool allBlack = true;
+            for (int p = 0; p < verifyPixels.Length; p++)
+            {
+                if (verifyPixels[p].r > 0.01f || verifyPixels[p].g > 0.01f || verifyPixels[p].b > 0.01f)
+                { allBlack = false; break; }
+            }
+            Debug.Log($"[SBRenderer] 纹理数组验证: layer[0] {(allBlack ? "全黑!" : "有内容")} ({verifyPixels.Length} 像素)");
 
             textureArray.Apply(true, true);
             SBDebugLog.Mem("Texture2DArray.Apply 完成");
@@ -840,17 +779,11 @@ namespace OsuVR.Storyboard
             RenderTexture.ReleaseTemporary(tempRT);
 
             textureIndexMap = new Dictionary<string, int>(paths.Count);
-            textureDimensions = new Vector2Int[totalLayers];
-
-            // 背景图尺寸
-            if (hasBG)
-                textureDimensions[0] = new Vector2Int(bgTexture.width, bgTexture.height);
-
-            // SB 纹理尺寸
+            textureDimensions = new Vector2Int[paths.Count];
             for (int i = 0; i < paths.Count; i++)
             {
-                textureIndexMap[paths[i]] = layerOffset + i;
-                textureDimensions[layerOffset + i] = new Vector2Int(textures[i].width, textures[i].height);
+                textureIndexMap[paths[i]] = i;
+                textureDimensions[i] = new Vector2Int(textures[i].width, textures[i].height);
             }
 
             for (int i = 0; i < textures.Length; i++)
@@ -1062,13 +995,19 @@ namespace OsuVR.Storyboard
             renderCamera.farClipPlane = 100f;
             renderCamera.cullingMask = 1 << storyboardLayer;
             renderCamera.clearFlags = CameraClearFlags.SolidColor;
-            renderCamera.backgroundColor = new Color(0.15f, 0.0f, 0.15f, 1.0f);
+            renderCamera.backgroundColor = new Color(0.15f, 0.0f, 0.15f, 0.0f); // alpha=0: 叠加模式, 未绘制区域透明
             renderCamera.stereoTargetEye = StereoTargetEyeMask.None;
 
             renderTexture = new RenderTexture(RT_Width, RT_Height, 0, RenderTextureFormat.ARGB32);
             renderTexture.antiAliasing = 1;
             renderTexture.Create();
             renderCamera.targetTexture = renderTexture;
+
+            // 后处理: 确保模糊/bloom等效果烘焙进 SB RenderTexture
+            var ppLayer = camGo.AddComponent<PostProcessLayer>();
+            ppLayer.volumeTrigger = camGo.transform;
+            ppLayer.volumeLayer = ~0; // 检测所有 Volume
+            ppLayer.antialiasingMode = PostProcessLayer.Antialiasing.None;
         }
 
         // =========================================================

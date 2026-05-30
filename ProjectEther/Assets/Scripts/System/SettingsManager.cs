@@ -35,6 +35,10 @@ namespace OsuVR
         private const string PREF_KEY_CTRL_ROT = "Settings_CtrlRot";
         private const string PREF_KEY_SHOW_ACCURACY = "Settings_ShowAccuracy";
         private const string PREF_KEY_DISPLAY_ORIGINAL_LANG = "Settings_DisplayOriginalLang";
+        private const string PREF_KEY_ENABLE_STORYBOARD = "Settings_EnableStoryboard";
+        private const string PREF_KEY_ENABLE_SB_PLAYBACK = "Settings_EnableSBPlayback";
+        private const string PREF_KEY_SB_SCREEN_DISTANCE = "Settings_SBScreenDistance";
+        private const string PREF_KEY_SB_SCREEN_ALPHA = "Settings_SBScreenAlpha";
 
         private const int DEFAULT_TARGET_FPS = 120;
 
@@ -85,6 +89,10 @@ namespace OsuVR
             settings.controllerRotationOffset = PlayerPrefs.GetFloat(PREF_KEY_CTRL_ROT, 0f);
             settings.showAccuracy = PlayerPrefs.GetInt(PREF_KEY_SHOW_ACCURACY, 1) == 1;
             settings.displayOriginalLanguage = PlayerPrefs.GetInt(PREF_KEY_DISPLAY_ORIGINAL_LANG, 0) == 1;
+            settings.enableStoryboard = PlayerPrefs.GetInt(PREF_KEY_ENABLE_STORYBOARD, 1) == 1;
+            settings.enableStoryboardPlayback = PlayerPrefs.GetInt(PREF_KEY_ENABLE_SB_PLAYBACK, 1) == 1;
+            settings.storyboardScreenDistance = PlayerPrefs.GetFloat(PREF_KEY_SB_SCREEN_DISTANCE, 12.5f);
+            settings.storyboardScreenAlpha = PlayerPrefs.GetFloat(PREF_KEY_SB_SCREEN_ALPHA, 0.5f);
 
             Debug.Log("[SettingsManager] Settings loaded from PlayerPrefs");
         }
@@ -109,6 +117,10 @@ namespace OsuVR
             PlayerPrefs.SetFloat(PREF_KEY_CTRL_ROT, settings.controllerRotationOffset);
             PlayerPrefs.SetInt(PREF_KEY_SHOW_ACCURACY, settings.showAccuracy ? 1 : 0);
             PlayerPrefs.SetInt(PREF_KEY_DISPLAY_ORIGINAL_LANG, settings.displayOriginalLanguage ? 1 : 0);
+            PlayerPrefs.SetInt(PREF_KEY_ENABLE_STORYBOARD, settings.enableStoryboard ? 1 : 0);
+            PlayerPrefs.SetInt(PREF_KEY_ENABLE_SB_PLAYBACK, settings.enableStoryboardPlayback ? 1 : 0);
+            PlayerPrefs.SetFloat(PREF_KEY_SB_SCREEN_DISTANCE, settings.storyboardScreenDistance);
+            PlayerPrefs.SetFloat(PREF_KEY_SB_SCREEN_ALPHA, settings.storyboardScreenAlpha);
 
             PlayerPrefs.Save();
             Debug.Log("[SettingsManager] Settings saved to PlayerPrefs");
@@ -132,6 +144,7 @@ namespace OsuVR
             ApplyGraphicsSettings();
             ApplyVRSettings();
             ApplyControllerOffsets();
+            ApplyStoryboardSettings();
         }
 
         public void ApplyAudioSettings()
@@ -205,6 +218,15 @@ namespace OsuVR
                 }
             }
             Debug.Log($"[SettingsManager] Controller offsets applied: Rot={settings.controllerRotationOffset}°, L_Z={settings.leftControllerZOffset}, L_Y={settings.leftControllerYOffset}, R_Z={settings.rightControllerZOffset}, R_Y={settings.rightControllerYOffset}");
+        }
+
+        public void ApplyStoryboardSettings()
+        {
+            if (OsuVR.Storyboard.HolographicScreenManager.Instance != null)
+            {
+                OsuVR.Storyboard.HolographicScreenManager.Instance.OnSettingsChanged();
+            }
+            Debug.Log($"[SettingsManager] Storyboard applied: Enable={settings.enableStoryboard}, Playback={settings.enableStoryboardPlayback}, Distance={settings.storyboardScreenDistance:F1}m, Alpha={settings.storyboardScreenAlpha:F2}");
         }
 
         #endregion
@@ -300,6 +322,34 @@ namespace OsuVR
             settings.rightControllerYOffset = rightY;
             settings.controllerRotationOffset = rotation;
             ApplyControllerOffsets();
+            SaveSettings();
+        }
+
+        public void SetStoryboardEnabled(bool enabled)
+        {
+            settings.enableStoryboard = enabled;
+            ApplyStoryboardSettings();
+            SaveSettings();
+        }
+
+        public void SetStoryboardPlaybackEnabled(bool enabled)
+        {
+            settings.enableStoryboardPlayback = enabled;
+            ApplyStoryboardSettings();
+            SaveSettings();
+        }
+
+        public void SetStoryboardScreenDistance(float distance)
+        {
+            settings.storyboardScreenDistance = Mathf.Clamp(distance, 7.5f, 15f);
+            ApplyStoryboardSettings();
+            SaveSettings();
+        }
+
+        public void SetStoryboardScreenAlpha(float alpha)
+        {
+            settings.storyboardScreenAlpha = Mathf.Clamp01(alpha);
+            ApplyStoryboardSettings();
             SaveSettings();
         }
 

@@ -154,7 +154,7 @@ Shader "OsuVR/SBInstanced"
                     _MainTexArray, sampler_MainTexArray,
                     input.uv, input.textureIndex);
                 half4 c = tex * input.color;
-                return half4(c.rgb * c.a, 0);
+                return half4(c.rgb * c.a, 1);
             }
             ENDHLSL
         }

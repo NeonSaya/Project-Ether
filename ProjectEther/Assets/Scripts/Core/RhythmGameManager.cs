@@ -421,6 +421,10 @@ namespace OsuVR
         {
             if (!isPlaying)
             {
+                // 暂停时冻结时间，不要覆盖 currentMusicTimeMs
+                if (pauseStartDspTime > 0)
+                    return;
+
                 // 游戏未开始，计算倒计时时间
                 if (bufferStartDspTime > 0)
                 {
@@ -687,13 +691,6 @@ namespace OsuVR
                     // 3. 三种复合模式加载
                     if (renderer != null)
                     {
-                        // 背景图注册为 SB 精灵 (必须在 LoadStoryboard 之前)
-                        if (HolographicScreenManager.Instance != null)
-                        {
-                            var bgTex = HolographicScreenManager.Instance.GetBackgroundTexture();
-                            if (bgTex != null)
-                                renderer.SetBackgroundTexture(bgTex);
-                        }
                         bool hasValidSB = sbData != null && sbData.TotalElementCount > 0;
                         string videoPath = mediaScan.HasVideo ? mediaScan.VideoPath : null;
 
@@ -1900,11 +1897,17 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 获取当前音乐时间（毫秒） - 供所有Controller使用
+        /// 获取当前音乐时间（毫秒） - 供所有Controller和StoryboardRenderer使用
         /// </summary>
         public double GetCurrentMusicTimeMs()
         {
-            // 如果没有在播放且没有处于缓冲期
+            // 暂停时冻结在最后有效时间，SB 精灵停在当前帧
+            if (pauseStartDspTime > 0)
+            {
+                return currentMusicTimeMs;
+            }
+
+            // 未开始且不在缓冲期
             if (!isPlaying && bufferStartDspTime <= 0)
             {
                 return -spawnOffsetMs;
@@ -1913,7 +1916,6 @@ namespace OsuVR
             if (dspStartTime > 0)
             {
                 double currentDspTime = AudioSettings.dspTime;
-                // 修复: 必须乘上 speedMultiplier，并减去全局偏移和固有延迟
                 return (((currentDspTime - dspStartTime) * 1000.0) * speedMultiplier) - universalOffsetMs - INHERENT_AUDIO_LATENCY_MS;
             }
 
