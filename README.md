@@ -3,7 +3,8 @@
 ![Unity](https://img.shields.io/badge/Made%20with-Unity%202022.3%20LTS-black?style=flat&logo=unity)
 ![C#](https://img.shields.io/badge/Language-C%23-blue)
 ![Platform](https://img.shields.io/badge/Platform-VR%20(OpenXR)-green) 
-![Status](https://img.shields.io/badge/Status-Beta-brightgreen)
+![Status](https://img.shields.io/badge/Status-v0.7.0%20Beta-brightgreen)
+![Platform](https://img.shields.io/badge/Platform-PC%20VR%20%2F%20Standalone%20VR-green)
 
 ## 📖 项目概述 (Overview)
 
@@ -15,9 +16,11 @@
 
 你可以利用手中的虚拟射线，在纯粹的音波起伏与绚丽的光影交错中，轻松惬意地享受每一首高质量 osu! 谱面带来的视听震撼。
 
-> 🟢 **当前状态：Beta (可游玩版本)**
+> 🟢 **当前状态：v0.7.0 Beta (首个公开 Demo)**
 
-> 目前，游戏的核心链路（启动 -> 选曲 -> 游玩 -> 结算）已经完全打通！无论是基础的单点 (Circle)、连绵的滑条 (Slider)，还是疯狂旋转的转盘 (Spinner)，其生成与计分系统均已完备。当前的开发重点已全面转向底层性能调优、特殊 Mod（游戏模组）的深度适配，以及向着极致视听演出的方向狂奔。
+> 核心链路（启动 -> 选曲 -> 游玩 -> 结算）完全打通。单点 (Circle)、滑条 (Slider)、转盘 (Spinner) 的生成与计分系统均已完备。Storyboard 全指令解析 + GPU 实例化渲染已上线，支持视频背景播放。底层已全面引入 Unity Jobs + Burst 多线程架构，Storyboard 矩阵计算性能提升 10 倍。
+>
+> **平台发布说明**: 本次 Demo 首发提供 **PC VR (Windows)** 版本。Standalone VR (Android / Pico 4 / Quest 3) 版本的底层架构已全面打通（Vulkan + IL2CPP + ARM64），但因音频可视化管线在移动端的兼容性仍需进一步打磨，一体机版本将在后续更新中单独发布。
 
 ---
 
@@ -38,17 +41,21 @@
 * **底层 XR 插件**: 采用高度兼容的 OpenXR 1.10.0 协议标准，并内嵌 Oculus XR Plugin 4.2.0。
 * **视觉与文本方案**: 使用 TextMeshPro (TMP 3.0.6) 保证在 VR 近距离观察下依然锐利的字体渲染；结合 Visual Effect Graph (VFX 14.0.10) 驱动 GPU 级别的大规模绚丽粒子特效。
 * **音频可视化栈**: `Lasp` (Keijiro) 提供系统级低延迟 FFT 音频捕获（`#if LASP` 宏已启用），`AudioLink` 通过反射式集成提供 DFT 精细频段数据，`AudioVisualizationManager` 统一管理三频段全局 Shader 参数注入与频谱分析管线。
+* **多线程架构**: Unity Jobs System + Burst Compiler —— `IJobParallelFor` + `[BurstCompile]` SIMD 向量化，Storyboard 矩阵计算 / 粒子颜色 / 音符坐标预计算全部在 Worker Thread 并行执行。
 * **编程架构**: C# 面向对象设计 —— 严格遵循数据与视图分离的模块化架构，为开源社区的二次开发与大规模魔改提供了极其友好的土壤。
 
 ---
 
 ## ✨ 核心游戏特色 (Features)
 
-* **原生解析与精准判定**: 内置纯 C# 高性能谱面解析器 (`OsuParser`)，直接读取 `.osu` 文件无需转换；严格复刻 `osu! Lazer` 的判定逻辑，从滑条节点 (Tick)、折返点 (Repeat) 到转盘转速，全链路精确结算。
-* **奇妙的 3D 曲面投影**: 独家 `CoordinateMapper` 空间映射算法，将 512x384 平面坐标通过数学曲面函数弯折为环绕玩家 FOV 的 3D 全景曲面，配合物理级淡入动画与 60ms 固有音频延迟补偿，实现极致视听同步。
+* **原生解析与精准判定**: 内置纯 C# 高性能谱面解析器 (`OsuParser`)，直接读取 `.osu` 文件无需转换；严格复刻 `osu! Lazer` 的判定逻辑，从滑条节点 (Tick)、折返点 (Repeat) 到转盘转速，全链路精确结算。提前 13ms 即可判定，消除帧延迟。
+* **Storyboard 全指令引擎**: 完整解析 `.osb` / `.osu` 内联故事板，支持 Sprite、Animation、Loop、Trigger 全部指令类型。通过 `ComputeBuffer` + `Graphics.DrawMeshInstancedProcedural` 纯 GPU 实例化渲染，5 万精灵零 GameObject。
+* **多线程架构 (Unity Jobs + Burst)**: Storyboard 矩阵计算、粒子颜色更新、音符坐标预计算全部剥离至 Worker Thread。`IJobParallelFor` + `[BurstCompile]` SIMD 向量化，主线程负载降低 30%+。
+* **双层合成渲染**: 静态背景图作为底层兜底，SB RenderTexture 叠加在上层（alpha=0 区域穿透显示背景），边缘羽化纹理同步应用于两层。
 * **沉浸式 VR 交互体验**: 射线悬停交互机制实现”指哪打哪”；手柄震动反馈 (`HapticProfile`) 根据谱面音量与判定结果动态调整；UI 面板通过 `CurvedUIEffect` 物理弯折与 `HUDFollower` 弹簧跟随，彻底告别 VR 眩晕。
 * **完整的游戏系统**: 集成 AutoPlay / HR / FL 等经典 Mod，内置自动本地化系统 (`LocalizationManager`) 支持多语言 Unicode 渲染，音效与震动采用 `TimingPoint × SampleVolume × 设置` 的完整乘法链路，精准可控。
 * **数据驱动的视听演出**: 接入 `AudioLink` 与 `Lasp` 建立音频数据闭环，128 柱频谱渲染与 11 层环境粒子实时响应 BPM 节拍与 Kiai 时段；纯代码粒子引擎 (`CodeOnlyVFX`) 为低配设备提供流畅兜底方案。
+* **跨平台构建**: 支持 PC VR (Windows OpenXR) 与 Standalone VR (Android / Pico 4 Ultra / Quest 3) 双平台。Vulkan 图形 API + IL2CPP + ARM64，Dummy Material 反剔除机制确保 Shader 不被 Stripping。
 
 ---
 
@@ -60,21 +67,22 @@
 Assets/
 ├── Scenes/         # 游戏核心场景 (MainMenuScene 主菜单, SongSelectScene 选歌, GameScene 打歌, ResultScene 结算)
 ├── Prefabs/        # 资源预制体 (各类交互 UI 面板、飞行的音符实体、判定特效球等)
-├── Shader/         # 自定义 URP 材质着色器 (包括滑条曲线渲染、UI 弯曲计算、AudioLink 响应着色器等)
+├── Shader/         # 自定义 URP 材质着色器 (SBInstanced GPU实例化, HolographicScreen 幕布, SBOverlay 叠加, FlashlightMask 等)
 ├── Materials/      # 静态材质球库 (发光物件、天空盒、基础UI底图)
 ├── Texture/        # 2D 图片素材与 Sprite 精灵图集
-├── Effekseer/      # 第三方开源粒子特效资源库 (为后续华丽的日系动画级舞台做准备)
+├── Effekseer/      # 第三方开源粒子特效资源库
 ├── Songs/          # 测试用谱面目录
 └── Scripts/        # 游戏的心脏与大脑 (所有命名空间归属于 OsuVR)
-    ├── Core/           # 玩法循环控制 (RhythmGameManager 调度器、NoteController/SliderController/SpinnerController 物件控制、CoordinateMapper 空间映射)
-    ├── Data/           # 纯净的数据模型层 (OsuParser 文本解析、Beatmap / HitObject 实体类、TimingPoint 时间点)
-    ├── Interaction/    # 玩家物理交互层 (RayController 射线逻辑、HapticManager 震动分发、AudioManager 音效管理)
-    ├── System/         # 全局基础设施 (SettingsManager 设置管理、GameSettings 配置、LocalizationManager 本地化、ModEffectsApplier Mod效果)
+    ├── Core/           # 玩法循环控制 (RhythmGameManager + Burst Jobs调度、NoteController/SliderController/SpinnerController 物件控制、CoordinateMapper 空间映射、NotePoolManager 对象池)
+    ├── Data/           # 纯净的数据模型层 (OsuParser 文本解析、Beatmap / HitObject 实体类、BeatmapImporter .osz导入)
+    ├── Storyboard/     # Storyboard 全指令引擎 (StoryboardParser 解析、StoryboardRenderer GPU实例化渲染、SBOsbPlayer 播放器、HolographicScreenManager 全息幕布)
+    ├── Interaction/    # 玩家物理交互层 (RayController 射线逻辑、HapticManager 震动分发、AudioManager 音效管理、AutoPlayManager AI自动游玩)
+    ├── System/         # 全局基础设施 (SettingsManager 设置管理 + PlayerPrefs持久化、LocalizationManager 本地化、ModEffectsApplier Mod效果)
     ├── UI/             # 界面交互层 (SimpleMainMenu 主菜单、SimpleSongSelection 选歌、VRSettingsMenu VR设置、PauseMenu 暂停面板)
-    ├── Visuals/        # 视觉魔术师 (CodeOnlyVFX 纯代码打击特效、JudgementVisualizer 判定显示、EtherealEnvironment 128柱频谱环境)
+    ├── Visuals/        # 视觉魔术师 (CodeOnlyVFX 纯代码打击特效、JudgementVisualizer 判定显示、EtherealEnvironment 128柱频谱环境、CodeDrivenAmbientParticles Burst粒子)
     ├── Context/        # 跨场景数据快递员 (GameContext 负责将选歌数据安全传递到打歌场景、ResultData 结算数据)
     ├── Rulesets/       # 铁面无私的裁判 (ScoreManager 专职计算判定窗口、准确率与 Combo)
-    └── Editor/         # 编辑器扩展工具 (UIPrefabUpdater UI生成、SimpleSceneSetup 场景配置)
+    └── Editor/         # 编辑器扩展工具 (ShaderStrippingProtector Dummy材质防剔除, ShaderStripGuard Shader强制包含)
 ```
 
 ---
@@ -112,7 +120,7 @@ Assets/
 ### 1. 硬件与软件环境要求
 * **操作系统**: Windows 10/11 (暂不支持 Mac 系统的原生 VR 调试)。
 * **开发环境**: 请严格对齐使用 **Unity 2022.3.22f1 LTS** 或 2022.3 系列更高版本。
-* **硬件设备**: 支持 OpenXR 标准的主流 VR 头显 (例如 Meta Quest 2/3/Pro, Pico 4, Valve Index)。如果你手头暂时没有头显，也可以在项目中开启 Unity 自带的 `XR Device Simulator`，用键鼠模拟手柄体验流程。
+* **硬件设备**: 支持 OpenXR 标准的 PC VR 头显 (如 Valve Index, Meta Quest via Link, Pico 4 via Streaming Assistant)。如果你手头暂时没有头显，也可以在项目中开启 Unity 自带的 `XR Device Simulator`，用键鼠模拟手柄体验流程。
 
 ### 2. 手把手教你跑起项目
 1. **拉取源码**:
@@ -128,8 +136,9 @@ Assets/
    * 打开你电脑里的 `osu!` 游戏根目录，进入 `Songs` 文件夹，挑几个你最爱的谱面文件夹。
    * 找到每个谱面文件夹中的 `.osz` 压缩包（如果没有，可以在 osu! 官网下载页右键谱面选择 "Download .osz"）。
    * 将 `.osz` 文件放入以下路径：
-     `C:/Users/<你的用户名>/AppData/LocalLow/Nyaon/ProjectEther/Songs/`
-   * 项目启动时会自动扫描并解压 `.osz` 文件，之后就能在选歌界面看到对应的谱面了。
+     - **PC**: `C:/Users/<你的用户名>/AppData/LocalLow/Nyaon/ProjectEther/Songs/`
+     - **Android**: 使用设置界面的「导入谱面」按钮，通过系统文件选择器直接导入
+   * 项目启动时会自动扫描并解压 `.osz` 文件，之后就能在选歌界面看到对应的谱面了。也可以在设置界面中直接打开 Songs 文件夹拖入 `.osz`。
 
    > **提示**：如果 `.osz` 是文件夹形式（已解压的谱面），也可以直接放入上述目录。确保每个谱面文件夹内包含 `.osu` 文件、音频文件和背景图。太老的 `.osu` 格式（v10 以前）可能不被支持，建议使用较新的谱面。
 4. **启动游戏**:
@@ -172,6 +181,9 @@ A: 这口锅通常要由 VR 串流软件来背。无论是 Quest Link、Air Link
 **Q4: 我是个穷苦大学生，没有 VR 设备，难道就不配帮你们写代码了吗？**
 A: 绝对配！Unity 官方非常贴心地提供了 `XR Device Simulator` 插件。开启它后，你就能在电脑屏幕前，靠着风骚的 WASD 和鼠标走位，在屏幕上模拟出头显旋转和双手的移动空间。当然，如果你要调试毫秒级的手感，最终还是建议借个头显实机测试。
 
+**Q5: 一体机版本什么时候能玩到？**
+A: Standalone VR (Android) 的底层架构已全面打通，但音频可视化管线在移动端的兼容性仍需打磨。一体机版本将在后续更新中单独发布，敬请期待。
+
 ---
 
 ## 📅 未来开发蓝图 (To-Do List)
@@ -195,16 +207,27 @@ A: 绝对配！Unity 官方非常贴心地提供了 `XR Device Simulator` 插件
 - [x] **URP 材质全面清洗**: 将工程中所有 `Shader.Find("Standard")` 替换为 `Universal Render Pipeline/Lit`，统一 `_Color` → `_BaseColor` 属性名，地板材质配置为深邃空灵镜面效果 (高 Metallic/Smoothness + 微弱 Emission)。
 - [ ] **场景底模彻底焕新**: 深入应用 `Effekseer`，结合 AudioLink 数据，制作第一个能够随音乐频率高低起伏、律动呼吸的 MMD 风格大型动态舞台背景。
 
-### 阶段三：osu! 经典特性 VR 重塑
-- [ ] **多媒体引擎解析**: 提取并支持 `.osu` 谱面资源中包含的高清背景视频 (Video) 在 3D 巨幕上的播放。
-- [ ] **Storyboard 基础指令搭建**: 编写全新的解析模块，读取并翻译故事板中的基础控制指令 (如 Fade 淡入淡出, Move 移动, Scale 缩放)。
-- [ ] **震撼的 3D 投影演出**: 将原本受限于平面屏幕的传统 2D 故事板元素，通过深度计算，精准投射并交错在环绕玩家的 3D VR 空间之中。
-- [ ] **Effekseer 特效演出**: 利用 `Effekseer` 制作与 Storyboard 联动的华丽粒子特效（如樱花飘落、烟花绽放、光束扫射等），打造沉浸式舞台演出体验。
+### 阶段三：osu! 经典特性 VR 重塑 — 🟢 Storyboard 引擎已上线
+- [x] **Storyboard 全指令解析**: 完整支持 Sprite、Animation、Loop、Trigger 及 Fade/Move/Scale/Rotate/Color/Parameter 全部指令。
+- [x] **GPU 实例化渲染**: 通过 `ComputeBuffer` + `DrawMeshInstancedProcedural` 实现 5 万精灵零 GameObject 渲染，双 Pass (Alpha Blend + Additive) 共享缓冲区。
+- [x] **多线程矩阵计算**: `IJobParallelFor` + `[BurstCompile]` 并行计算 TRS 矩阵，GPU 剔除法（不可见精灵 Scale→zero）替代 CPU 原子锁。
+- [x] **视频背景播放**: 支持 `.mp4` / `.avi` / `.webm` 视频作为背景，通过 `VideoPlayer` + `Graphics.DrawMesh` 渲染到全息幕布。
+- [x] **双层合成渲染**: 静态背景图底层 + SB RenderTexture 叠加层，边缘羽化纹理同步应用于两层。
+- [ ] **Effekseer 特效演出**: 利用 `Effekseer` 制作与 Storyboard 联动的华丽粒子特效。
 
-### 阶段四：多平台设备全面适配 (PC / Quest / Pico)
-- [ ] **底层解耦与抽象隔离**: 剥离现有强绑定于 PC VR 环境的冗余输入逻辑，封装一层高度统一的跨平台 Input 管理层。
-- [ ] **一体机极限性能攻坚**: 针对 Meta Quest 系列的移动端 ARM 架构芯片，进行严苛的 URP 渲染大砍、Shader 变体精简与极致的 DrawCall 合并优化。
+### 阶段四：多平台设备全面适配 (PC / Quest / Pico) — 🟢 双平台构建已打通
+- [x] **跨平台文件系统**: 所有文件 I/O 统一使用 `Application.persistentDataPath`，支持 .osz 拖放导入 (PC) 与 Android 原生文件选择器。
+- [x] **Android 图形 API**: 强制 Vulkan 优先 + IL2CPP + ARM64，ComputeBuffer / GPU Instancing 全面兼容。
+- [x] **Shader 反剔除**: Dummy Material 资源偷渡法 + Always Included Shaders 双重保护，确保自定义 Shader 不被构建剔除。
+- [x] **OpenXR 双平台**: PC (OpenXR) + Android (Oculus + OpenXR) 双 Loader 配置，手柄追踪不丢失。
 - [ ] **国产设备专属调优**: 针对 Pico 4 等国内主流头显设备，适配专属的控制器高模显示与契合其振动马达特性的精准触觉反馈。
+
+### 阶段五：多线程全局优化 — 🟢 核心管线已上线
+- [x] **Storyboard 多线程**: 矩阵计算 + 纹理索引解析 + NativeArray 零拷贝直达 GPU。
+- [x] **粒子颜色计算 Job 化**: `CodeDrivenAmbientParticles` 的 12000 粒子 HSV + 闪烁计算剥离至 Burst Job。
+- [x] **音符 SoA 扁平化**: `NativeArray<double>` spawnTimes + `NativeArray<float3>` worldPositions，加载期 Burst 预计算。
+- [x] **二分搜索替代线性扫描**: `SpawnNotes` 中 O(log N) 上界查找替代 while 循环。
+- [ ] **碰撞检测自定义化**: 活跃音符 > 500 时考虑 Burst 空间哈射线检测替代 PhysX。
 
 ---
 
