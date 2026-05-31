@@ -1553,7 +1553,7 @@ namespace OsuVR
             }
 
             bool isAutoPlay = gameManager != null && gameManager.useAutoPlay;
-            double earlyWindow = (isAutoPlay ? -16 : -13) + audioLatencyCompensation;
+            double earlyWindow = isAutoPlay ? -16 : -13;
 
             if (offset >= earlyWindow && offset <= 250)
             {
@@ -1636,7 +1636,7 @@ namespace OsuVR
             }
 
             bool isAutoPlay = gameManager != null && gameManager.useAutoPlay;
-            double earlyWindow = (isAutoPlay ? 0 : -13) + audioLatencyCompensation;
+            double earlyWindow = isAutoPlay ? 0 : -13;
 
             // -------------------------------------------------------------
             // 1. 头部判定 (Head)

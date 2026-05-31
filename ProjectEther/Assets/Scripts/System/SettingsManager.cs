@@ -40,7 +40,7 @@ namespace OsuVR
         private const string PREF_KEY_SB_SCREEN_DISTANCE = "Settings_SBScreenDistance";
         private const string PREF_KEY_SB_SCREEN_ALPHA = "Settings_SBScreenAlpha";
 
-        private const int DEFAULT_TARGET_FPS = 120;
+        private const int DEFAULT_TARGET_FPS = -1; // -1 = 不限制 (PC), 由 FrameRateUnlocker 处理 Android
 
         void Awake()
         {
@@ -170,7 +170,8 @@ namespace OsuVR
         public void ApplyGraphicsSettings()
         {
             QualitySettings.SetQualityLevel(settings.qualityLevel, true);
-            Application.targetFrameRate = DEFAULT_TARGET_FPS;
+            // PC: 不限制帧率 (-1), Android: 120Hz (由 FrameRateUnlocker 精确控制)
+            Application.targetFrameRate = Application.platform == RuntimePlatform.Android ? 120 : -1;
             QualitySettings.vSyncCount = settings.enableVSync ? 1 : 0;
 
             int aaValue = settings.antiAliasing;
@@ -189,7 +190,7 @@ namespace OsuVR
                 EtherealEnvironment.Instance.SetParticleDensity(settings.particleDensity);
             }
 
-            Debug.Log($"[SettingsManager] Graphics applied: Quality={settings.qualityLevel}, FPS={DEFAULT_TARGET_FPS}, AA={settings.antiAliasing}");
+            Debug.Log($"[SettingsManager] Graphics applied: Quality={settings.qualityLevel}, FPS={Application.targetFrameRate}, AA={settings.antiAliasing}");
         }
 
         public void ApplyVRSettings()

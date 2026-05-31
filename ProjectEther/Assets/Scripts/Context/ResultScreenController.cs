@@ -525,9 +525,24 @@ namespace OsuVR
             }
 
             if (textTitle != null)
+            {
                 textTitle.text = result.GetDisplayTitle(useOriginalLanguage) ?? LocalizationManager.GetText("ui_unknown_title");
+                textTitle.enableWordWrapping = true;
+                textTitle.overflowMode = TextOverflowModes.Ellipsis;
+                textTitle.raycastTarget = false;
+                // 拉宽文本框，尽可能显示完整歌名
+                var titleRt = textTitle.rectTransform;
+                titleRt.sizeDelta = new Vector2(800f, titleRt.sizeDelta.y);
+            }
             if (textArtist != null)
+            {
                 textArtist.text = result.GetDisplayArtist(useOriginalLanguage) ?? LocalizationManager.GetText("ui_unknown_artist");
+                textArtist.enableWordWrapping = true;
+                textArtist.overflowMode = TextOverflowModes.Ellipsis;
+                textArtist.raycastTarget = false;
+                var artistRt = textArtist.rectTransform;
+                artistRt.sizeDelta = new Vector2(800f, artistRt.sizeDelta.y);
+            }
             if (textDifficulty != null)
             {
                 string diffName = string.IsNullOrEmpty(result.difficultyName) ? LocalizationManager.GetText("ui_normal") : result.difficultyName;

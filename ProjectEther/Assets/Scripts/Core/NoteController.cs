@@ -103,12 +103,12 @@ namespace OsuVR
         /// </summary>
         void OnEnable()
         {
-            // 强制复活！防止从池里拿出来还是死的
             isActive = true;
             isHovered = false;
-            // 如果是从池里取出的，hasBeenHit 状态可能脏了，需要重置
-            // 但 Initialize 会再次重置它，这里兜个底
             hasBeenHit = false;
+            // 从池中取出时恢复碰撞体（OnHit/OnMiss 会禁用它）
+            var col = GetComponent<Collider>();
+            if (col != null) col.enabled = true;
         }
 
         /// <summary>
@@ -511,19 +511,10 @@ namespace OsuVR
                 // 如果你的预制体是 3D 的 (如 Cylinder)，把 z 设为 0.01f 可以强行压扁
                 approachCircle.localScale = new Vector3(currentScale, currentScale, 1f);
 
-                // [可选] 确保它朝向摄像机 (如果是 VR，这一步很重要，让圆圈始终正面朝你)
                 approachCircle.LookAt(MainCamera.transform);
             }
-        }
 
-        /// <summary>
-        /// 晚于Update执行：负责逻辑判定
-        /// 确保LaserShooter已经完成了这一帧的射线检测
-        /// </summary>
-        void LateUpdate()
-        {
-            if (!isActive) return;
-
+            // 判定移到 Update 末尾: 与射线检测同帧执行，消除一帧延迟
             CheckHitOrMiss();
         }
 
@@ -565,11 +556,10 @@ namespace OsuVR
                 audioLatencyCompensation = AudioManager.Instance.audioLatencyCompensation;
             }
 
-            // AutoPlay 模式：允许最多提前 16ms 判定（约一帧），确保精确同步
-            // 正常模式：最早判定区间为 -13ms (osu! 标准的提前判定窗口)
-            // 加上音效延迟补偿，使音效与视觉打击同步
+            // 提前 13ms 即可判定 (osu! 标准)
+            // 音效延迟补偿单独处理，不侵入判定窗口
             bool isAutoPlay = gameManager.useAutoPlay;
-            double earlyWindow = (isAutoPlay ? -16 : -13) + audioLatencyCompensation;
+            double earlyWindow = isAutoPlay ? -16 : -13;
 
             // 条件1: diff >= earlyWindow (缩圈几乎重合)
             // 条件2: diff <= hitWindow (允许延迟 hitWindow 毫秒)
@@ -640,6 +630,10 @@ namespace OsuVR
             hasBeenHit = true;
             isActive = false;
 
+            // 立即禁用碰撞体，释放射线通道给下一个音符
+            var col = GetComponent<Collider>();
+            if (col != null) col.enabled = false;
+
             // 音量 = TimingPoint音量 × 样本倍率
             float vol = (hitObject.TimingPointVolume / 100f) * (hitObject.SampleVolume / 100f);
 
@@ -709,6 +703,10 @@ namespace OsuVR
 
             hasBeenHit = true;
             isActive = false;
+
+            // 立即禁用碰撞体，释放射线通道
+            var col = GetComponent<Collider>();
+            if (col != null) col.enabled = false;
 
             // 通知管理器
             if (gameManager != null)
