@@ -324,23 +324,23 @@ namespace OsuVR
                 // 只有转起来才震动 (RPM > 50)
                 if (CurrentRPM > 50)
                 {
-                    // 强度随进度增加 (0.1 -> 1.0)
                     float intensity = Mathf.Clamp01(Progress);
 
-                    // 1. 震动 (线性增强)
-                    float hapticStr = Mathf.Lerp(
-                        HapticManager.Instance.profile.SpinnerMinIntensity,
-                        HapticManager.Instance.profile.SpinnerMaxIntensity,
-                        intensity
-                    );
-                    HapticManager.Instance.PlayContinuous(true, hapticStr);
+                    if (HapticManager.Instance != null)
+                    {
+                        float hapticStr = Mathf.Lerp(
+                            HapticManager.Instance.profile.SpinnerMinIntensity,
+                            HapticManager.Instance.profile.SpinnerMaxIntensity,
+                            intensity
+                        );
+                        HapticManager.Instance.PlayContinuous(true, hapticStr);
+                    }
 
-                    // 2. 音效 (Spinning Loop)
-                    AudioManager.Instance.UpdateSpinnerLoop(true, intensity);
+                    AudioManager.Instance?.UpdateSpinnerLoop(true, intensity);
                 }
                 else
                 {
-                    AudioManager.Instance.UpdateSpinnerLoop(false, 0);
+                    AudioManager.Instance?.UpdateSpinnerLoop(false, 0);
                 }
             }
 

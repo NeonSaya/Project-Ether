@@ -81,12 +81,14 @@ namespace OsuVR
             whiteTex.SetPixel(0, 0, Color.white);
             whiteTex.Apply();
 
-            // 3. Shader 选择 (优先 Additive 混合模式，实现发光效果)
             Shader shader = Shader.Find("Mobile/Particles/Additive");
             if (!shader) shader = Shader.Find("Legacy Shaders/Particles/Additive");
             if (!shader) shader = Shader.Find("Particles/Standard Unlit");
             if (!shader) shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+            if (!shader) shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (!shader) shader = Shader.Find("Standard");
 
+            if (!shader) { Debug.LogError("[CodeOnlyVFX] 所有粒子 Shader 不可用，特效将失效"); return; }
             particleMat = new Material(shader);
             particleMat.enableInstancing = true;
 

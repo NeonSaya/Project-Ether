@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
@@ -911,9 +911,12 @@ namespace OsuVR
             }
             else
             {
-                // 备用材质
-                mr.material = new Material(Shader.Find("Sprites/Default"));
-                mr.material.color = new Color(0.6f, 0.7f, 0.8f, mirrorFloorAlpha);
+                var fallbackShader = Shader.Find("Sprites/Default") ?? Shader.Find("Standard");
+                if (fallbackShader != null)
+                {
+                    mr.material = new Material(fallbackShader);
+                    mr.material.color = new Color(0.6f, 0.7f, 0.8f, mirrorFloorAlpha);
+                }
             }
 
             // 确保地板在正确位置接收阴影

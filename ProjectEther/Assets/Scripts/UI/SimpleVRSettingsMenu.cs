@@ -69,6 +69,7 @@ namespace OsuVR
         private Image[] tabButtonImages;
         private Image[] tabIndicators;
         private int currentTabIndex;
+        private ScrollRect settingsScrollRect;
 
         // ============================================================
         //  生命周期
@@ -88,6 +89,19 @@ namespace OsuVR
         void OnDisable()
         {
             LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
+        }
+
+        void Update()
+        {
+            // 驱动 GameplaySettingsPage 的 Toast 淡出
+            if (pages != null)
+            {
+                foreach (var page in pages)
+                {
+                    if (page is GameplaySettingsPage gp)
+                        gp.UpdateToast();
+                }
+            }
         }
 
         private void OnLanguageChanged()
@@ -181,8 +195,7 @@ namespace OsuVR
             for (int i = 0; i < tabCount; i++)
                 CreateTabButton(tabBarGo.transform, i, tabKeys[i], tabDefaults[i]);
 
-            // ---- ContentArea ----
-            // Prefab: anchor(0,0)->(1,1), anchoredPos(0,10), sizeDelta(-50,-130)
+            // ---- ContentArea (Viewport) ----
             var contentAreaGo = new GameObject("ContentArea");
             contentAreaGo.transform.SetParent(containerGo.transform, false);
             var contentAreaRt = contentAreaGo.AddComponent<RectTransform>();
@@ -191,8 +204,47 @@ namespace OsuVR
             contentAreaRt.sizeDelta = new Vector2(-55, -143);
             contentAreaRt.anchoredPosition = new Vector2(0, 11);
 
+            // ScrollRect 视口: Mask 裁剪超出区域
+            var viewportImg = contentAreaGo.AddComponent<Image>();
+            viewportImg.color = PanelBgColor;
+            viewportImg.raycastTarget = true;
+            contentAreaGo.AddComponent<Mask>().showMaskGraphic = true;
+
+            var scrollRect = contentAreaGo.AddComponent<ScrollRect>();
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+            scrollRect.movementType = ScrollRect.MovementType.Elastic;
+            scrollRect.elasticity = 0.1f;
+            scrollRect.scrollSensitivity = 50f;
+
+            // ---- ScrollContent ----
+            var scrollContentGo = new GameObject("ScrollContent");
+            scrollContentGo.transform.SetParent(contentAreaGo.transform, false);
+            var scrollContentRt = scrollContentGo.AddComponent<RectTransform>();
+            scrollContentRt.anchorMin = new Vector2(0, 1);
+            scrollContentRt.anchorMax = new Vector2(1, 1);
+            scrollContentRt.pivot = new Vector2(0.5f, 1);
+            scrollContentRt.anchoredPosition = Vector2.zero;
+            scrollContentRt.sizeDelta = new Vector2(0, 0);
+
+            // ContentSizeFitter: 高度由子物体撑开
+            var sizeFitter = scrollContentGo.AddComponent<ContentSizeFitter>();
+            sizeFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            sizeFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            // VLG 排列页面
+            var contentVlg = scrollContentGo.AddComponent<VerticalLayoutGroup>();
+            contentVlg.childControlWidth = true;
+            contentVlg.childControlHeight = true;
+            contentVlg.childForceExpandWidth = true;
+            contentVlg.childForceExpandHeight = false;
+
+            scrollRect.content = scrollContentRt;
+            scrollRect.viewport = contentAreaRt;
+            settingsScrollRect = scrollRect;
+
             // 初始化 tempSettings
-            tempSettings = SettingsManager.Instance.Settings.Clone();
+            tempSettings = SettingsManager.Instance?.Settings?.Clone() ?? ScriptableObject.CreateInstance<GameSettings>();
 
             // Create pages
             pages = new SettingsPageBase[]
@@ -210,38 +262,41 @@ namespace OsuVR
                 pages[i].Initialize(atomicSliderPrefab, atomicTogglePrefab, atomicDropdownPrefab,
                     audioSource, hoverSound, clickSound);
 
-                // Create panel (matches prefab: full screen stretch + VLG + Image)
+                // Create panel as child of ScrollContent
                 var panelGo = new GameObject($"Page_{i}");
-                panelGo.transform.SetParent(contentAreaRt, false);
+                panelGo.transform.SetParent(scrollContentRt, false);
                 var panelRt = panelGo.AddComponent<RectTransform>();
-                panelRt.anchorMin = Vector2.zero;
-                panelRt.anchorMax = Vector2.one;
-                panelRt.sizeDelta = Vector2.zero;
-                panelRt.anchoredPosition = Vector2.zero;
+                panelRt.anchorMin = new Vector2(0, 1);
+                panelRt.anchorMax = new Vector2(1, 1);
+                panelRt.pivot = new Vector2(0.5f, 1);
 
                 var panelImg = panelGo.AddComponent<Image>();
                 panelImg.color = PanelBgColor;
                 panelImg.raycastTarget = false;
 
-                // Prefab: VLG padding(15,15,10,10), spacing=6, childAlignment=UpperCenter, childControlWidth=1
+                // VLG for this page's controls
                 var vlg = panelGo.AddComponent<VerticalLayoutGroup>();
                 vlg.padding = new RectOffset(16, 16, 11, 11);
-                vlg.spacing = 7f;
+                vlg.spacing = 14f;
                 vlg.childAlignment = TextAnchor.UpperCenter;
                 vlg.childControlWidth = true;
                 vlg.childControlHeight = false;
                 vlg.childForceExpandWidth = true;
                 vlg.childForceExpandHeight = true;
 
+                // ContentSizeFitter: 页面高度由控件撑开
+                var pageFitter = panelGo.AddComponent<ContentSizeFitter>();
+                pageFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+                pageFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
                 // Build page content
                 pages[i].BuildContent(panelRt, tempSettings, 0f);
 
-                // 强制重建布局（确保 VLG 正确计算子物体位置）
                 LayoutRebuilder.ForceRebuildLayoutImmediate(panelRt);
 
                 pagePanels[i] = panelRt;
 
-                // AudioPanel starts active, others inactive (matches prefab)
+                // AudioPanel starts active, others inactive
                 panelGo.SetActive(i == 0);
             }
 
@@ -405,6 +460,10 @@ namespace OsuVR
 
             for (int i = 0; i < pagePanels.Length; i++)
                 pagePanels[i].gameObject.SetActive(i == index);
+
+            // 切换选项卡时重置滚动位置到顶部
+            if (settingsScrollRect != null)
+                settingsScrollRect.verticalNormalizedPosition = 1f;
 
             UpdateTabVisuals();
 

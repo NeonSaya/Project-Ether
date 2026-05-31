@@ -1,6 +1,10 @@
 using System;
 using UnityEngine;
 using UnityEngine.Rendering;
+using Unity.Jobs;
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Mathematics;
 
 namespace OsuVR
 {
@@ -135,6 +139,10 @@ namespace OsuVR
         private ParticleSystem.RotationOverLifetimeModule rotationModule;
         private ParticleSystem.Particle[] particleBuffer;
         private int bufferCapacity = 0;
+
+        // Job System: Persistent NativeArray 粒子缓冲区
+        private NativeArray<ParticleSystem.Particle> _particleNative;
+        private bool _nativeInitialized = false;
         private SphereCollider triggerCollider;
 
         private MaterialPropertyBlock mpb;
@@ -187,6 +195,10 @@ namespace OsuVR
             InitializeParticleSystem();
             InitializeGradientCache();
             InitializeMaterialPropertyBlock();
+
+            // 预分配 Persistent NativeArray (约束: 绝对禁止每帧 New/Dispose)
+            _particleNative = new NativeArray<ParticleSystem.Particle>(maxParticles, Allocator.Persistent);
+            _nativeInitialized = true;
         }
 
         void Start()
@@ -496,67 +508,36 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 合并 UpdateParticleColors + LimitInnerParticles 为单次遍历
-        /// 避免每帧两次 GetParticles + SetParticles
+        /// 粒子颜色计算 Job 化:
+        /// 主线程 GetParticles → NativeArray → Burst Job 并行覆写 startColor → 主线程 SetParticles
         /// </summary>
         private void UpdateParticles()
         {
-            if (ps == null) return;
+            if (ps == null || !_nativeInitialized) return;
 
             int particleCount = ps.particleCount;
             if (particleCount == 0) return;
 
-            EnsureParticleBuffer(particleCount);
+            // 1. 主线程: GetParticles → NativeArray (约束: 绝不在 Job 内调用 Unity API)
+            int count = ps.GetParticles(_particleNative);
 
-            int count = ps.GetParticles(particleBuffer);
-
-            bool shouldFlash = beatFlashIntensity > 0.1f;
-            float innerRadiusSq = innerRadius * innerRadius;
-            int innerCount = 0;
-
-            for (int i = 0; i < count; i++)
+            // 2. Schedule Burst Job: 并行覆写 startColor + 内圈剔除
+            var job = new UpdateParticleColorsJob
             {
-                // --- 颜色更新 ---
-                uint seed = particleBuffer[i].randomSeed;
-                float hue = HashToFloat(seed);
-                hue = Mathf.Repeat(hue + currentHueOffset, 1f);
+                Particles = _particleNative,
+                HueOffset = currentHueOffset,
+                BeatFlashIntensity = beatFlashIntensity,
+                InnerRadiusSq = innerRadius * innerRadius,
+                InnerMaxParticles = innerMaxParticles,
+                IsKiai = isKiaiActive ? (byte)1 : (byte)0,
+                Count = count
+            };
 
-                if (isKiaiActive)
-                {
-                    float warmHue = Mathf.Lerp(hue, 0.08f + HashToFloat(seed + 3u) * 0.1f, 0.4f);
-                    hue = warmHue;
-                }
+            var handle = job.Schedule(count, 256);
+            handle.Complete();
 
-                float saturation = 0.6f + HashToFloat(seed + 1u) * 0.3f;
-                float value = 0.85f + HashToFloat(seed + 2u) * 0.15f;
-
-                Color rgbColor = Color.HSVToRGB(hue, saturation, value);
-                rgbColor.a = particleBuffer[i].startColor.a;
-
-                if (shouldFlash)
-                {
-                    float flashFactor = 1f + beatFlashIntensity * 0.3f;
-                    rgbColor.a = Mathf.Clamp01(rgbColor.a * flashFactor);
-                    rgbColor.r = Mathf.Clamp01(rgbColor.r + beatFlashIntensity * 0.05f);
-                    rgbColor.g = Mathf.Clamp01(rgbColor.g + beatFlashIntensity * 0.05f);
-                    rgbColor.b = Mathf.Clamp01(rgbColor.b + beatFlashIntensity * 0.05f);
-                }
-
-                particleBuffer[i].startColor = rgbColor;
-
-                // --- 内圈限制 ---
-                float distSq = particleBuffer[i].position.sqrMagnitude;
-                if (distSq < innerRadiusSq)
-                {
-                    innerCount++;
-                    if (innerCount > innerMaxParticles)
-                    {
-                        particleBuffer[i].remainingLifetime = 0f;
-                    }
-                }
-            }
-
-            ps.SetParticles(particleBuffer, count);
+            // 3. 主线程: SetParticles 回写 (极其迅速)
+            ps.SetParticles(_particleNative, count);
         }
 
         /// <summary>
@@ -577,6 +558,117 @@ namespace OsuVR
             {
                 bufferCapacity = Mathf.Max(particleCount + 64, 256);
                 particleBuffer = new ParticleSystem.Particle[bufferCapacity];
+            }
+        }
+
+        // =========================================================
+        //  Burst Job: 粒子颜色并行计算
+        // =========================================================
+
+        [BurstCompile]
+        struct UpdateParticleColorsJob : IJobParallelFor
+        {
+            public NativeArray<ParticleSystem.Particle> Particles;
+            public float HueOffset;
+            public float BeatFlashIntensity;
+            public float InnerRadiusSq;
+            public int InnerMaxParticles;
+            public byte IsKiai;
+            public int Count;
+
+            public void Execute(int i)
+            {
+                if (i >= Count) return;
+
+                var p = Particles[i];
+
+                // 确定性哈希: 纯数学位运算 (约束: 杜绝 UnityEngine.Random 状态锁)
+                uint seed = p.randomSeed;
+                float hue = HashToFloatBurst(seed);
+                hue = math.fmod(hue + HueOffset, 1f);
+                if (hue < 0f) hue += 1f;
+
+                if (IsKiai != 0)
+                {
+                    float warmHue = math.lerp(hue, 0.08f + HashToFloatBurst(seed + 3u) * 0.1f, 0.4f);
+                    hue = warmHue;
+                }
+
+                float saturation = 0.6f + HashToFloatBurst(seed + 1u) * 0.3f;
+                float value = 0.85f + HashToFloatBurst(seed + 2u) * 0.15f;
+
+                // HSV → RGB (纯 Burst 数学)
+                float4 rgbColor = HsvToRgb(hue, saturation, value);
+                rgbColor.w = p.startColor.a;
+
+                // 节拍闪烁叠加
+                if (BeatFlashIntensity > 0.1f)
+                {
+                    float flashFactor = 1f + BeatFlashIntensity * 0.3f;
+                    rgbColor.w = math.saturate(rgbColor.w * flashFactor);
+                    rgbColor.x = math.saturate(rgbColor.x + BeatFlashIntensity * 0.05f);
+                    rgbColor.y = math.saturate(rgbColor.y + BeatFlashIntensity * 0.05f);
+                    rgbColor.z = math.saturate(rgbColor.z + BeatFlashIntensity * 0.05f);
+                }
+
+                p.startColor = new Color(rgbColor.x, rgbColor.y, rgbColor.z, rgbColor.w);
+
+                // 内圈剔除
+                float distSq = math.lengthsq(p.position);
+                if (distSq < InnerRadiusSq)
+                {
+                    // 简单剔除: 超过上限的粒子寿命归零
+                    // (精确计数需要原子锁, 这里用近似: 按索引阈值剔除)
+                    if (i > InnerMaxParticles * 3)
+                    {
+                        p.remainingLifetime = 0f;
+                    }
+                }
+
+                Particles[i] = p;
+            }
+
+            // 确定性哈希: 纯数学位运算, 零状态依赖
+            static float HashToFloatBurst(uint seed)
+            {
+                uint x = seed;
+                x ^= x << 13;
+                x ^= x >> 17;
+                x ^= x << 5;
+                return (float)(x & 0x7FFFFFFF) / (float)0x7FFFFFFF;
+            }
+
+            // Burst 兼容 HSV → RGB
+            static float4 HsvToRgb(float h, float s, float v)
+            {
+                float c = v * s;
+                float x = c * (1f - math.abs(math.fmod(h * 6f, 2f) - 1f));
+                float m = v - c;
+
+                float r, g, b;
+                float hf = h * 6f;
+                int sector = (int)hf;
+
+                switch (sector)
+                {
+                    case 0: r = c; g = x; b = 0f; break;
+                    case 1: r = x; g = c; b = 0f; break;
+                    case 2: r = 0f; g = c; b = x; break;
+                    case 3: r = 0f; g = x; b = c; break;
+                    case 4: r = x; g = 0f; b = c; break;
+                    default: r = c; g = 0f; b = x; break;
+                }
+
+                return new float4(r + m, g + m, b + m, 1f);
+            }
+        }
+
+        void OnDestroy()
+        {
+            if (_nativeInitialized && _particleNative.IsCreated)
+            {
+                _particleNative.Dispose();
+                _nativeInitialized = false;
             }
         }
 

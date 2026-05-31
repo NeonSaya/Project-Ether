@@ -7,6 +7,10 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
+using Unity.Jobs;
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Mathematics;
 using OsuVR;
 using OsuVR.Storyboard;
 using OsuVR.Storyboard.Data;
@@ -136,10 +140,44 @@ namespace OsuVR
         private Dictionary<HitObject, GameObject> activeNoteObjects = new Dictionary<HitObject, GameObject>();
 
         private double bufferStartDspTime = 0;
+        /// <summary>是否处于缓冲期（音乐尚未开始但已启动游戏）</summary>
+        public bool isBufferPhase => !isPlaying && bufferStartDspTime > 0;
         private int currentRenderBaseline = 0;
 
         private ModEffectsApplier modEffects;
         private float speedMultiplier = 1f;
+
+        // =========================================================
+        //  Phase 3: SoA 扁平化数据 + Burst 预计算
+        // =========================================================
+
+        // 音符核心数据 (SoA 设计, Allocator.Persistent)
+        NativeArray<double> _noteSpawnTimes;      // 每个音符的 spawn 时间
+        NativeArray<float3> _noteWorldPositions;   // 预计算的世界坐标 (Burst MapToWorld)
+        NativeArray<int> _noteTypes;               // 0=Circle, 1=Slider, 2=Spinner
+        NativeArray<double> _noteStartTimes;       // 每个音符的 StartTime
+        bool _noteDataInitialized = false;
+
+        // Burst Job: osu! 坐标 → 世界坐标 (纯数学, 完美 Burst 兼容)
+        [BurstCompile]
+        struct MapToWorldJob : IJobParallelFor
+        {
+            [ReadOnly] public NativeArray<float2> OsuPositions;
+            [WriteOnly] public NativeArray<float3> WorldPositions;
+
+            // CoordinateMapper 常量 (运行时不可变)
+            public float OSU_W, OSU_H, TARGET_W, TARGET_H, TARGET_DIST;
+
+            public void Execute(int i)
+            {
+                float2 pos = OsuPositions[i];
+                float nx = (pos.x / OSU_W) - 0.5f;
+                float ny = (pos.y / OSU_H) - 0.5f;
+                float worldX = nx * TARGET_W;
+                float worldY = -ny * TARGET_H;
+                WorldPositions[i] = new float3(worldX, worldY + 0.5f, TARGET_DIST);
+            }
+        }
 
         // 静态计算公式
         public static double CalculateTimePreempt(float ar)
@@ -286,8 +324,8 @@ namespace OsuVR
                 UpdateCountdown();
             }
 
-            // 如果游戏进行中，生成音符
-            if (isPlaying)
+            // 游戏进行中或缓冲期内都要生成音符（缓冲期生成早期音符的缩圈）
+            if (isPlaying || (bufferStartDspTime > 0))
             {
                 SpawnNotes();
                 CheckGameEnd();
@@ -304,6 +342,7 @@ namespace OsuVR
         private void CheckGameEnd()
         {
             if (isGameEnded) return;
+            if (!isPlaying) return; // 缓冲期内不检查游戏结束
 
             // 所有音符已生成且已判定 = 游戏结束
             // 不需要等歌曲播放完毕，打完最后一个note就结算
@@ -382,14 +421,19 @@ namespace OsuVR
         {
             if (!isPlaying)
             {
+                // 暂停时冻结时间，不要覆盖 currentMusicTimeMs
+                if (pauseStartDspTime > 0)
+                    return;
+
                 // 游戏未开始，计算倒计时时间
                 if (bufferStartDspTime > 0)
                 {
                     double currentDspTime = AudioSettings.dspTime;
                     double elapsedBufferTime = currentDspTime - bufferStartDspTime;
 
-                    // 修复: 倒计时等待阶段，spawnOffset的真实等待时间也受变速影响
-                    countdownTime = preparationTime + ((spawnOffsetMs / 1000.0) / speedMultiplier) - elapsedBufferTime;
+                    // 倒计时 = 缓冲总时长(2倍准备时间 + spawnOffset) - 已过时间
+                    double bufferDuration = System.Math.Max(preparationTime * 2.0, 1.0) + ((spawnOffsetMs / 1000.0) / speedMultiplier);
+                    countdownTime = bufferDuration - elapsedBufferTime;
 
                     // 修复: 乘上 speedMultiplier 让游戏时间与加速的音乐匹配
                     // 同时应用固有延迟补偿和用户偏移
@@ -485,7 +529,8 @@ namespace OsuVR
             // 这样音乐会在准备时间 + spawnOffset秒后开始播放
             double currentDspTime = AudioSettings.dspTime;
 
-            double startTimeBuffer = System.Math.Max(preparationTime, 0.5);
+            // 缓冲时间 = 2倍准备时间，确保早期音符的缩圈有足够可见时间
+            double startTimeBuffer = System.Math.Max(preparationTime * 2.0, 1.0);
             dspStartTime = currentDspTime + startTimeBuffer;
 
             // 记录缓冲期开始时间（用于倒计时）
@@ -511,6 +556,13 @@ namespace OsuVR
 
             // 清理现有的音符（确保开始前没有残留音符）
             ClearAllNotes();
+
+            // 缓冲期就启用 AutoPlay，让手柄提前 1s+ 移动到首个音符位置
+            if (useAutoPlay && autoPlayManager != null)
+            {
+                autoPlayManager.enabled = true;
+                Debug.Log("<color=cyan>[AutoPlay] AI 已接管控制权（缓冲期）</color>");
+            }
         }
 
         /// <summary>
@@ -601,14 +653,40 @@ namespace OsuVR
 
                     if (sbPlaybackEnabled && mediaScan.HasStoryboard)
                     {
-                        // 优先加载 .osb 文件，其次加载内联 SB
+                        // 分别解析 .osb 和 .osu 内联 SB，然后合并
+                        SBStoryboard osbData = null;
+                        SBStoryboard inlineData = null;
+
                         if (hasOsbFile)
-                            sbData = StoryboardParser.ParseFile(mediaScan.OsbPath);
-                        else if (hasInlineSB)
-                            sbData = StoryboardParser.Parse(currentBeatmap.Events.StoryboardLines);
+                        {
+                            osbData = StoryboardParser.ParseFile(mediaScan.OsbPath);
+                            SBDebugLog.Log($"[RhythmGame] .osb 解析完成: {osbData?.TotalElementCount ?? 0} 元素, inline SB 行数={currentBeatmap.Events.StoryboardLines.Count}");
+                        }
+
+                        if (hasInlineSB)
+                            inlineData = StoryboardParser.Parse(
+                                currentBeatmap.Events.StoryboardLines,
+                                currentBeatmap.Events.Variables);
+
+                        // 合并: .osb 为共享素材，.osu 为难度专属
+                        if (osbData != null && inlineData != null)
+                        {
+                            sbData = osbData;
+                            for (int i = 0; i < 5; i++)
+                            {
+                                foreach (var elem in inlineData.Layers[i])
+                                    sbData.Layers[i].Add(elem);
+                            }
+                            SBDebugLog.Log($"[RhythmGame] 合并后: {sbData.TotalElementCount} 元素 (.osb={osbData.TotalElementCount}, inline={inlineData.TotalElementCount})");
+                        }
+                        else
+                        {
+                            sbData = osbData ?? inlineData;
+                        }
                     }
 
                     var renderer = StoryboardRenderer.Instance;
+                    bool widescreen = currentBeatmap.General.WidescreenStoryboard;
 
                     // 3. 三种复合模式加载
                     if (renderer != null)
@@ -619,12 +697,12 @@ namespace OsuVR
                         if (hasValidSB && mediaScan.HasVideo)
                         {
                             // 复合模式: Video + Storyboard
-                            renderer.LoadVideoAndStoryboard(videoPath, mediaScan.VideoOffset, sbData, beatmapFolder);
+                            renderer.LoadVideoAndStoryboard(videoPath, mediaScan.VideoOffset, sbData, beatmapFolder, widescreen);
                         }
                         else if (hasValidSB)
                         {
                             // 纯 Storyboard
-                            renderer.LoadStoryboard(sbData, beatmapFolder);
+                            renderer.LoadStoryboard(sbData, beatmapFolder, widescreen);
                         }
                         else if (mediaScan.HasVideo)
                         {
@@ -651,6 +729,9 @@ namespace OsuVR
                 {
                     AudioManager.Instance.LoadBeatmapSamples(folderPath);
                 }
+
+                // Phase 3: SoA 扁平化 + Burst 预计算 (在所有谱面处理完成后)
+                InitializeNoteData();
 
                 StartCoroutine(LoadAudioClip(audioPath));
             }
@@ -851,13 +932,13 @@ namespace OsuVR
             isPlaying = true;
             bufferStartDspTime = 0; // 清除缓冲期开始时间
 
-            // 重置下一个音符索引
-            nextNoteIndex = 0;
+            // 注意: 不重置 nextNoteIndex！缓冲期已正确推进了它。
+            // 重置会导致早期生成的音符被重复生成并被误判为 miss。
 
+            // AutoPlay 在缓冲期就启用，让手柄提前移动到首个音符位置
             if (useAutoPlay && autoPlayManager != null)
             {
                 autoPlayManager.enabled = true;
-                Debug.Log("<color=cyan>[AutoPlay] AI 已接管控制权</color>");
             }
 
             Debug.Log($"游戏正式开始，总音符数: {totalNotes}");
@@ -875,11 +956,71 @@ namespace OsuVR
             isGameEnded = false;
             pauseStartDspTime = 0;
 
-            // 修复：除以 speedMultiplier
-            countdownTime = preparationTime + ((spawnOffsetMs / 1000.0) / speedMultiplier);
+            // 倒计时 = 缓冲总时长(2倍准备时间 + spawnOffset)
+            countdownTime = System.Math.Max(preparationTime * 2.0, 1.0) + ((spawnOffsetMs / 1000.0) / speedMultiplier);
 
             spawnedNotes = 0;
             activeNotes = 0;
+        }
+
+        // =========================================================
+        //  Phase 3: SoA 扁平化 + Burst MapToWorld 预计算
+        // =========================================================
+
+        void InitializeNoteData()
+        {
+            // 先释放旧数据
+            DisposeNoteData();
+
+            if (hitObjects == null || hitObjects.Count == 0) return;
+
+            int count = hitObjects.Count;
+
+            // 1. 创建 SoA NativeArray (Allocator.Persistent)
+            _noteSpawnTimes = new NativeArray<double>(count, Allocator.Persistent);
+            _noteWorldPositions = new NativeArray<float3>(count, Allocator.Persistent);
+            _noteTypes = new NativeArray<int>(count, Allocator.Persistent);
+            _noteStartTimes = new NativeArray<double>(count, Allocator.Persistent);
+
+            // 2. 填充 spawn times + types (主线程: 访问 OOP 数据)
+            var osuPositions = new NativeArray<float2>(count, Allocator.TempJob);
+            for (int i = 0; i < count; i++)
+            {
+                var obj = hitObjects[i];
+                _noteSpawnTimes[i] = obj.StartTime - obj.TimePreempt;
+                _noteStartTimes[i] = obj.StartTime;
+                osuPositions[i] = new float2(obj.Position.x, obj.Position.y);
+
+                if (obj is SpinnerObject) _noteTypes[i] = 2;
+                else if (obj is SliderObject) _noteTypes[i] = 1;
+                else _noteTypes[i] = 0;
+            }
+
+            // 3. Burst Job: 批量 osu! → 世界坐标 (约束: 加载期全量预计算, 运行时零计算)
+            var mapJob = new MapToWorldJob
+            {
+                OsuPositions = osuPositions,
+                WorldPositions = _noteWorldPositions,
+                OSU_W = 512f,
+                OSU_H = 384f,
+                TARGET_W = 1.5f,
+                TARGET_H = 1.1f,
+                TARGET_DIST = 2.0f
+            };
+            mapJob.Schedule(count, 64).Complete();
+            osuPositions.Dispose();
+
+            _noteDataInitialized = true;
+            Debug.Log($"[Phase3] NoteData 初始化完成: {count} 音符, 世界坐标已预计算");
+        }
+
+        void DisposeNoteData()
+        {
+            if (_noteSpawnTimes.IsCreated) _noteSpawnTimes.Dispose();
+            if (_noteWorldPositions.IsCreated) _noteWorldPositions.Dispose();
+            if (_noteTypes.IsCreated) _noteTypes.Dispose();
+            if (_noteStartTimes.IsCreated) _noteStartTimes.Dispose();
+            _noteDataInitialized = false;
         }
 
         /// <summary>
@@ -1104,7 +1245,7 @@ namespace OsuVR
             Debug.Log($"开始加载谱面文件: {osuFileName}");
 
             // 1. 修正路径：指向 Assets/Songs
-            string filePath = System.IO.Path.Combine(Application.dataPath, "Songs", osuFileName);
+            string filePath = System.IO.Path.Combine(BeatmapImporter.SongsDirectory, osuFileName);
 
             // 检查文件是否存在
             if (!System.IO.File.Exists(filePath))
@@ -1173,6 +1314,9 @@ namespace OsuVR
                 Debug.Log($"  Audio: {currentBeatmap.General.AudioFilename}");
                 Debug.Log($"  CS:{currentBeatmap.Difficulty.CircleSize} AR:{currentBeatmap.Difficulty.ApproachRate}");
                 Debug.Log($"  总音符: {totalNotes} (圈:{hitCircleCount}, 滑:{sliderCount}, 转:{spinnerCount})");
+
+                // Phase 3: SoA 扁平化 + Burst 预计算
+                InitializeNoteData();
             }
             catch (System.Exception e)
             {
@@ -1228,72 +1372,97 @@ namespace OsuVR
         /// </summary>
         private void SpawnNotes()
         {
-            // 修改点：即使 isPlaying 为 false，只要处于缓冲期 (bufferStartDspTime > 0) 也要运行
             bool isBufferPhase = !isPlaying && bufferStartDspTime > 0;
 
-            // 如果既不是进行中，也不是缓冲期，或者是数据为空，才返回
             if ((!isPlaying && !isBufferPhase) || hitObjects == null || nextNoteIndex >= hitObjects.Count)
                 return;
 
-            // ---------------------------------------------------------
             // 机制1: 全局基准线与防下穿机制
-            // 目标：防止长歌曲的渲染队列掉入 2000 以下的天空盒层
-            // ---------------------------------------------------------
-            // 1. 当屏幕上没有存活音符时，重置基准线
             if (activeNotes == 0)
             {
                 currentRenderBaseline = nextNoteIndex;
             }
-            // 2. 长图防暴毙锁：连续 250 个音符不断档，强行重置
             else if (nextNoteIndex - currentRenderBaseline > 80)
             {
                 currentRenderBaseline = nextNoteIndex;
             }
 
-            // 遍历尚未生成的音符
+            // =========================================================
+            //  Phase 3: 极速时间轴扫描 (Binary Search O(log N))
+            //  替代 while 线性扫描, 瞬间框定当前帧需要生成的音符索引区间
+            // =========================================================
+
+            double currentTime = currentMusicTimeMs;
+
+            // 1. 过期音符处理 (从 cursor 线性扫描, 实际极少触发)
             while (nextNoteIndex < hitObjects.Count)
+            {
+                double startTime = _noteDataInitialized ? _noteStartTimes[nextNoteIndex] : hitObjects[nextNoteIndex].StartTime;
+                if (currentTime > startTime + 250.0)
+                {
+#if UNITY_EDITOR
+                    Debug.LogWarning($"[Manager] 丢弃过期音符: {startTime}ms (当前: {currentTime:F0})");
+#endif
+                    if (scoreManager != null) scoreManager.RegisterMiss(300);
+                    nextNoteIndex++;
+                    spawnedNotes++;
+                }
+                else break;
+            }
+
+            if (nextNoteIndex >= hitObjects.Count) return;
+
+            // 2. Binary Search: 在 _noteSpawnTimes 中 O(log N) 定位上界
+            int upperBound;
+            if (_noteDataInitialized && _noteSpawnTimes.IsCreated)
+            {
+                // 手动二分搜索: 找到第一个 spawnTime > currentTime 的索引
+                int lo = nextNoteIndex, hi = hitObjects.Count;
+                while (lo < hi)
+                {
+                    int mid = (lo + hi) >> 1;
+                    if (_noteSpawnTimes[mid] <= currentTime)
+                        lo = mid + 1;
+                    else
+                        hi = mid;
+                }
+                upperBound = lo;
+            }
+            else
+            {
+                // Fallback: 线性扫描 (数据未初始化时)
+                upperBound = nextNoteIndex;
+                while (upperBound < hitObjects.Count)
+                {
+                    double st = hitObjects[upperBound].StartTime - hitObjects[upperBound].TimePreempt;
+                    if (currentTime < st) break;
+                    upperBound++;
+                }
+            }
+
+            // 3. 批量生成就绪音符
+            while (nextNoteIndex < upperBound)
             {
                 HitObject hitObject = hitObjects[nextNoteIndex];
 
-                // 计算生成时间（使用每个物件的TimePreempt作为提前量）
-                double spawnTime = hitObject.StartTime - hitObject.TimePreempt;
-
-                // 检查音符是否已经过期（超过250ms未生成则视为Miss）
-                if (currentMusicTimeMs > hitObject.StartTime + 250f)
+                // 安全检查: 过期音符已在步骤1处理, 跳过
+                if (currentTime > hitObject.StartTime + 250.0)
                 {
-#if UNITY_EDITOR
-                    Debug.LogWarning($"[Manager] 丢弃过期音符: {hitObject.StartTime}ms (当前: {currentMusicTimeMs:F0})");
-#endif
-                    if (scoreManager != null) scoreManager.RegisterMiss(300);
                     nextNoteIndex++;
                     continue;
                 }
 
-                // 比较当前音乐时间（注意：在缓冲期 currentMusicTimeMs 是负数，这正好能对应上）
-                if (currentMusicTimeMs >= spawnTime)
-                {
-                    HitObject nextObject = null;
-                    // 检查列表里是否还有下一个
-                    if (nextNoteIndex + 1 < hitObjects.Count)
-                    {
-                        nextObject = hitObjects[nextNoteIndex + 1];
-                    }
+                int safeRenderIndex = nextNoteIndex - currentRenderBaseline;
 
-                    // 机制1: 计算安全渲染索引（相对绝对索引）
-                    int safeRenderIndex = nextNoteIndex - currentRenderBaseline;
-                    SpawnNoteByType(hitObject, safeRenderIndex, nextObject);
-                    
-                    nextNoteIndex++;
-                    spawnedNotes++;
-                }
-                else
-                {
-                    break;
-                }
+                // Phase 3: 使用缓存世界坐标, 运行时零 MapToWorld 计算
+                SpawnNoteByType(hitObject, safeRenderIndex, nextNoteIndex);
+
+                nextNoteIndex++;
+                spawnedNotes++;
             }
         }
 
-        private void SpawnNoteByType(HitObject hitObject, int renderIndex, HitObject nextHitObject = null)
+        private void SpawnNoteByType(HitObject hitObject, int renderIndex, int noteIndex)
         {
             // 1. 获取对象池管理器
             var poolMgr = NotePoolManager.Instance;
@@ -1301,22 +1470,21 @@ namespace OsuVR
 
             GameObject noteObject = null;
 
-            // 2. 颜色计算 (保持不变)
+            // 2. 颜色计算
             Color comboColor = Color.white;
             if (currentBeatmap.ComboColors != null && currentBeatmap.ComboColors.Count > 0)
             {
                 comboColor = currentBeatmap.ComboColors[hitObject.ComboIndex % currentBeatmap.ComboColors.Count];
             }
 
-            // 3. CS 计算 (使用 Mod 修改后的 CS)
+            // 3. CS 计算
             float currentCS = GetCurrentCS();
 
-            // 3.5 . 下一个音符位置 (保持不变)
+            // 3.5 下一个音符位置
             Vector3? nextNoteWorldPos = null;
-            if (nextHitObject != null)
+            if (noteIndex + 1 < hitObjects.Count)
             {
-                // 只需要 X/Y 平面的方向，Z轴(Stacking)的微小差异对粒子方向影响不大，直接用 MapToWorld 即可
-                nextNoteWorldPos = CoordinateMapper.MapToWorld(nextHitObject.Position);
+                nextNoteWorldPos = CoordinateMapper.MapToWorld(hitObjects[noteIndex + 1].Position);
             }
 
             // 4. 从池中获取对象 & 初始化
@@ -1367,9 +1535,8 @@ namespace OsuVR
                 if (noteObject == null) noteObject = Instantiate(poolMgr.spinnerPrefab);
 
                 if (!noteObject.activeSelf) noteObject.SetActive(true);
-                Vector2 osuCenter = new Vector2(256, 192);
 
-                Vector3 worldCenter = CoordinateMapper.MapToWorld(osuCenter);
+                Vector3 worldCenter = CoordinateMapper.MapToWorld(new Vector2(256, 192));
 
                 noteObject.transform.position = worldCenter;
                 float od = (currentBeatmap != null && currentBeatmap.Difficulty != null) ? currentBeatmap.Difficulty.OverallDifficulty: 5f;
@@ -1706,6 +1873,13 @@ namespace OsuVR
         /// </summary>
         void OnDestroy()
         {
+            // Phase 3: 释放 SoA NativeArray
+            DisposeNoteData();
+
+            // 隐藏全息幕布并释放 Storyboard 渲染资源
+            HolographicScreenManager.Instance?.Hide();
+            StoryboardRenderer.Instance?.UnloadAll();
+
             // 清理Cancel输入动作
             if (cancelInputAction != null)
             {
@@ -1723,11 +1897,17 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 获取当前音乐时间（毫秒） - 供所有Controller使用
+        /// 获取当前音乐时间（毫秒） - 供所有Controller和StoryboardRenderer使用
         /// </summary>
         public double GetCurrentMusicTimeMs()
         {
-            // 如果没有在播放且没有处于缓冲期
+            // 暂停时冻结在最后有效时间，SB 精灵停在当前帧
+            if (pauseStartDspTime > 0)
+            {
+                return currentMusicTimeMs;
+            }
+
+            // 未开始且不在缓冲期
             if (!isPlaying && bufferStartDspTime <= 0)
             {
                 return -spawnOffsetMs;
@@ -1736,7 +1916,6 @@ namespace OsuVR
             if (dspStartTime > 0)
             {
                 double currentDspTime = AudioSettings.dspTime;
-                // 修复: 必须乘上 speedMultiplier，并减去全局偏移和固有延迟
                 return (((currentDspTime - dspStartTime) * 1000.0) * speedMultiplier) - universalOffsetMs - INHERENT_AUDIO_LATENCY_MS;
             }
 

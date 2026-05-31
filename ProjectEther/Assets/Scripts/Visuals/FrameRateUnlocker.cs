@@ -1,5 +1,7 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.XR;
 
@@ -7,6 +9,28 @@ namespace OsuVR
 {
     public class FrameRateUnlocker : MonoBehaviour
     {
+#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+        [DllImport("user32.dll")]
+        static extern IntPtr GetActiveWindow();
+        [DllImport("user32.dll")]
+        static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+        [DllImport("user32.dll")]
+        static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+        const int GWL_STYLE = -16;
+        const int WS_MAXIMIZEBOX = 0x00010000;
+        const int WS_THICKFRAME = 0x00040000; // 可拖拽缩放边框
+
+        static void MakeWindowResizable()
+        {
+            IntPtr hwnd = GetActiveWindow();
+            if (hwnd == IntPtr.Zero) return;
+            int style = GetWindowLong(hwnd, GWL_STYLE);
+            style |= WS_THICKFRAME | WS_MAXIMIZEBOX;
+            SetWindowLong(hwnd, GWL_STYLE, style);
+        }
+#endif
+
         [Header("设置")]
         [Tooltip("是否尝试强制开启 120Hz (如果设备支持)")]
         public bool tryForce120Hz = true;
@@ -41,9 +65,15 @@ namespace OsuVR
 
             if (Application.platform == RuntimePlatform.WindowsPlayer || Application.platform == RuntimePlatform.WindowsEditor)
             {
-                // PCVR 模式
+                // PC 模式: 窗口化 + 可缩放 + 可最大化
+                Screen.fullScreenMode = FullScreenMode.Windowed;
                 Application.targetFrameRate = pcTargetFrameRate;
-                Debug.Log($"[FrameRate] PC Mode set. Target: {pcTargetFrameRate}, VSync: 0");
+#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+                // 等一帧让窗口创建完成，然后修改窗口样式
+                yield return null;
+                MakeWindowResizable();
+#endif
+                Debug.Log($"[FrameRate] PC Mode: Windowed (resizable), Target: {pcTargetFrameRate}, VSync: 0");
             }
             else if (Application.platform == RuntimePlatform.Android)
             {

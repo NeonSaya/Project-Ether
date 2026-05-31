@@ -307,6 +307,7 @@ namespace OsuVR.Storyboard.Data
         public List<SBScaleVectorCommand> ScaleVectorCommands = new List<SBScaleVectorCommand>();
         public List<SBRotateCommand> RotateCommands = new List<SBRotateCommand>();
         public List<SBColorCommand> ColorCommands = new List<SBColorCommand>();
+        public List<SBParameterCommand> ParameterCommands = new List<SBParameterCommand>();
 
         public SBLoop(double startTime, int loopCount)
         {

@@ -374,7 +374,9 @@ namespace OsuVR
             if (_cachedMainCam != null && _cachedMainCam.transform.localPosition.y < 0.1f && simulatedHeadHeight > 0.01f)
                 _cachedMainCam.transform.localPosition = new Vector3(0, simulatedHeadHeight, 0);
 
-            if (gameManager == null || !gameManager.isPlaying) return;
+            if (gameManager == null) return;
+            // 游戏进行中或缓冲期内都要更新手柄（缓冲期内提前移动到首个音符位置）
+            if (!gameManager.isPlaying && !gameManager.isBufferPhase) return;
 
             // 检查手柄是否有效（重试时可能被 OnDisable 还原导致 transform 无效）
             if (leftHand != null && (leftHand.transform == null || leftHand.transform.Equals(null)))

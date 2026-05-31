@@ -41,11 +41,10 @@ namespace OsuVR
 
             // 2. 查找并创建材质
             Shader osuShader = Shader.Find(SHADER_NAME);
-            if (osuShader == null)
-            {
-                Debug.LogWarning($"Shader '{SHADER_NAME}' not found! Fallback to URP Lit.");
-                osuShader = Shader.Find("Universal Render Pipeline/Lit");
-            }
+            if (osuShader == null) osuShader = Shader.Find("Universal Render Pipeline/Lit");
+            if (osuShader == null) osuShader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (osuShader == null) osuShader = Shader.Find("Standard");
+            if (osuShader == null) { Debug.LogError("[SliderMeshGenerator] 所有 Shader 均不可用!"); return (null, null, null, null); }
 
             // ---------------------------------------------------------
             // 机制3: 滑条自我交叉防重叠 (Stencil Buffer)

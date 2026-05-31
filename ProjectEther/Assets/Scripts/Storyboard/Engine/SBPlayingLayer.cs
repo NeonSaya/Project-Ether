@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using OsuVR.Storyboard;
 using OsuVR.Storyboard.Data;
 
 namespace OsuVR.Storyboard.Engine
@@ -32,11 +33,14 @@ namespace OsuVR.Storyboard.Engine
         {
             _sprites = new SBPlayingSprite[elements.Count];
             var tasks = new List<(double time, Action callback)>(elements.Count * 2);
+            int totalCmds = 0;
 
             for (int i = 0; i < elements.Count; i++)
             {
                 var element = elements[i];
                 var group = groupBuilder(element);
+                totalCmds += group.Commands.Count;
+
                 var sprite = new SBPlayingSprite();
                 sprite.Load(element, group);
                 _sprites[i] = sprite;
@@ -53,6 +57,7 @@ namespace OsuVR.Storyboard.Engine
                 }
             }
 
+            SBDebugLog.Log($"[PlayingLayer] {elements.Count} sprites → {totalCmds} expanded commands, {tasks.Count} schedule tasks");
             _schedule.SetTasks(tasks);
         }
 

@@ -38,6 +38,12 @@ namespace OsuVR.Storyboard.Engine
         /// 创建时间偏移后的副本 (用于 Loop 展开)
         /// </summary>
         public abstract SBSpriteCommand CreateOffsetCommand(double offset);
+
+        /// <summary>
+        /// 创建 "hold" 命令：将 EndValue 保持在 [holdStart, holdEnd] 区间
+        /// 用于 Loop 展开优化——超出展开限制的迭代用 hold 覆盖
+        /// </summary>
+        public abstract SBSpriteCommand CreateHoldCommand(double holdStart, double holdEnd);
     }
 
     /// <summary>
@@ -59,6 +65,11 @@ namespace OsuVR.Storyboard.Engine
         public override SBSpriteCommand CreateOffsetCommand(double offset)
         {
             return new SBFloatCommand(Target, Easing, StartTime + offset, EndTime + offset, StartValue, EndValue);
+        }
+
+        public override SBSpriteCommand CreateHoldCommand(double holdStart, double holdEnd)
+        {
+            return new SBFloatCommand(Target, SBEasing.Linear, holdStart, holdEnd, EndValue, EndValue);
         }
     }
 
@@ -82,6 +93,11 @@ namespace OsuVR.Storyboard.Engine
         {
             return new SBColorCommand(Target, Easing, StartTime + offset, EndTime + offset, StartValue, EndValue);
         }
+
+        public override SBSpriteCommand CreateHoldCommand(double holdStart, double holdEnd)
+        {
+            return new SBColorCommand(Target, SBEasing.Linear, holdStart, holdEnd, EndValue, EndValue);
+        }
     }
 
     /// <summary>
@@ -104,6 +120,11 @@ namespace OsuVR.Storyboard.Engine
         {
             return new SBBoolCommand(Target, Easing, StartTime + offset, EndTime + offset, StartValue, EndValue);
         }
+
+        public override SBSpriteCommand CreateHoldCommand(double holdStart, double holdEnd)
+        {
+            return new SBBoolCommand(Target, SBEasing.Linear, holdStart, holdEnd, EndValue, EndValue);
+        }
     }
 
     /// <summary>
@@ -114,17 +135,28 @@ namespace OsuVR.Storyboard.Engine
     {
         public SBCommandGroup InnerGroup;
         public int LoopCount;
+        public double LoopDuration; // 内层命令的时间跨度
 
         public SBLoopCommand(double startTime, int loopCount, SBCommandGroup innerGroup)
             : base(SBCommandTarget.Alpha, SBEasing.Linear, startTime, 0)
         {
             LoopCount = loopCount;
             InnerGroup = innerGroup;
+            // 计算内层命令的时间跨度
+            LoopDuration = innerGroup.EndTime() - innerGroup.StartTime();
+            if (LoopDuration <= 0) LoopDuration = 1;
+            // 设置 EndTime 为循环结束时间（用于 Schedule）
+            EndTime = StartTime + LoopCount * LoopDuration;
         }
 
         public override SBSpriteCommand CreateOffsetCommand(double offset)
         {
             return new SBLoopCommand(StartTime + offset, LoopCount, InnerGroup);
+        }
+
+        public override SBSpriteCommand CreateHoldCommand(double holdStart, double holdEnd)
+        {
+            return null; // Loop commands don't need hold
         }
     }
 }

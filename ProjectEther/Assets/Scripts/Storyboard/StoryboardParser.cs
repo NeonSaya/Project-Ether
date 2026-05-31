@@ -16,8 +16,124 @@ namespace OsuVR.Storyboard
     {
         /// <summary>
         /// 解析 StoryboardLines 列表，返回完整的内存对象树
+        /// 自动提取并应用 [Variables] 段中的变量替换
         /// </summary>
         public static SBStoryboard Parse(List<string> lines)
+        {
+            var processedLines = PreprocessLines(lines, null);
+            return ParseInternal(processedLines);
+        }
+
+        /// <summary>
+        /// 解析 StoryboardLines 列表，使用外部传入的变量进行替换
+        /// 用于 .osu 内联 SB 命令 (外部变量来自 .osu 的 [Variables] 段)
+        /// </summary>
+        public static SBStoryboard Parse(List<string> lines, Dictionary<string, string> externalVariables)
+        {
+            var processedLines = PreprocessLines(lines, externalVariables);
+            return ParseInternal(processedLines);
+        }
+
+        /// <summary>
+        /// 预处理: 提取 [Variables]、过滤注释和段头、执行变量替换
+        /// </summary>
+        static List<string> PreprocessLines(List<string> lines, Dictionary<string, string> externalVariables)
+        {
+            // 合并外部变量与内部变量
+            var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (externalVariables != null)
+            {
+                foreach (var kv in externalVariables)
+                    variables[kv.Key] = kv.Value;
+            }
+
+            // 第一遍: 提取 [Variables] 段中的变量定义
+            bool inVariables = false;
+            var filtered = new List<string>(lines.Count);
+            foreach (var rawLine in lines)
+            {
+                if (string.IsNullOrWhiteSpace(rawLine)) continue;
+                string trimmed = rawLine.Trim();
+
+                // 跳过注释
+                if (trimmed.StartsWith("//")) continue;
+
+                // 检测段头
+                if (trimmed.StartsWith("[") && trimmed.EndsWith("]"))
+                {
+                    string sectionName = trimmed.Substring(1, trimmed.Length - 2);
+                    if (string.Equals(sectionName, "Variables", StringComparison.OrdinalIgnoreCase))
+                    {
+                        inVariables = true;
+                        continue;
+                    }
+                    inVariables = false;
+                    filtered.Add(rawLine);
+                    continue;
+                }
+
+                if (inVariables)
+                {
+                    // 解析 $key=value
+                    if (trimmed.StartsWith("$"))
+                    {
+                        int eqIndex = trimmed.IndexOf('=');
+                        if (eqIndex > 0)
+                        {
+                            string key = trimmed.Substring(0, eqIndex).Trim();
+                            string value = trimmed.Substring(eqIndex + 1).Trim();
+                            variables[key] = value;
+                        }
+                    }
+                    continue;
+                }
+
+                filtered.Add(rawLine);
+            }
+
+            // 第二遍: 对所有行执行变量替换
+            if (variables.Count == 0) return filtered;
+
+            var result = new List<string>(filtered.Count);
+            foreach (var line in filtered)
+                result.Add(SubstituteVariables(line, variables));
+
+            return result;
+        }
+
+        /// <summary>
+        /// 递归替换行中的 $variable 引用 (防循环引用)
+        /// </summary>
+        static string SubstituteVariables(string line, Dictionary<string, string> variables)
+        {
+            if (string.IsNullOrEmpty(line) || !line.Contains("$")) return line;
+
+            var replaced = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            string result = line;
+            int safetyLimit = 100;
+
+            while (safetyLimit-- > 0 && result.Contains("$"))
+            {
+                bool anyReplaced = false;
+                foreach (var kv in variables)
+                {
+                    if (replaced.Contains(kv.Key)) continue;
+                    if (result.Contains(kv.Key))
+                    {
+                        result = result.Replace(kv.Key, kv.Value);
+                        replaced.Add(kv.Key);
+                        anyReplaced = true;
+                    }
+                }
+                if (!anyReplaced) break;
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// 内部解析核心 (变量替换已完成)
+        /// </summary>
+        static SBStoryboard ParseInternal(List<string> lines)
         {
             var storyboard = new SBStoryboard();
             SBElement currentElement = null;
@@ -86,7 +202,7 @@ namespace OsuVR.Storyboard
                 }
             }
 
-            Debug.Log($"[SBParser] 解析完成: {storyboard.TotalElementCount} 个元素");
+            SBDebugLog.Mem($"ParseInternal 完成: {storyboard.TotalElementCount} 元素, {lines.Count} 行");
             return storyboard;
         }
 
@@ -304,9 +420,13 @@ namespace OsuVR.Storyboard
             if (parts.Count < 2) return null;
 
             double startTime = ParseDouble(parts[0]);
-            int loopCount = ParseInt(parts[1]);
-            if (loopCount < 0) loopCount = -1; // -1 表示无限循环
-            return new SBLoop(startTime, loopCount);
+            int repeatCount = ParseInt(parts[1]);
+            // osu! 格式: L,startTime,repeatCount
+            // repeatCount = 重复次数 (不含首次播放)
+            // osu!lazer: AddLoopingGroup(startTime, repeatCount - 1), TotalIterations = (repeatCount-1) + 1 = repeatCount
+            // 所以总迭代次数 = repeatCount (与文件中的值一致)
+            int totalIterations = repeatCount < 0 ? -1 : repeatCount;
+            return new SBLoop(startTime, totalIterations);
         }
 
         static void ParseTrigger(string data, SBElement element)
@@ -386,7 +506,7 @@ namespace OsuVR.Storyboard
         {
             var cmd = new SBParameterCommand(easing, start, end, param);
             if (target is SBElement elem) elem.ParameterCommands.Add(cmd);
-            // Parameter 不加入 Loop
+            else if (target is SBLoop loop) loop.ParameterCommands.Add(cmd);
         }
 
         // =====================================================

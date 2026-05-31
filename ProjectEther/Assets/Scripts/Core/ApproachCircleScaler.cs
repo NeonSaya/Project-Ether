@@ -27,7 +27,7 @@ namespace OsuVR
             this.timePreempt = timePreemptMs;
             this.isRunning = true;
 
-            cachedManager = manager != null ? manager : FindFirstObjectByType<RhythmGameManager>();
+            cachedManager = manager;
             if (cachedManager != null && cachedManager.GetModEffects() != null)
             {
                 this.isHidden = cachedManager.GetModEffects().IsHidden;

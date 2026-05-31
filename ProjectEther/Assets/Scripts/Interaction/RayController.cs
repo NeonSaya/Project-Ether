@@ -42,7 +42,7 @@ namespace OsuVR
         public float verticalOffset = 30f;
 
         [Header("检测增强")]
-        public float rayRadius = 0.13f;
+        public float rayRadius = 0.20f;
 
         [Header("通用配置")]
         public float rayLength = 100f;
@@ -92,6 +92,10 @@ namespace OsuVR
         {
             if (triggerAction != null) triggerAction.Enable();
             EnableAction(rightStickAction);
+            // 场景加载后立即刷新缓存，消除 1-2s UI 无响应延迟
+            if (eventSystem == null) eventSystem = EventSystem.current;
+            cachedMainCam = Camera.main;
+            RefreshHeavyCaches();
         }
 
         void OnDisable()
@@ -156,8 +160,16 @@ namespace OsuVR
             if (cacheRefreshTimer >= CACHE_REFRESH_INTERVAL)
             { cacheRefreshTimer = 0f; RefreshHeavyCaches(); }
 
-            // Camera.main 内部做 FindGameObjectWithTag，缓存避免每帧调用
-            if (cachedMainCam == null) cachedMainCam = Camera.main;
+            if (cachedMainCam == null)
+            {
+                cachedMainCam = Camera.main;
+                // 如果 MainCamera 仍未就绪，尝试直接查找
+                if (cachedMainCam == null)
+                {
+                    var camGo = GameObject.FindWithTag("MainCamera");
+                    if (camGo != null) cachedMainCam = camGo.GetComponent<Camera>();
+                }
+            }
 
             PerformRaycastAll();
             UpdateDropdownState();
