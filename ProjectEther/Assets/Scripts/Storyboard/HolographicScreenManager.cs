@@ -258,11 +258,9 @@ namespace OsuVR.Storyboard
 
             // 3. 创建背景材质 (支持透明, 跟随不透明度设置)
             Shader shader = Shader.Find("OsuVR/HolographicScreen");
-            if (shader == null)
-            {
-                Debug.LogWarning("[HolographicScreen] 自定义 Shader 未找到，fallback 到 URP Unlit");
-                shader = Shader.Find("Universal Render Pipeline/Unlit");
-            }
+            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null) shader = Shader.Find("Standard");
+            if (shader == null) { Debug.LogError("[HolographicScreen] 所有 Shader 均不可用!"); return; }
             screenMaterial = new Material(shader);
 
             // 确保材质支持透明 (自定义 shader 可能不需要, 但 fallback 必须设置)
@@ -308,11 +306,9 @@ namespace OsuVR.Storyboard
 
             // 3. Overlay 材质: SB RenderTexture × 边缘羽化纹理
             Shader overlayShader = Shader.Find("OsuVR/SBOverlay");
-            if (overlayShader == null)
-            {
-                Debug.LogWarning("[HolographicScreen] SBOverlay shader 未找到, fallback 到 URP Unlit");
-                overlayShader = Shader.Find("Universal Render Pipeline/Unlit");
-            }
+            if (overlayShader == null) overlayShader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (overlayShader == null) overlayShader = Shader.Find("Standard");
+            if (overlayShader == null) { Debug.LogError("[HolographicScreen] SBOverlay Shader 不可用!"); return; }
             overlayMaterial = new Material(overlayShader);
             overlayMaterial.renderQueue = (int)RenderQueue.Transparent + 1;
 

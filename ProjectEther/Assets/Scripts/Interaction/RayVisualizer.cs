@@ -41,10 +41,16 @@ namespace OsuVR
             // 3. 修复：让射线无视深度遮挡，永远显示在 UI 上方
             if (lineRenderer.sharedMaterial == null || rayMaterial == null)
             {
-                // 使用 UI/Default 材质并强制关闭深度测试 (ZTest Always)
-                Material alwaysOnTopMat = new Material(Shader.Find("UI/Default"));
-                alwaysOnTopMat.SetInt("unity_GUIZTestMode", (int)UnityEngine.Rendering.CompareFunction.Always);
-                lineRenderer.material = alwaysOnTopMat;
+                Shader uiShader = Shader.Find("UI/Default");
+                if (uiShader == null) uiShader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (uiShader == null) uiShader = Shader.Find("Standard");
+                if (uiShader == null) { Debug.LogError("[RayVisualizer] UI Shader 不可用，射线将无材质"); }
+                else
+                {
+                    Material alwaysOnTopMat = new Material(uiShader);
+                    alwaysOnTopMat.SetInt("unity_GUIZTestMode", (int)UnityEngine.Rendering.CompareFunction.Always);
+                    lineRenderer.material = alwaysOnTopMat;
+                }
             }
             else
             {

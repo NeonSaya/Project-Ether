@@ -120,22 +120,26 @@ namespace OsuVR
                 Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
                 if (!shader) shader = Shader.Find("Mobile/Particles/Additive");
                 if (!shader) shader = Shader.Find("Particles/Standard Unlit");
+                if (!shader) shader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (!shader) shader = Shader.Find("Standard");
 
-                flashMat = new Material(shader);
-                flashMat.SetFloat("_Surface", 1);
-                flashMat.SetFloat("_Blend", 0);
-                flashMat.SetInt("_ZWrite", 0);
-
-                flashMat.SetInt("_ZTest", 8); // 8 = Always
-                flashMat.SetInt("_Cull", 0);
-                flashMat.renderQueue = 4000;
-
-                flashMat.mainTexture = _softDotTex;
-                if (flashMat.HasProperty("_BaseMap")) flashMat.SetTexture("_BaseMap", _softDotTex);
+                if (!shader) { Debug.LogError("[JudgementVisualizer] 闪光 Shader 不可用，跳过闪光材质"); }
+                else
+                {
+                    flashMat = new Material(shader);
+                    flashMat.SetFloat("_Surface", 1);
+                    flashMat.SetFloat("_Blend", 0);
+                    flashMat.SetInt("_ZWrite", 0);
+                    flashMat.SetInt("_ZTest", 8);
+                    flashMat.SetInt("_Cull", 0);
+                    flashMat.renderQueue = 4000;
+                    flashMat.mainTexture = _softDotTex;
+                    if (flashMat.HasProperty("_BaseMap")) flashMat.SetTexture("_BaseMap", _softDotTex);
+                }
             }
 
-            // 2. 准备 Miss 专属材质 (实心、正常透明度混合、永远置顶)
-            if (missMat == null)
+            // 2. 准备 Miss 专属材质
+            if (missMat == null && flashMat != null)
             {
                 missMat = new Material(flashMat.shader);
                 missMat.SetFloat("_Surface", 1);

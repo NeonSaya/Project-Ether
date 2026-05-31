@@ -612,8 +612,10 @@ namespace OsuVR.Storyboard
         {
             videoQuadMesh = CreateFullScreenQuad();
 
-            var shader = Shader.Find("Universal Render Pipeline/Unlit")
-                ?? Shader.Find("Unlit/Texture");
+            var shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null) shader = Shader.Find("Unlit/Texture");
+            if (shader == null) shader = Shader.Find("Standard");
+            if (shader == null) { Debug.LogError("[SBRenderer] Video Shader 不可用!"); return; }
             videoMaterial = new Material(shader);
             videoMaterial.SetFloat("_Surface", 0);
             videoMaterial.SetFloat("_ZWrite", 1);
@@ -861,9 +863,11 @@ namespace OsuVR.Storyboard
             if (sbMaterialAlpha != null) return;
 
             var shader = Shader.Find("OsuVR/SBInstanced");
+            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null) shader = Shader.Find("Standard");
             if (shader == null)
             {
-                Debug.LogError("[SBRenderer] 找不到 Shader 'OsuVR/SBInstanced'!");
+                Debug.LogError("[SBRenderer] 所有 SB Shader 均不可用!");
                 return;
             }
 

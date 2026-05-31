@@ -808,11 +808,13 @@ namespace OsuVR
 
             Shader additiveShader = Shader.Find("Mobile/Particles/Additive")
                 ?? Shader.Find("Legacy Shaders/Particles/Additive")
-                ?? Shader.Find("Particles/Standard Unlit");
+                ?? Shader.Find("Particles/Standard Unlit")
+                ?? Shader.Find("Universal Render Pipeline/Unlit")
+                ?? Shader.Find("Standard");
 
             if (additiveShader == null)
             {
-                Debug.LogError("[EtherealEnvironment] 未找到可用粒子 Shader！");
+                Debug.LogError("[EtherealEnvironment] 所有粒子 Shader 均不可用！跳过环境生成。");
                 return;
             }
 
@@ -911,12 +913,9 @@ namespace OsuVR
             }
             else
             {
-                var fallbackShader = Shader.Find("Sprites/Default") ?? Shader.Find("Standard");
-                if (fallbackShader != null)
-                {
-                    mr.material = new Material(fallbackShader);
-                    mr.material.color = new Color(0.6f, 0.7f, 0.8f, mirrorFloorAlpha);
-                }
+                // 备用材质
+                mr.material = new Material(Shader.Find("Sprites/Default"));
+                mr.material.color = new Color(0.6f, 0.7f, 0.8f, mirrorFloorAlpha);
             }
 
             // 确保地板在正确位置接收阴影

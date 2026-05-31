@@ -43,11 +43,12 @@ namespace OsuVR
                 return;
             }
 
-            // 查找 Shader
             Shader shader = Shader.Find("OsuVR/FlashlightMask");
+            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null) shader = Shader.Find("Standard");
             if (shader == null)
             {
-                Debug.LogError("Flashlight Shader 'OsuVR/FlashlightMask' not found!");
+                Debug.LogError("[FlashlightEffect] 所有 Shader 均不可用!");
                 this.enabled = false;
                 return;
             }

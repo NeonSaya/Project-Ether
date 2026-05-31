@@ -305,14 +305,19 @@ namespace OsuVR
             {
                 Shader shader = Shader.Find("Mobile/Particles/Additive");
                 if (!shader) shader = Shader.Find("Legacy Shaders/Particles/Additive");
-                cachedReverseMat = new Material(shader);
-                cachedReverseMat.mainTexture = GetSoftDotTexture();
+                if (!shader) shader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (!shader) shader = Shader.Find("Standard");
+                if (!shader) { Debug.LogError("[SliderController] 反转粒子 Shader 不可用!"); }
+                else
+                {
+                    cachedReverseMat = new Material(shader);
+                    cachedReverseMat.mainTexture = GetSoftDotTexture();
 
-                // 粒子系统会自带颜色，所以材质颜色设为纯白高亮
-                Color matHdrColor = Color.white * 6.0f;
-                if (cachedReverseMat.HasProperty("_TintColor")) cachedReverseMat.SetColor("_TintColor", matHdrColor);
-                else if (cachedReverseMat.HasProperty("_BaseColor")) cachedReverseMat.SetColor("_BaseColor", matHdrColor);
-                else cachedReverseMat.SetColor("_Color", matHdrColor);
+                    Color matHdrColor = Color.white * 6.0f;
+                    if (cachedReverseMat.HasProperty("_TintColor")) cachedReverseMat.SetColor("_TintColor", matHdrColor);
+                    else if (cachedReverseMat.HasProperty("_BaseColor")) cachedReverseMat.SetColor("_BaseColor", matHdrColor);
+                    else cachedReverseMat.SetColor("_Color", matHdrColor);
+                }
             }
 
             // 使用 sharedMaterial

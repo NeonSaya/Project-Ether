@@ -5,7 +5,9 @@
         "Unity.Postprocessing.Runtime",
         "Unity.Postprocessing.Editor"
     ],
-    "includePlatforms": [],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

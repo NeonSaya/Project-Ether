@@ -409,9 +409,11 @@ namespace OsuVR
                 }
                 dstFilter.sharedMesh = cachedQuadMesh;
 
-                // 3. 材质创建 (保持原样)
                 Shader shader = Shader.Find("Mobile/Particles/Additive");
                 if (!shader) shader = Shader.Find("Legacy Shaders/Particles/Additive");
+                if (!shader) shader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (!shader) shader = Shader.Find("Standard");
+                if (!shader) { Debug.LogError("[NoteController] Halo Shader 不可用，跳过光晕"); return; }
                 Material haloMat = new Material(shader);
                 haloMat.mainTexture = GetGlowTexture();
 

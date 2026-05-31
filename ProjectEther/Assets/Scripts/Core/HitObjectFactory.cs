@@ -62,17 +62,23 @@ namespace OsuVR
             Material glowMaterial = null)
         {
             if (isInitialized) return;
-            if (cachedSolidTexture == null) cachedSolidTexture = CreateSolidCircleTexture();
 
-            // 缓存外部材质
-            cachedBodyMaterial = bodyMaterial;
-            cachedApproachMaterial = approachMaterial;
+            try
+            {
+                if (cachedSolidTexture == null) cachedSolidTexture = CreateSolidCircleTexture();
 
-            // 创建内部缓存资源
-            CreateCachedMeshes();
-            CreateCachedTextures();
-            CreateCachedHaloMaterial();
-            CreateCachedApproachCircleMaterial();
+                cachedBodyMaterial = bodyMaterial;
+                cachedApproachMaterial = approachMaterial;
+
+                CreateCachedMeshes();
+                CreateCachedTextures();
+                CreateCachedHaloMaterial();
+                CreateCachedApproachCircleMaterial();
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[HitObjectFactory] 初始化部分失败 (非致命): {e.Message}");
+            }
 
             isInitialized = true;
             Debug.Log("[HitObjectFactory] 初始化完成 - 纯代码生成模式");
@@ -130,9 +136,11 @@ namespace OsuVR
         {
             if (cachedHaloMaterial == null)
             {
-                // 优先使用移动端优化的粒子 Shader
                 Shader shader = Shader.Find("Mobile/Particles/Additive");
                 if (shader == null) shader = Shader.Find("Legacy Shaders/Particles/Additive");
+                if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (shader == null) shader = Shader.Find("Standard");
+                if (shader == null) { Debug.LogError("[HitObjectFactory] 所有 Halo Shader 均不可用!"); return; }
 
                 cachedHaloMaterial = new Material(shader);
                 cachedHaloMaterial.mainTexture = cachedGlowTexture;
@@ -163,12 +171,10 @@ namespace OsuVR
             {
                 // 使用专用的置顶 Shader
                 Shader shader = Shader.Find("Osu/ApproachCircle_SmartDepth");
-                if (shader == null)
-                {
-                    // 回退到标准透明 Shader
-                    shader = Shader.Find("Universal Render Pipeline/Unlit");
-                    if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
-                }
+                if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
+                if (shader == null) shader = Shader.Find("Standard");
+                if (shader == null) { Debug.LogError("[HitObjectFactory] 所有 ApproachCircle Shader 均不可用!"); return; }
 
                 cachedApproachCircleMaterial = new Material(shader);
                 cachedApproachCircleMaterial.mainTexture = cachedApproachTexture;
@@ -450,10 +456,11 @@ namespace OsuVR
 
             // ▼▼▼▼▼ 核心：材质设置 ▼▼▼▼▼
             
-            // 1. 尝试找最普通的透明 Shader
             Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
             if (!shader) shader = Shader.Find("Unlit/Transparent");
-            if (!shader) shader = Shader.Find("Universal Render Pipeline/Lit"); // 兜底
+            if (!shader) shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (!shader) shader = Shader.Find("Standard");
+            if (!shader) { Debug.LogError("[HitObjectFactory] SolidLayer Shader 不可用!"); return; }
 
             Material mat = new Material(shader);
 
@@ -728,10 +735,11 @@ namespace OsuVR
 
         private static Material CreateDefaultBodyMaterial()
         {
-            // 使用支持透明的 Shader
             Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
             if (shader == null) shader = Shader.Find("Mobile/Particles/Alpha Blended");
             if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null) shader = Shader.Find("Standard");
+            if (shader == null) { Debug.LogError("[HitObjectFactory] Body Shader 不可用!"); return null; }
 
             var mat = new Material(shader);
             
@@ -765,10 +773,11 @@ namespace OsuVR
 
         private static Material CreateDefaultApproachMaterial()
         {
-            // 使用支持透明的 Shader
             Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
             if (shader == null) shader = Shader.Find("Mobile/Particles/Alpha Blended");
             if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null) shader = Shader.Find("Standard");
+            if (shader == null) { Debug.LogError("[HitObjectFactory] Approach Shader 不可用!"); return null; }
 
             var mat = new Material(shader);
             mat.mainTexture = cachedApproachTexture;
@@ -797,6 +806,8 @@ namespace OsuVR
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
             if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null) shader = Shader.Find("Standard");
+            if (shader == null) { Debug.LogError("[HitObjectFactory] Tick Shader 不可用!"); return null; }
 
             var mat = new Material(shader);
             if (mat.HasProperty("_BaseColor"))
@@ -812,6 +823,8 @@ namespace OsuVR
             if (shader == null) shader = Shader.Find("Legacy Shaders/Particles/Additive");
             if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
             if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null) shader = Shader.Find("Standard");
+            if (shader == null) { Debug.LogError("[HitObjectFactory] FollowBall Shader 不可用!"); return null; }
 
             var mat = new Material(shader);
 
