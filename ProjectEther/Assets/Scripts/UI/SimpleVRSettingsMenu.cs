@@ -322,7 +322,7 @@ namespace OsuVR
 
             // Back button (matches prefab colors and style)
             CreateBottomButton(bottomGo.transform, "Back", "ui_back",
-                () => { PlayClickSound(); SceneManager.LoadScene("MainMenuScene"); });
+                () => { PlayClickSound(); VRSceneTransitionManager.Instance.TransitionToScene("MainMenuScene"); });
 
             // Reset button
             CreateBottomButton(bottomGo.transform, "Reset", "ui_reset", OnResetClicked);

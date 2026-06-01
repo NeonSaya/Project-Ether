@@ -2,9 +2,11 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using UnityEngine;
+using UnityEngine.Scripting;
 
 namespace OsuVR
 {
+    [Preserve]
     public class BeatmapMetadata
     {
         public string Title;
@@ -49,6 +51,7 @@ namespace OsuVR
         }
     }
 
+    [Preserve]
     public class BeatmapSet
     {
         public string Title;

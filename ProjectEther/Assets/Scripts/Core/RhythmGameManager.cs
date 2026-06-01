@@ -404,7 +404,7 @@ namespace OsuVR
                     GameContext.Instance.CurrentBeatmapPath = currentBeatmapPath;
 
                     // 跳转到结算场景
-                    UnityEngine.SceneManagement.SceneManager.LoadScene(GameContext.Instance.ResultSceneName);
+                    VRSceneTransitionManager.Instance.TransitionToScene(GameContext.Instance.ResultSceneName);
                 }
                 else
                 {

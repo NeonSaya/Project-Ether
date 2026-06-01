@@ -90,6 +90,7 @@ namespace OsuVR
                 {"ui_quality", new[] {"Quality", "画质", "品質"}},
                 {"ui_anti_aliasing", new[] {"Anti-Aliasing", "抗锯齿", "アンチエイリアス"}},
                 {"ui_particle_density", new[] {"Particle Density", "粒子密度", "パーティクル密度"}},
+                {"ui_render_scale", new[] {"Render Scale", "渲染缩放", "レンダースケール"}},
                 {"ui_enable_haptics", new[] {"Enable Haptics", "启用手柄震动", "触覚を有効化"}},
                 {"ui_haptic_intensity", new[] {"Haptic Intensity", "震动强度", "触覚強度"}},
                 {"ui_display_original_language", new[] {"Display Song Names in Original Language", "显示歌曲原名", "曲名を原語で表示"}},

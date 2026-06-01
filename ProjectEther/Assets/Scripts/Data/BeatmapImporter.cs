@@ -117,8 +117,11 @@ namespace OsuVR
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
             string destPath = null;
+            string errorDetail = null;
             try
             {
+                Debug.Log($"[Importer] 开始处理 URI: {uriString}");
+
                 using (var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
                 {
                     var activity = player.GetStatic<AndroidJavaObject>("currentActivity");
@@ -130,30 +133,42 @@ namespace OsuVR
                         var inputStream = resolver.Call<AndroidJavaObject>("openInputStream", uri);
 
                         string fileName = "imported.osz";
-                        using (var cursor = resolver.Call<AndroidJavaObject>("query", uri, null, null, null, null))
+                        try
                         {
-                            if (cursor != null && cursor.Call<bool>("moveToFirst"))
+                            using (var cursor = resolver.Call<AndroidJavaObject>("query", uri, null, null, null, null))
                             {
-                                int nameIndex = cursor.Call<int>("getColumnIndex", "_display_name");
-                                if (nameIndex >= 0)
-                                    fileName = cursor.Call<string>("getString", nameIndex);
+                                if (cursor != null && cursor.Call<bool>("moveToFirst"))
+                                {
+                                    int nameIndex = cursor.Call<int>("getColumnIndex", "_display_name");
+                                    if (nameIndex >= 0)
+                                        fileName = cursor.Call<string>("getString", nameIndex);
+                                }
                             }
+                        }
+                        catch (System.Exception queryEx)
+                        {
+                            Debug.LogWarning($"[Importer] 查询文件名失败，使用默认名: {queryEx.Message}");
                         }
 
                         if (!fileName.EndsWith(".osz"))
                             fileName += ".osz";
 
                         destPath = Path.Combine(SongsDirectory, fileName);
+                        Debug.Log($"[Importer] 目标路径: {destPath}");
+
                         using (var outputStream = new FileStream(destPath, FileMode.Create))
                         {
                             byte[] buffer = new byte[8192];
                             int bytesRead;
+                            int totalBytes = 0;
                             while (true)
                             {
                                 bytesRead = inputStream.Call<int>("read", buffer);
                                 if (bytesRead <= 0) break;
                                 outputStream.Write(buffer, 0, bytesRead);
+                                totalBytes += bytesRead;
                             }
+                            Debug.Log($"[Importer] 文件复制完成: {totalBytes} bytes");
                         }
 
                         inputStream.Call("close");
@@ -164,20 +179,32 @@ namespace OsuVR
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"[Importer] 复制文件失败: {e.Message}");
+                errorDetail = $"{e.Message}\n\n{e.StackTrace}";
+                Debug.LogError($"[Importer] 复制文件失败: {e.Message}\n{e.StackTrace}");
             }
 
             if (!string.IsNullOrEmpty(destPath) && File.Exists(destPath))
             {
-                ImportOsz(destPath);
-                HasNewImport = true;
-                string fileName = Path.GetFileNameWithoutExtension(destPath);
-                _onFilePicked?.Invoke(ImportResult.Success, fileName);
+                try
+                {
+                    ImportOsz(destPath);
+                    HasNewImport = true;
+                    string fileName = Path.GetFileNameWithoutExtension(destPath);
+                    _onFilePicked?.Invoke(ImportResult.Success, fileName);
+                }
+                catch (System.Exception e)
+                {
+                    errorDetail = $"解压失败: {e.Message}\n\n{e.StackTrace}";
+                    Debug.LogError($"[Importer] 解压失败: {errorDetail}");
+                    _onFilePicked?.Invoke(ImportResult.Error, errorDetail);
+                }
             }
             else
             {
-                _onFilePicked?.Invoke(ImportResult.Error, "文件复制失败");
+                string msg = errorDetail ?? "文件复制失败（目标文件不存在）";
+                _onFilePicked?.Invoke(ImportResult.Error, msg);
             }
+            yield return null;
 #else
             yield return null;
             _onFilePicked?.Invoke(ImportResult.Cancelled, null);

@@ -3,7 +3,7 @@
 ![Unity](https://img.shields.io/badge/Made%20with-Unity%202022.3%20LTS-black?style=flat&logo=unity)
 ![C#](https://img.shields.io/badge/Language-C%23-blue)
 ![Platform](https://img.shields.io/badge/Platform-VR%20(OpenXR)-green) 
-![Status](https://img.shields.io/badge/Status-v0.7.0%20Beta-brightgreen)
+![Status](https://img.shields.io/badge/Status-v0.7.1-brightgreen)
 ![Platform](https://img.shields.io/badge/Platform-PC%20VR%20%2F%20Standalone%20VR-green)
 
 ## 📖 项目概述 (Overview)
@@ -16,11 +16,11 @@
 
 你可以利用手中的虚拟射线，在纯粹的音波起伏与绚丽的光影交错中，轻松惬意地享受每一首高质量 osu! 谱面带来的视听震撼。
 
-> 🟢 **当前状态：v0.7.0 Beta (首个公开 Demo)**
+> 🟢 **当前状态：v0.7.1**
 
 > 核心链路（启动 -> 选曲 -> 游玩 -> 结算）完全打通。单点 (Circle)、滑条 (Slider)、转盘 (Spinner) 的生成与计分系统均已完备。Storyboard 全指令解析 + GPU 实例化渲染已上线，支持视频背景播放。底层已全面引入 Unity Jobs + Burst 多线程架构，Storyboard 矩阵计算性能提升 10 倍。
 >
-> **平台发布说明**: 本次 Demo 首发提供 **PC VR (Windows)** 版本。Standalone VR (Android / Pico 4 / Quest 3) 版本的底层架构已全面打通（Vulkan + IL2CPP + ARM64），但因音频可视化管线在移动端的兼容性仍需进一步打磨，一体机版本将在后续更新中单独发布。
+> **平台发布说明**: 支持 **PC VR (Windows)** 与 **Standalone VR (Android)** 双平台，兼容 Pico Neo 3 / Pico 4 / Pico 4 Ultra / Quest 2 / Quest 3 等主流一体机设备。
 
 ---
 
@@ -40,7 +40,7 @@
 * **VR 交互层**: XR Interaction Toolkit (XRI 3.3.1) —— 官方强大的 XR 封装库，稳定处理头显空间定位、手柄 6DoF 移动以及复杂的射线触发逻辑。
 * **底层 XR 插件**: 采用高度兼容的 OpenXR 1.10.0 协议标准，并内嵌 Oculus XR Plugin 4.2.0。
 * **视觉与文本方案**: 使用 TextMeshPro (TMP 3.0.6) 保证在 VR 近距离观察下依然锐利的字体渲染；结合 Visual Effect Graph (VFX 14.0.10) 驱动 GPU 级别的大规模绚丽粒子特效。
-* **音频可视化栈**: `Lasp` (Keijiro) 提供系统级低延迟 FFT 音频捕获（`#if LASP` 宏已启用），`AudioLink` 通过反射式集成提供 DFT 精细频段数据，`AudioVisualizationManager` 统一管理三频段全局 Shader 参数注入与频谱分析管线。
+* **音频可视化栈**: `Lasp` (Keijiro) 提供 PC 端系统级低延迟 FFT 音频捕获（`#if LASP` 宏隔离，仅 Standalone 平台），`AudioLink` 通过反射式集成提供 DFT 精细频段数据（跨平台兼容），`AudioVisualizationManager` 统一管理三频段全局 Shader 参数注入与频谱分析管线。
 * **多线程架构**: Unity Jobs System + Burst Compiler —— `IJobParallelFor` + `[BurstCompile]` SIMD 向量化，Storyboard 矩阵计算 / 粒子颜色 / 音符坐标预计算全部在 Worker Thread 并行执行。
 * **编程架构**: C# 面向对象设计 —— 严格遵循数据与视图分离的模块化架构，为开源社区的二次开发与大规模魔改提供了极其友好的土壤。
 
@@ -55,7 +55,7 @@
 * **沉浸式 VR 交互体验**: 射线悬停交互机制实现”指哪打哪”；手柄震动反馈 (`HapticProfile`) 根据谱面音量与判定结果动态调整；UI 面板通过 `CurvedUIEffect` 物理弯折与 `HUDFollower` 弹簧跟随，彻底告别 VR 眩晕。
 * **完整的游戏系统**: 集成 AutoPlay / HR / FL 等经典 Mod，内置自动本地化系统 (`LocalizationManager`) 支持多语言 Unicode 渲染，音效与震动采用 `TimingPoint × SampleVolume × 设置` 的完整乘法链路，精准可控。
 * **数据驱动的视听演出**: 接入 `AudioLink` 与 `Lasp` 建立音频数据闭环，128 柱频谱渲染与 11 层环境粒子实时响应 BPM 节拍与 Kiai 时段；纯代码粒子引擎 (`CodeOnlyVFX`) 为低配设备提供流畅兜底方案。
-* **跨平台构建**: 支持 PC VR (Windows OpenXR) 与 Standalone VR (Android / Pico 4 Ultra / Quest 3) 双平台。Vulkan 图形 API + IL2CPP + ARM64，Dummy Material 反剔除机制确保 Shader 不被 Stripping。
+* **跨平台构建**: 支持 PC VR (Windows OpenXR) 与 Standalone VR (Android / Pico / Quest) 双平台。Vulkan 图形 API + IL2CPP + ARM64，Dummy Material 反剔除机制确保 Shader 不被 Stripping。PC 与一体机各定制四档画质预设，一体机不锁帧跑满设备最高刷新率。
 
 ---
 
@@ -137,10 +137,10 @@ Assets/
    * 找到每个谱面文件夹中的 `.osz` 压缩包（如果没有，可以在 osu! 官网下载页右键谱面选择 "Download .osz"）。
    * 将 `.osz` 文件放入以下路径：
      - **PC**: `C:/Users/<你的用户名>/AppData/LocalLow/Nyaon/ProjectEther/Songs/`
-     - **Android**: 使用设置界面的「导入谱面」按钮，通过系统文件选择器直接导入
+     - **Android**: `内部存储/Android/data/com.Nyaon.ProjectEther/files/Songs/`（设置界面的导入按钮当前版本存在问题，将在后续版本修复）
    * 项目启动时会自动扫描并解压 `.osz` 文件，之后就能在选歌界面看到对应的谱面了。也可以在设置界面中直接打开 Songs 文件夹拖入 `.osz`。
 
-   > **提示**：如果 `.osz` 是文件夹形式（已解压的谱面），也可以直接放入上述目录。确保每个谱面文件夹内包含 `.osu` 文件、音频文件和背景图。太老的 `.osu` 格式（v10 以前）可能不被支持，建议使用较新的谱面。
+   > **提示**：如果 `.osz` 是文件夹形式（已解压的谱面），也可以直接放入上述目录。确保每个谱面文件夹内包含 `.osu` 文件、音频文件和背景图。
 4. **启动游戏**:
    * 必须在 Project 面板中双击进入 `Assets/Scenes/MainMenuScene.unity`。
    * 戴上并唤醒你的 VR 头显。
@@ -173,7 +173,7 @@ Assets/
 A: 请确认你是不是直接打开了打歌场景 (`GameScene`)？如果跳过了主菜单，游戏里的核心数据大管家 `GameContext` 就不知道你要加载哪首歌，从而罢工报错。一定要从 `MainMenuScene` 进！
 
 **Q2: 谱面明明导入了，背景音乐也在放，但满屏就是没一个音符飞出来？**
-A: 绝大多数情况下是因为你的谱面太“古董”了。如果是十年前 osu! v10 以前版本的 `.osu` 文件格式，我们当前手写的解析器可能无法完美兼容。建议使用近代生成的标准谱面。另外，可以按 `Ctrl+Shift+C` 看一眼控制台，如果有红色报错，可能是音频文件名由于特殊字符没被成功读取。
+A: 可以按 `Ctrl+Shift+C` 看一眼控制台，如果有红色报错，可能是音频文件名由于特殊字符没被成功读取。
 
 **Q3: 为什么我感觉我打得明明很准，听起来却总有令人抓狂的延迟？**
 A: 这口锅通常要由 VR 串流软件来背。无论是 Quest Link、Air Link 还是 Virtual Desktop，无线网络传输不可避免地会带来 20ms 到 60ms 不等的音频链路延迟。请在主菜单的 `Settings` 中，根据体感反复调整 `Audio Offset`（音频偏移值），直到打击回馈与重音完美重合。
@@ -181,8 +181,8 @@ A: 这口锅通常要由 VR 串流软件来背。无论是 Quest Link、Air Link
 **Q4: 我是个穷苦大学生，没有 VR 设备，难道就不配帮你们写代码了吗？**
 A: 绝对配！Unity 官方非常贴心地提供了 `XR Device Simulator` 插件。开启它后，你就能在电脑屏幕前，靠着风骚的 WASD 和鼠标走位，在屏幕上模拟出头显旋转和双手的移动空间。当然，如果你要调试毫秒级的手感，最终还是建议借个头显实机测试。
 
-**Q5: 一体机版本什么时候能玩到？**
-A: Standalone VR (Android) 的底层架构已全面打通，但音频可视化管线在移动端的兼容性仍需打磨。一体机版本将在后续更新中单独发布，敬请期待。
+**Q5: 一体机版本支持哪些设备？**
+A: v0.7.1 正式支持 Standalone VR (Android) 平台，兼容 Pico Neo 3 / Pico 4 / Pico 4 Ultra / Meta Quest 2 / Quest 3 等主流一体机。画质预设已针对各设备优化，一体机不锁帧跑满设备最高刷新率。首次启动默认中画质，可在设置中切换档位。
 
 ---
 

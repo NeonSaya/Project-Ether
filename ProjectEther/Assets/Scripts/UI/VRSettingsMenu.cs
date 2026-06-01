@@ -798,7 +798,7 @@ namespace OsuVR
         private void OnBackClicked()
         {
             PlayClickSound();
-            UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenuScene");
+            VRSceneTransitionManager.Instance.TransitionToScene("MainMenuScene");
         }
 
         private void OnResetClicked()

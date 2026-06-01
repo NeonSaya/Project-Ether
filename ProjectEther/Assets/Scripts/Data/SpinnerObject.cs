@@ -1,10 +1,12 @@
 using UnityEngine;
+using UnityEngine.Scripting;
 
 namespace OsuVR
 {
     /// <summary>
     /// 表示一个转盘
     /// </summary>
+    [Preserve]
     public class SpinnerObject : HitObject
     {
         /// <summary>

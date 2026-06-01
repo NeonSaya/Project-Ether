@@ -748,7 +748,7 @@ namespace OsuVR
 
             if (Application.CanStreamedLevelBeLoaded(gameSceneName))
             {
-                SceneManager.LoadScene(gameSceneName);
+                VRSceneTransitionManager.Instance.TransitionToScene(gameSceneName);
             }
             else
             {
@@ -758,7 +758,7 @@ namespace OsuVR
 
         public void GoBack()
         {
-            SceneManager.LoadScene("MainMenuScene");
+            VRSceneTransitionManager.Instance.TransitionToScene("MainMenuScene");
         }
 
         // ============================================================

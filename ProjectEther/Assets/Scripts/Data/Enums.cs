@@ -1,10 +1,12 @@
 ﻿using System;
+using UnityEngine.Scripting;
 
 namespace OsuVR
 {
     /// <summary>
     /// 击打对象类型
     /// </summary>
+    [Preserve]
     [Flags]
     public enum HitObjectType
     {
@@ -42,6 +44,7 @@ namespace OsuVR
     /// <summary>
     /// 曲线类型（滑条路径类型）
     /// </summary>
+    [Preserve]
     public enum CurveType
     {
         /// <summary>
@@ -68,6 +71,7 @@ namespace OsuVR
     /// <summary>
     /// 游戏模式
     /// </summary>
+    [Preserve]
     public enum GameMode
     {
         /// <summary>
@@ -84,6 +88,7 @@ namespace OsuVR
     /// <summary>
     /// 样本库类型
     /// </summary>
+    [Preserve]
     public enum SampleBank
     {
         None,
@@ -97,6 +102,7 @@ namespace OsuVR
     /// <summary>
     /// 音效采样集类型 (决定是用柔和音还是鼓点音)
     /// </summary>
+    [Preserve]
     public enum SampleSet
     {
         /// <summary>
@@ -123,6 +129,7 @@ namespace OsuVR
     /// <summary>
     /// 打击音效类型 (位掩码，支持叠加)
     /// </summary>
+    [Preserve]
     [Flags]
     public enum HitSoundType
     {

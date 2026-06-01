@@ -258,9 +258,9 @@ namespace OsuVR
             PlayClickSound();
             HidePauseMenu();
             if (GameContext.Instance != null)
-                UnityEngine.SceneManagement.SceneManager.LoadScene(GameContext.Instance.SongSelectSceneName);
+                VRSceneTransitionManager.Instance.TransitionToScene(GameContext.Instance.SongSelectSceneName);
             else
-                UnityEngine.SceneManagement.SceneManager.LoadScene("SongSelectScene");
+                VRSceneTransitionManager.Instance.TransitionToScene("SongSelectScene");
         }
 
         void StartCountdown()

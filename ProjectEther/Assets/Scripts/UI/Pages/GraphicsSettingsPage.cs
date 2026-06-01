@@ -16,6 +16,7 @@ namespace OsuVR
         private TMP_Dropdown qualityDropdown;
         private TMP_Dropdown antiAliasingDropdown;
         private Slider particleDensitySlider;
+        private Slider renderScaleSlider;
 
         private Toggle enableStoryboardToggle;
         private Toggle enableStoryboardPlaybackToggle;
@@ -39,12 +40,27 @@ namespace OsuVR
                 qualityOptions, tempSettings.qualityLevel,
                 v =>
                 {
-                    tempSettings.qualityLevel = v;
-                    SettingsManager.Instance.SetQualityLevel(v);
+                    // 应用平台预设：切换档位时联动 AA / RenderScale / Particle
+                    var presets = SettingsManager.Instance.GetPlatformPresets();
+                    int idx = Mathf.Clamp(v, 0, presets.Length - 1);
+                    var preset = presets[idx];
+                    tempSettings.qualityLevel = preset.quality;
+                    tempSettings.antiAliasing = preset.aa;
+                    tempSettings.renderScale = preset.renderScale;
+                    tempSettings.particleDensity = preset.particleDensity;
+                    SettingsManager.Instance.ApplyPreset(preset);
+                    // 同步更新 UI 控件显示（PC 端显示 AA/RS/PD 控件）
+                    if (antiAliasingDropdown != null)
+                        SetDropdownValueWithoutNotify(antiAliasingDropdown, AaValueToIndex(preset.aa));
+                    if (particleDensitySlider != null)
+                        SetSliderValueWithoutNotify(particleDensitySlider, preset.particleDensity, PercentFormat, 100f);
+                    if (renderScaleSlider != null)
+                        SetSliderValueWithoutNotify(renderScaleSlider, preset.renderScale, PercentFormat, 100f);
                     PlayClickSound();
                 });
 
-            // Anti-aliasing dropdown
+#if !UNITY_ANDROID || UNITY_EDITOR
+            // Anti-aliasing dropdown（Android 隐藏，由预设自动管理）
             var aaOptions = new List<string>
             {
                 LocalizationManager.GetText("ui_off"),
@@ -60,8 +76,10 @@ namespace OsuVR
                     SettingsManager.Instance.SetAntiAliasing(aaValue);
                     PlayClickSound();
                 });
+#endif
 
-            // Particle density slider
+#if !UNITY_ANDROID || UNITY_EDITOR
+            // Particle density slider（Android 隐藏，由预设自动管理）
             particleDensitySlider = CreateSlider(parent, "Particle Density", "ui_particle_density",
                 0f, 1f, tempSettings.particleDensity, PercentFormat,
                 v =>
@@ -69,6 +87,16 @@ namespace OsuVR
                     tempSettings.particleDensity = v;
                     SettingsManager.Instance.SetParticleDensity(v);
                 }, valueScale: 100f);
+
+            // Render Scale 滑条（Android 隐藏，由预设自动管理）
+            renderScaleSlider = CreateSlider(parent, "Render Scale", "ui_render_scale",
+                0.5f, 1f, tempSettings.renderScale, PercentFormat,
+                v =>
+                {
+                    tempSettings.renderScale = v;
+                    SettingsManager.Instance.SetRenderScale(v);
+                }, valueScale: 100f);
+#endif
 
             // --- 背景板 / 故事板 ---
 
@@ -120,8 +148,12 @@ namespace OsuVR
         public override void RefreshUI(GameSettings tempSettings)
         {
             SetDropdownValueWithoutNotify(qualityDropdown, tempSettings.qualityLevel);
-            SetDropdownValueWithoutNotify(antiAliasingDropdown, AaValueToIndex(tempSettings.antiAliasing));
-            SetSliderValueWithoutNotify(particleDensitySlider, tempSettings.particleDensity, PercentFormat, 100f);
+            if (antiAliasingDropdown != null)
+                SetDropdownValueWithoutNotify(antiAliasingDropdown, AaValueToIndex(tempSettings.antiAliasing));
+            if (particleDensitySlider != null)
+                SetSliderValueWithoutNotify(particleDensitySlider, tempSettings.particleDensity, PercentFormat, 100f);
+            if (renderScaleSlider != null)
+                SetSliderValueWithoutNotify(renderScaleSlider, tempSettings.renderScale, PercentFormat, 100f);
 
             SetToggleValueWithoutNotify(enableStoryboardToggle, tempSettings.enableStoryboard);
             SetToggleValueWithoutNotify(enableStoryboardPlaybackToggle, tempSettings.enableStoryboardPlayback);

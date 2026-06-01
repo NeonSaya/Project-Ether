@@ -611,7 +611,7 @@ namespace OsuVR
                 GameContext.Instance.ShouldRetry = true;
 
                 // 跳转到游戏场景
-                SceneManager.LoadScene(GameContext.Instance.GameSceneName);
+                VRSceneTransitionManager.Instance.TransitionToScene(GameContext.Instance.GameSceneName);
             }
         }
 
@@ -635,11 +635,11 @@ namespace OsuVR
                 GameContext.Instance.ShouldRetry = false;
 
                 // 跳转到菜单场景
-                SceneManager.LoadScene(GameContext.Instance.SongSelectSceneName);
+                VRSceneTransitionManager.Instance.TransitionToScene(GameContext.Instance.SongSelectSceneName);
             }
             else
             {
-                SceneManager.LoadScene("SongSelectScene");
+                VRSceneTransitionManager.Instance.TransitionToScene("SongSelectScene");
             }
         }
 

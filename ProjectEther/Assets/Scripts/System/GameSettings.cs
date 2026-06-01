@@ -25,7 +25,7 @@ namespace OsuVR
         [Header("Graphics Settings")]
         [Tooltip("Quality level index (0=Low, 1=Medium, 2=High, 3=Ultra)")]
         [Range(0, 3)]
-        public int qualityLevel = 2;
+        public int qualityLevel = 1;
 
         [Tooltip("Enable VSync")]
         public bool enableVSync = false;
@@ -37,6 +37,10 @@ namespace OsuVR
         [Range(0f, 1f)]
         [Tooltip("Particle density multiplier (0=Off, 1=Full)")]
         public float particleDensity = 1.0f;
+
+        [Range(0.5f, 1f)]
+        [Tooltip("Render scale (0.5=Half resolution, 1.0=Native)")]
+        public float renderScale = 1.0f;
 
         [Header("VR Settings")]
         [Tooltip("Enable haptic feedback")]
@@ -107,6 +111,7 @@ namespace OsuVR
             clone.enableVSync = this.enableVSync;
             clone.antiAliasing = this.antiAliasing;
             clone.particleDensity = this.particleDensity;
+            clone.renderScale = this.renderScale;
             clone.enableHaptics = this.enableHaptics;
             clone.hapticIntensity = this.hapticIntensity;
             clone.playerHeightOffset = this.playerHeightOffset;
@@ -135,6 +140,7 @@ namespace OsuVR
             enableVSync = other.enableVSync;
             antiAliasing = other.antiAliasing;
             particleDensity = other.particleDensity;
+            renderScale = other.renderScale;
             enableHaptics = other.enableHaptics;
             hapticIntensity = other.hapticIntensity;
             playerHeightOffset = other.playerHeightOffset;
@@ -157,10 +163,11 @@ namespace OsuVR
             masterVolume = 1.0f;
             musicVolume = 0.8f;
             sfxVolume = 1.0f;
-            qualityLevel = 2;
+            qualityLevel = 1;
             enableVSync = false;
             antiAliasing = 4;
             particleDensity = 1.0f;
+            renderScale = 1.0f;
             enableHaptics = true;
             hapticIntensity = 0.8f;
             playerHeightOffset = 0f;

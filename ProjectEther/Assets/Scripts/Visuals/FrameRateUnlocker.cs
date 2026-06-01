@@ -78,8 +78,8 @@ namespace OsuVR
             else if (Application.platform == RuntimePlatform.Android)
             {
                 // 一体机模式 (Quest/PICO)
-                // 先在 Unity 层设置一个高目标，解除引擎锁
-                Application.targetFrameRate = 120;
+                // 不锁帧，交给 AttemptUnlockRate 跑满设备最高刷新率
+                Application.targetFrameRate = -1;
 
                 // 等待 XR 系统完全初始化
                 yield return new WaitForSeconds(1.0f);

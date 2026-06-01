@@ -129,6 +129,9 @@ namespace OsuVR
 
             Debug.Log($"[RayController] {handPath} 扳机已绑定, action valid={triggerAction.enabled}");
 
+            // 从 SettingsManager 加载持久化的控制器偏移量
+            LoadControllerOffset();
+
             // 监听场景加载事件，确保新场景的 UI 立即可检测
             UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
 
@@ -142,12 +145,40 @@ namespace OsuVR
         }
 
         /// <summary>
+        /// 从 SettingsManager 加载持久化的控制器偏移量，确保跨场景不丢失
+        /// </summary>
+        private void LoadControllerOffset()
+        {
+            if (SettingsManager.Instance != null)
+            {
+                var s = SettingsManager.Instance.Settings;
+                float rot = s.controllerRotationOffset;
+                float yOff = isRightHand ? s.rightControllerYOffset : s.leftControllerYOffset;
+                float zOff = isRightHand ? s.rightControllerZOffset : s.leftControllerZOffset;
+                directOffset = new Vector3(rot, yOff, zOff);
+            }
+            else
+            {
+                // SettingsManager 尚未初始化，从 PlayerPrefs 直接读取
+                float rot = PlayerPrefs.GetFloat("Settings_CtrlRot", 0f);
+                float yOff = isRightHand
+                    ? PlayerPrefs.GetFloat("Settings_RightCtrlY", 0f)
+                    : PlayerPrefs.GetFloat("Settings_LeftCtrlY", 0f);
+                float zOff = isRightHand
+                    ? PlayerPrefs.GetFloat("Settings_RightCtrlZ", 0f)
+                    : PlayerPrefs.GetFloat("Settings_LeftCtrlZ", 0f);
+                directOffset = new Vector3(rot, yOff, zOff);
+            }
+        }
+
+        /// <summary>
         /// 场景加载完成时立即刷新所有缓存，确保新场景的 UI 在第一帧就可交互
         /// </summary>
         private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
         {
             RefreshAllCaches();
-            Debug.Log($"[RayController] 场景 {scene.name} 加载完成，缓存已刷新");
+            LoadControllerOffset();
+            Debug.Log($"[RayController] 场景 {scene.name} 加载完成，缓存已刷新，偏移已重载");
         }
 
         void Update()
