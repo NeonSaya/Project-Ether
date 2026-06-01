@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.unity3d.player"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application>
+        <activity android:name="com.unity3d.player.UnityPlayerActivity"
+                  android:theme="@style/UnityThemeSelector">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="com.oculus.intent.category.VR" />
+                <category android:name="android.intent.category.INFO" />
+            </intent-filter>
+            <meta-data android:name="unityplayer.UnityActivity" android:value="true" />
+            <meta-data android:name="com.samsung.android.vr.application.mode" android:value="vr_only" />
+            <meta-data android:name="pvr.app.type" android:value="vr" />
+            <meta-data android:name="pvr.app.splash.bg" android:value="0" />
+            <meta-data android:name="enable_entitlementcheck" android:value="0" />
+        </activity>
+    </application>
+</manifest>

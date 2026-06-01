@@ -69,16 +69,15 @@ namespace OsuVR
             Vector3 startPos = source.position;
             Vector3 endPos;
 
+            lineRenderer.startColor = laserColor;
+            lineRenderer.endColor = laserColor;
+
             if (rayController.IsHittingUI || rayController.IsHitting)
             {
-                lineRenderer.startColor = hitColor;
-                lineRenderer.endColor = hitColor;
                 endPos = rayController.CurrentHitPoint;
             }
             else
             {
-                lineRenderer.startColor = laserColor;
-                lineRenderer.endColor = laserColor;
                 endPos = startPos + source.forward * rayController.rayLength;
             }
 

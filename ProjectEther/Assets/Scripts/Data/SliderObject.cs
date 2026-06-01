@@ -1,10 +1,12 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Scripting;
 
 namespace OsuVR
 {
     // 定义滑条内部的事件类型
+    [Preserve]
     public enum SliderEventType
     {
         Tick,
@@ -13,6 +15,7 @@ namespace OsuVR
     }
 
     // 滑条嵌套物件（代表滑条过程中的每一个判定点）
+    [Preserve]
     public class SliderNestedObject
     {
         public double Time;          // 判定时间
@@ -25,6 +28,7 @@ namespace OsuVR
     /// <summary>
     /// 表示一个滑条击打对象
     /// </summary>
+    [Preserve]
     public class SliderObject : HitObject
     {
         #region 核心属性

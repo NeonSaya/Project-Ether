@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Audio;
+using UnityEngine.Rendering.Universal;
 
 namespace OsuVR
 {
@@ -25,6 +26,7 @@ namespace OsuVR
         private const string PREF_KEY_VSYNC = "Settings_VSync";
         private const string PREF_KEY_AA = "Settings_AA";
         private const string PREF_KEY_PARTICLE_DENSITY = "Settings_ParticleDensity";
+        private const string PREF_KEY_RENDER_SCALE = "Settings_RenderScale";
         private const string PREF_KEY_HAPTICS = "Settings_Haptics";
         private const string PREF_KEY_HAPTIC_INTENSITY = "Settings_HapticIntensity";
         private const string PREF_KEY_HEIGHT_OFFSET = "Settings_HeightOffset";
@@ -41,6 +43,61 @@ namespace OsuVR
         private const string PREF_KEY_SB_SCREEN_ALPHA = "Settings_SBScreenAlpha";
 
         private const int DEFAULT_TARGET_FPS = -1; // -1 = 不限制 (PC), 由 FrameRateUnlocker 处理 Android
+
+        // =========================================================
+        // 跨平台画质预设
+        // =========================================================
+
+        public struct GraphicsPreset
+        {
+            public int quality;
+            public int aa;
+            public float renderScale;
+            public float particleDensity;
+            public int targetFPS; // 仅用于 Android，PC 始终为 -1（无限制）
+
+            public GraphicsPreset(int quality, int aa, float renderScale, float particleDensity, int targetFPS = -1)
+            {
+                this.quality = quality;
+                this.aa = aa;
+                this.renderScale = renderScale;
+                this.particleDensity = particleDensity;
+                this.targetFPS = targetFPS;
+            }
+        }
+
+        /// <summary>
+        /// PC VR 预设：高画质优先，桌面 GPU 无压力
+        /// </summary>
+        private static readonly GraphicsPreset[] PC_PRESETS =
+        {
+            new GraphicsPreset(0, 0, 0.80f, 0.50f),   // Low
+            new GraphicsPreset(1, 4, 0.90f, 0.80f),   // Medium
+            new GraphicsPreset(2, 4, 1.00f, 1.00f),   // High (默认)
+            new GraphicsPreset(3, 8, 1.00f, 1.00f),   // Ultra
+        };
+
+        /// <summary>
+        /// Standalone VR 预设：不锁帧，跑满设备最高刷新率
+        /// Medium+ 至少 2x AA，Ultra 用 100% RenderScale
+        /// </summary>
+        private static readonly GraphicsPreset[] STANDALONE_PRESETS =
+        {
+            new GraphicsPreset(0, 0, 0.55f, 0.45f),  // Low
+            new GraphicsPreset(1, 2, 0.70f, 0.55f),  // Medium (2x AA)
+            new GraphicsPreset(2, 2, 0.85f, 0.65f),  // High (默认, 2x AA)
+            new GraphicsPreset(3, 4, 1.00f, 0.75f),  // Ultra (4x AA, RS=1.0)
+        };
+
+        /// <summary>
+        /// 根据当前平台返回对应的 4 档预设
+        /// </summary>
+        public GraphicsPreset[] GetPlatformPresets()
+        {
+            return Application.platform == RuntimePlatform.Android
+                ? STANDALONE_PRESETS
+                : PC_PRESETS;
+        }
 
         void Awake()
         {
@@ -71,14 +128,33 @@ namespace OsuVR
 
         public void LoadSettings()
         {
+            // 检测是否首次运行（无任何 PlayerPrefs 记录）
+            bool isFirstRun = !PlayerPrefs.HasKey(PREF_KEY_QUALITY_LEVEL);
+
             settings.audioOffsetMs = PlayerPrefs.GetFloat(PREF_KEY_AUDIO_OFFSET, 0f);
             settings.masterVolume = PlayerPrefs.GetFloat(PREF_KEY_MASTER_VOLUME, 1.0f);
             settings.musicVolume = PlayerPrefs.GetFloat(PREF_KEY_MUSIC_VOLUME, 0.8f);
             settings.sfxVolume = PlayerPrefs.GetFloat(PREF_KEY_SFX_VOLUME, 1.0f);
-            settings.qualityLevel = PlayerPrefs.GetInt(PREF_KEY_QUALITY_LEVEL, 2);
             settings.enableVSync = PlayerPrefs.GetInt(PREF_KEY_VSYNC, 0) == 1;
-            settings.antiAliasing = PlayerPrefs.GetInt(PREF_KEY_AA, 4);
-            settings.particleDensity = PlayerPrefs.GetFloat(PREF_KEY_PARTICLE_DENSITY, 1.0f);
+
+            if (isFirstRun)
+            {
+                // 首次运行：应用平台 High 预设作为默认值
+                var presets = GetPlatformPresets();
+                var defaultPreset = presets[1]; // Medium = index 1，新玩家默认中画质，防止卡顿
+                settings.qualityLevel = defaultPreset.quality;
+                settings.antiAliasing = defaultPreset.aa;
+                settings.renderScale = defaultPreset.renderScale;
+                settings.particleDensity = defaultPreset.particleDensity;
+                Debug.Log($"[SettingsManager] First run: applied platform defaults (Quality={defaultPreset.quality}, AA={defaultPreset.aa}, RS={defaultPreset.renderScale:F2}, PD={defaultPreset.particleDensity:F2})");
+            }
+            else
+            {
+                settings.qualityLevel = PlayerPrefs.GetInt(PREF_KEY_QUALITY_LEVEL, 1);
+                settings.antiAliasing = PlayerPrefs.GetInt(PREF_KEY_AA, 4);
+                settings.renderScale = PlayerPrefs.GetFloat(PREF_KEY_RENDER_SCALE, 1.0f);
+                settings.particleDensity = PlayerPrefs.GetFloat(PREF_KEY_PARTICLE_DENSITY, 1.0f);
+            }
             settings.enableHaptics = PlayerPrefs.GetInt(PREF_KEY_HAPTICS, 1) == 1;
             settings.hapticIntensity = PlayerPrefs.GetFloat(PREF_KEY_HAPTIC_INTENSITY, 0.8f);
             settings.playerHeightOffset = PlayerPrefs.GetFloat(PREF_KEY_HEIGHT_OFFSET, 0f);
@@ -107,6 +183,7 @@ namespace OsuVR
             PlayerPrefs.SetInt(PREF_KEY_VSYNC, settings.enableVSync ? 1 : 0);
             PlayerPrefs.SetInt(PREF_KEY_AA, settings.antiAliasing);
             PlayerPrefs.SetFloat(PREF_KEY_PARTICLE_DENSITY, settings.particleDensity);
+            PlayerPrefs.SetFloat(PREF_KEY_RENDER_SCALE, settings.renderScale);
             PlayerPrefs.SetInt(PREF_KEY_HAPTICS, settings.enableHaptics ? 1 : 0);
             PlayerPrefs.SetFloat(PREF_KEY_HAPTIC_INTENSITY, settings.hapticIntensity);
             PlayerPrefs.SetFloat(PREF_KEY_HEIGHT_OFFSET, settings.playerHeightOffset);
@@ -170,8 +247,8 @@ namespace OsuVR
         public void ApplyGraphicsSettings()
         {
             QualitySettings.SetQualityLevel(settings.qualityLevel, true);
-            // PC: 不限制帧率 (-1), Android: 120Hz (由 FrameRateUnlocker 精确控制)
-            Application.targetFrameRate = Application.platform == RuntimePlatform.Android ? 120 : -1;
+            // 不锁帧：PC 由 VR SDK 控制，Android 由 FrameRateUnlocker 跑满设备刷新率
+            Application.targetFrameRate = -1;
             QualitySettings.vSyncCount = settings.enableVSync ? 1 : 0;
 
             int aaValue = settings.antiAliasing;
@@ -185,12 +262,19 @@ namespace OsuVR
             }
             QualitySettings.antiAliasing = aaValue;
 
+            // 应用 URP Render Scale
+            var urpAsset = QualitySettings.renderPipeline as UniversalRenderPipelineAsset;
+            if (urpAsset != null)
+            {
+                urpAsset.renderScale = Mathf.Clamp(settings.renderScale, 0.5f, 1.0f);
+            }
+
             if (EtherealEnvironment.Instance != null)
             {
                 EtherealEnvironment.Instance.SetParticleDensity(settings.particleDensity);
             }
 
-            Debug.Log($"[SettingsManager] Graphics applied: Quality={settings.qualityLevel}, FPS={Application.targetFrameRate}, AA={settings.antiAliasing}");
+            Debug.Log($"[SettingsManager] Graphics: Q={settings.qualityLevel}, AA={settings.antiAliasing}, RS={settings.renderScale:F2}, PD={settings.particleDensity:F2}, FPS={Application.targetFrameRate}");
         }
 
         public void ApplyVRSettings()
@@ -279,9 +363,10 @@ namespace OsuVR
 
         public void SetQualityLevel(int level)
         {
-            settings.qualityLevel = Mathf.Clamp(level, 0, 3);
-            ApplyGraphicsSettings();
-            SaveSettings();
+            // 应用该平台对应档位的完整预设（AA/RenderScale/Particle 联动）
+            var presets = GetPlatformPresets();
+            int idx = Mathf.Clamp(level, 0, presets.Length - 1);
+            ApplyPreset(presets[idx]);
         }
 
         public void SetAntiAliasing(int aa)
@@ -298,6 +383,26 @@ namespace OsuVR
             {
                 EtherealEnvironment.Instance.SetParticleDensity(density);
             }
+            SaveSettings();
+        }
+
+        public void SetRenderScale(float scale)
+        {
+            settings.renderScale = Mathf.Clamp(scale, 0.5f, 1.0f);
+            ApplyGraphicsSettings();
+            SaveSettings();
+        }
+
+        /// <summary>
+        /// 一次性应用画质预设的所有参数（Quality/AA/RenderScale/ParticleDensity）
+        /// </summary>
+        public void ApplyPreset(GraphicsPreset preset)
+        {
+            settings.qualityLevel = preset.quality;
+            settings.antiAliasing = preset.aa;
+            settings.renderScale = preset.renderScale;
+            settings.particleDensity = preset.particleDensity;
+            ApplyGraphicsSettings();
             SaveSettings();
         }
 

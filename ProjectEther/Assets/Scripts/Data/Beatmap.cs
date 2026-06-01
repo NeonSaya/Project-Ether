@@ -1,11 +1,13 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Scripting;
 
 namespace OsuVR
 {
     /// <summary>
     /// 完整的谱面数据结构
     /// </summary>
+    [Preserve]
     public class Beatmap
     {
         public int FormatVersion { get; set; }
@@ -57,6 +59,7 @@ namespace OsuVR
         }
     }
 
+    [Preserve]
     public class GeneralSection
     {
         public string AudioFilename { get; set; }
@@ -70,6 +73,7 @@ namespace OsuVR
         public bool WidescreenStoryboard { get; set; }
     }
 
+    [Preserve]
     public class MetadataSection
     {
         public string Title { get; set; }
@@ -84,6 +88,7 @@ namespace OsuVR
         public int BeatmapSetID { get; set; }
     }
 
+    [Preserve]
     public class DifficultySection
     {
         public float HPDrainRate { get; set; } = 5;
@@ -94,6 +99,7 @@ namespace OsuVR
         public double SliderTickRate { get; set; } = 1;
     }
 
+    [Preserve]
     public class EventsSection
     {
         public string BackgroundFilename { get; set; }
@@ -108,6 +114,7 @@ namespace OsuVR
         public Dictionary<string, string> Variables { get; set; } = new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase);
     }
 
+    [Preserve]
     public class BreakPeriod
     {
         public double StartTime;
@@ -115,6 +122,7 @@ namespace OsuVR
         public BreakPeriod(double start, double end) { StartTime = start; EndTime = end; }
     }
 
+    [Preserve]
     public class KiaiPeriod
     {
         public double StartTime;
@@ -122,6 +130,7 @@ namespace OsuVR
         public KiaiPeriod(double start, double end) { StartTime = start; EndTime = end; }
     }
 
+    [Preserve]
     public class ControlPoints
     {
         public List<TimingPoint> Timing { get; set; } = new List<TimingPoint>();
@@ -129,6 +138,7 @@ namespace OsuVR
         public List<KiaiPeriod> KiaiPeriods { get; set; } = new List<KiaiPeriod>();
     }
 
+    [Preserve]
     public class TimingPoint
     {
         public double Time;
@@ -146,6 +156,7 @@ namespace OsuVR
         }
     }
 
+    [Preserve]
     public class DifficultyPoint
     {
         public double Time;

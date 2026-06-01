@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization; 
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Scripting;
 
 namespace OsuVR
 {
@@ -1033,6 +1034,7 @@ namespace OsuVR
     /// <summary>
     /// 音效库信息（用于解析）
     /// </summary>
+    [Preserve]
     public class SampleBankInfo
     {
         public string Filename = "";
@@ -1045,6 +1047,7 @@ namespace OsuVR
     /// <summary>
     /// 文件音效信息
     /// </summary>
+    [Preserve]
     public class FileHitSampleInfo : HitSampleInfo
     {
         public string Filename { get; set; }

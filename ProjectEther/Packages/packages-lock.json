@@ -289,15 +289,6 @@
       },
       "url": "https://registry.npmjs.com"
     },
-    "jp.keijiro.laspvfx": {
-      "version": "1.0.3",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "jp.keijiro.lasp": "2.1.7"
-      },
-      "url": "https://registry.npmjs.com"
-    },
     "jp.keijiro.libsoundio": {
       "version": "1.0.6",
       "depth": 1,

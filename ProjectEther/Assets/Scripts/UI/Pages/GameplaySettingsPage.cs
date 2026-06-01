@@ -100,7 +100,10 @@ namespace OsuVR
                         ShowToast(LocalizationManager.GetText("ui_import_cancelled"), new Color(1f, 0.85f, 0.3f));
                         break;
                     case ImportResult.Error:
-                        ShowToast(LocalizationManager.GetText("ui_import_error"), Color.red);
+                        string errMsg = LocalizationManager.GetText("ui_import_error");
+                        if (!string.IsNullOrEmpty(detail))
+                            errMsg += "\n" + detail;
+                        ShowToast(errMsg, Color.red, 8f);
                         break;
                 }
             });
@@ -121,7 +124,7 @@ namespace OsuVR
         private Color _toastColor;
         private bool _toastActive;
 
-        private void ShowToast(string message, Color color)
+        private void ShowToast(string message, Color color, float duration = 3f)
         {
             if (_toastObj == null)
             {
@@ -140,13 +143,15 @@ namespace OsuVR
                 var toastText = new GameObject("Text");
                 toastText.transform.SetParent(_toastObj.transform, false);
                 var rt = toastText.AddComponent<RectTransform>();
-                rt.sizeDelta = new Vector2(600f, 60f);
+                rt.sizeDelta = new Vector2(800f, 120f);
 
                 _toastTmp = toastText.AddComponent<TextMeshProUGUI>();
-                _toastTmp.fontSize = 28f;
+                _toastTmp.fontSize = 22f;
                 _toastTmp.fontStyle = FontStyles.Bold;
                 _toastTmp.alignment = TextAlignmentOptions.Center;
                 _toastTmp.enableAutoSizing = false;
+                _toastTmp.enableWordWrapping = true;
+                _toastTmp.overflowMode = TextOverflowModes.Ellipsis;
             }
 
             _toastTmp.text = message;
@@ -154,7 +159,7 @@ namespace OsuVR
             _toastTmp.color = color;
             _toastObj.SetActive(true);
             _toastFadeStart = Time.unscaledTime;
-            _toastDuration = 3f;
+            _toastDuration = duration;
             _toastActive = true;
         }
 

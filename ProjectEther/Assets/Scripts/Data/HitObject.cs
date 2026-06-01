@@ -1,11 +1,13 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Scripting;
 
 namespace OsuVR
 {
     /// <summary>
     /// 表示一个击打对象（基类）
     /// </summary>
+    [Preserve]
     public abstract class HitObject
     {
         // 常量定义
@@ -473,6 +475,7 @@ namespace OsuVR
     /// <summary>
     /// 判定窗口基类
     /// </summary>
+    [Preserve]
     public abstract class HitWindow
     {
         public float OverallDifficulty { get; set; }
@@ -481,6 +484,7 @@ namespace OsuVR
     /// <summary>
     /// 音效信息基类
     /// </summary>
+    [Preserve]
     public abstract class HitSampleInfo
     {
         public string Name { get; set; }
@@ -496,6 +500,7 @@ namespace OsuVR
     /// <summary>
     /// 默认音效库信息 (修复构造函数版)
     /// </summary>
+    [Preserve]
     public class BankHitSampleInfo : HitSampleInfo
     {
         // 这里的常量用于 OsuParser 中的引用
@@ -522,6 +527,7 @@ namespace OsuVR
     /// <summary>
     /// 序列音效信息
     /// </summary>
+    [Preserve]
     public class SequenceHitSampleInfo : HitSampleInfo
     {
         public List<(double time, HitSampleInfo sample)> Sequence { get; set; }

@@ -1,10 +1,12 @@
 ﻿using UnityEngine;
+using UnityEngine.Scripting;
 
 namespace OsuVR
 {
     /// <summary>
     /// 表示一个点击圆圈
     /// </summary>
+    [Preserve]
     public class HitCircle : HitObject
     {
         /// <summary>

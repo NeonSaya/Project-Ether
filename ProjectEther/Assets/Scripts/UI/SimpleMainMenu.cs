@@ -34,7 +34,7 @@ namespace OsuVR
         [Header("版本信息")]
         public string gameTitle = "Project Ether";
         public string subtitle = "\u4EE5\u592A\u8BA1\u5212"; // 以太计划
-        private const string version = "v0.7.0 Beta";
+        private const string version = "v0.7.1";
 
         // ---- 布局常量（复刻原 Prefab） ----
         private const float CanvasLocalZ = 1.5f;
@@ -293,12 +293,12 @@ namespace OsuVR
 
         private void OnPlayClicked()
         {
-            SceneManager.LoadScene("SongSelectScene");
+            VRSceneTransitionManager.Instance.TransitionToScene("SongSelectScene");
         }
 
         private void OnSettingsClicked()
         {
-            SceneManager.LoadScene("SettingsScene");
+            VRSceneTransitionManager.Instance.TransitionToScene("SettingsScene");
         }
 
         private void OnCreditsClicked()
