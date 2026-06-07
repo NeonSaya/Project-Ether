@@ -21,6 +21,11 @@ namespace OsuVR.Storyboard
     ///   - 零 GC 运行时: 所有 NativeArray 使用 Allocator.Persistent 预分配
     ///   - GPU 剔除法: 不可见精灵 Scale→zero, 由 Vertex Shader 瞬间剔除
     ///   - 双 Pass 共享缓冲区: Alpha/Blend/Pass 0 + Additive/Pass 1
+    ///
+    /// 视频渲染:
+    ///   - VideoPlayer 直接输出到独立 RenderTexture (VideoRenderMode.RenderTexture)
+    ///   - 视频 RT 由 HolographicScreenManager 的视频 Overlay 层独立显示
+    ///   - 视频和 SB 完全解耦, 不经过 Graphics.DrawMesh
     /// </summary>
     public class StoryboardRenderer : MonoBehaviour
     {
@@ -43,8 +48,6 @@ namespace OsuVR.Storyboard
         const int MaxInstances = 8192;       // 单一缓冲区容量 (Alpha + Additive 共享)
         const int InstanceDataStride = 96;   // sizeof(SpriteInstanceData)
 
-        // ---- 视频 Quad 深度 ----
-        const float VideoQuadZ = 50f;
         const float SBQuadZ = 0f;
 
         // =========================================================
@@ -184,13 +187,11 @@ namespace OsuVR.Storyboard
         SBOsbPlayer osbPlayer;
         string currentBeatmapFolder;
 
-        // ---- 视频 ----
+        // ---- 视频 (APIOnly + sendFrameReadyEvents + renderTexture) ----
         VideoPlayer videoPlayer;
+        RenderTexture videoRT;
         bool hasVideo;
         int videoOffsetMs;
-        Material videoMaterial;
-        Mesh videoQuadMesh;
-        Matrix4x4 videoQuadMatrix;
 
         // ---- 纹理数组 ----
         Texture2DArray textureArray;
@@ -207,7 +208,6 @@ namespace OsuVR.Storyboard
         Material sbMaterialAlpha;
         Material sbMaterialAdditive;
         Mesh quadMesh;
-        MaterialPropertyBlock videoMPB;
 
         // ---- 状态 ----
         bool isRendering;
@@ -336,9 +336,8 @@ namespace OsuVR.Storyboard
         {
             if (string.IsNullOrEmpty(videoPath)) return;
 
-            EnsureCameraSetup();
-
             hasVideo = true;
+            isRendering = true;   // 视频时间同步需要 Update 循环
             videoOffsetMs = videoOffset;
 
             CreateVideoPlayer(videoPath);
@@ -381,13 +380,18 @@ namespace OsuVR.Storyboard
 
             if (videoPlayer != null)
             {
+                videoPlayer.frameReady -= OnVideoFrameReady;
                 videoPlayer.Stop();
                 Destroy(videoPlayer.gameObject);
                 videoPlayer = null;
             }
 
-            if (videoMaterial != null) { Destroy(videoMaterial); videoMaterial = null; }
-            if (videoQuadMesh != null) { Destroy(videoQuadMesh); videoQuadMesh = null; }
+            if (videoRT != null)
+            {
+                videoRT.Release();
+                Destroy(videoRT);
+                videoRT = null;
+            }
         }
 
         public void UnloadAll()
@@ -397,6 +401,7 @@ namespace OsuVR.Storyboard
         }
 
         public RenderTexture GetRenderTexture() => renderTexture;
+        public RenderTexture GetVideoRenderTexture() => videoRT;
 
         // =========================================================
         //  Update: 引擎推进 + 精灵收集 + Schedule Job
@@ -407,21 +412,19 @@ namespace OsuVR.Storyboard
         {
             if (!isRendering) return;
             if (osbPlayer == null && !hasVideo) return;
-            if (renderCamera == null) return;
 
             double musicTime = GetCurrentMusicTime();
 
-            // 1. 视频时间同步
+            // 1. 视频: 时间同步 (帧由 frameReady 回调自动 Blit 到 videoRT)
             if (hasVideo && videoPlayer != null && videoPlayer.isPrepared)
                 SyncVideoTime(musicTime);
 
-            // 2. 推进引擎 (主线程: 链表操作无法并行)
+            // 2. 以下需要 renderCamera (SB 渲染)
+            if (renderCamera == null) return;
+
+            // 3. 推进引擎 (主线程: 链表操作无法并行)
             if (osbPlayer != null)
                 osbPlayer.Update(musicTime);
-
-            // 3. 绘制视频背景 Quad
-            if (hasVideo && videoMaterial != null && videoQuadMesh != null)
-                DrawVideoQuad();
 
             // 4. 收集活跃精灵到 NativeArray + Schedule Job
             if (osbPlayer != null && sbMaterialAlpha != null && textureArray != null)
@@ -466,7 +469,7 @@ namespace OsuVR.Storyboard
                     // 纹理索引: 优先缓存, 动画在主线程解析
                     int texIndex = sprite.CachedTexIndex;
                     if (texIndex < 0)
-                        texIndex = ResolveTextureIndex(sprite.Element, musicTime);
+                        texIndex = ResolveTextureIndex(sprite.Element, musicTime, sprite.StartTime);
 
                     Vector2Int texSize = texIndex >= 0 ? textureDimensions[texIndex] : Vector2Int.zero;
 
@@ -559,21 +562,25 @@ namespace OsuVR.Storyboard
         /// <summary>
         /// 解析元素的纹理索引 (动画按当前帧解析)
         /// </summary>
-        int ResolveTextureIndex(SBElement element, double musicTime)
+        int ResolveTextureIndex(SBElement element, double musicTime, double elementStartTime)
         {
             string path = element.ImagePath;
             if (string.IsNullOrEmpty(path)) return -1;
 
             if (element is SBStoryboardAnimation anim)
             {
-                int frame = anim.GetCurrentFrame(musicTime, 0);
+                int frame = anim.GetCurrentFrame(musicTime, elementStartTime);
                 path = anim.BuildFramePath(frame);
             }
 
-            if (textureIndexMap != null && textureIndexMap.TryGetValue(path, out int idx))
+            // 统一路径格式: 反斜杠→正斜杠, 小写
+            string normalized = path.Replace('\\', '/').ToLowerInvariant();
+
+            if (textureIndexMap != null && textureIndexMap.TryGetValue(normalized, out int idx))
                 return idx;
 
-            if (textureIndexMap != null && textureIndexMap.TryGetValue(element.ImagePath, out int fallbackIdx))
+            // 回退: 尝试原始路径
+            if (textureIndexMap != null && textureIndexMap.TryGetValue(path, out int fallbackIdx))
                 return fallbackIdx;
 
             return -1;
@@ -588,87 +595,50 @@ namespace OsuVR.Storyboard
             var vpGo = new GameObject("[SB_VideoPlayer]");
             vpGo.transform.SetParent(transform);
 
+            string normalizedPath = videoPath.Replace('\\', '/');
+            string url = "file:///" + normalizedPath;
+
+            // 创建 videoRT 用于接收视频帧
+            videoRT = new RenderTexture(RT_Width, RT_Height, 0, RenderTextureFormat.ARGB32);
+            videoRT.Create();
+
             videoPlayer = vpGo.AddComponent<VideoPlayer>();
             videoPlayer.source = VideoSource.Url;
-            videoPlayer.url = videoPath;
+            videoPlayer.url = url;
             videoPlayer.playOnAwake = false;
             videoPlayer.isLooping = true;
             videoPlayer.skipOnDrop = true;
             videoPlayer.audioOutputMode = VideoAudioOutputMode.None;
             videoPlayer.renderMode = VideoRenderMode.APIOnly;
 
+            // 关键: 每解码一帧触发回调, 在回调中 Blit 到 videoRT
+            videoPlayer.sendFrameReadyEvents = true;
+            videoPlayer.frameReady += OnVideoFrameReady;
+
+            videoPlayer.errorReceived += (vp, msg) =>
+            {
+                Debug.LogError($"[SBRenderer] 视频错误: {msg}");
+            };
+
             videoPlayer.prepareCompleted += (vp) =>
             {
                 vp.Play();
-                UpdateVideoQuadScale();
-                Debug.Log("[SBRenderer] 视频准备完成，开始播放");
+                Debug.Log($"[SBRenderer] 视频准备完成: {vp.width}x{vp.height}, texType={vp.texture?.GetType().Name}");
             };
 
-            CreateVideoQuad();
             videoPlayer.Prepare();
+            Debug.Log($"[SBRenderer] VideoPlayer 已创建: {url}, RT={videoRT.width}x{videoRT.height}");
         }
 
-        void CreateVideoQuad()
+        void OnVideoFrameReady(VideoPlayer vp, long frameIdx)
         {
-            videoQuadMesh = CreateFullScreenQuad();
-
-            var shader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (shader == null) shader = Shader.Find("Unlit/Texture");
-            if (shader == null) shader = Shader.Find("Standard");
-            if (shader == null) { Debug.LogError("[SBRenderer] Video Shader 不可用!"); return; }
-            videoMaterial = new Material(shader);
-            videoMaterial.SetFloat("_Surface", 0);
-            videoMaterial.SetFloat("_ZWrite", 1);
-            videoMaterial.renderQueue = (int)RenderQueue.Geometry;
-
-            videoMPB = new MaterialPropertyBlock();
-
-            videoQuadMatrix = Matrix4x4.TRS(
-                new Vector3(0, 0, VideoQuadZ),
-                Quaternion.identity,
-                new Vector3(CanvasWidth, CanvasHeight, 1f));
+            // 每帧回调: 视频帧已就绪, Blit 到 videoRT
+            if (vp.texture != null && videoRT != null)
+            {
+                Graphics.Blit(vp.texture, videoRT);
+            }
         }
 
-        void UpdateVideoQuadScale()
-        {
-            if (videoPlayer == null) return;
-
-            float videoW = videoPlayer.width;
-            float videoH = videoPlayer.height;
-            if (videoW <= 0 || videoH <= 0) return;
-
-            float canvasAspect = (float)CanvasWidth / CanvasHeight;
-            float videoAspect = videoW / videoH;
-
-            float scaleX, scaleY;
-            if (videoAspect > canvasAspect)
-            {
-                scaleX = CanvasWidth;
-                scaleY = CanvasWidth / videoAspect;
-            }
-            else
-            {
-                scaleY = CanvasHeight;
-                scaleX = CanvasHeight * videoAspect;
-            }
-
-            videoQuadMatrix = Matrix4x4.TRS(
-                new Vector3(0, 0, VideoQuadZ),
-                Quaternion.identity,
-                new Vector3(scaleX, scaleY, 1f));
-        }
-
-        void DrawVideoQuad()
-        {
-            if (videoPlayer != null && videoPlayer.texture != null)
-            {
-                videoMaterial.mainTexture = videoPlayer.texture;
-            }
-
-            Graphics.DrawMesh(videoQuadMesh, videoQuadMatrix, videoMaterial,
-                storyboardLayer, renderCamera, 0, videoMPB,
-                ShadowCastingMode.Off, false, null, LightProbeUsage.Off, null);
-        }
 
         void SyncVideoTime(double musicTimeMs)
         {
@@ -708,13 +678,15 @@ namespace OsuVR.Storyboard
                     for (int f = 0; f < anim.FrameCount; f++)
                     {
                         string framePath = anim.BuildFramePath(f);
-                        if (pathSet.Add(framePath))
+                        string key = framePath.Replace('\\', '/').ToLowerInvariant();
+                        if (pathSet.Add(key))
                             paths.Add(framePath);
                     }
                 }
                 else
                 {
-                    if (pathSet.Add(element.ImagePath))
+                    string key = element.ImagePath.Replace('\\', '/').ToLowerInvariant();
+                    if (pathSet.Add(key))
                         paths.Add(element.ImagePath);
                 }
             }
@@ -727,31 +699,80 @@ namespace OsuVR.Storyboard
 
             SBDebugLog.Log($"[BuildTextureArray] {paths.Count} 纹理待加载");
 
-            var textures = new Texture2D[paths.Count];
-            int maxWidth = 0, maxHeight = 0;
-
+            // 过滤掉不存在的纹理路径
+            var validPaths = new List<string>();
+            var pathToIndex = new Dictionary<string, int>();
             for (int i = 0; i < paths.Count; i++)
             {
-                textures[i] = LoadTexture(System.IO.Path.Combine(beatmapFolder, paths[i]));
+                string fullPath = System.IO.Path.Combine(beatmapFolder, paths[i]);
+                if (System.IO.File.Exists(fullPath))
+                {
+                    pathToIndex[paths[i]] = validPaths.Count;
+                    validPaths.Add(paths[i]);
+                }
+                else
+                {
+                    Debug.LogWarning($"[SBRenderer] SB 纹理不存在, 跳过: {paths[i]}");
+                }
+            }
+
+            if (validPaths.Count == 0)
+            {
+                Debug.LogWarning("[SBRenderer] 无有效 SB 纹理");
+                return;
+            }
+
+            var textures = new Texture2D[validPaths.Count];
+            int maxWidth = 0, maxHeight = 0;
+
+            for (int i = 0; i < validPaths.Count; i++)
+            {
+                textures[i] = LoadTexture(System.IO.Path.Combine(beatmapFolder, validPaths[i]));
                 if (textures[i].width > maxWidth) maxWidth = textures[i].width;
                 if (textures[i].height > maxHeight) maxHeight = textures[i].height;
             }
 
-            SBDebugLog.Mem($"纹理加载完成: max={maxWidth}x{maxHeight}");
+            SBDebugLog.Mem($"纹理加载完成: {validPaths.Count} 张, max={maxWidth}x{maxHeight}");
 
             maxWidth = Mathf.Min(maxWidth, 2048);
             maxHeight = Mathf.Min(maxHeight, 2048);
 
-            textureArray = new Texture2DArray(maxWidth, maxHeight, paths.Count,
+            // 安全限制: 确保 Texture2DArray 总大小不超过 1.8GB (留余量)
+            const long MAX_BYTES = (long)(1.8 * 1024 * 1024 * 1024);
+            long bytesPerLayer = (long)maxWidth * maxHeight * 4; // RGBA32
+            int maxLayers = validPaths.Count;
+
+            if (bytesPerLayer * maxLayers > MAX_BYTES)
+            {
+                // 先降分辨率
+                while (maxWidth > 256 && maxHeight > 256 && bytesPerLayer * maxLayers > MAX_BYTES)
+                {
+                    maxWidth /= 2;
+                    maxHeight /= 2;
+                    bytesPerLayer = (long)maxWidth * maxHeight * 4;
+                }
+
+                // 仍然超限则截断层数
+                if (bytesPerLayer * maxLayers > MAX_BYTES)
+                {
+                    maxLayers = (int)(MAX_BYTES / bytesPerLayer);
+                    Debug.LogWarning($"[SBRenderer] SB 纹理过多, 截断到 {maxLayers} 层 (原 {validPaths.Count})");
+                }
+            }
+
+            int layerCount = Mathf.Min(validPaths.Count, maxLayers);
+            paths = validPaths; // 更新 paths 为有效路径列表
+
+            textureArray = new Texture2DArray(maxWidth, maxHeight, layerCount,
                 TextureFormat.RGBA32, true, false);
             textureArray.filterMode = FilterMode.Bilinear;
             textureArray.wrapMode = TextureWrapMode.Clamp;
-            SBDebugLog.Mem($"Texture2DArray 创建: {maxWidth}x{maxHeight}x{paths.Count}");
+            SBDebugLog.Mem($"Texture2DArray 创建: {maxWidth}x{maxHeight}x{layerCount}");
 
             var tempRT = RenderTexture.GetTemporary(maxWidth, maxHeight, 0, RenderTextureFormat.ARGB32);
             var prevRT = RenderTexture.active;
 
-            for (int i = 0; i < textures.Length; i++)
+            for (int i = 0; i < layerCount; i++)
             {
                 var src = textures[i];
                 Graphics.Blit(src, tempRT);
@@ -780,11 +801,13 @@ namespace OsuVR.Storyboard
             RenderTexture.active = prevRT;
             RenderTexture.ReleaseTemporary(tempRT);
 
-            textureIndexMap = new Dictionary<string, int>(paths.Count);
-            textureDimensions = new Vector2Int[paths.Count];
-            for (int i = 0; i < paths.Count; i++)
+            textureIndexMap = new Dictionary<string, int>(layerCount);
+            textureDimensions = new Vector2Int[layerCount];
+            for (int i = 0; i < layerCount; i++)
             {
-                textureIndexMap[paths[i]] = i;
+                // 统一路径: 反斜杠→正斜杠, 小写, 去引号
+                string normalized = paths[i].Replace('\\', '/').ToLowerInvariant().Trim('"');
+                textureIndexMap[normalized] = i;
                 textureDimensions[i] = new Vector2Int(textures[i].width, textures[i].height);
             }
 
@@ -795,9 +818,7 @@ namespace OsuVR.Storyboard
             }
             SBDebugLog.Mem("源纹理释放完成");
 
-            Debug.Log($"[SBRenderer] 纹理数组打包完成: {paths.Count} 层, {maxWidth}x{maxHeight}");
-            for (int i = 0; i < paths.Count; i++)
-                Debug.Log($"  Tex[{i}] {paths[i]} → {textureDimensions[i].x}x{textureDimensions[i].y}");
+            Debug.Log($"[SBRenderer] 纹理数组打包完成: {layerCount} 层, {maxWidth}x{maxHeight}");
         }
 
         void CacheTextureIndices()
@@ -907,29 +928,6 @@ namespace OsuVR.Storyboard
             quadMesh.RecalculateNormals();
 
             return quadMesh;
-        }
-
-        static Mesh CreateFullScreenQuad()
-        {
-            var mesh = new Mesh();
-            mesh.name = "SB_VideoQuad";
-            mesh.vertices = new Vector3[]
-            {
-                new Vector3(-0.5f, -0.5f, 0),
-                new Vector3(-0.5f,  0.5f, 0),
-                new Vector3( 0.5f,  0.5f, 0),
-                new Vector3( 0.5f, -0.5f, 0),
-            };
-            mesh.uv = new Vector2[]
-            {
-                new Vector2(0, 0),
-                new Vector2(0, 1),
-                new Vector2(1, 1),
-                new Vector2(1, 0),
-            };
-            mesh.triangles = new int[] { 0, 1, 2, 0, 2, 3 };
-            mesh.RecalculateNormals();
-            return mesh;
         }
 
         // =========================================================

@@ -262,9 +262,13 @@ namespace OsuVR
                 canvasGroup.alpha = 0;
             }
 
+            // 3. 在动画开始前设置歌曲信息，确保 fade-in 时歌名已可见
+            SetSongInfo(result);
+            SetModDisplay(result);
+
             PlaySound(resultAppearSound);
 
-            // 3. 面板淡入 + 缩放动画
+            // 4. 面板淡入 + 缩放动画
             float elapsed = 0f;
             while (elapsed < fadeDuration)
             {
@@ -284,10 +288,6 @@ namespace OsuVR
                 canvasGroup.alpha = 1f;
             if (resultPanel != null)
                 resultPanel.transform.localScale = originalPanelScale;
-
-            // 4. 设置歌曲信息
-            SetSongInfo(result);
-            SetModDisplay(result);
 
             // 5. 分数滚动动画
             yield return StartCoroutine(AnimateScore(result));

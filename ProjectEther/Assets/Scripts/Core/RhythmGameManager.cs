@@ -710,10 +710,14 @@ namespace OsuVR
                             renderer.LoadVideo(videoPath, mediaScan.VideoOffset);
                         }
 
-                        // 4. 光纤对接：将 RenderTexture 注入幕布
-                        var rt = renderer.GetRenderTexture();
-                        if (rt != null)
-                            HolographicScreenManager.Instance?.SetRenderTexture(rt);
+                        // 4. 光纤对接：视频 RT 和 SB RT 分别注入幕布
+                        var videoRT = renderer.GetVideoRenderTexture();
+                        if (videoRT != null)
+                            HolographicScreenManager.Instance?.SetVideoTexture(videoRT);
+
+                        var sbRT = renderer.GetRenderTexture();
+                        if (sbRT != null)
+                            HolographicScreenManager.Instance?.SetRenderTexture(sbRT);
                     }
                 }
                 else

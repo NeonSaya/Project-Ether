@@ -598,22 +598,24 @@ namespace OsuVR
             var parts = line.Split(',');
             if (parts.Length < 3) return;
 
-            // 背景图事件: 0,0,"filename",0,0
-            if (parts[0] == "0" && parts[1] == "0")
+            string type = parts[0].Trim();
+
+            // 背景图事件: 0,0,"filename",0,0  或  Background,0,"filename",0,0
+            if ((type == "0" || type.Equals("Background", StringComparison.OrdinalIgnoreCase)) && parts[1].Trim() == "0")
             {
                 string filename = parts[2].Trim('"');
                 beatmap.Events.BackgroundFilename = filename;
             }
-            // 视频事件: 1,0,"video.mp4",offset
-            else if (parts[0] == "1")
+            // 视频事件: 1,startTime,"video.mp4",offset  或  Video,startTime,"video.mp4",offset
+            else if (type == "1" || type.Equals("Video", StringComparison.OrdinalIgnoreCase))
             {
                 string filename = parts[2].Trim('"');
-                int offset = parts.Length > 3 && int.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out int off) ? off : 0;
+                int offset = parts.Length > 3 && int.TryParse(parts[3].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int off) ? off : 0;
                 beatmap.Events.VideoFilename = filename;
                 beatmap.Events.VideoOffset = offset;
             }
             // 休息时间: 2,Start,End 或 Break,Start,End
-            else if (parts[0] == "2" || parts[0] == "Break")
+            else if (type == "2" || type.Equals("Break", StringComparison.OrdinalIgnoreCase))
             {
                 if (double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double start) &&
                     double.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out double end))
@@ -621,10 +623,10 @@ namespace OsuVR
                     beatmap.Events.Breaks.Add(new BreakPeriod(start, end));
                 }
             }
-            // 故事板主对象: Sprite, Animation, Sample (osu! v14 使用字符串名称)
-            else if (parts[0].Equals("Sprite", StringComparison.OrdinalIgnoreCase)
-                  || parts[0].Equals("Animation", StringComparison.OrdinalIgnoreCase)
-                  || parts[0].Equals("Sample", StringComparison.OrdinalIgnoreCase))
+            // 故事板主对象: Sprite, Animation, Sample (osu! v14+ 使用字符串名称)
+            else if (type.Equals("Sprite", StringComparison.OrdinalIgnoreCase)
+                  || type.Equals("Animation", StringComparison.OrdinalIgnoreCase)
+                  || type.Equals("Sample", StringComparison.OrdinalIgnoreCase))
             {
                 beatmap.Events.StoryboardLines.Add(line);
             }

@@ -9,10 +9,11 @@ namespace OsuVR.Storyboard
     /// 纯代码驱动，不依赖 Prefab。遵循 EtherealEnvironment 的 Singleton 模式。
     /// 支持通过设置面板调整距离、透明度和开关。
     ///
-    /// 双层架构:
+    /// 三层架构 (由远到近):
     ///   - 底层: 静态背景图 (screenMaterial) — 始终存在, 作为兜底
-    ///   - 顶层: SB/视频 Overlay (overlayMaterial) — 叠加在背景图之上
-    ///   - SB 的 RenderTexture alpha=0 区域自动穿透, 显示底层背景图
+    ///   - 中层: 视频 Overlay (videoOverlayMaterial) — 独立视频 RT
+    ///   - 顶层: SB Overlay (overlayMaterial) — SB RenderTexture
+    ///   - 视频层和 SB 层完全解耦, 各自独立渲染
     /// </summary>
     public class HolographicScreenManager : MonoBehaviour
     {
@@ -37,7 +38,12 @@ namespace OsuVR.Storyboard
         Texture2D edgeFadeTexture;
         Texture2D backgroundTexture;
 
-        // --- 顶层: SB/视频 Overlay ---
+        // --- 中层: 视频 Overlay ---
+        GameObject videoOverlayObject;
+        MeshRenderer videoOverlayRenderer;
+        Material videoOverlayMaterial;
+
+        // --- 顶层: SB Overlay ---
         GameObject overlayObject;
         MeshRenderer overlayRenderer;
         Material overlayMaterial;
@@ -101,6 +107,7 @@ namespace OsuVR.Storyboard
         {
             _hasContent = false;
             if (screenObject != null) screenObject.SetActive(false);
+            if (videoOverlayObject != null) videoOverlayObject.SetActive(false);
             if (overlayObject != null) overlayObject.SetActive(false);
         }
 
@@ -142,21 +149,42 @@ namespace OsuVR.Storyboard
         /// </summary>
         public void RestoreBackgroundTexture()
         {
+            if (videoOverlayObject != null)
+                videoOverlayObject.SetActive(false);
             if (overlayObject != null)
                 overlayObject.SetActive(false);
         }
 
         public void SetVideoTexture(Texture videoTexture)
         {
-            if (videoTexture != null)
+            if (videoTexture == null)
             {
-                EnsureOverlayCreated();
-                if (overlayMaterial != null)
-                {
-                    overlayMaterial.mainTexture = videoTexture;
-                    overlayObject.SetActive(true);
-                }
+                Debug.LogWarning("[HolographicScreen] SetVideoTexture: videoTexture is null!");
+                return;
             }
+
+            EnsureScreenCreated();
+            EnsureVideoOverlayCreated();
+
+            if (videoOverlayMaterial != null)
+            {
+                videoOverlayMaterial.mainTexture = videoTexture;
+                videoOverlayObject.SetActive(true);
+                Debug.Log($"[HolographicScreen] 视频纹理已注入: {videoTexture.name}, size={videoTexture.width}x{videoTexture.height}, overlayActive={videoOverlayObject.activeSelf}");
+
+                float z = GetScreenDistance();
+                var pos = videoOverlayObject.transform.localPosition;
+                pos.z = z;
+                videoOverlayObject.transform.localPosition = pos;
+
+                Color c = videoOverlayMaterial.color;
+                c.a = GetScreenAlpha();
+                videoOverlayMaterial.color = c;
+            }
+
+            _hasContent = true;
+            ApplySettings();
+            ApplyVisibility();
         }
 
         public void OnSettingsChanged()
@@ -226,7 +254,22 @@ namespace OsuVR.Storyboard
                 screenMaterial.color = c;
             }
 
-            // 同步 Overlay 设置
+            // 同步视频 Overlay 设置
+            if (videoOverlayObject != null && videoOverlayObject.activeSelf)
+            {
+                var vpos = videoOverlayObject.transform.localPosition;
+                vpos.z = z;
+                videoOverlayObject.transform.localPosition = vpos;
+
+                if (videoOverlayMaterial != null)
+                {
+                    Color vc = videoOverlayMaterial.color;
+                    vc.a = alpha;
+                    videoOverlayMaterial.color = vc;
+                }
+            }
+
+            // 同步 SB Overlay 设置
             if (overlayObject != null && overlayObject.activeSelf)
             {
                 var opos = overlayObject.transform.localPosition;
@@ -285,8 +328,49 @@ namespace OsuVR.Storyboard
         }
 
         /// <summary>
-        /// 创建 Overlay 层 (SB/视频叠加层)
-        /// 与底层使用相同 Mesh, 稍微前移避免 Z-Fighting
+        /// 创建视频 Overlay 层
+        /// 位于背景图之上、SB Overlay 之下
+        /// </summary>
+        void EnsureVideoOverlayCreated()
+        {
+            if (videoOverlayObject != null) return;
+
+            EnsureScreenCreated();
+
+            videoOverlayObject = new GameObject("[HolographicScreen_VideoOverlay]");
+            videoOverlayObject.transform.SetParent(transform);
+            videoOverlayObject.transform.localPosition = new Vector3(0, ScreenY, GetScreenDistance() - 0.01f);
+            videoOverlayObject.transform.localRotation = Quaternion.identity;
+
+            var filter = videoOverlayObject.AddComponent<MeshFilter>();
+            filter.mesh = screenFilter.mesh;
+
+            Shader videoShader = Shader.Find("OsuVR/SBVideoOverlay");
+            if (videoShader == null) videoShader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (videoShader == null) { Debug.LogError("[HolographicScreen] SBVideoOverlay Shader 不可用!"); return; }
+            videoOverlayMaterial = new Material(videoShader);
+            videoOverlayMaterial.renderQueue = (int)RenderQueue.Transparent + 1;
+
+            if (edgeFadeTexture != null)
+                videoOverlayMaterial.SetTexture("_EdgeFadeTex", edgeFadeTexture);
+
+            Color c = Color.white;
+            c.a = GetScreenAlpha();
+            videoOverlayMaterial.color = c;
+
+            videoOverlayRenderer = videoOverlayObject.AddComponent<MeshRenderer>();
+            videoOverlayRenderer.sharedMaterial = videoOverlayMaterial;
+            videoOverlayRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            videoOverlayRenderer.receiveShadows = false;
+
+            videoOverlayObject.SetActive(false);
+
+            Debug.Log($"[HolographicScreen] 视频 Overlay 已创建: shader={videoShader.name}, queue={videoOverlayMaterial.renderQueue}, edgeFadeTex={edgeFadeTexture != null}");
+        }
+
+        /// <summary>
+        /// 创建 SB Overlay 层
+        /// 位于视频 Overlay 之上, 稍微前移避免 Z-Fighting
         /// </summary>
         void EnsureOverlayCreated()
         {
@@ -297,7 +381,7 @@ namespace OsuVR.Storyboard
             // 1. 创建 Overlay GameObject
             overlayObject = new GameObject("[HolographicScreen_Overlay]");
             overlayObject.transform.SetParent(transform);
-            overlayObject.transform.localPosition = new Vector3(0, ScreenY, GetScreenDistance() - 0.01f); // 稍微前移
+            overlayObject.transform.localPosition = new Vector3(0, ScreenY, GetScreenDistance() - 0.02f); // 视频层前方
             overlayObject.transform.localRotation = Quaternion.identity;
 
             // 2. 共享底层 Mesh
@@ -454,6 +538,7 @@ namespace OsuVR.Storyboard
         void OnDestroy()
         {
             if (screenMaterial != null) Destroy(screenMaterial);
+            if (videoOverlayMaterial != null) Destroy(videoOverlayMaterial);
             if (overlayMaterial != null) Destroy(overlayMaterial);
             if (edgeFadeTexture != null) Destroy(edgeFadeTexture);
             if (backgroundTexture != null) Destroy(backgroundTexture);

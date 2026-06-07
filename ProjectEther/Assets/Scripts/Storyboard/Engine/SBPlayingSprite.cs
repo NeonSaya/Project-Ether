@@ -16,6 +16,7 @@ namespace OsuVR.Storyboard.Engine
 
         public SBElement Element;
         public int CachedTexIndex = -1;
+        public double StartTime;  // 元素首个命令的开始时间 (用于动画帧计算)
         public SBRenderState State;
 
         // 直接命令（已排序）
@@ -77,6 +78,7 @@ namespace OsuVR.Storyboard.Engine
             ApplyInitialValues();
 
             double startTime = group.StartTime();
+            StartTime = startTime;
             if (startTime < double.MaxValue)
                 Update(startTime);
         }
