@@ -37,7 +37,10 @@ namespace OsuVR.Storyboard.Engine
                     cmd.StartValue, cmd.EndValue));
             }
 
-            // Move → X + Y
+            // Move → X + Y (storybrew: Move 完全覆盖 MoveX/MoveY, 互斥)
+            bool hasMove = element.MoveCommands.Count > 0;
+            bool hasScaleVec = element.ScaleVectorCommands.Count > 0;
+
             for (int i = 0; i < element.MoveCommands.Count; i++)
             {
                 var cmd = element.MoveCommands[i];
@@ -49,34 +52,43 @@ namespace OsuVR.Storyboard.Engine
                     cmd.StartPos.y, cmd.EndPos.y));
             }
 
-            // MoveX → X
-            for (int i = 0; i < element.MoveXCommands.Count; i++)
+            // MoveX → X (仅在无 Move 命令时生效, storybrew 互斥规则)
+            if (!hasMove)
             {
-                var cmd = element.MoveXCommands[i];
-                group.Commands.Add(new SBFloatCommand(
-                    SBCommandTarget.X, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartValue, cmd.EndValue));
+                for (int i = 0; i < element.MoveXCommands.Count; i++)
+                {
+                    var cmd = element.MoveXCommands[i];
+                    group.Commands.Add(new SBFloatCommand(
+                        SBCommandTarget.X, cmd.Easing, cmd.StartTime, cmd.EndTime,
+                        cmd.StartValue, cmd.EndValue));
+                }
             }
 
-            // MoveY → Y
-            for (int i = 0; i < element.MoveYCommands.Count; i++)
+            // MoveY → Y (仅在无 Move 命令时生效, storybrew 互斥规则)
+            if (!hasMove)
             {
-                var cmd = element.MoveYCommands[i];
-                group.Commands.Add(new SBFloatCommand(
-                    SBCommandTarget.Y, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartValue, cmd.EndValue));
+                for (int i = 0; i < element.MoveYCommands.Count; i++)
+                {
+                    var cmd = element.MoveYCommands[i];
+                    group.Commands.Add(new SBFloatCommand(
+                        SBCommandTarget.Y, cmd.Easing, cmd.StartTime, cmd.EndTime,
+                        cmd.StartValue, cmd.EndValue));
+                }
             }
 
-            // Scale → ScaleX + ScaleY
-            for (int i = 0; i < element.ScaleCommands.Count; i++)
+            // Scale → ScaleX + ScaleY (仅在无 ScaleVec 命令时生效, storybrew 互斥规则)
+            if (!hasScaleVec)
             {
-                var cmd = element.ScaleCommands[i];
-                group.Commands.Add(new SBFloatCommand(
-                    SBCommandTarget.ScaleX, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartValue, cmd.EndValue));
-                group.Commands.Add(new SBFloatCommand(
-                    SBCommandTarget.ScaleY, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartValue, cmd.EndValue));
+                for (int i = 0; i < element.ScaleCommands.Count; i++)
+                {
+                    var cmd = element.ScaleCommands[i];
+                    group.Commands.Add(new SBFloatCommand(
+                        SBCommandTarget.ScaleX, cmd.Easing, cmd.StartTime, cmd.EndTime,
+                        cmd.StartValue, cmd.EndValue));
+                    group.Commands.Add(new SBFloatCommand(
+                        SBCommandTarget.ScaleY, cmd.Easing, cmd.StartTime, cmd.EndTime,
+                        cmd.StartValue, cmd.EndValue));
+                }
             }
 
             // Vector Scale → ScaleX + ScaleY (非均匀缩放)
@@ -161,6 +173,10 @@ namespace OsuVR.Storyboard.Engine
                     cmd.StartValue, cmd.EndValue));
             }
 
+            // Move/MoveX/MoveY 互斥 (storybrew 规则: Move 完全覆盖 MoveX/MoveY)
+            bool hasMove = loop.MoveCommands.Count > 0;
+            bool hasScaleVec = loop.ScaleVectorCommands.Count > 0;
+
             for (int i = 0; i < loop.MoveCommands.Count; i++)
             {
                 var cmd = loop.MoveCommands[i];
@@ -172,31 +188,37 @@ namespace OsuVR.Storyboard.Engine
                     cmd.StartPos.y, cmd.EndPos.y));
             }
 
-            for (int i = 0; i < loop.MoveXCommands.Count; i++)
+            if (!hasMove)
             {
-                var cmd = loop.MoveXCommands[i];
-                group.Commands.Add(new SBFloatCommand(
-                    SBCommandTarget.X, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartValue, cmd.EndValue));
+                for (int i = 0; i < loop.MoveXCommands.Count; i++)
+                {
+                    var cmd = loop.MoveXCommands[i];
+                    group.Commands.Add(new SBFloatCommand(
+                        SBCommandTarget.X, cmd.Easing, cmd.StartTime, cmd.EndTime,
+                        cmd.StartValue, cmd.EndValue));
+                }
+                for (int i = 0; i < loop.MoveYCommands.Count; i++)
+                {
+                    var cmd = loop.MoveYCommands[i];
+                    group.Commands.Add(new SBFloatCommand(
+                        SBCommandTarget.Y, cmd.Easing, cmd.StartTime, cmd.EndTime,
+                        cmd.StartValue, cmd.EndValue));
+                }
             }
 
-            for (int i = 0; i < loop.MoveYCommands.Count; i++)
+            // Scale/ScaleVec 互斥 (storybrew 规则: ScaleVec 完全覆盖 Scale)
+            if (!hasScaleVec)
             {
-                var cmd = loop.MoveYCommands[i];
-                group.Commands.Add(new SBFloatCommand(
-                    SBCommandTarget.Y, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartValue, cmd.EndValue));
-            }
-
-            for (int i = 0; i < loop.ScaleCommands.Count; i++)
-            {
-                var cmd = loop.ScaleCommands[i];
-                group.Commands.Add(new SBFloatCommand(
-                    SBCommandTarget.ScaleX, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartValue, cmd.EndValue));
-                group.Commands.Add(new SBFloatCommand(
-                    SBCommandTarget.ScaleY, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartValue, cmd.EndValue));
+                for (int i = 0; i < loop.ScaleCommands.Count; i++)
+                {
+                    var cmd = loop.ScaleCommands[i];
+                    group.Commands.Add(new SBFloatCommand(
+                        SBCommandTarget.ScaleX, cmd.Easing, cmd.StartTime, cmd.EndTime,
+                        cmd.StartValue, cmd.EndValue));
+                    group.Commands.Add(new SBFloatCommand(
+                        SBCommandTarget.ScaleY, cmd.Easing, cmd.StartTime, cmd.EndTime,
+                        cmd.StartValue, cmd.EndValue));
+                }
             }
 
             for (int i = 0; i < loop.ScaleVectorCommands.Count; i++)

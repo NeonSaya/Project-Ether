@@ -62,22 +62,7 @@ namespace OsuVR.Storyboard
             public Vector4 params0;         // 16 bytes (x=texIndex, y=blendMode, z=flipH, w=flipV)
         }   // Total: 96 bytes
 
-        // =========================================================
-        //  Burst Job 数据结构
-        // =========================================================
-
-        struct SpriteInputData
-        {
-            public float X, Y;
-            public float ScaleX, ScaleY;
-            public float Rotation;
-            public float Alpha;
-            public float R, G, B;
-            public byte FlipH, FlipV, Additive;
-            public int TexIndex;
-            public int OriginIndex;
-            public int TexWidth, TexHeight;
-        }
+        // SpriteInputData 已移至 SBFlatData.cs (OsuVR.Storyboard.Engine 命名空间)
 
         static readonly SpriteInstanceData ZeroInstance = new SpriteInstanceData
         {
@@ -183,9 +168,12 @@ namespace OsuVR.Storyboard
         GameObject isolatedRoot;
         int storyboardLayer;
 
-        // ---- 引擎 ----
-        SBOsbPlayer osbPlayer;
+        // ---- 引擎 (DOD 扁平化管线) ----
+        SBFlatTimelineData _flatTimeline;
         string currentBeatmapFolder;
+
+        // ---- 引擎 (旧管线, 仅保留用于向后兼容) ----
+        SBOsbPlayer osbPlayer;
 
         // ---- 视频 (APIOnly + sendFrameReadyEvents + renderTexture) ----
         VideoPlayer videoPlayer;
@@ -205,8 +193,8 @@ namespace OsuVR.Storyboard
         ComputeBuffer additiveBuffer;
 
         // ---- 共享资源 ----
-        Material sbMaterialAlpha;
-        Material sbMaterialAdditive;
+        Material sbMaterialAlpha;    // Pass 0: Blend SrcAlpha OneMinusSrcAlpha (标准混合)
+        Material sbMaterialAdditive; // Pass 1: Blend One One (加法混合)
         Mesh quadMesh;
 
         // ---- 状态 ----
@@ -321,13 +309,38 @@ namespace OsuVR.Storyboard
 
             EnsureSBMaterial();
 
+            // DOD 管线: 扁平化所有 SB 数据到 NativeArray
+            _flatTimeline = SBTimelineFlattener.Flatten(storyboard, textureIndexMap, textureDimensions);
+            SBDebugLog.Mem($"DOD 扁平化完成: {_flatTimeline.SpriteCount} sprites");
+
+            // 旧管线保留 (用于旧代码路径兼容, 不再每帧调用)
             osbPlayer = new SBOsbPlayer();
             osbPlayer.LoadStoryboard(storyboard);
-            SBDebugLog.Mem("引擎加载完成");
 
             CacheTextureIndices();
 
             isRendering = true;
+
+            // SB Background 层: 有无 Fade 命令的 sprite → 全不透明替代背景, 隐藏背景图
+            //                  所有 sprite 都有 Fade → 有透明度, 保留背景图让 SB alpha 叠加
+            if (storyboard.Layers[0] != null && storyboard.Layers[0].Count > 0)
+            {
+                bool hasOpaqueSprite = false;
+                foreach (var elem in storyboard.Layers[0])
+                {
+                    if (elem.FadeCommands.Count == 0)
+                    {
+                        hasOpaqueSprite = true;
+                        break;
+                    }
+                }
+                if (hasOpaqueSprite)
+                {
+                    HolographicScreenManager.Instance?.HideBackgroundForSB();
+                    SBDebugLog.Log("[SBRenderer] Background 层有全不透明 sprite, 已隐藏谱面背景图");
+                }
+            }
+
             SBDebugLog.Log($"[SBRenderer] 加载完成: {storyboard.TotalElementCount} 元素, {textureArray.depth} 纹理层");
             SBDebugLog.End();
         }
@@ -362,6 +375,9 @@ namespace OsuVR.Storyboard
                 _jobHandle.Complete();
                 _jobScheduled = false;
             }
+
+            // 释放 DOD 扁平化数据
+            if (_flatTimeline.Sprites.IsCreated) _flatTimeline.Dispose();
 
             osbPlayer?.Unload();
             osbPlayer = null;
@@ -411,7 +427,7 @@ namespace OsuVR.Storyboard
         void Update()
         {
             if (!isRendering) return;
-            if (osbPlayer == null && !hasVideo) return;
+            if (_flatTimeline.SpriteCount == 0 && osbPlayer == null && !hasVideo) return;
 
             double musicTime = GetCurrentMusicTime();
 
@@ -422,31 +438,36 @@ namespace OsuVR.Storyboard
             // 2. 以下需要 renderCamera (SB 渲染)
             if (renderCamera == null) return;
 
-            // 3. 推进引擎 (主线程: 链表操作无法并行)
-            if (osbPlayer != null)
-                osbPlayer.Update(musicTime);
-
-            // 4. 收集活跃精灵到 NativeArray + Schedule Job
-            if (osbPlayer != null && sbMaterialAlpha != null && textureArray != null)
+            // 3. DOD 管线: 两个 Burst Job 链式调度 (零主线程求值)
+            if (_flatTimeline.SpriteCount > 0 && sbMaterialAlpha != null && textureArray != null)
             {
-                _jobActiveCount = CollectSpritesToNativeArray(musicTime);
+                _jobActiveCount = math.min(_flatTimeline.SpriteCount, MaxInstances);
 
-                if (_jobActiveCount > 0)
+                // Job 1: 时间轴求值 (替代 SBOsbPlayer.Update + CollectSpritesToNativeArray)
+                var evalJob = new SBEvaluateTimelineJob
                 {
-                    var job = new BuildInstanceJob
-                    {
-                        Inputs = _jobInputs,
-                        OriginOffsets = _jobOriginOffsets,
-                        Output = _jobOutput,
-                        CanvasW = CanvasWidth,
-                        CanvasH = CanvasHeight,
-                        IsolatedY = IsolatedPosition.y,
-                        InputCount = _jobActiveCount
-                    };
+                    Sprites = _flatTimeline.Sprites,
+                    Commands = _flatTimeline.Commands,
+                    Loops = _flatTimeline.Loops,
+                    Output = _jobInputs,
+                    CurrentTime = musicTime,
+                    SpriteCount = _jobActiveCount
+                };
+                var evalHandle = evalJob.Schedule(_jobActiveCount, 64);
 
-                    _jobHandle = job.Schedule(_jobActiveCount, 256);
-                    _jobScheduled = true;
-                }
+                // Job 2: 矩阵计算 (依赖 Job 1 完成)
+                var buildJob = new BuildInstanceJob
+                {
+                    Inputs = _jobInputs,
+                    OriginOffsets = _jobOriginOffsets,
+                    Output = _jobOutput,
+                    CanvasW = CanvasWidth,
+                    CanvasH = CanvasHeight,
+                    IsolatedY = IsolatedPosition.y,
+                    InputCount = _jobActiveCount
+                };
+                _jobHandle = buildJob.Schedule(_jobActiveCount, 256, evalHandle);
+                _jobScheduled = true;
             }
         }
 
@@ -513,20 +534,18 @@ namespace OsuVR.Storyboard
         {
             if (!isRendering || !_jobScheduled) return;
 
-            // Complete Job (约束 1: 在必须向 GPU 提交数据的前一刻)
+            // Complete Job
             _jobHandle.Complete();
             _jobScheduled = false;
 
             if (_jobActiveCount <= 0) return;
 
-            // 约束 3: GPU 剔除法 — 不需要原子计数器
-            // 扫描 output 统计 Alpha/Additive 数量 (简单循环, ~0.001ms)
-            int alphaCount = 0;
-            int additiveCount = 0;
+            var bounds = new Bounds(IsolatedPosition, new Vector3(10000000f, 10000000f, 10000000f));
+
+            // 统计可见的 Alpha/Additive 数量
+            int alphaCount = 0, additiveCount = 0;
             for (int i = 0; i < _jobActiveCount; i++)
             {
-                // params0.y = blendMode (0=Alpha, 1=Additive)
-                // 只统计非零矩阵的精灵 (m00 != 0 表示可见)
                 if (_jobOutput[i].objectToWorld.m00 != 0f || _jobOutput[i].objectToWorld.m11 != 0f)
                 {
                     if (_jobOutput[i].params0.y > 0.5f)
@@ -536,10 +555,7 @@ namespace OsuVR.Storyboard
                 }
             }
 
-            // 约束 2: NativeArray → GPU 零拷贝
-            var bounds = new Bounds(IsolatedPosition, new Vector3(10000000f, 10000000f, 10000000f));
-
-            // 双 Pass 共享同一缓冲区 (约束 3: 零 Scale 的实例被 Vertex Shader 剔除)
+            // Pass 0: Alpha Blend
             if (alphaCount > 0)
             {
                 alphaBuffer.SetData(_jobOutput, 0, 0, _jobActiveCount);
@@ -549,6 +565,7 @@ namespace OsuVR.Storyboard
                     null, ShadowCastingMode.Off, false, storyboardLayer, null);
             }
 
+            // Pass 1: Additive
             if (additiveCount > 0)
             {
                 additiveBuffer.SetData(_jobOutput, 0, 0, _jobActiveCount);
@@ -892,12 +909,16 @@ namespace OsuVR.Storyboard
                 return;
             }
 
+            // Pass 0: 标准 Alpha 混合 (Blend SrcAlpha OneMinusSrcAlpha)
             sbMaterialAlpha = new Material(shader);
             sbMaterialAlpha.enableInstancing = true;
+            sbMaterialAlpha.SetShaderPassEnabled("SB_Opaque", false);
             sbMaterialAlpha.SetShaderPassEnabled("SB_Additive", false);
 
+            // Pass 1: 加法混合 (Blend One One)
             sbMaterialAdditive = new Material(shader);
             sbMaterialAdditive.enableInstancing = true;
+            sbMaterialAdditive.SetShaderPassEnabled("SB_Opaque", false);
             sbMaterialAdditive.SetShaderPassEnabled("SB_AlphaBlend", false);
 
             Debug.Log($"[SBRenderer] 材质创建成功: shader={shader.name}");

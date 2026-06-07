@@ -538,6 +538,8 @@ namespace OsuVR
                 case "Mode": int.TryParse(value, NumberStyles.Integer, Inv, out int mode); general.Mode = mode; break;
                 case "StackLeniency": float.TryParse(value, NumberStyles.Float, Inv, out float stack); general.StackLeniency = stack; break;
                 case "WidescreenStoryboard": general.WidescreenStoryboard = value == "1"; break;
+                case "SampleSet": general.SampleSet = value; break;
+                case "Countdown": int.TryParse(value, NumberStyles.Integer, Inv, out int cd); general.Countdown = cd; break;
             }
         }
 
@@ -569,6 +571,9 @@ namespace OsuVR
                 case "Creator": metadata.Creator = value; break;
                 case "Version": metadata.Version = value; break;
                 case "BeatmapID": int.TryParse(value, NumberStyles.Integer, Inv, out int bid); metadata.BeatmapID = bid; break;
+                case "Source": metadata.Source = value; break;
+                case "Tags": metadata.Tags = value; break;
+                case "BeatmapSetID": int.TryParse(value, NumberStyles.Integer, Inv, out int sid); metadata.BeatmapSetID = sid; break;
             }
         }
 
