@@ -176,6 +176,18 @@ namespace OsuVR.Storyboard.Data
 
         void EvaluateScale(double time)
         {
+            // 先检查 ScaleVector (非均匀缩放优先)
+            for (int i = ScaleVectorCommands.Count - 1; i >= 0; i--)
+            {
+                var cmd = ScaleVectorCommands[i];
+                if (time >= cmd.StartTime)
+                {
+                    float p = cmd.GetEasedProgress(time);
+                    CurrentScale = Mathf.Lerp(cmd.StartValueX, cmd.EndValueX, p);
+                    return;
+                }
+            }
+            // 再检查统一 Scale
             for (int i = ScaleCommands.Count - 1; i >= 0; i--)
             {
                 var cmd = ScaleCommands[i];
@@ -327,8 +339,8 @@ namespace OsuVR.Storyboard.Data
                 {
                     foreach (var c in cmds)
                     {
-                        double end = c.EndTime - StartTime;
-                        if (end > max) max = end;
+                        // 命令 StartTime/EndTime 已是相对于 Loop StartTime 的偏移，直接使用
+                        if (c.EndTime > max) max = c.EndTime;
                     }
                 }
                 CheckMax(FadeCommands);
@@ -336,8 +348,10 @@ namespace OsuVR.Storyboard.Data
                 CheckMax(MoveXCommands);
                 CheckMax(MoveYCommands);
                 CheckMax(ScaleCommands);
+                CheckMax(ScaleVectorCommands);
                 CheckMax(RotateCommands);
                 CheckMax(ColorCommands);
+                CheckMax(ParameterCommands);
                 return max > 0 ? max : 1;
             }
         }
@@ -397,6 +411,50 @@ namespace OsuVR.Storyboard.Data
                 if (loopTime >= cmd.StartTime && loopTime <= cmd.EndTime)
                 {
                     element.CurrentColor = cmd.Evaluate(loopTime);
+                    break;
+                }
+            }
+            for (int i = MoveXCommands.Count - 1; i >= 0; i--)
+            {
+                var cmd = MoveXCommands[i];
+                if (loopTime >= cmd.StartTime && loopTime <= cmd.EndTime)
+                {
+                    element.CurrentPosition = new Vector2(cmd.Evaluate(loopTime), element.CurrentPosition.y);
+                    break;
+                }
+            }
+            for (int i = MoveYCommands.Count - 1; i >= 0; i--)
+            {
+                var cmd = MoveYCommands[i];
+                if (loopTime >= cmd.StartTime && loopTime <= cmd.EndTime)
+                {
+                    element.CurrentPosition = new Vector2(element.CurrentPosition.x, cmd.Evaluate(loopTime));
+                    break;
+                }
+            }
+            for (int i = ScaleVectorCommands.Count - 1; i >= 0; i--)
+            {
+                var cmd = ScaleVectorCommands[i];
+                if (loopTime >= cmd.StartTime && loopTime <= cmd.EndTime)
+                {
+                    float p = cmd.GetEasedProgress(loopTime);
+                    // ScaleVector 通过 SBCommandGroupBuilder 转换为 ScaleX+ScaleY,
+                    // 此处直接 Evaluate 路径仅做非均匀缩放的近似处理
+                    element.CurrentScale = Mathf.Lerp(cmd.StartValueX, cmd.EndValueX, p);
+                    break;
+                }
+            }
+            for (int i = ParameterCommands.Count - 1; i >= 0; i--)
+            {
+                var cmd = ParameterCommands[i];
+                if (loopTime >= cmd.StartTime)
+                {
+                    switch (cmd.Parameter)
+                    {
+                        case "H": element.FlipH = true; break;
+                        case "V": element.FlipV = true; break;
+                        case "A": element.BlendMode = SBBlendMode.Additive; break;
+                    }
                     break;
                 }
             }

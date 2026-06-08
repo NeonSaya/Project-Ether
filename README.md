@@ -2,9 +2,8 @@
 
 ![Unity](https://img.shields.io/badge/Made%20with-Unity%202022.3%20LTS-black?style=flat&logo=unity)
 ![C#](https://img.shields.io/badge/Language-C%23-blue)
-![Platform](https://img.shields.io/badge/Platform-VR%20(OpenXR)-green) 
-![Status](https://img.shields.io/badge/Status-v0.7.1-brightgreen)
-![Platform](https://img.shields.io/badge/Platform-PC%20VR%20%2F%20Standalone%20VR-green)
+![Platform](https://img.shields.io/badge/Platform-PC%20VR%20%2F%20Standalone%20VR%20(OpenXR)-green)
+![Status](https://img.shields.io/badge/Status-v0.7.2-brightgreen)
 
 ## 📖 项目概述 (Overview)
 
@@ -12,15 +11,17 @@
 
 **Project Ether** 的诞生，正是为了架起这两大世界之间的桥梁。我们的终极目标，是打造一个基于 Unity 引擎构建的**沉浸式 VR 版 osu! 谱面播放器**。
 
-我们的野心不仅仅是简单地将 2D 音符搬进 3D 空间，而是**将《Beat Saber》般爽快至极的打击手感，与 VRChat 中 MMD 舞台级别的顶级视听盛宴完美结合。** 
+我们的野心不仅仅是简单地将 2D 音符搬进 3D 空间，而是**将《Beat Saber》般爽快至极的打击手感，与 VRChat 中 MMD 舞台级别的顶级视听盛宴完美结合。**
 
 你可以利用手中的虚拟射线，在纯粹的音波起伏与绚丽的光影交错中，轻松惬意地享受每一首高质量 osu! 谱面带来的视听震撼。
 
-> 🟢 **当前状态：v0.7.1**
+> 🟢 **当前状态：v0.7.2**
 
-> 核心链路（启动 -> 选曲 -> 游玩 -> 结算）完全打通。单点 (Circle)、滑条 (Slider)、转盘 (Spinner) 的生成与计分系统均已完备。Storyboard 全指令解析 + GPU 实例化渲染已上线，支持视频背景播放。底层已全面引入 Unity Jobs + Burst 多线程架构，Storyboard 矩阵计算性能提升 10 倍。
+> 核心链路（启动 -> 选曲 -> 游玩 -> 结算）完全打通。单点 (Circle)、滑条 (Slider)、转盘 (Spinner) 的生成与计分系统均已完备。Storyboard 全指令解析 + GPU 实例化渲染已上线，支持视频背景播放。底层已全面引入 Unity Jobs + Burst 多线程架构，Storyboard 全链路多线程化。
 >
-> **平台发布说明**: 支持 **PC VR (Windows)** 与 **Standalone VR (Android)** 双平台，兼容 Pico Neo 3 / Pico 4 / Pico 4 Ultra / Quest 2 / Quest 3 等主流一体机设备。
+> **v0.7.1 回顾**: 首次发布 Standalone VR 一体机版本 (Android APK)，打通 PC VR 与一体机双平台构建。
+>
+> **平台支持**: PC VR (Windows) 与 Standalone VR (Android) 双平台，兼容 Pico Neo 3 / Pico 4 / Pico 4 Ultra / Quest 2 / Quest 3 等主流一体机。
 
 ---
 
@@ -41,7 +42,7 @@
 * **底层 XR 插件**: 采用高度兼容的 OpenXR 1.10.0 协议标准，并内嵌 Oculus XR Plugin 4.2.0。
 * **视觉与文本方案**: 使用 TextMeshPro (TMP 3.0.6) 保证在 VR 近距离观察下依然锐利的字体渲染；结合 Visual Effect Graph (VFX 14.0.10) 驱动 GPU 级别的大规模绚丽粒子特效。
 * **音频可视化栈**: `Lasp` (Keijiro) 提供 PC 端系统级低延迟 FFT 音频捕获（`#if LASP` 宏隔离，仅 Standalone 平台），`AudioLink` 通过反射式集成提供 DFT 精细频段数据（跨平台兼容），`AudioVisualizationManager` 统一管理三频段全局 Shader 参数注入与频谱分析管线。
-* **多线程架构**: Unity Jobs System + Burst Compiler —— `IJobParallelFor` + `[BurstCompile]` SIMD 向量化，Storyboard 矩阵计算 / 粒子颜色 / 音符坐标预计算全部在 Worker Thread 并行执行。
+* **多线程架构**: Unity Jobs System + Burst Compiler —— Storyboard 全链路、粒子系统、音符预计算等核心逻辑全部剥离至 Worker Thread 并行执行，主线程保持轻量。
 * **编程架构**: C# 面向对象设计 —— 严格遵循数据与视图分离的模块化架构，为开源社区的二次开发与大规模魔改提供了极其友好的土壤。
 
 ---
@@ -49,9 +50,9 @@
 ## ✨ 核心游戏特色 (Features)
 
 * **原生解析与精准判定**: 内置纯 C# 高性能谱面解析器 (`OsuParser`)，直接读取 `.osu` 文件无需转换；严格复刻 `osu! Lazer` 的判定逻辑，从滑条节点 (Tick)、折返点 (Repeat) 到转盘转速，全链路精确结算。提前 13ms 即可判定，消除帧延迟。
-* **Storyboard 全指令引擎**: 完整解析 `.osb` / `.osu` 内联故事板，支持 Sprite、Animation、Loop、Trigger 全部指令类型。通过 `ComputeBuffer` + `Graphics.DrawMeshInstancedProcedural` 纯 GPU 实例化渲染，5 万精灵零 GameObject。
+* **Storyboard 全指令引擎**: 完整解析 `.osb` / `.osu` 内联故事板，支持 Sprite、Animation、Loop、Trigger 全部指令类型。纯 GPU 实例化渲染，5 万精灵零 GameObject。参考 osu!lazer 与 storybrew 的评估逻辑，命令求值与渲染全链路多线程化，尽可能还原原版 SB 的视觉呈现。
 * **多线程架构 (Unity Jobs + Burst)**: Storyboard 矩阵计算、粒子颜色更新、音符坐标预计算全部剥离至 Worker Thread。`IJobParallelFor` + `[BurstCompile]` SIMD 向量化，主线程负载降低 30%+。
-* **双层合成渲染**: 静态背景图作为底层兜底，SB RenderTexture 叠加在上层（alpha=0 区域穿透显示背景），边缘羽化纹理同步应用于两层。
+* **三层合成渲染**: 背景图 / 视频 / SB 三层独立合成，SB Background 层可自动替代谱面背景图，设置面板统一控制全局亮度与透明度。
 * **沉浸式 VR 交互体验**: 射线悬停交互机制实现”指哪打哪”；手柄震动反馈 (`HapticProfile`) 根据谱面音量与判定结果动态调整；UI 面板通过 `CurvedUIEffect` 物理弯折与 `HUDFollower` 弹簧跟随，彻底告别 VR 眩晕。
 * **完整的游戏系统**: 集成 AutoPlay / HR / FL 等经典 Mod，内置自动本地化系统 (`LocalizationManager`) 支持多语言 Unicode 渲染，音效与震动采用 `TimingPoint × SampleVolume × 设置` 的完整乘法链路，精准可控。
 * **数据驱动的视听演出**: 接入 `AudioLink` 与 `Lasp` 建立音频数据闭环，128 柱频谱渲染与 11 层环境粒子实时响应 BPM 节拍与 Kiai 时段；纯代码粒子引擎 (`CodeOnlyVFX`) 为低配设备提供流畅兜底方案。
@@ -75,7 +76,7 @@ Assets/
 └── Scripts/        # 游戏的心脏与大脑 (所有命名空间归属于 OsuVR)
     ├── Core/           # 玩法循环控制 (RhythmGameManager + Burst Jobs调度、NoteController/SliderController/SpinnerController 物件控制、CoordinateMapper 空间映射、NotePoolManager 对象池)
     ├── Data/           # 纯净的数据模型层 (OsuParser 文本解析、Beatmap / HitObject 实体类、BeatmapImporter .osz导入)
-    ├── Storyboard/     # Storyboard 全指令引擎 (StoryboardParser 解析、StoryboardRenderer GPU实例化渲染、SBOsbPlayer 播放器、HolographicScreenManager 全息幕布)
+    ├── Storyboard/     # Storyboard 全指令引擎 (解析、求值、GPU 实例化渲染、三层合成幕布)
     ├── Interaction/    # 玩家物理交互层 (RayController 射线逻辑、HapticManager 震动分发、AudioManager 音效管理、AutoPlayManager AI自动游玩)
     ├── System/         # 全局基础设施 (SettingsManager 设置管理 + PlayerPrefs持久化、LocalizationManager 本地化、ModEffectsApplier Mod效果)
     ├── UI/             # 界面交互层 (SimpleMainMenu 主菜单、SimpleSongSelection 选歌、VRSettingsMenu VR设置、PauseMenu 暂停面板)
@@ -182,7 +183,10 @@ A: 这口锅通常要由 VR 串流软件来背。无论是 Quest Link、Air Link
 A: 绝对配！Unity 官方非常贴心地提供了 `XR Device Simulator` 插件。开启它后，你就能在电脑屏幕前，靠着风骚的 WASD 和鼠标走位，在屏幕上模拟出头显旋转和双手的移动空间。当然，如果你要调试毫秒级的手感，最终还是建议借个头显实机测试。
 
 **Q5: 一体机版本支持哪些设备？**
-A: v0.7.1 正式支持 Standalone VR (Android) 平台，兼容 Pico Neo 3 / Pico 4 / Pico 4 Ultra / Meta Quest 2 / Quest 3 等主流一体机。画质预设已针对各设备优化，一体机不锁帧跑满设备最高刷新率。首次启动默认中画质，可在设置中切换档位。
+A: 自 v0.7.1 起正式支持 Standalone VR (Android) 平台，兼容 Pico Neo 3 / Pico 4 / Pico 4 Ultra / Meta Quest 2 / Quest 3 等主流一体机。画质预设已针对各设备优化，一体机不锁帧跑满设备最高刷新率。首次启动默认中画质，可在设置中切换档位。
+
+**Q6: 为什么 Storyboard 的效果和 osu! 里看到的不完全一样？**
+A: 我们的 SB 引擎参考了 osu!lazer 和 storybrew 的开源实现，力求尽可能还原原版的视觉风格与合成逻辑。但受限于 Unity 引擎与 osu! 原生渲染之间的架构差异（如浮点精度、混合模式、纹理采样等），在极少数情况下可能存在细微的视觉差异。这是当前技术栈下的客观限制，我们会在后续版本中持续优化，逐步缩小与原版的差距。
 
 ---
 
@@ -209,11 +213,13 @@ A: v0.7.1 正式支持 Standalone VR (Android) 平台，兼容 Pico Neo 3 / Pico
 
 ### 阶段三：osu! 经典特性 VR 重塑 — 🟢 Storyboard 引擎已上线
 - [x] **Storyboard 全指令解析**: 完整支持 Sprite、Animation、Loop、Trigger 及 Fade/Move/Scale/Rotate/Color/Parameter 全部指令。
-- [x] **GPU 实例化渲染**: 通过 `ComputeBuffer` + `DrawMeshInstancedProcedural` 实现 5 万精灵零 GameObject 渲染，双 Pass (Alpha Blend + Additive) 共享缓冲区。
-- [x] **多线程矩阵计算**: `IJobParallelFor` + `[BurstCompile]` 并行计算 TRS 矩阵，GPU 剔除法（不可见精灵 Scale→zero）替代 CPU 原子锁。
-- [x] **视频背景播放**: 支持 `.mp4` / `.avi` / `.webm` 视频作为背景，通过 `VideoPlayer` + `Graphics.DrawMesh` 渲染到全息幕布。
-- [x] **双层合成渲染**: 静态背景图底层 + SB RenderTexture 叠加层，边缘羽化纹理同步应用于两层。
+- [x] **GPU 实例化渲染**: 5 万精灵零 GameObject，Alpha Blend 与 Additive 双通道渲染。
+- [x] **多线程时间轴求值**: 参考 osu!lazer 与 storybrew 的命令评估逻辑，时间轴求值与矩阵计算全链路 Burst 多线程化，主线程零开销。
+- [x] **视频背景播放**: 支持 `.mp4` / `.avi` / `.webm` 视频作为背景，通过 `VideoPlayer` + `Graphics.Blit` 渲染到全息幕布。
+- [x] **三层合成渲染**: 背景图 / 视频 / SB 三层独立合成，SB Background 层可自动替代谱面背景图，设置面板统一控制全局亮度与透明度。
 - [ ] **Effekseer 特效演出**: 利用 `Effekseer` 制作与 Storyboard 联动的华丽粒子特效。
+
+> **关于 Storyboard 还原度：** 本引擎参考 osu!lazer 与 storybrew 的开源实现，在 Unity URP 管线下尽可能还原 osu! 原版 Storyboard 的视觉风格与合成逻辑。受限于引擎架构差异，不保证逐像素一致，但对绝大多数谱面可提供贴合原版的观赏体验。未来将持续对齐上游更新，逐步提升还原精度。
 
 ### 阶段四：多平台设备全面适配 (PC / Quest / Pico) — 🟢 双平台构建已打通
 - [x] **跨平台文件系统**: 所有文件 I/O 统一使用 `Application.persistentDataPath`，支持 .osz 拖放导入 (PC) 与 Android 原生文件选择器。
@@ -223,7 +229,7 @@ A: v0.7.1 正式支持 Standalone VR (Android) 平台，兼容 Pico Neo 3 / Pico
 - [ ] **国产设备专属调优**: 针对 Pico 4 等国内主流头显设备，适配专属的控制器高模显示与契合其振动马达特性的精准触觉反馈。
 
 ### 阶段五：多线程全局优化 — 🟢 核心管线已上线
-- [x] **Storyboard 多线程**: 矩阵计算 + 纹理索引解析 + NativeArray 零拷贝直达 GPU。
+- [x] **Storyboard 全链路多线程化**: 时间轴求值 + 矩阵计算全 Burst 并行，NativeArray 零拷贝直达 GPU。
 - [x] **粒子颜色计算 Job 化**: `CodeDrivenAmbientParticles` 的 12000 粒子 HSV + 闪烁计算剥离至 Burst Job。
 - [x] **音符 SoA 扁平化**: `NativeArray<double>` spawnTimes + `NativeArray<float3>` worldPositions，加载期 Burst 预计算。
 - [x] **二分搜索替代线性扫描**: `SpawnNotes` 中 O(log N) 上界查找替代 while 循环。
@@ -249,7 +255,10 @@ A: v0.7.1 正式支持 Standalone VR (Android) 平台，兼容 Pico Neo 3 / Pico
 本项目的破茧成蝶，离不开以下出色的开源项目与社区开发者们的无私奉献。站在巨人的肩膀上，我们才得以仰望星空：
 
 * **[osu!](https://osu.ppy.sh/) (by peppy)**: 本项目全部玩法的绝对灵魂。其完全开源开放的谱面生态结构（.osu）与精妙绝伦的节奏机制设计，是一切梦开始的地方。
+* **[osu!lazer](https://github.com/ppy/osu)**: Storyboard 命令求值逻辑的核心参考。其时间轴状态机、Loop 动态迭代、属性优先级等设计，为本项目的 SB 引擎提供了最权威的实现依据。
+* **[storybrew](https://github.com/Damnae/storybrew)**: Storyboard 编辑器与渲染推演的参考标杆。其命令时间轴系统、缓动函数实现、Loop/Trigger 运行时解析、以及 Sprite 合成逻辑，帮助我们逐一校准了渲染管线的每一个细节。
 * **[osu-droid](https://github.com/osudroid/osu-droid)**: 其久经考验的 C# 开源解析代码，为我们独立手写并实现零误差的顶级谱面解析器 (`OsuParser`) 提供了极其关键且无可替代的参考。
+* **[OsuParsers](https://github.com/Jerry1344/OsuParsers)**: 轻量级 .osu/.osb 文件格式解析库。其清晰的解码器架构与数据模型设计，为我们的谱面解析器补全与校验提供了重要的对照参考。
 * **[Lasp](https://github.com/keijiro/Lasp) (by Keijiro Takahashi)**: 大神出品的极低延迟音频分析库，是我们实时捕获高精度 FFT 数据流的终极基石。
 * **[AudioLink](https://github.com/llealloo/vrc-udon-audio-link)**: 源自 VRChat 极客社区的革命性系统，为本项目的“音频数据驱动视觉”（Audio-Reactive Visuals）带来了前所未有的无限可能。
 * **[X-PostProcessing-Library](https://github.com/QianMo/X-PostProcessing-Library) (by 浅墨)**: 提供了无比惊艳的 URP 定制化后期处理大片级滤镜库，极大拔高了项目的画面张力上限。在此深切缅怀 浅墨 大神。

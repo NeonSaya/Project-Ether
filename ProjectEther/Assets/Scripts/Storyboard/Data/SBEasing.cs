@@ -149,11 +149,13 @@ namespace OsuVR.Storyboard.Data
                            * Mathf.Sin((0.25f * n - 0.075f) * (2f * Mathf.PI) / 0.3f) + 1f;
 
                 case SBEasing.InOutElastic:
+                    // 与 storybrew 一致: ToInOut(ElasticIn), 使用原始 elastic 常量
                     if ((n *= 2f) < 1f)
                         return -0.5f * Mathf.Pow(2f, -10f + 10f * n)
-                               * Mathf.Sin((1f - 0.075f * 1.5f - n) * (2f * Mathf.PI) / (0.3f * 1.5f));
-                    return 0.5f * Mathf.Pow(2f, -10f * (n -= 1f))
-                           * Mathf.Sin((n - 0.075f * 1.5f) * (2f * Mathf.PI) / (0.3f * 1.5f)) + 1f;
+                               * Mathf.Sin((1f - 0.075f - n) * (2f * Mathf.PI) / 0.3f);
+                    n -= 1f;
+                    return 0.5f * Mathf.Pow(2f, -10f * n)
+                           * Mathf.Sin((n - 0.075f) * (2f * Mathf.PI) / 0.3f) + 1f;
 
                 case SBEasing.InBack:
                     return n * n * ((1.70158f + 1f) * n - 1.70158f);

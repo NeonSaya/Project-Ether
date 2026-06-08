@@ -16,6 +16,7 @@ namespace OsuVR.Storyboard.Engine
 
         public SBElement Element;
         public int CachedTexIndex = -1;
+        public double StartTime;  // 元素首个命令的开始时间 (用于动画帧计算)
         public SBRenderState State;
 
         // 直接命令（已排序）
@@ -77,6 +78,7 @@ namespace OsuVR.Storyboard.Engine
             ApplyInitialValues();
 
             double startTime = group.StartTime();
+            StartTime = startTime;
             if (startTime < double.MaxValue)
                 Update(startTime);
         }
@@ -162,14 +164,11 @@ namespace OsuVR.Storyboard.Engine
             int cmdCount = cmds.Count;
             if (cmdCount == 0) return;
 
-            double elapsed = time - loop.StartTime;
-            int iteration = (int)(elapsed / loop.LoopDuration);
+            double loopTime = time - loop.StartTime;
 
-            // 循环结束：hold 最后一次迭代
-            if (loop.LoopCount > 0 && iteration >= loop.LoopCount)
+            // Past loop end: hold last command's EndValue
+            if (loop.LoopCount > 0 && loopTime >= loop.LoopCount * loop.LoopDuration)
             {
-                iteration = loop.LoopCount - 1;
-                // 从后向前找每个属性的最后命令，应用终值
                 for (int i = cmdCount - 1; i >= 0 && found < 10; i--)
                 {
                     var cmd = cmds[i];
@@ -182,9 +181,25 @@ namespace OsuVR.Storyboard.Engine
                 return;
             }
 
-            double loopTime = elapsed % loop.LoopDuration;
+            int loopNumber = (int)(loopTime / loop.LoopDuration);
+            loopTime -= loopNumber * loop.LoopDuration;
 
-            // 从后向前找当前 loopTime 的最新命令
+            // Between iterations (gap before first command): hold last command's EndValue
+            if (loopTime < cmds[0].StartTime)
+            {
+                for (int i = cmdCount - 1; i >= 0 && found < 10; i--)
+                {
+                    var cmd = cmds[i];
+                    int bit = 1 << (int)cmd.Target;
+                    if ((mask & bit) != 0) continue;
+                    mask |= bit;
+                    found++;
+                    ApplyCmdEndValue(cmd);
+                }
+                return;
+            }
+
+            // Within iteration: evaluate commands at loopTime
             for (int i = cmdCount - 1; i >= 0 && found < 10; i--)
             {
                 var cmd = cmds[i];
