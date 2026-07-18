@@ -56,10 +56,19 @@ namespace OsuVR.Storyboard.Engine
             byte flipV = sprite.InitFlipV;
             byte additive = sprite.InitAdditive;
 
-            // ---- 3. 评估直接命令 (位掩码从后向前扫描, 找每个属性的最新命令) ----
+            // ---- 3. 评估 Loop 命令 (先评估 = 更高优先级, 与 osu!/SBPlayingSprite 一致) ----
             int mask = 0;
             int found = 0;
 
+            for (int li = sprite.LoopOffset + sprite.LoopCount - 1;
+                 li >= sprite.LoopOffset && found < 10; li--)
+            {
+                EvalLoop(Loops[li], CurrentTime, ref mask, ref found,
+                    ref alpha, ref x, ref y, ref scaleX, ref scaleY, ref rotation,
+                    ref r, ref g, ref b, ref flipH, ref flipV, ref additive);
+            }
+
+            // ---- 4. 评估直接命令 (填充 Loop 未覆盖的属性) ----
             for (int ci = sprite.CmdOffset + sprite.CmdCount - 1;
                  ci >= sprite.CmdOffset && found < 10; ci--)
             {
@@ -72,15 +81,6 @@ namespace OsuVR.Storyboard.Engine
                 mask |= bit;
                 found++;
                 ApplyCommand(cmd, CurrentTime,
-                    ref alpha, ref x, ref y, ref scaleX, ref scaleY, ref rotation,
-                    ref r, ref g, ref b, ref flipH, ref flipV, ref additive);
-            }
-
-            // ---- 4. 评估 Loop 命令 (后评估 = 更高优先级) ----
-            for (int li = sprite.LoopOffset + sprite.LoopCount - 1;
-                 li >= sprite.LoopOffset && found < 10; li--)
-            {
-                EvalLoop(Loops[li], CurrentTime, ref mask, ref found,
                     ref alpha, ref x, ref y, ref scaleX, ref scaleY, ref rotation,
                     ref r, ref g, ref b, ref flipH, ref flipV, ref additive);
             }

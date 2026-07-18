@@ -97,8 +97,7 @@ namespace OsuVR.Storyboard
                 var input = Inputs[i];
 
                 // GPU 剔除法: 不可见精灵 Scale→zero, Vertex Shader 瞬间剔除
-                float alpha = input.Alpha;
-                if (alpha > 1f) alpha = math.fmod(alpha, 1f);
+                float alpha = math.min(input.Alpha, 1f);
                 if (alpha <= 0.001f || input.TexIndex < 0)
                 {
                     Output[i] = ZeroInstance;

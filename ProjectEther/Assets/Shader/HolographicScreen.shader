@@ -15,7 +15,7 @@ Shader "OsuVR/HolographicScreen"
             "RenderPipeline" = "UniversalPipeline"
             "IgnoreProjector" = "True"
         }
-        Blend SrcAlpha OneMinusSrcAlpha
+        Blend One OneMinusSrcAlpha
         ZWrite Off
         Cull Off
 
@@ -77,9 +77,10 @@ Shader "OsuVR/HolographicScreen"
                 float fadeY = smoothstep(1.0, 1.0 - edgeFade, d.y);
                 float edgeAlpha = fadeX * fadeY;
 
-                half4 result = tex * color;
-                result.a *= edgeAlpha;
-                return result;
+                // 预乘输出: 亮度 = α², 透明度 = α² (Blend One OneMinusSrcAlpha)
+                float alpha = color.a;
+                float finalAlpha = alpha * alpha * edgeAlpha;
+                return half4(tex.rgb * alpha * alpha * edgeAlpha, finalAlpha);
             }
             ENDHLSL
         }

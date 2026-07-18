@@ -67,14 +67,14 @@ Shader "OsuVR/SBOverlay"
                 half4 sb = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv);
                 half4 fade = SAMPLE_TEXTURE2D(_EdgeFadeTex, sampler_EdgeFadeTex, input.uv);
 
-                // 预乘管线: scale 同时作用于 rgb 和 a (亮度跟随透明度)
-                float scale = fade.a * _ScreenAlpha;
-                half a = sb.a * scale;
+                // 预乘管线: 亮度 = α², SB 不叠加透明度 (保持固有覆盖关系)
+                float alpha = _ScreenAlpha;
+                half a = sb.a * fade.a;
 
                 // 覆盖率接近 1 时 clamp, 消除浮点精度导致的背景穿透
                 a = a > 0.99 ? 1.0 : a;
 
-                return half4(sb.rgb * scale, a);
+                return half4(sb.rgb * alpha * alpha * fade.a, a);
             }
             ENDHLSL
         }
