@@ -30,14 +30,14 @@ namespace OsuVR.Storyboard.Engine
 
         // ---- 渲染属性 ----
         public int OriginIndex;
-        public int TexIndex;       // 静态 sprite 固定纹理索引, 动画 sprite 为 AnimBaseTexIndex
+        public int TexIndex;       // 静态 sprite 固定纹理索引, 动画 sprite 为 -1 (由 Burst Job 经 FrameMap 动态解析)
         public int TexWidth, TexHeight;
 
         // ---- 动画属性 (仅动画 sprite 有效, 非动画时 AnimFrameCount=0) ----
         public int AnimFrameCount;
         public double AnimFrameDelay;
         public int AnimLoopType;   // 0=LoopForever, 1=LoopOnce
-        public int AnimBaseTexIndex; // 动画第0帧的纹理索引
+        public int AnimFrameMapOffset; // 索引 into SBFlatTimelineData.FrameMap: 声明帧→纹理切片 (-1=缺失帧, 不绘制)
     }
 
     /// <summary>

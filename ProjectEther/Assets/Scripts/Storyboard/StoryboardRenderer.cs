@@ -175,7 +175,7 @@ namespace OsuVR.Storyboard
         // ---- 引擎 (旧管线, 仅保留用于向后兼容) ----
         SBOsbPlayer osbPlayer;
 
-        // ---- 视频 (APIOnly + sendFrameReadyEvents + renderTexture) ----
+        // ---- 视频 (VideoPlayer 直接解码到 RenderTexture) ----
         VideoPlayer videoPlayer;
         RenderTexture videoRT;
         bool hasVideo;
@@ -186,7 +186,6 @@ namespace OsuVR.Storyboard
         Dictionary<string, int> textureIndexMap;
         Vector2Int[] textureDimensions;
         int[] cachedTextureIndex;
-        static Texture2D whitePixel;
 
         // ---- GPU 缓冲区 ----
         ComputeBuffer alphaBuffer;
@@ -313,6 +312,12 @@ namespace OsuVR.Storyboard
             _flatTimeline = SBTimelineFlattener.Flatten(storyboard, textureIndexMap, textureDimensions);
             SBDebugLog.Mem($"DOD 扁平化完成: {_flatTimeline.SpriteCount} sprites");
 
+            if (_flatTimeline.SpriteCount > MaxInstances)
+            {
+                Debug.LogWarning($"[SBRenderer] Sprite 数量 {_flatTimeline.SpriteCount} 超过单缓冲区上限 {MaxInstances}, " +
+                                 $"超出部分将被截断不渲染");
+            }
+
             // 旧管线保留 (用于旧代码路径兼容, 不再每帧调用)
             osbPlayer = new SBOsbPlayer();
             osbPlayer.LoadStoryboard(storyboard);
@@ -323,12 +328,13 @@ namespace OsuVR.Storyboard
 
             // SB Background 层: 有无 Fade 命令的 sprite → 全不透明替代背景, 隐藏背景图
             //                  所有 sprite 都有 Fade → 有透明度, 保留背景图让 SB alpha 叠加
+            // 前提: sprite 的纹理必须实际加载成功, 否则 sprite 不可见, 隐藏背景会导致黑屏
             if (storyboard.Layers[0] != null && storyboard.Layers[0].Count > 0)
             {
                 bool hasOpaqueSprite = false;
                 foreach (var elem in storyboard.Layers[0])
                 {
-                    if (elem.FadeCommands.Count == 0)
+                    if (elem.FadeCommands.Count == 0 && HasLoadedTexture(elem))
                     {
                         hasOpaqueSprite = true;
                         break;
@@ -341,8 +347,30 @@ namespace OsuVR.Storyboard
                 }
             }
 
-            SBDebugLog.Log($"[SBRenderer] 加载完成: {storyboard.TotalElementCount} 元素, {textureArray.depth} 纹理层");
+            SBDebugLog.Log($"[SBRenderer] 加载完成: {storyboard.TotalElementCount} 元素, {(textureArray != null ? textureArray.depth : 0)} 纹理层");
             SBDebugLog.End();
+        }
+
+        /// <summary>
+        /// 判断元素的纹理是否实际加载进了纹理数组 (动画: 至少一帧存在; 静态: 路径在 map 中)
+        /// </summary>
+        bool HasLoadedTexture(SBElement element)
+        {
+            if (textureIndexMap == null || string.IsNullOrEmpty(element.ImagePath))
+                return false;
+
+            if (element is SBStoryboardAnimation anim)
+            {
+                for (int f = 0; f < anim.FrameCount; f++)
+                {
+                    string key = anim.BuildFramePath(f).Replace('\\', '/').ToLowerInvariant();
+                    if (textureIndexMap.ContainsKey(key))
+                        return true;
+                }
+                return false;
+            }
+
+            return textureIndexMap.ContainsKey(element.ImagePath.Replace('\\', '/').ToLowerInvariant());
         }
 
         public void LoadVideo(string videoPath, int videoOffset)
@@ -352,6 +380,11 @@ namespace OsuVR.Storyboard
             hasVideo = true;
             isRendering = true;   // 视频时间同步需要 Update 循环
             videoOffsetMs = videoOffset;
+
+            // 纯视频模式也必须缓存 RhythmGameManager:
+            // 否则 GetCurrentMusicTime 回退到 Time.time (游戏启动时间而非音乐时间),
+            // targetVideoTime 远超视频长度 → SyncVideoTime 永远 Pause → 视频黑屏
+            CacheRhythmGameManager();
 
             CreateVideoPlayer(videoPath);
 
@@ -396,7 +429,6 @@ namespace OsuVR.Storyboard
 
             if (videoPlayer != null)
             {
-                videoPlayer.frameReady -= OnVideoFrameReady;
                 videoPlayer.Stop();
                 Destroy(videoPlayer.gameObject);
                 videoPlayer = null;
@@ -431,7 +463,7 @@ namespace OsuVR.Storyboard
 
             double musicTime = GetCurrentMusicTime();
 
-            // 1. 视频: 时间同步 (帧由 frameReady 回调自动 Blit 到 videoRT)
+            // 1. 视频: 时间同步 (VideoPlayer 直接解码到 videoRT)
             if (hasVideo && videoPlayer != null && videoPlayer.isPrepared)
                 SyncVideoTime(musicTime);
 
@@ -449,6 +481,7 @@ namespace OsuVR.Storyboard
                     Sprites = _flatTimeline.Sprites,
                     Commands = _flatTimeline.Commands,
                     Loops = _flatTimeline.Loops,
+                    FrameMap = _flatTimeline.FrameMap,
                     Output = _jobInputs,
                     CurrentTime = musicTime,
                     SpriteCount = _jobActiveCount
@@ -613,9 +646,13 @@ namespace OsuVR.Storyboard
             vpGo.transform.SetParent(transform);
 
             string normalizedPath = videoPath.Replace('\\', '/');
-            string url = "file:///" + normalizedPath;
+            // Windows MediaFoundation 对 file:// URL 的 %XX 编码不解码 (Unity 已知问题),
+            // 会把编码后的字符串当文件路径直接打开 → "empty file"。
+            // 正确做法: 直接传裸绝对路径 (不加 file:/// 前缀, 不做 URL 编码),
+            // MediaFoundation/ExoPlayer 均将裸路径当本地文件打开, 空格/括号/日文均安全。
+            string url = normalizedPath;
 
-            // 创建 videoRT 用于接收视频帧
+            // 创建 videoRT, 由 VideoPlayer 直接解码写入 (内部完成 YUV→RGB 转换, 跨平台稳定)
             videoRT = new RenderTexture(RT_Width, RT_Height, 0, RenderTextureFormat.ARGB32);
             videoRT.Create();
 
@@ -623,45 +660,44 @@ namespace OsuVR.Storyboard
             videoPlayer.source = VideoSource.Url;
             videoPlayer.url = url;
             videoPlayer.playOnAwake = false;
-            videoPlayer.isLooping = true;
+            videoPlayer.isLooping = false;  // osu! 视频只播放一次, 不循环 (末帧冻结)
             videoPlayer.skipOnDrop = true;
             videoPlayer.audioOutputMode = VideoAudioOutputMode.None;
-            videoPlayer.renderMode = VideoRenderMode.APIOnly;
-
-            // 关键: 每解码一帧触发回调, 在回调中 Blit 到 videoRT
-            videoPlayer.sendFrameReadyEvents = true;
-            videoPlayer.frameReady += OnVideoFrameReady;
+            videoPlayer.renderMode = VideoRenderMode.RenderTexture;
+            videoPlayer.targetTexture = videoRT;
 
             videoPlayer.errorReceived += (vp, msg) =>
             {
                 Debug.LogError($"[SBRenderer] 视频错误: {msg}");
+                // 解码失败: 标记无视频, 让 HolographicScreenManager 回退显示背景图
+                hasVideo = false;
+                HolographicScreenManager.Instance?.OnVideoLoadFailed();
             };
 
             videoPlayer.prepareCompleted += (vp) =>
             {
-                vp.Play();
-                Debug.Log($"[SBRenderer] 视频准备完成: {vp.width}x{vp.height}, texType={vp.texture?.GetType().Name}");
+                // 不在此自动 Play: 由 SyncVideoTime 根据音乐时间接管启停, 避免视频早于音乐开播
+                Debug.Log($"[SBRenderer] 视频准备完成: {vp.width}x{vp.height}, 时长={vp.length:F1}s");
             };
 
             videoPlayer.Prepare();
             Debug.Log($"[SBRenderer] VideoPlayer 已创建: {url}, RT={videoRT.width}x{videoRT.height}");
         }
 
-        void OnVideoFrameReady(VideoPlayer vp, long frameIdx)
-        {
-            // 每帧回调: 视频帧已就绪, Blit 到 videoRT
-            if (vp.texture != null && videoRT != null)
-            {
-                Graphics.Blit(vp.texture, videoRT);
-            }
-        }
-
-
         void SyncVideoTime(double musicTimeMs)
         {
-            double targetVideoTime = (musicTimeMs + videoOffsetMs) / 1000.0;
+            // osu! 语义: 视频在 map 时间到达 offset 时开始播放 → videoTime = mapTime - offset
+            double targetVideoTime = (musicTimeMs - videoOffsetMs) / 1000.0;
 
             if (targetVideoTime < 0)
+            {
+                if (videoPlayer.isPlaying) videoPlayer.Pause();
+                return;
+            }
+
+            // osu! 视频只播放一次: 超出视频时长后停在末帧 (不 seek, 避免 MediaFoundation 报错)
+            double videoLength = videoPlayer.length;
+            if (videoLength > 0 && targetVideoTime >= videoLength)
             {
                 if (videoPlayer.isPlaying) videoPlayer.Pause();
                 return;
@@ -670,10 +706,11 @@ namespace OsuVR.Storyboard
             if (!videoPlayer.isPlaying)
                 videoPlayer.Play();
 
+            // 阈值 0.3s: skipOnDrop 下 videoPlayer.time 有抖动, 过小阈值会导致频繁 seek 卡顿
             double drift = videoPlayer.time - targetVideoTime;
-            if (drift > 0.1 || drift < -0.1)
+            if (drift > 0.3 || drift < -0.3)
             {
-                videoPlayer.time = targetVideoTime;
+                videoPlayer.time = math.clamp(targetVideoTime, 0, math.max(0, videoLength - 0.05));
             }
         }
 
@@ -716,40 +753,37 @@ namespace OsuVR.Storyboard
 
             SBDebugLog.Log($"[BuildTextureArray] {paths.Count} 纹理待加载");
 
-            // 过滤掉不存在的纹理路径
+            // 过滤掉不存在或解码失败的纹理路径, 统一加载
             var validPaths = new List<string>();
-            var pathToIndex = new Dictionary<string, int>();
+            var textures = new List<Texture2D>();
+            int maxWidth = 0, maxHeight = 0;
+
             for (int i = 0; i < paths.Count; i++)
             {
                 string fullPath = System.IO.Path.Combine(beatmapFolder, paths[i]);
-                if (System.IO.File.Exists(fullPath))
-                {
-                    pathToIndex[paths[i]] = validPaths.Count;
-                    validPaths.Add(paths[i]);
-                }
-                else
+                if (!System.IO.File.Exists(fullPath))
                 {
                     Debug.LogWarning($"[SBRenderer] SB 纹理不存在, 跳过: {paths[i]}");
+                    continue;
                 }
+
+                var tex = LoadTexture(fullPath);
+                if (tex == null)
+                    continue;  // 解码失败, 已在 LoadTexture 内打印警告
+
+                validPaths.Add(paths[i]);
+                textures.Add(tex);
+                if (tex.width > maxWidth) maxWidth = tex.width;
+                if (tex.height > maxHeight) maxHeight = tex.height;
             }
 
-            if (validPaths.Count == 0)
+            if (textures.Count == 0)
             {
                 Debug.LogWarning("[SBRenderer] 无有效 SB 纹理");
                 return;
             }
 
-            var textures = new Texture2D[validPaths.Count];
-            int maxWidth = 0, maxHeight = 0;
-
-            for (int i = 0; i < validPaths.Count; i++)
-            {
-                textures[i] = LoadTexture(System.IO.Path.Combine(beatmapFolder, validPaths[i]));
-                if (textures[i].width > maxWidth) maxWidth = textures[i].width;
-                if (textures[i].height > maxHeight) maxHeight = textures[i].height;
-            }
-
-            SBDebugLog.Mem($"纹理加载完成: {validPaths.Count} 张, max={maxWidth}x{maxHeight}");
+            SBDebugLog.Mem($"纹理加载完成: {textures.Count} 张, max={maxWidth}x{maxHeight}");
 
             maxWidth = Mathf.Min(maxWidth, 2048);
             maxHeight = Mathf.Min(maxHeight, 2048);
@@ -757,7 +791,7 @@ namespace OsuVR.Storyboard
             // 安全限制: 确保 Texture2DArray 总大小不超过 1.8GB (留余量)
             const long MAX_BYTES = (long)(1.8 * 1024 * 1024 * 1024);
             long bytesPerLayer = (long)maxWidth * maxHeight * 4; // RGBA32
-            int maxLayers = validPaths.Count;
+            int maxLayers = textures.Count;
 
             if (bytesPerLayer * maxLayers > MAX_BYTES)
             {
@@ -773,12 +807,12 @@ namespace OsuVR.Storyboard
                 if (bytesPerLayer * maxLayers > MAX_BYTES)
                 {
                     maxLayers = (int)(MAX_BYTES / bytesPerLayer);
-                    Debug.LogWarning($"[SBRenderer] SB 纹理过多, 截断到 {maxLayers} 层 (原 {validPaths.Count})");
+                    Debug.LogWarning($"[SBRenderer] SB 纹理过多, 截断到 {maxLayers} 层 (原 {textures.Count})");
                 }
             }
 
-            int layerCount = Mathf.Min(validPaths.Count, maxLayers);
-            paths = validPaths; // 更新 paths 为有效路径列表
+            int layerCount = Mathf.Min(textures.Count, maxLayers);
+            paths = validPaths; // 更新 paths 为有效路径列表 (用于下方 textureIndexMap 构建)
 
             textureArray = new Texture2DArray(maxWidth, maxHeight, layerCount,
                 TextureFormat.RGBA32, true, false);
@@ -828,10 +862,9 @@ namespace OsuVR.Storyboard
                 textureDimensions[i] = new Vector2Int(textures[i].width, textures[i].height);
             }
 
-            for (int i = 0; i < textures.Length; i++)
+            for (int i = 0; i < textures.Count; i++)
             {
-                if (textures[i] != null && textures[i] != whitePixel)
-                    Destroy(textures[i]);
+                Destroy(textures[i]);
             }
             SBDebugLog.Mem("源纹理释放完成");
 
@@ -861,7 +894,7 @@ namespace OsuVR.Storyboard
             try
             {
                 if (!System.IO.File.Exists(path))
-                    return GetWhitePixel();
+                    return null;  // 不存在 → null, 由调用方跳过该纹理 (sprite 渲染时不可见, 与 osu! 行为一致)
 
                 byte[] data = System.IO.File.ReadAllBytes(path);
                 var tex = new Texture2D(2, 2, TextureFormat.RGBA32, true);
@@ -871,25 +904,14 @@ namespace OsuVR.Storyboard
                     return tex;
                 }
 
-                return GetWhitePixel();
+                Debug.LogWarning($"[SBRenderer] 纹理解码失败: {path}");
+                return null;
             }
-            catch
+            catch (System.Exception e)
             {
-                return GetWhitePixel();
+                Debug.LogWarning($"[SBRenderer] 纹理加载异常: {path}, {e.Message}");
+                return null;
             }
-        }
-
-        static Texture2D GetWhitePixel()
-        {
-            if (whitePixel == null)
-            {
-                whitePixel = new Texture2D(4, 4, TextureFormat.RGBA32, false);
-                var colors = new Color[16];
-                for (int i = 0; i < 16; i++) colors[i] = Color.white;
-                whitePixel.SetPixels(colors);
-                whitePixel.Apply();
-            }
-            return whitePixel;
         }
 
         // =========================================================
@@ -1018,7 +1040,7 @@ namespace OsuVR.Storyboard
             renderCamera.farClipPlane = 100f;
             renderCamera.cullingMask = 1 << storyboardLayer;
             renderCamera.clearFlags = CameraClearFlags.SolidColor;
-            renderCamera.backgroundColor = new Color(0.15f, 0.0f, 0.15f, 0.0f); // alpha=0: 叠加模式, 未绘制区域透明
+            renderCamera.backgroundColor = new Color(0f, 0f, 0f, 0f); // 透明黑: 预乘管线要求 rgb 也为 0
             renderCamera.stereoTargetEye = StereoTargetEyeMask.None;
 
             renderTexture = new RenderTexture(RT_Width, RT_Height, 0, RenderTextureFormat.ARGB32);
@@ -1047,6 +1069,9 @@ namespace OsuVR.Storyboard
 
         double GetCurrentMusicTime()
         {
+            // 惰性重查: 场景切换后缓存可能失效 (Unity 假 null), 确保视频/SB 时间基准正确
+            if (cachedRGM == null)
+                cachedRGM = FindFirstObjectByType<RhythmGameManager>();
             if (cachedRGM != null) return cachedRGM.currentMusicTimeMs;
             return Time.time * 1000.0;
         }
@@ -1071,7 +1096,6 @@ namespace OsuVR.Storyboard
             }
 
             if (quadMesh != null) Destroy(quadMesh);
-            if (whitePixel != null) { Destroy(whitePixel); whitePixel = null; }
 
             if (Instance == this) Instance = null;
         }

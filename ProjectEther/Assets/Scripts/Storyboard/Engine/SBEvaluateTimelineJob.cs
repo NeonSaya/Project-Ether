@@ -19,6 +19,7 @@ namespace OsuVR.Storyboard.Engine
         [ReadOnly] public NativeArray<SBSpriteFlatData> Sprites;
         [ReadOnly] public NativeArray<SBCommandFlatData> Commands;
         [ReadOnly] public NativeArray<SBLoopFlatData> Loops;
+        [ReadOnly] public NativeArray<int> FrameMap;
         [WriteOnly] public NativeArray<SpriteInputData> Output;
 
         public double CurrentTime;
@@ -88,7 +89,7 @@ namespace OsuVR.Storyboard.Engine
             int texIdx = sprite.TexIndex;
             if (sprite.AnimFrameCount > 0)
             {
-                texIdx = ResolveAnimFrame(sprite, CurrentTime);
+                texIdx = ResolveAnimFrame(sprite, FrameMap, CurrentTime);
             }
 
             // ---- 6. 写入输出 ----
@@ -305,22 +306,26 @@ namespace OsuVR.Storyboard.Engine
         //  动画帧解析
         // =========================================================
 
-        static int ResolveAnimFrame(SBSpriteFlatData sprite, double currentTime)
+        static int ResolveAnimFrame(SBSpriteFlatData sprite, NativeArray<int> frameMap, double currentTime)
         {
             if (sprite.AnimFrameCount <= 0 || sprite.AnimFrameDelay <= 0)
-                return sprite.AnimBaseTexIndex;
+                return -1;
 
             double elapsed = currentTime - sprite.StartTime;
             int frame = (int)(elapsed / sprite.AnimFrameDelay);
 
             if (sprite.AnimLoopType == 0) // LoopForever
-                frame = frame % sprite.AnimFrameCount;
+            {
+                frame %= sprite.AnimFrameCount;
+                if (frame < 0) frame += sprite.AnimFrameCount;
+            }
+            frame = math.clamp(frame, 0, sprite.AnimFrameCount - 1);
 
-            if (frame < 0) frame = 0;
-            if (frame >= sprite.AnimFrameCount) frame = sprite.AnimFrameCount - 1;
-
-            // 动画帧的纹理索引 = 基础索引 + 帧偏移
-            return sprite.AnimBaseTexIndex + frame;
+            // 经帧映射取纹理切片: 缺失帧 (-1) → 该帧不绘制 (与 storybrew/osu! 一致)
+            int mapIdx = sprite.AnimFrameMapOffset + frame;
+            if ((uint)mapIdx >= (uint)frameMap.Length)
+                return -1;
+            return frameMap[mapIdx];
         }
 
         // =========================================================

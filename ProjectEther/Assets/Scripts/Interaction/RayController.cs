@@ -87,6 +87,7 @@ namespace OsuVR
         private List<ScrollRect> cachedScrollRects = new List<ScrollRect>();
         private float cacheRefreshTimer;
         private const float CACHE_REFRESH_INTERVAL = 0.2f;
+        private int postLoadRefreshFrames; // 场景加载后密集刷新剩余帧数
 
         void OnEnable()
         {
@@ -94,7 +95,7 @@ namespace OsuVR
             EnableAction(rightStickAction);
             // 场景加载后立即刷新缓存，消除 1-2s UI 无响应延迟
             if (eventSystem == null) eventSystem = EventSystem.current;
-            cachedMainCam = Camera.main;
+            cachedMainCam = FindAnyCamera();
             RefreshHeavyCaches();
         }
 
@@ -176,9 +177,26 @@ namespace OsuVR
         /// </summary>
         private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
         {
+            // 场景切换后 Camera.main 可能为 null (XR 追踪重建中)，立即积极查找
+            cachedMainCam = FindAnyCamera();
             RefreshAllCaches();
+            // 启动密集刷新: UI 在 Start() 中动态构建，OnSceneLoaded 时还不存在
+            // 连续刷新 10 帧确保 Canvas 缓存及时捕获新 UI
+            postLoadRefreshFrames = 10;
             LoadControllerOffset();
             Debug.Log($"[RayController] 场景 {scene.name} 加载完成，缓存已刷新，偏移已重载");
+        }
+
+        /// <summary>
+        /// 多策略查找场景中的相机，用于 Camera.main 为 null 时的兜底
+        /// </summary>
+        Camera FindAnyCamera()
+        {
+            var cam = Camera.main;
+            if (cam != null) return cam;
+            var camGo = GameObject.FindWithTag("MainCamera");
+            if (camGo != null) return camGo.GetComponent<Camera>();
+            return FindFirstObjectByType<Camera>();
         }
 
         void Update()
@@ -186,21 +204,21 @@ namespace OsuVR
             if (currentMode == ControlMode.WristGain) ApplyWristGainMapping();
             else ApplyDirectMapping();
 
-            // Canvas 缓存刷新（高频，确保新出现的 UI 立即可检测）
-            cacheRefreshTimer += Time.deltaTime;
-            if (cacheRefreshTimer >= CACHE_REFRESH_INTERVAL)
-            { cacheRefreshTimer = 0f; RefreshHeavyCaches(); }
+            // Canvas 缓存刷新: 场景加载后密集刷新 (每帧), 平时低频轮询
+            if (postLoadRefreshFrames > 0)
+            {
+                postLoadRefreshFrames--;
+                RefreshHeavyCaches();
+            }
+            else
+            {
+                cacheRefreshTimer += Time.deltaTime;
+                if (cacheRefreshTimer >= CACHE_REFRESH_INTERVAL)
+                { cacheRefreshTimer = 0f; RefreshHeavyCaches(); }
+            }
 
             if (cachedMainCam == null)
-            {
-                cachedMainCam = Camera.main;
-                // 如果 MainCamera 仍未就绪，尝试直接查找
-                if (cachedMainCam == null)
-                {
-                    var camGo = GameObject.FindWithTag("MainCamera");
-                    if (camGo != null) cachedMainCam = camGo.GetComponent<Camera>();
-                }
-            }
+                cachedMainCam = FindAnyCamera();
 
             PerformRaycastAll();
             UpdateDropdownState();
