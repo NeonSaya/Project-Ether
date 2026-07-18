@@ -91,7 +91,7 @@ namespace OsuVR
         private void AttemptUnlockRate()
         {
             var displays = new List<XRDisplaySubsystem>();
-            SubsystemManager.GetInstances(displays);
+            SubsystemManager.GetSubsystems(displays);
 
             if (displays.Count == 0)
             {
