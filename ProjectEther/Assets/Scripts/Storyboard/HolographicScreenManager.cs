@@ -25,6 +25,10 @@ namespace OsuVR.Storyboard
         const float ScreenY = 2.5f;
         const float EdgeFadeWidth = 0.15f;
 
+        // --- 层间 Z 偏移 (避免共面, 配合分层 renderQueue 保证绘制顺序) ---
+        const float VideoZOffset = -0.01f;  // 视频层在背景层前方
+        const float SBZOffset = -0.02f;     // SB 层在视频层前方
+
         // --- 弯曲参数 ---
         const float CurveRadius = 50f;
         const int CurveSegments = 32;
@@ -92,8 +96,9 @@ namespace OsuVR.Storyboard
             // 重置 SB 背景覆盖标志 (新谱面)
             _hideBackgroundForSB = false;
 
-            // 有视频时跳过背景加载 (视频会覆盖背景)
-            if (!scan.HasVideo && !string.IsNullOrEmpty(scan.BackgroundPath))
+            // 始终加载背景图 (即使有视频): 作为视频加载失败的回退, 避免纯黑屏
+            // ApplyVisibility 仍保证 视频/背景 互斥显示, 不影响正确情况下的渲染
+            if (!string.IsNullOrEmpty(scan.BackgroundPath))
             {
                 EnsureScreenCreated();
                 LoadBackgroundTexture(scan.BackgroundPath);
@@ -115,6 +120,17 @@ namespace OsuVR.Storyboard
             if (screenObject != null) screenObject.SetActive(false);
             if (videoOverlayObject != null) videoOverlayObject.SetActive(false);
             if (overlayObject != null) overlayObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// 视频加载/解码失败时调用: 关闭视频层, 回退显示背景图 (避免纯黑屏)
+        /// </summary>
+        public void OnVideoLoadFailed()
+        {
+            Debug.LogWarning("[HolographicScreen] 视频加载失败, 回退显示背景图");
+            _hasVideo = false;
+            if (videoOverlayObject != null) videoOverlayObject.SetActive(false);
+            ApplyVisibility();  // _hasVideo=false → 走正常 bg 显示分支
         }
 
         /// <summary>
@@ -143,8 +159,8 @@ namespace OsuVR.Storyboard
                 overlayMaterial.mainTexture = rt;
                 overlayObject.SetActive(true);
 
-                // 同步距离 + 屏幕透明度
-                float z = GetScreenDistance();
+                // 同步距离 (保留 SB 层 Z 偏移) + 屏幕透明度
+                float z = GetScreenDistance() + SBZOffset;
                 var pos = overlayObject.transform.localPosition;
                 pos.z = z;
                 overlayObject.transform.localPosition = pos;
@@ -184,7 +200,8 @@ namespace OsuVR.Storyboard
                 videoOverlayMaterial.mainTexture = videoTexture;
                 Debug.Log($"[HolographicScreen] 视频纹理已注入: {videoTexture.name}, size={videoTexture.width}x{videoTexture.height}");
 
-                float z = GetScreenDistance();
+                // 同步距离 (保留视频层 Z 偏移)
+                float z = GetScreenDistance() + VideoZOffset;
                 var pos = videoOverlayObject.transform.localPosition;
                 pos.z = z;
                 videoOverlayObject.transform.localPosition = pos;
@@ -267,34 +284,36 @@ namespace OsuVR.Storyboard
 
         void ApplySettings()
         {
-            if (screenObject == null) return;
-
-            float z = GetScreenDistance();
-            var pos = screenObject.transform.localPosition;
-            pos.z = z;
-            screenObject.transform.localPosition = pos;
-
-            // 背景层: 亮度和透明度同步跟随不透明度设置
             float alpha = GetScreenAlpha();
-            if (screenMaterial != null)
-                screenMaterial.color = new Color(alpha, alpha, alpha, alpha);
+            float baseZ = GetScreenDistance();
 
-            // 同步视频 Overlay 设置
+            // 背景层: 位置 + 亮度/透明度 (screenObject 可能不存在, 如有视频无背景图)
+            if (screenObject != null)
+            {
+                var pos = screenObject.transform.localPosition;
+                pos.z = baseZ;
+                screenObject.transform.localPosition = pos;
+
+                if (screenMaterial != null)
+                    screenMaterial.color = new Color(alpha, alpha, alpha, alpha);
+            }
+
+            // 视频 Overlay: 位置 (保留 Z 偏移) + 亮度/透明度
             if (videoOverlayObject != null && videoOverlayObject.activeSelf)
             {
                 var vpos = videoOverlayObject.transform.localPosition;
-                vpos.z = z;
+                vpos.z = baseZ + VideoZOffset;
                 videoOverlayObject.transform.localPosition = vpos;
 
                 if (videoOverlayMaterial != null)
                     videoOverlayMaterial.color = new Color(alpha, alpha, alpha, alpha);
             }
 
-            // SB Overlay: 同步位置 + 屏幕透明度 (通过 shader 参数, 不污染 sprite alpha)
+            // SB Overlay: 位置 (保留 Z 偏移) + 屏幕透明度 (通过 shader 参数, 不污染 sprite alpha)
             if (overlayObject != null && overlayObject.activeSelf)
             {
                 var opos = overlayObject.transform.localPosition;
-                opos.z = z;
+                opos.z = baseZ + SBZOffset;
                 overlayObject.transform.localPosition = opos;
 
                 if (overlayMaterial != null)
@@ -369,7 +388,7 @@ namespace OsuVR.Storyboard
 
             videoOverlayObject = new GameObject("[HolographicScreen_VideoOverlay]");
             videoOverlayObject.transform.SetParent(transform);
-            videoOverlayObject.transform.localPosition = new Vector3(0, ScreenY, GetScreenDistance() - 0.01f);
+            videoOverlayObject.transform.localPosition = new Vector3(0, ScreenY, GetScreenDistance() + VideoZOffset);
             videoOverlayObject.transform.localRotation = Quaternion.identity;
 
             var filter = videoOverlayObject.AddComponent<MeshFilter>();
@@ -379,7 +398,8 @@ namespace OsuVR.Storyboard
             if (videoShader == null) videoShader = Shader.Find("Universal Render Pipeline/Unlit");
             if (videoShader == null) { Debug.LogError("[HolographicScreen] SBVideoOverlay Shader 不可用!"); return; }
             videoOverlayMaterial = new Material(videoShader);
-            videoOverlayMaterial.renderQueue = (int)RenderQueue.Transparent + 1;
+            // 分层队列: 背景 2900 / 视频 3000 / SB 3001, 保证背景→视频→SB 绘制顺序
+            videoOverlayMaterial.renderQueue = (int)RenderQueue.Transparent;
 
             if (edgeFadeTexture != null)
                 videoOverlayMaterial.SetTexture("_EdgeFadeTex", edgeFadeTexture);
@@ -408,7 +428,7 @@ namespace OsuVR.Storyboard
             // 1. 创建 Overlay GameObject
             overlayObject = new GameObject("[HolographicScreen_Overlay]");
             overlayObject.transform.SetParent(transform);
-            overlayObject.transform.localPosition = new Vector3(0, ScreenY, GetScreenDistance() - 0.02f); // 视频层前方
+            overlayObject.transform.localPosition = new Vector3(0, ScreenY, GetScreenDistance() + SBZOffset); // 视频层前方
             overlayObject.transform.localRotation = Quaternion.identity;
 
             // 2. 共享弯曲 Mesh

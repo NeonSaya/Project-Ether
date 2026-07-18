@@ -84,14 +84,17 @@ Shader "OsuVR/SBInstanced"
                 // Alpha test: 丢弃纹理中的透明像素 (如 PNG 背景)
                 clip(tex.a - 0.1);
 
-                // 直接输出, Blend One Zero 覆盖目标
-                return tex * input.color;
+                // 预乘输出, Blend One Zero 直接写入覆盖目标
+                half4 c = tex * input.color;
+                return half4(c.rgb * c.a, c.a);
             }
             ENDHLSL
         }
 
         // =============================================
-        //  Pass 1: Alpha Blend (透明 sprite, 标准混合)
+        //  Pass 1: Alpha Blend (透明 sprite, 预乘混合)
+        //  输出预乘 alpha, Blend One OneMinusSrcAlpha
+        //  剔除 additive sprite (由 Additive pass 绘制)
         // =============================================
         Pass
         {
@@ -100,7 +103,7 @@ Shader "OsuVR/SBInstanced"
             Cull Off
             ZWrite Off
             ZTest Always
-            Blend SrcAlpha OneMinusSrcAlpha
+            Blend One OneMinusSrcAlpha
 
             HLSLPROGRAM
             #pragma vertex vert
@@ -141,11 +144,23 @@ Shader "OsuVR/SBInstanced"
             {
                 SpriteInstanceData inst = _InstanceData[input.instanceID];
 
+                Varyings o;
+
+                // blendMode 剔除: additive sprite (params0.y > 0.5) 不在本 pass 绘制
+                // 输出退化三角形 (全顶点同位置, 零面积被光栅化剔除)
+                if (inst.params0.y > 0.5)
+                {
+                    o.positionCS = float4(0, 0, 0, 1);
+                    o.uv = input.uv;
+                    o.color = 0;
+                    o.textureIndex = 0;
+                    return o;
+                }
+
                 float2 uv = input.uv;
                 if (inst.params0.z > 0.5) uv.x = 1.0 - uv.x;
                 if (inst.params0.w > 0.5) uv.y = 1.0 - uv.y;
 
-                Varyings o;
                 float3 worldPos = mul(inst.objectToWorld, input.positionOS).xyz;
                 o.positionCS    = TransformWorldToHClip(worldPos);
                 o.uv            = uv;
@@ -159,13 +174,19 @@ Shader "OsuVR/SBInstanced"
                 half4 tex = SAMPLE_TEXTURE2D_ARRAY(
                     _MainTexArray, sampler_MainTexArray,
                     input.uv, input.textureIndex);
-                return tex * input.color;
+                half4 c = tex * input.color;
+                // 预乘输出: rgb 已乘 a, 配合 Blend One OneMinusSrcAlpha 实现正确的 over 合成
+                // dst.rgb = src.rgb + dst.rgb × (1 - src.a)
+                // dst.a   = src.a   + dst.a   × (1 - src.a)
+                return half4(c.rgb * c.a, c.a);
             }
             ENDHLSL
         }
 
         // =============================================
-        //  Pass 1: Additive
+        //  Pass 2: Additive (加法 sprite)
+        //  只贡献预乘 rgb, alpha 输出 0 (不改变 RT 覆盖率)
+        //  剔除普通 sprite (由 AlphaBlend pass 绘制)
         // =============================================
         Pass
         {
@@ -215,11 +236,22 @@ Shader "OsuVR/SBInstanced"
             {
                 SpriteInstanceData inst = _InstanceData[input.instanceID];
 
+                Varyings o;
+
+                // blendMode 剔除: 普通 sprite (params0.y < 0.5) 不在本 pass 绘制
+                if (inst.params0.y < 0.5)
+                {
+                    o.positionCS = float4(0, 0, 0, 1);
+                    o.uv = input.uv;
+                    o.color = 0;
+                    o.textureIndex = 0;
+                    return o;
+                }
+
                 float2 uv = input.uv;
                 if (inst.params0.z > 0.5) uv.x = 1.0 - uv.x;
                 if (inst.params0.w > 0.5) uv.y = 1.0 - uv.y;
 
-                Varyings o;
                 float3 worldPos = mul(inst.objectToWorld, input.positionOS).xyz;
                 o.positionCS    = TransformWorldToHClip(worldPos);
                 o.uv            = uv;
@@ -234,7 +266,9 @@ Shader "OsuVR/SBInstanced"
                     _MainTexArray, sampler_MainTexArray,
                     input.uv, input.textureIndex);
                 half4 c = tex * input.color;
-                return half4(c.rgb * c.a, 1);
+                // 加法: 只加预乘 rgb, alpha 输出 0 → RT 覆盖率不被 additive 顶满
+                // dst.rgb += c.rgb × c.a, dst.a += 0 → 下层内容在 additive 区域保持可见
+                return half4(c.rgb * c.a, 0);
             }
             ENDHLSL
         }

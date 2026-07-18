@@ -20,7 +20,7 @@ Shader "OsuVR/SBVideoOverlay"
         Pass
         {
             Name "VideoOverlay"
-            Blend SrcAlpha OneMinusSrcAlpha
+            Blend One OneMinusSrcAlpha
             ZWrite Off
             ZTest Always
             Cull Off
@@ -64,8 +64,10 @@ Shader "OsuVR/SBVideoOverlay"
                 half4 video = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv);
                 half4 fade = SAMPLE_TEXTURE2D(_EdgeFadeTex, sampler_EdgeFadeTex, input.uv);
 
-                // 视频颜色 × _Color(默认白色), Alpha = 边缘羽化 × _Color.a
-                return half4(video.rgb, fade.a) * _Color;
+                // 预乘输出: 亮度 = α², 透明度 = α² (Blend One OneMinusSrcAlpha)
+                float alpha = _Color.a;
+                float finalAlpha = fade.a * alpha * alpha;
+                return half4(video.rgb * alpha * alpha * fade.a, finalAlpha);
             }
             ENDHLSL
         }

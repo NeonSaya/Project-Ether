@@ -611,11 +611,12 @@ namespace OsuVR
                 string filename = parts[2].Trim('"');
                 beatmap.Events.BackgroundFilename = filename;
             }
-            // 视频事件: 1,startTime,"video.mp4",offset  或  Video,startTime,"video.mp4",offset
+            // 视频事件: 1,startTime,"video.mp4"  或  Video,startTime,"video.mp4"
+            // osu! 格式: startTime 在 parts[1], 表示视频在 map 时间到达该值时开始播放
             else if (type == "1" || type.Equals("Video", StringComparison.OrdinalIgnoreCase))
             {
                 string filename = parts[2].Trim('"');
-                int offset = parts.Length > 3 && int.TryParse(parts[3].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int off) ? off : 0;
+                int offset = int.TryParse(parts[1].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int off) ? off : 0;
                 beatmap.Events.VideoFilename = filename;
                 beatmap.Events.VideoOffset = offset;
             }

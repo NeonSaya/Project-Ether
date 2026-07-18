@@ -15,6 +15,8 @@ namespace OsuVR.Storyboard.Engine
         public NativeArray<SBSpriteFlatData> Sprites;
         public NativeArray<SBCommandFlatData> Commands;
         public NativeArray<SBLoopFlatData> Loops;
+        /// <summary>动画帧映射: 每个动画 sprite 的声明帧→纹理切片索引 (-1=该帧文件缺失, 不绘制). 按 sprite.AnimFrameMapOffset 寻址</summary>
+        public NativeArray<int> FrameMap;
         public int SpriteCount;
 
         public void Dispose()
@@ -22,6 +24,7 @@ namespace OsuVR.Storyboard.Engine
             if (Sprites.IsCreated) Sprites.Dispose();
             if (Commands.IsCreated) Commands.Dispose();
             if (Loops.IsCreated) Loops.Dispose();
+            if (FrameMap.IsCreated) FrameMap.Dispose();
         }
     }
 
@@ -41,6 +44,7 @@ namespace OsuVR.Storyboard.Engine
             var flatSprites = new List<SBSpriteFlatData>();
             var flatCommands = new List<SBCommandFlatData>();
             var flatLoops = new List<SBLoopFlatData>();
+            var frameMap = new List<int>();
 
             int totalElements = storyboard.TotalElementCount;
             if (totalElements == 0)
@@ -50,6 +54,7 @@ namespace OsuVR.Storyboard.Engine
                     Sprites = new NativeArray<SBSpriteFlatData>(0, Allocator.Persistent),
                     Commands = new NativeArray<SBCommandFlatData>(0, Allocator.Persistent),
                     Loops = new NativeArray<SBLoopFlatData>(0, Allocator.Persistent),
+                    FrameMap = new NativeArray<int>(0, Allocator.Persistent),
                     SpriteCount = 0
                 };
             }
@@ -64,11 +69,11 @@ namespace OsuVR.Storyboard.Engine
                 {
                     var element = elements[ei];
                     FlattenElement(element, textureIndexMap, textureDimensions,
-                        flatSprites, flatCommands, flatLoops);
+                        flatSprites, flatCommands, flatLoops, frameMap);
                 }
             }
 
-            SBDebugLog.Log($"[Flattener] {flatSprites.Count} sprites, {flatCommands.Count} commands, {flatLoops.Count} loops");
+            SBDebugLog.Log($"[Flattener] {flatSprites.Count} sprites, {flatCommands.Count} commands, {flatLoops.Count} loops, {frameMap.Count} anim frames");
 
             // 转为 NativeArray
             var result = new SBFlatTimelineData
@@ -76,7 +81,8 @@ namespace OsuVR.Storyboard.Engine
                 SpriteCount = flatSprites.Count,
                 Sprites = new NativeArray<SBSpriteFlatData>(flatSprites.Count, Allocator.Persistent),
                 Commands = new NativeArray<SBCommandFlatData>(flatCommands.Count, Allocator.Persistent),
-                Loops = new NativeArray<SBLoopFlatData>(flatLoops.Count, Allocator.Persistent)
+                Loops = new NativeArray<SBLoopFlatData>(flatLoops.Count, Allocator.Persistent),
+                FrameMap = new NativeArray<int>(frameMap.Count, Allocator.Persistent)
             };
 
             if (flatSprites.Count > 0)
@@ -85,6 +91,8 @@ namespace OsuVR.Storyboard.Engine
                 NativeArray<SBCommandFlatData>.Copy(flatCommands.ToArray(), result.Commands);
             if (flatLoops.Count > 0)
                 NativeArray<SBLoopFlatData>.Copy(flatLoops.ToArray(), result.Loops);
+            if (frameMap.Count > 0)
+                NativeArray<int>.Copy(frameMap.ToArray(), result.FrameMap);
 
             return result;
         }
@@ -95,7 +103,8 @@ namespace OsuVR.Storyboard.Engine
             Vector2Int[] textureDimensions,
             List<SBSpriteFlatData> outSprites,
             List<SBCommandFlatData> outCommands,
-            List<SBLoopFlatData> outLoops)
+            List<SBLoopFlatData> outLoops,
+            List<int> frameMap)
         {
             // 1. 使用现有 SBCommandGroupBuilder 展开命令 (M→X+Y, S→SX+SY, etc.)
             var group = SBCommandGroupBuilder.Build(element);
@@ -138,9 +147,39 @@ namespace OsuVR.Storyboard.Engine
             int animFrameCount = 0;
             double animFrameDelay = 0;
             int animLoopType = 0;
-            int animBaseTexIndex = -1;
+            int animFrameMapOffset = 0;
 
-            if (!string.IsNullOrEmpty(element.ImagePath) && textureIndexMap != null)
+            if (element is SBStoryboardAnimation anim)
+            {
+                // 动画: 为每个声明帧建立 帧序号→纹理切片 映射
+                // 缺失帧 (文件不存在, 未打包进纹理数组) 记为 -1, 渲染时该帧不绘制
+                // (与 storybrew/osu! 行为一致: 帧序号按声明的 FrameCount 推进, 缺失帧留空)
+                animFrameCount = anim.FrameCount;
+                animFrameDelay = anim.FrameDelay;
+                animLoopType = (int)anim.LoopType;
+                animFrameMapOffset = frameMap.Count;
+
+                bool dimsResolved = false;
+                for (int f = 0; f < anim.FrameCount; f++)
+                {
+                    string framePath = anim.BuildFramePath(f).Replace('\\', '/').ToLowerInvariant();
+                    int slice = -1;
+                    if (textureIndexMap != null && textureIndexMap.TryGetValue(framePath, out int idx))
+                    {
+                        slice = idx;
+                        if (!dimsResolved && textureDimensions != null && idx < textureDimensions.Length)
+                        {
+                            texWidth = textureDimensions[idx].x;
+                            texHeight = textureDimensions[idx].y;
+                            dimsResolved = true;
+                        }
+                    }
+                    frameMap.Add(slice);
+                }
+                // 动画 sprite 的 TexIndex 由 Burst Job 经 FrameMap 动态解析
+                texIndex = -1;
+            }
+            else if (!string.IsNullOrEmpty(element.ImagePath) && textureIndexMap != null)
             {
                 string normalized = element.ImagePath.Replace('\\', '/').ToLowerInvariant();
                 if (textureIndexMap.TryGetValue(normalized, out int idx))
@@ -152,16 +191,6 @@ namespace OsuVR.Storyboard.Engine
                         texHeight = textureDimensions[idx].y;
                     }
                 }
-            }
-
-            if (element is SBStoryboardAnimation anim)
-            {
-                animFrameCount = anim.FrameCount;
-                animFrameDelay = anim.FrameDelay;
-                animLoopType = (int)anim.LoopType;
-                animBaseTexIndex = texIndex; // 第0帧的索引
-                // 动画 sprite 的 TexIndex 由 Burst Job 动态计算
-                texIndex = -1;
             }
 
             // 5. 构建 SpriteFlatData
@@ -204,7 +233,7 @@ namespace OsuVR.Storyboard.Engine
                 AnimFrameCount = animFrameCount,
                 AnimFrameDelay = animFrameDelay,
                 AnimLoopType = animLoopType,
-                AnimBaseTexIndex = animBaseTexIndex
+                AnimFrameMapOffset = animFrameMapOffset
             };
 
             // 应用初始值 (从最早的直接命令中提取)

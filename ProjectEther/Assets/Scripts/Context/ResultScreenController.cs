@@ -58,22 +58,24 @@ namespace OsuVR
         // 动画设置
         // =========================================================
         [Header("动画设置")]
-        [Tooltip("分数滚动速度")]
-        public float scoreScrollSpeed = 8000f;
+        [Tooltip("分数滚动时长 (秒)")]
+        public float scoreAnimDuration = 0.8f;
         [Tooltip("评级出现延迟 (秒)")]
-        public float rankAppearDelay = 1.5f;
+        public float rankAppearDelay = 0.5f;
         [Tooltip("淡入淡出时长 (秒)")]
-        public float fadeDuration = 0.5f;
-        [Tooltip("面板缩放时长 (秒)")]
-        public float panelScaleDuration = 0.3f;
+        public float fadeDuration = 0.3f;
         [Tooltip("缩放动画曲线")]
         public AnimationCurve scaleCurve;
+        [Tooltip("单项判定统计滚动时长 (秒)")]
+        public float statAnimDuration = 0.15f;
+        [Tooltip("判定统计间隔 (秒)")]
+        public float statDelay = 0.05f;
 
         [Header("评级动画")]
         [Tooltip("评级弹出放大倍数")]
-        public float rankPunchScale = 1.3f;
+        public float rankPunchScale = 1.2f;
         [Tooltip("评级动画时长 (秒)")]
-        public float rankPunchDuration = 0.3f;
+        public float rankPunchDuration = 0.2f;
         [Tooltip("评级发光颜色")]
         public Color rankGlowColor = Color.yellow;
 
@@ -381,7 +383,7 @@ namespace OsuVR
             displayScore = 0;
             displayAccuracy = 0;
 
-            float scoreDuration = 1.5f;
+            float scoreDuration = scoreAnimDuration;
             float elapsed = 0f;
 
             while (elapsed < scoreDuration)
@@ -429,11 +431,11 @@ namespace OsuVR
         private IEnumerator AnimateStatistics(ResultData result)
         {
             yield return StartCoroutine(AnimateNumber(textHit300, result.hit300, LocalizationManager.GetText("ui_hit300")));
-            yield return new WaitForSeconds(0.1f);
+            yield return new WaitForSeconds(statDelay);
             yield return StartCoroutine(AnimateNumber(textHit100, result.hit100, LocalizationManager.GetText("ui_hit100")));
-            yield return new WaitForSeconds(0.1f);
+            yield return new WaitForSeconds(statDelay);
             yield return StartCoroutine(AnimateNumber(textHit50, result.hit50, LocalizationManager.GetText("ui_hit50")));
-            yield return new WaitForSeconds(0.1f);
+            yield return new WaitForSeconds(statDelay);
             yield return StartCoroutine(AnimateNumber(textMiss, result.hitMiss, LocalizationManager.GetText("ui_miss"), Color.red));
 
             // 滑条信息
@@ -459,7 +461,7 @@ namespace OsuVR
             if (text == null) yield break;
 
             int current = 0;
-            float duration = 0.3f;
+            float duration = statAnimDuration;
             float elapsed = 0f;
 
             while (elapsed < duration)
@@ -520,40 +522,105 @@ namespace OsuVR
         {
             bool useOriginalLanguage = false;
             if (SettingsManager.Instance != null && SettingsManager.Instance.Settings != null)
-            {
                 useOriginalLanguage = SettingsManager.Instance.Settings.displayOriginalLanguage;
-            }
+
+            // Inspector 未绑定时自动查找子对象
+            if (textTitle == null) textTitle = FindChildText("Title", "SongTitle");
+            if (textArtist == null) textArtist = FindChildText("Artist", "SongArtist");
+            if (textDifficulty == null) textDifficulty = FindChildText("Difficulty", "Version");
+            if (textMapper == null) textMapper = FindChildText("Mapper", "Creator");
+
+            string title = result.GetDisplayTitle(useOriginalLanguage);
+            string artist = result.GetDisplayArtist(useOriginalLanguage);
 
             if (textTitle != null)
             {
-                textTitle.text = result.GetDisplayTitle(useOriginalLanguage) ?? LocalizationManager.GetText("ui_unknown_title");
+                ApplyCJKFont(textTitle);
+                // 应用 Quote 样式 (TMP 样式表定义: <i><size=75%><margin=10%>)
+                string titleText = title ?? LocalizationManager.GetText("ui_unknown_title");
+                textTitle.text = $"<i><size=75%><margin=10%>{titleText}</i></size></margin>";
                 textTitle.enableWordWrapping = true;
                 textTitle.overflowMode = TextOverflowModes.Ellipsis;
                 textTitle.raycastTarget = false;
-                // 拉宽文本框，尽可能显示完整歌名
+                textTitle.ForceMeshUpdate();
                 var titleRt = textTitle.rectTransform;
                 titleRt.sizeDelta = new Vector2(800f, titleRt.sizeDelta.y);
             }
+            else Debug.LogWarning("[Result] textTitle 未绑定且未找到子对象, 歌名无法显示");
+
             if (textArtist != null)
             {
-                textArtist.text = result.GetDisplayArtist(useOriginalLanguage) ?? LocalizationManager.GetText("ui_unknown_artist");
+                ApplyCJKFont(textArtist);
+                string artistText = artist ?? LocalizationManager.GetText("ui_unknown_artist");
+                textArtist.text = $"<i><size=75%><margin=10%>{artistText}</i></size></margin>";
                 textArtist.enableWordWrapping = true;
                 textArtist.overflowMode = TextOverflowModes.Ellipsis;
                 textArtist.raycastTarget = false;
+                textArtist.ForceMeshUpdate();
                 var artistRt = textArtist.rectTransform;
                 artistRt.sizeDelta = new Vector2(800f, artistRt.sizeDelta.y);
             }
+
             if (textDifficulty != null)
             {
                 string diffName = string.IsNullOrEmpty(result.difficultyName) ? LocalizationManager.GetText("ui_normal") : result.difficultyName;
                 textDifficulty.text = $"[{diffName}]";
             }
+
             if (textMapper != null)
             {
                 string mapperName = string.IsNullOrEmpty(result.mapperName) ? LocalizationManager.GetText("ui_unknown_mapper") : result.mapperName;
                 string mappedByTemplate = LocalizationManager.GetText("ui_mapped_by");
                 textMapper.text = string.Format(mappedByTemplate, mapperName);
             }
+
+            Debug.Log($"[Result] 歌曲信息: title={title}, artist={artist}, diff={result.difficultyName}");
+        }
+
+        TextMeshProUGUI FindChildText(params string[] names)
+        {
+            var allTexts = GetComponentsInChildren<TextMeshProUGUI>(true);
+            foreach (var text in allTexts)
+            {
+                string goName = text.gameObject.name;
+                foreach (var name in names)
+                {
+                    if (goName.Contains(name)) return text;
+                }
+            }
+            return null;
+        }
+
+        // =========================================================
+        //  字体: 歌名/艺术家使用 CJK 字体 (SourceHanSansSC, 支持中日韩)
+        // =========================================================
+
+        static TMP_FontAsset _cjkFont;
+
+        void ApplyCJKFont(TMP_Text tmpText)
+        {
+            if (tmpText == null) return;
+
+            if (_cjkFont == null)
+            {
+                _cjkFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/SourceHanSansSC-Regular SDF");
+                if (_cjkFont == null)
+                    _cjkFont = Resources.Load<TMP_FontAsset>("SourceHanSansSC-Regular SDF");
+                if (_cjkFont == null)
+                {
+                    foreach (var font in Resources.LoadAll<TMP_FontAsset>(""))
+                    {
+                        if (font.HasCharacter('\u65E5')) { _cjkFont = font; break; }
+                    }
+                }
+                if (_cjkFont != null)
+                    Debug.Log($"[Result] CJK 字体: {_cjkFont.name}");
+                else
+                    Debug.LogWarning("[Result] 未找到 CJK 字体");
+            }
+
+            if (_cjkFont != null)
+                tmpText.font = _cjkFont;
         }
 
         /// <summary>
@@ -596,8 +663,6 @@ namespace OsuVR
         /// </summary>
         private void OnRetryClicked()
         {
-            if (isAnimating) return;
-
             // 停止跨场景音乐
             if (MusicManager.Instance != null)
             {
@@ -620,8 +685,6 @@ namespace OsuVR
         /// </summary>
         private void OnBackToMenuClicked()
         {
-            if (isAnimating) return;
-
             // 停止跨场景音乐
             if (MusicManager.Instance != null)
             {

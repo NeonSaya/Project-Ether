@@ -1,8 +1,9 @@
 Shader "OsuVR/SBOverlay"
 {
-    // Overlay shader: 将 SB RenderTexture 与边缘羽化纹理相乘
-    // Alpha = SB.spriteAlpha × EdgeFade.alpha × _ScreenAlpha
-    // _ScreenAlpha: 屏幕整体透明度 (来自设置面板), 不污染 sprite 自身的 Fade 逻辑
+    // Overlay shader: 将 SB RenderTexture (预乘 alpha) 合成到屏幕
+    // RT 中 rgb 已是预乘色, a 为覆盖率 (由 SBInstanced 预乘管线产出)
+    // 输出: rgb = sb.rgb × scale, a = sb.a × scale (亮度跟随透明度)
+    // Blend One OneMinusSrcAlpha: dst = src.rgb + dst.rgb × (1 - src.a)
 
     Properties
     {
@@ -21,7 +22,7 @@ Shader "OsuVR/SBOverlay"
         Pass
         {
             Name "SBOverlay_Multiply"
-            Blend SrcAlpha OneMinusSrcAlpha
+            Blend One OneMinusSrcAlpha
             ZWrite Off
             ZTest Always
             Cull Off
@@ -66,14 +67,14 @@ Shader "OsuVR/SBOverlay"
                 half4 sb = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv);
                 half4 fade = SAMPLE_TEXTURE2D(_EdgeFadeTex, sampler_EdgeFadeTex, input.uv);
 
-                // 合成 alpha: sprite 自身 × 边缘羽化 × 屏幕透明度
-                half a = sb.a * fade.a * _ScreenAlpha;
+                // 预乘管线: 亮度 = α², SB 不叠加透明度 (保持固有覆盖关系)
+                float alpha = _ScreenAlpha;
+                half a = sb.a * fade.a;
 
-                // 当 alpha 接近 1.0 时 clamp, 消除浮点精度导致的背景穿透
-                // sprite 完全覆盖背景时, 不会透出下面的内容
+                // 覆盖率接近 1 时 clamp, 消除浮点精度导致的背景穿透
                 a = a > 0.99 ? 1.0 : a;
 
-                return half4(sb.rgb * _ScreenAlpha, a);
+                return half4(sb.rgb * alpha * alpha * fade.a, a);
             }
             ENDHLSL
         }
