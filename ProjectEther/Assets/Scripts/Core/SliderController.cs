@@ -311,6 +311,7 @@ namespace OsuVR
                 else
                 {
                     cachedReverseMat = new Material(shader);
+                    cachedReverseMat.renderQueue = 3005;
                     cachedReverseMat.mainTexture = GetSoftDotTexture();
 
                     Color matHdrColor = Color.white * 6.0f;
