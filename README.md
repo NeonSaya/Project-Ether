@@ -5,6 +5,8 @@
 ![Platform](https://img.shields.io/badge/Platform-PC%20VR%20%2F%20Standalone%20VR%20(OpenXR)-green)
 ![Status](https://img.shields.io/badge/Status-v0.7.3-brightgreen)
 
+**中文** | [English](README_EN.md)
+
 ## 📖 项目概述 (Overview)
 
 在当前的虚拟现实生态中，优秀的音乐节奏游戏层出不穷，但它们往往面临着同一个致命痛点：**高质量的社区自制谱面极度匮乏**。而与此同时，有着十余年历史的经典 PC 音游 `osu!` 却坐拥着海量、惊艳且充满挑战的谱面库。
