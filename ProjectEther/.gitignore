@@ -130,6 +130,10 @@ ProjectSettings/CommonBurstAotSettings.json
 *.lighting
 *.lighting.meta
 
+# 密钥库 (防止误提交)
+*.keystore
+*.jks
+
 # --- Project Ether 特有忽略 (避版权) ---
 
 # 忽略歌曲 (版权音乐)

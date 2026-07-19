@@ -26,18 +26,22 @@ Shader "OsuVR/FlashlightMask"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+            #pragma multi_compile_instancing
 
             #include "UnityCG.cginc"
 
             struct appdata
             {
                 float4 vertex : POSITION;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
             struct v2f
             {
                 float4 pos : SV_POSITION;
                 float3 worldPos : TEXCOORD0;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+                UNITY_VERTEX_OUTPUT_STEREO
             };
 
             float4 _Color;
@@ -54,6 +58,9 @@ Shader "OsuVR/FlashlightMask"
             v2f vert (appdata v)
             {
                 v2f o;
+                UNITY_SETUP_INSTANCE_ID(v);
+                UNITY_TRANSFER_INSTANCE_ID(v, o);
+                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
                 return o;
@@ -68,7 +75,15 @@ Shader "OsuVR/FlashlightMask"
 
             fixed4 frag (v2f i) : SV_Target
             {
-                float3 camPos = _WorldSpaceCameraPos;
+                UNITY_SETUP_INSTANCE_ID(i);
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
+
+                // SPI(单通道实例化)下必须使用逐眼相机位置，否则右眼会复用左眼/中心相机位置导致光圈偏移
+                #if defined(USING_STEREO_MATRICES)
+                    float3 camPos = unity_StereoWorldSpaceCameraPos[unity_StereoEyeIndex];
+                #else
+                    float3 camPos = _WorldSpaceCameraPos;
+                #endif
                 float3 viewDir = normalize(i.worldPos - camPos);
 
                 float distLeft = 99999.0;
