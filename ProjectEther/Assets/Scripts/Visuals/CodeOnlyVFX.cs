@@ -90,6 +90,7 @@ namespace OsuVR
 
             if (!shader) { Debug.LogError("[CodeOnlyVFX] 所有粒子 Shader 不可用，特效将失效"); return; }
             particleMat = new Material(shader);
+            particleMat.renderQueue = 3005;
             particleMat.enableInstancing = true;
 
             // 4. 给贴图

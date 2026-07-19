@@ -68,7 +68,7 @@ namespace OsuVR
         private static Texture2D cachedRingGlowTex;
         private static Mesh cachedQuadMesh;
 
-        private int myRenderQueue = 3000;
+        private int myRenderQueue = 3050;
 
 
         private Camera MainCamera

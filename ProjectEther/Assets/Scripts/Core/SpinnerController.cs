@@ -276,6 +276,13 @@ namespace OsuVR
                 }
             }
 
+            // -------------------------------------------------------
+            // 5. 设置渲染队列，确保在 SB Overlay (3001) 之上
+            // -------------------------------------------------------
+            if (bgDiscRenderer != null) bgDiscRenderer.material.renderQueue = 3050;
+            if (rotDiscRenderer != null) rotDiscRenderer.material.renderQueue = 3051;
+            if (approachRingRenderer != null) approachRingRenderer.material.renderQueue = 3052;
+
         }
 
         void Update()
