@@ -3,7 +3,7 @@
 ![Unity](https://img.shields.io/badge/Made%20with-Unity%202022.3%20LTS-black?style=flat&logo=unity)
 ![C#](https://img.shields.io/badge/Language-C%23-blue)
 ![Platform](https://img.shields.io/badge/Platform-PC%20VR%20%2F%20Standalone%20VR%20(OpenXR)-green)
-![Status](https://img.shields.io/badge/Status-v0.7.2-brightgreen)
+![Status](https://img.shields.io/badge/Status-v0.7.3-brightgreen)
 
 ## 📖 项目概述 (Overview)
 
@@ -15,11 +15,9 @@
 
 你可以利用手中的虚拟射线，在纯粹的音波起伏与绚丽的光影交错中，轻松惬意地享受每一首高质量 osu! 谱面带来的视听震撼。
 
-> 🟢 **当前状态：v0.7.2**
+> 🟢 **当前状态：v0.7.3**
 
-> 核心链路（启动 -> 选曲 -> 游玩 -> 结算）完全打通。单点 (Circle)、滑条 (Slider)、转盘 (Spinner) 的生成与计分系统均已完备。Storyboard 全指令解析 + GPU 实例化渲染已上线，支持视频背景播放。底层已全面引入 Unity Jobs + Burst 多线程架构，Storyboard 全链路多线程化。
->
-> **v0.7.1 回顾**: 首次发布 Standalone VR 一体机版本 (Android APK)，打通 PC VR 与一体机双平台构建。
+> 核心链路（启动 -> 选曲 -> 游玩 -> 结算）完全打通。单点 (Circle)、滑条 (Slider)、转盘 (Spinner) 的生成与计分系统均已完备。Storyboard 全指令解析 + GPU 实例化渲染已上线，参考 osu!lazer 与 storybrew 的命令评估逻辑，支持视频背景播放与三层独立合成渲染。底层已全面引入 Unity Jobs + Burst 多线程架构，Storyboard 全链路多线程化。亮度与不透明度通过设置面板统一控制，三层管线预乘 alpha 混合保证一致的视觉表现。
 >
 > **平台支持**: PC VR (Windows) 与 Standalone VR (Android) 双平台，兼容 Pico Neo 3 / Pico 4 / Pico 4 Ultra / Quest 2 / Quest 3 等主流一体机。
 
@@ -234,6 +232,15 @@ A: 我们的 SB 引擎参考了 osu!lazer 和 storybrew 的开源实现，力求
 - [x] **音符 SoA 扁平化**: `NativeArray<double>` spawnTimes + `NativeArray<float3>` worldPositions，加载期 Burst 预计算。
 - [x] **二分搜索替代线性扫描**: `SpawnNotes` 中 O(log N) 上界查找替代 while 循环。
 - [ ] **碰撞检测自定义化**: 活跃音符 > 500 时考虑 Burst 空间哈射线检测替代 PhysX。
+
+### 阶段？？？：星河彼岸 — 🔭 远眺 Unity 6
+
+> 这不是路线图上的必选项，更像一个放在远处的念想。从 Unity 2022 LTS 到 Unity 6，意味着 Render Graph、GPU Resident Drawer 等新一代渲染栈的全面就绪。我们有计划将 Project Ether 迁入新引擎，在保持现有风格与体验的前提下，走进下一个技术世代。什么时候启程还不确定，但方向已经在星图上了。
+
+- [ ] **引擎升级至 Unity 6 (6000.0.60f1)**：从 Unity 2022.3.22f1 LTS 迁移至 Unity 6，完成 API 适配、包依赖更新与废弃接口替换，确保双平台（Windows + Android）构建链路完整。
+- [ ] **URP Render Graph 适配**：将全息幕布、SB 实例化渲染、后处理等自定义管线全面迁入 Render Graph 架构，消除 Compatibility Mode 回退开销，发挥新一代 URP 的调度与带宽优势。
+- [ ] **GPU Resident Drawer 与 STP**：启用 GPU Resident Drawer 将场景静态剔除与实例化绘制交由 GPU 驱动，评估 STP (Spatial-Temporal Post-Processing) 替代传统抗锯齿方案的可行性。
+- [ ] **全链路回归与双平台验证**：升级后覆盖核心玩法判定、谱面解析、Storyboard 全指令渲染及 PC VR / Standalone VR 双平台构建，确保功能无退化、性能不低于当前基线。
 
 ---
 
