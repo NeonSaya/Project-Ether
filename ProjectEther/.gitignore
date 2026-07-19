@@ -2,6 +2,9 @@
 #
 # Get latest from https://github.com/github/gitignore/blob/main/Unity.gitignore
 #
+# Recommended: add any editor/OS/tool-specific ignore rules from the Global/ templates as needed.
+# See: https://github.com/github/gitignore/tree/main/Global
+#
 .utmp/
 /[Ll]ibrary/
 /[Tt]emp/
@@ -43,6 +46,7 @@ ExportedObj/
 *.csproj
 *.unityproj
 *.sln
+*.slnx
 *.suo
 *.tmp
 *.user
@@ -98,6 +102,27 @@ InitTestScene*.unity*
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
 
+# Auto-generated cache in Assets folder
+/[Aa]ssets/[Ss]ceneDependencyCache*
+
+# IDE / AI tool config
+.claude/
+.trae/
+.vscode/
+
+# Amplify Shader Editor 备份文件
+*.shader.bak
+*.shader.bak.meta
+
+# AudioLink 本地管线配置 (自动生成)
+.audiolink_pipeline
+
+# AudioLink git URL 包 (manifest.json 声明, Unity 自动下载)
+Packages/com.llealloo.audiolink/
+
+# LaspGuard 备份
+*.laspguard_backup
+
 # OS generated files
 .DS_Store
 .DS_Store?
@@ -105,30 +130,6 @@ InitTestScene*.unity*
 .Spotlight-V100
 .Trashes
 ehthumbs.db
-Thumbs.db
-Thumbs.db:encryptable
-desktop.ini
-
-# IDE / Editor
-.idea/
-.vscode/
-.claude/
-.trae/
-
-# Backup files
-*.bak
-*.bak.meta
-
-# AudioLink local cache
-.audiolink_pipeline
-
-# Burst AOT cache (machine-specific)
-ProjectSettings/BurstAotSettings_*.json
-ProjectSettings/CommonBurstAotSettings.json
-
-# Lighting data cache (local bake output)
-*.lighting
-*.lighting.meta
 
 # 密钥库 (防止误提交)
 *.keystore
