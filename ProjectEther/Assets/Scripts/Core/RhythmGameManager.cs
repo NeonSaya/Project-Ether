@@ -404,7 +404,16 @@ namespace OsuVR
                     GameContext.Instance.CurrentBeatmapPath = currentBeatmapPath;
 
                     // 跳转到结算场景
-                    VRSceneTransitionManager.Instance.TransitionToScene(GameContext.Instance.ResultSceneName);
+                    if (VRSceneTransitionManager.Instance != null)
+                    {
+                        VRSceneTransitionManager.Instance.TransitionToScene(GameContext.Instance.ResultSceneName);
+                    }
+                    else
+                    {
+                        // 过渡管理器缺失时直接切场景，避免卡死在游戏场景
+                        Debug.LogWarning("[RhythmGame] VRSceneTransitionManager 未找到，直接加载结算场景");
+                        SceneManager.LoadScene(GameContext.Instance.ResultSceneName);
+                    }
                 }
                 else
                 {
@@ -579,7 +588,7 @@ namespace OsuVR
             if (isPlaying)
             {
                 isPlaying = false;
-                if (musicSource.isPlaying) musicSource.Stop();
+                if (musicSource != null && musicSource.isPlaying) musicSource.Stop();
                 ClearAllNotes();
             }
 
@@ -1037,7 +1046,7 @@ namespace OsuVR
             isPlaying = false;
             pauseStartDspTime = AudioSettings.dspTime;
 
-            if (musicSource.isPlaying)
+            if (musicSource != null && musicSource.isPlaying)
             {
                 musicSource.Pause();
             }
@@ -1074,7 +1083,7 @@ namespace OsuVR
 
             isPlaying = true;
 
-            if (!musicSource.isPlaying && musicSource.time > 0)
+            if (musicSource != null && !musicSource.isPlaying && musicSource.time > 0)
             {
                 musicSource.UnPause();
             }
@@ -1169,8 +1178,13 @@ namespace OsuVR
         /// </summary>
         private void HandlePauseToggle()
         {
-            // 检查是否可以暂停（游戏正在进行且未结束）
-            if (!isPlaying || isGameEnded)
+            if (isGameEnded)
+                return;
+
+            // 允许两种状态进入：游戏进行中（去暂停）、已暂停（去恢复）
+            // 修复: 原判断 !isPlaying 直接 return，导致暂停后按键永远无法恢复（恢复分支为死代码）
+            bool isPausedNow = pauseStartDspTime > 0;
+            if (!isPlaying && !isPausedNow)
                 return;
 
             // 使用Prefab模式
@@ -1178,17 +1192,18 @@ namespace OsuVR
             {
                 if (currentPauseMenu != null && currentPauseMenu.IsPaused())
                 {
-                    // 如果已经在暂停状态，继续游戏
-                    currentPauseMenu.HidePauseMenu();
-                    // 回收到对象池（这里简单Destroy，实际项目建议用对象池）
-                    Destroy(currentPauseMenu.gameObject);
-                    currentPauseMenu = null;
-                    ResumeGame();
+                    // 已在暂停状态：按键等价于点击“继续”按钮，走3秒倒计时流程
+                    // （倒计时进行中 RequestContinue 内部会忽略重复按键）
+                    currentPauseMenu.RequestContinue();
                 }
                 else
                 {
-                    // 实例化暂停菜单Prefab
-                    if (pauseMenuPrefab != null)
+                    // 复用已隐藏的旧实例，避免每次暂停都 Instantiate 出新菜单造成实例累积
+                    if (currentPauseMenu != null)
+                    {
+                        currentPauseMenu.ShowPauseMenu();
+                    }
+                    else if (pauseMenuPrefab != null)
                     {
                         GameObject pauseMenuObj = Instantiate(pauseMenuPrefab);
                         // 确保在场景根层级
@@ -1214,9 +1229,8 @@ namespace OsuVR
             {
                 if (currentPauseMenu.IsPaused())
                 {
-                    // 如果已经在暂停状态，继续游戏
-                    currentPauseMenu.HidePauseMenu();
-                    ResumeGame();
+                    // 已在暂停状态：与 Prefab 模式一致，走“继续”按钮的倒计时流程
+                    currentPauseMenu.RequestContinue();
                 }
                 else
                 {
@@ -1227,7 +1241,8 @@ namespace OsuVR
             else
             {
                 // 如果没有暂停菜单，直接暂停/恢复
-                if (isMusicPlaying)
+                // 修复: 原判断依据 isMusicPlaying，但 PauseGame 不会清掉它，恢复分支永远走不到
+                if (isPlaying)
                 {
                     PauseGame();
                 }
@@ -1368,6 +1383,11 @@ namespace OsuVR
             hitObjects = new List<HitObject>(beatmap.HitObjects);
             totalNotes = hitObjects.Count;
 
+            // 修复: 解析失败回退到测试谱面时，若上一张谱面已建立 SoA 数组，
+            // 旧数组长度与新 hitObjects 不一致，SpawnNotes 的二分搜索会读到脏数据/越界。
+            // 重建（内部会先 Dispose 旧数据）保证数组与 hitObjects 严格同步。
+            InitializeNoteData();
+
             Debug.Log($"测试谱面创建完成，共 {totalNotes} 个音符");
         }
 
@@ -1398,10 +1418,13 @@ namespace OsuVR
 
             double currentTime = currentMusicTimeMs;
 
+            // 防御: SoA 数组必须与 hitObjects 严格等长才可信，长度不符时回退到 OOP 数据
+            bool useSoA = _noteDataInitialized && _noteSpawnTimes.IsCreated && _noteSpawnTimes.Length == hitObjects.Count;
+
             // 1. 过期音符处理 (从 cursor 线性扫描, 实际极少触发)
             while (nextNoteIndex < hitObjects.Count)
             {
-                double startTime = _noteDataInitialized ? _noteStartTimes[nextNoteIndex] : hitObjects[nextNoteIndex].StartTime;
+                double startTime = useSoA ? _noteStartTimes[nextNoteIndex] : hitObjects[nextNoteIndex].StartTime;
                 if (currentTime > startTime + 250.0)
                 {
 #if UNITY_EDITOR
@@ -1418,7 +1441,7 @@ namespace OsuVR
 
             // 2. Binary Search: 在 _noteSpawnTimes 中 O(log N) 定位上界
             int upperBound;
-            if (_noteDataInitialized && _noteSpawnTimes.IsCreated)
+            if (useSoA)
             {
                 // 手动二分搜索: 找到第一个 spawnTime > currentTime 的索引
                 int lo = nextNoteIndex, hi = hitObjects.Count;
@@ -1476,7 +1499,7 @@ namespace OsuVR
 
             // 2. 颜色计算
             Color comboColor = Color.white;
-            if (currentBeatmap.ComboColors != null && currentBeatmap.ComboColors.Count > 0)
+            if (currentBeatmap != null && currentBeatmap.ComboColors != null && currentBeatmap.ComboColors.Count > 0)
             {
                 comboColor = currentBeatmap.ComboColors[hitObject.ComboIndex % currentBeatmap.ComboColors.Count];
             }
@@ -1519,16 +1542,18 @@ namespace OsuVR
                 if (!noteObject.activeSelf) noteObject.SetActive(true);
                 var controller = noteObject.GetComponent<SliderController>();
 
-                if (globalGlowMaterial != null)
-                {
-                    controller.sharedMaterial = globalGlowMaterial;
-
-                    // 还要确保当前的 MeshRenderer 也换了 (如果是复用对象)
-                    PatchMaterial(noteObject);
-                }
-
+                // 修复: 原代码在 null 检查之前就访问 controller.sharedMaterial，
+                // 池中对象缺少 SliderController 时会直接 NRE
                 if (controller != null)
                 {
+                    if (globalGlowMaterial != null)
+                    {
+                        controller.sharedMaterial = globalGlowMaterial;
+
+                        // 还要确保当前的 MeshRenderer 也换了 (如果是复用对象)
+                        PatchMaterial(noteObject);
+                    }
+
                     controller.Initialize((SliderObject)hitObject, currentCS, comboColor, this, poolMgr.SliderPool, poolMgr.TickPool, renderIndex, nextNoteWorldPos);
                 }
             }
@@ -1629,7 +1654,7 @@ namespace OsuVR
         /// </summary>
         public float GetProgress()
         {
-            if (hitObjects.Count == 0) return 0f;
+            if (hitObjects == null || hitObjects.Count == 0) return 0f;
 
             return (float)nextNoteIndex / hitObjects.Count;
         }
@@ -1639,16 +1664,16 @@ namespace OsuVR
         /// </summary>
         public void OnNoteHit(HitObject hitObject, double timeDiff)
         {
-            if (activeNoteObjects.ContainsKey(hitObject))
+            // TryGetValue 单次哈希查找，替代 ContainsKey + 索引器的双次查找
+            if (activeNoteObjects.TryGetValue(hitObject, out GameObject noteObject))
             {
-                GameObject noteObject = activeNoteObjects[hitObject];
                 activeNoteObjects.Remove(hitObject);
                 activeNotes = activeNoteObjects.Count;
                 // 视觉反馈
                 // 1. 确定判定位置 (使用物体位置)
-                Vector3 hitPos = noteObject.transform.position;
+                Vector3 hitPos = noteObject != null ? noteObject.transform.position : Vector3.zero;
                 // 2. 确定颜色
-                Color comboColor = (currentBeatmap.ComboColors != null && currentBeatmap.ComboColors.Count > 0)
+                Color comboColor = (currentBeatmap != null && currentBeatmap.ComboColors != null && currentBeatmap.ComboColors.Count > 0)
                     ? currentBeatmap.ComboColors[hitObject.ComboIndex % currentBeatmap.ComboColors.Count]
                     : Color.white;
 
@@ -1704,13 +1729,12 @@ namespace OsuVR
         /// </summary>
         public void OnNoteMiss(HitObject hitObject)
         {
-            if (activeNoteObjects.ContainsKey(hitObject))
+            if (activeNoteObjects.TryGetValue(hitObject, out GameObject obj))
             {
                 // 1. 移除对象
-                GameObject obj = activeNoteObjects[hitObject];
                 activeNoteObjects.Remove(hitObject);
                 activeNotes = activeNoteObjects.Count;
-                Vector3 missPos = obj.transform.position;
+                Vector3 missPos = obj != null ? obj.transform.position : Vector3.zero;
 
 
                 // 2. 只有在这里才通知 ScoreManager 记 Miss
@@ -1858,9 +1882,14 @@ namespace OsuVR
         {
             isPlaying = false;
             isMusicPlaying = false;
+            bufferStartDspTime = 0;
+            pauseStartDspTime = 0;
 
-            musicSource.Stop();
-            musicSource.time = 0; // 显式重置播放位置，确保重试时从头开始
+            if (musicSource != null)
+            {
+                musicSource.Stop();
+                musicSource.time = 0; // 显式重置播放位置，确保重试时从头开始
+            }
 
             if (autoPlayManager != null)
             {

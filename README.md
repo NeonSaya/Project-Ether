@@ -267,7 +267,7 @@ A: 我们的 SB 引擎参考了 osu!lazer 和 storybrew 的开源实现，力求
 * **[osu!lazer](https://github.com/ppy/osu)**: Storyboard 命令求值逻辑的核心参考。其时间轴状态机、Loop 动态迭代、属性优先级等设计，为本项目的 SB 引擎提供了最权威的实现依据。
 * **[storybrew](https://github.com/Damnae/storybrew)**: Storyboard 编辑器与渲染推演的参考标杆。其命令时间轴系统、缓动函数实现、Loop/Trigger 运行时解析、以及 Sprite 合成逻辑，帮助我们逐一校准了渲染管线的每一个细节。
 * **[osu-droid](https://github.com/osudroid/osu-droid)**: 其久经考验的 C# 开源解析代码，为我们独立手写并实现零误差的顶级谱面解析器 (`OsuParser`) 提供了极其关键且无可替代的参考。
-* **[OsuParsers](https://github.com/Jerry1344/OsuParsers)**: 轻量级 .osu/.osb 文件格式解析库。其清晰的解码器架构与数据模型设计，为我们的谱面解析器补全与校验提供了重要的对照参考。
+* **[OsuParsers](https://github.com/mrflashstudio/OsuParsers)**: 轻量级 .osu/.osb 文件格式解析库。其清晰的解码器架构与数据模型设计，为我们的谱面解析器补全与校验提供了重要的对照参考。
 * **[Lasp](https://github.com/keijiro/Lasp) (by Keijiro Takahashi)**: 大神出品的极低延迟音频分析库，是我们实时捕获高精度 FFT 数据流的终极基石。
 * **[AudioLink](https://github.com/llealloo/vrc-udon-audio-link)**: 源自 VRChat 极客社区的革命性系统，为本项目的“音频数据驱动视觉”（Audio-Reactive Visuals）带来了前所未有的无限可能。
 * **[X-PostProcessing-Library](https://github.com/QianMo/X-PostProcessing-Library) (by 浅墨)**: 提供了无比惊艳的 URP 定制化后期处理大片级滤镜库，极大拔高了项目的画面张力上限。在此深切缅怀 浅墨 大神。
