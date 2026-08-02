@@ -243,6 +243,17 @@ namespace OsuVR
             StartCountdown();
         }
 
+        /// <summary>
+        /// 供暂停键（Y/B/Esc）调用：等价于点击“继续”按钮，走3秒倒计时流程。
+        /// 倒计时进行中忽略重复请求，避免按键重置倒计时。
+        /// </summary>
+        public void RequestContinue()
+        {
+            if (isCountingDown) return;
+            if (!isPaused) return;
+            OnContinueClicked();
+        }
+
         void OnRetryClicked()
         {
             PlayClickSound();

@@ -58,6 +58,7 @@ namespace OsuVR
         private static readonly int PropBaseColor = Shader.PropertyToID("_BaseColor");
         private static readonly int PropTintColor = Shader.PropertyToID("_TintColor");
         private static readonly int PropEmissionColor = Shader.PropertyToID("_EmissionColor");
+        private static readonly int PropZWrite = Shader.PropertyToID("_ZWrite");
         // 缓存已克隆的材质，避免 .material 每次复用时泄漏新实例
         private static readonly Dictionary<int, Material> _clonedMaterials = new Dictionary<int, Material>();
         // 添加一个变量来防止第一帧暴毙
@@ -328,7 +329,7 @@ namespace OsuVR
 
                 var mat = GetOrCloneMaterial(r);
                 mat.renderQueue = targetQueue;
-                mat.SetInt("_ZWrite", 0);
+                if (mat.HasProperty(PropZWrite)) mat.SetInt(PropZWrite, 0);
 
                 // Overlay 保持半透明白色，不应用 combo 颜色
                 if (objName.Contains("Overlay")) continue;
@@ -484,6 +485,9 @@ namespace OsuVR
         {
             if (!isActive) return;
 
+            // 防御: 池中对象可能在 Initialize 之前被 Unity 调度 Update
+            if (hitObject == null) return;
+
             // 1. 获取精准时间
             if (gameManager != null)
             {
@@ -511,7 +515,9 @@ namespace OsuVR
                 // 如果你的预制体是 3D 的 (如 Cylinder)，把 z 设为 0.01f 可以强行压扁
                 approachCircle.localScale = new Vector3(currentScale, currentScale, 1f);
 
-                approachCircle.LookAt(MainCamera.transform);
+                // 防御: VR 相机在场景切换瞬间可能为 null，避免每帧 NRE
+                Camera cam = MainCamera;
+                if (cam != null) approachCircle.LookAt(cam.transform);
             }
 
             // 判定移到 Update 末尾: 与射线检测同帧执行，消除一帧延迟
@@ -525,7 +531,7 @@ namespace OsuVR
         {
             if (hasBeenHit) return;
 
-            if (gameManager == null) return;
+            if (gameManager == null || hitObject == null) return;
 
             double now = gameManager.GetCurrentMusicTimeMs();
             double diff = now - hitObject.StartTime;
@@ -805,6 +811,41 @@ namespace OsuVR
             else
             {
                 Destroy(gameObject); // 兜底：如果池子没了直接销毁
+            }
+        }
+
+        /// <summary>
+        /// 物体被真正销毁时（切场景/池收缩），释放本物体名下的克隆材质，
+        /// 防止 _clonedMaterials 静态字典跨场景累积已失效的 Material 实例
+        /// </summary>
+        void OnDestroy()
+        {
+            if (allRenderers != null)
+            {
+                foreach (var r in allRenderers)
+                {
+                    if (r == null) continue;
+                    int id = r.GetInstanceID();
+                    if (_clonedMaterials.TryGetValue(id, out var mat))
+                    {
+                        _clonedMaterials.Remove(id);
+                        if (mat != null) Destroy(mat);
+                    }
+                }
+            }
+
+            if (haloObject != null)
+            {
+                var haloRenderer = haloObject.GetComponent<MeshRenderer>();
+                if (haloRenderer != null)
+                {
+                    int id = haloRenderer.GetInstanceID();
+                    if (_clonedMaterials.TryGetValue(id, out var mat))
+                    {
+                        _clonedMaterials.Remove(id);
+                        if (mat != null) Destroy(mat);
+                    }
+                }
             }
         }
 
