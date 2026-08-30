@@ -100,7 +100,7 @@ namespace OsuVR
             public List<SongIndexEntry> entries = new List<SongIndexEntry>();
         }
 
-        private const int IndexCacheVersion = 1;
+        private const int IndexCacheVersion = 2; // 解析逻辑变更时 +1，使旧缓存自动失效重建
         private static string IndexCachePath => Path.Combine(Application.persistentDataPath, "song_index.json");
 
         private enum Section
@@ -259,6 +259,11 @@ namespace OsuVR
             bool hasExplicitHP = false;
             double lastHitObjectTime = 0;
 
+            // 红线 (uninherited timing points)，按文件顺序收集，用于主导 BPM 与滑条时长计算
+            var redLines = new List<(double time, double beatLength)>();
+            // osu! 默认 1.4，滑行速度 = 100 * SliderMultiplier (px/拍)
+            float sliderMultiplier = 1.4f;
+
             try
             {
                 foreach (var rawLine in File.ReadLines(filePath))
@@ -291,16 +296,16 @@ namespace OsuVR
                             ParseMetadata(line, meta);
                             break;
                         case Section.Difficulty:
-                            ParseDifficulty(line, meta, ref hasExplicitAR, ref hasExplicitOD, ref hasExplicitCS, ref hasExplicitHP);
+                            ParseDifficulty(line, meta, ref hasExplicitAR, ref hasExplicitOD, ref hasExplicitCS, ref hasExplicitHP, ref sliderMultiplier);
                             break;
                         case Section.Events:
                             ParseEvents(line, meta, ref section);
                             break;
                         case Section.TimingPoints:
-                            ParseTimingPoints(line, meta);
+                            ParseTimingPoints(line, redLines);
                             break;
                         case Section.HitObjects:
-                            double hitTime = ParseHitObjectTime(line);
+                            double hitTime = ParseHitObjectTime(line, sliderMultiplier, redLines);
                             if (hitTime > lastHitObjectTime)
                                 lastHitObjectTime = hitTime;
                             break;
@@ -308,15 +313,17 @@ namespace OsuVR
                 }
 
                 meta.Length = (float)lastHitObjectTime;
-                return FinalizeMetadata(meta, hasExplicitAR);
+                return FinalizeMetadata(meta, hasExplicitAR, redLines, lastHitObjectTime);
             }
-            catch
+            catch (Exception e)
             {
+                // 坏谱不再静默丢失：记录文件名与原因，便于排查库中问题谱面
+                Debug.LogWarning($"[SongMetaLoader] 谱面解析失败，已跳过: {Path.GetFileName(filePath)} - {e.Message}");
                 return null;
             }
         }
 
-        private static double ParseHitObjectTime(string line)
+        private static double ParseHitObjectTime(string line, float sliderMultiplier, List<(double time, double beatLength)> redLines)
         {
             string[] parts = line.Split(',');
             if (parts.Length < 3) return 0;
@@ -333,7 +340,9 @@ namespace OsuVR
                         if (double.TryParse(parts[7], NumberStyles.Float, CultureInfo.InvariantCulture, out pixelLength))
                         {
                             if (parts.Length > 6) int.TryParse(parts[6], out repeatCount);
-                            double sliderDuration = pixelLength * repeatCount * 2.4;
+                            // osu! 官方公式：时长 = 长度 / (100 * SliderMultiplier) 拍 * beatLength * 折返数
+                            double beatLength = GetBeatLengthAt(redLines, time);
+                            double sliderDuration = pixelLength / (100.0 * sliderMultiplier) * beatLength * repeatCount;
                             return time + sliderDuration;
                         }
                     }
@@ -348,6 +357,20 @@ namespace OsuVR
                 return time;
             }
             return 0;
+        }
+
+        /// <summary>
+        /// 获取指定时间点生效的红线 beatLength（红线按文件顺序即时间序），兜底 120BPM
+        /// </summary>
+        private static double GetBeatLengthAt(List<(double time, double beatLength)> redLines, double time)
+        {
+            double beat = 500.0; // 120 BPM
+            for (int i = 0; i < redLines.Count; i++)
+            {
+                if (redLines[i].time <= time) beat = redLines[i].beatLength;
+                else break;
+            }
+            return beat;
         }
 
         private static void ParseGeneral(string line, BeatmapMetadata meta)
@@ -406,7 +429,8 @@ namespace OsuVR
         }
 
         private static void ParseDifficulty(string line, BeatmapMetadata meta,
-            ref bool hasExplicitAR, ref bool hasExplicitOD, ref bool hasExplicitCS, ref bool hasExplicitHP)
+            ref bool hasExplicitAR, ref bool hasExplicitOD, ref bool hasExplicitCS, ref bool hasExplicitHP,
+            ref float sliderMultiplier)
         {
             int colonIndex = line.IndexOf(':');
             if (colonIndex < 0) return;
@@ -444,6 +468,12 @@ namespace OsuVR
                         hasExplicitAR = true;
                     }
                     break;
+                case "SliderMultiplier":
+                    if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float sm) && sm > 0)
+                    {
+                        sliderMultiplier = sm;
+                    }
+                    break;
             }
         }
 
@@ -459,7 +489,7 @@ namespace OsuVR
             }
         }
 
-        private static void ParseTimingPoints(string line, BeatmapMetadata meta)
+        private static void ParseTimingPoints(string line, List<(double time, double beatLength)> redLines)
         {
             string[] parts = line.Split(',');
             if (parts.Length < 2) return;
@@ -471,27 +501,38 @@ namespace OsuVR
 
                 if (uninherited && beatLength > 0)
                 {
-                    float bpm = 60000f / (float)beatLength;
-                    if (meta.BPM < 1f || bpm < meta.BPM)
-                    {
-                        meta.BPM = bpm;
-                    }
+                    redLines.Add((time, beatLength));
                 }
             }
         }
 
-        private static BeatmapMetadata FinalizeMetadata(BeatmapMetadata meta, bool hasExplicitAR)
+        private static BeatmapMetadata FinalizeMetadata(BeatmapMetadata meta, bool hasExplicitAR,
+            List<(double time, double beatLength)> redLines, double lastHitObjectTime)
         {
+            // 无显式 AR 时沿用 osu! 规则：AR = OD（与文件格式版本无关，原 if/else 两分支相同）
             if (!hasExplicitAR)
             {
-                if (meta.FileFormatVersion < 8)
+                meta.ApproachRate = meta.OverallDifficulty;
+            }
+
+            // 主导 BPM：按每条红线的生效时长加权，取覆盖时间最长者（替代原先简单的最小值）
+            if (redLines.Count > 0)
+            {
+                double bestBeat = redLines[0].beatLength;
+                double bestWeight = -1;
+                for (int i = 0; i < redLines.Count; i++)
                 {
-                    meta.ApproachRate = meta.OverallDifficulty;
+                    double end = (i + 1 < redLines.Count)
+                        ? redLines[i + 1].time
+                        : Math.Max(lastHitObjectTime, redLines[i].time);
+                    double weight = Math.Max(0, end - redLines[i].time);
+                    if (weight > bestWeight)
+                    {
+                        bestWeight = weight;
+                        bestBeat = redLines[i].beatLength;
+                    }
                 }
-                else
-                {
-                    meta.ApproachRate = meta.OverallDifficulty;
-                }
+                meta.BPM = (float)(60000.0 / bestBeat);
             }
 
             meta.CircleSize = Mathf.Clamp(meta.CircleSize, 0f, 10f);
