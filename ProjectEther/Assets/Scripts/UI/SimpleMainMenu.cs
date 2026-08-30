@@ -34,7 +34,8 @@ namespace OsuVR
         [Header("版本信息")]
         public string gameTitle = "Project Ether";
         public string subtitle = "\u4EE5\u592A\u8BA1\u5212"; // 以太计划
-        private const string version = "v0.7.3";
+        // 版本号自动同步项目设置中的 bundleVersion（Application.version），无需手动硬编码
+        private static string version => $"v{Application.version}";
 
         // ---- 布局常量（复刻原 Prefab） ----
         private const float CanvasLocalZ = 1.5f;
