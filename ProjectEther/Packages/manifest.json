@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.ivanmurzak.unity.mcp": "0.90.0",
     "com.llealloo.audiolink": "https://github.com/llealloo/vrc-udon-audio-link.git?path=/Packages/com.llealloo.audiolink",
     "com.unity.2d.sprite": "1.0.0",
     "com.unity.collab-proxy": "2.11.2",
@@ -59,6 +60,14 @@
       "url": "https://registry.npmjs.com",
       "scopes": [
         "jp.keijiro"
+      ]
+    },
+    {
+      "name": "package.openupm.com",
+      "url": "https://package.openupm.com",
+      "scopes": [
+        "com.ivanmurzak",
+        "extensions.unity"
       ]
     }
   ]

@@ -443,6 +443,10 @@ namespace OsuVR
             {
                 foreach (var nested in this.sliderData.NestedHitObjects)
                 {
+                    // 运行时判定状态重置：重试时复用的是同一份解析期数据，
+                    // 上一局写入的 IsHit 会导致本局 Tick 视觉被 UpdateVisuals 隐藏
+                    nested.IsHit = false;
+
                     if (!nested.IsTimeFixed && nested.Time < this.sliderData.StartTime)
                     {
                         nested.Time += this.sliderData.StartTime;

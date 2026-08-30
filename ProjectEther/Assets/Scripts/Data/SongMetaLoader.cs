@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -7,6 +8,7 @@ using UnityEngine.Scripting;
 namespace OsuVR
 {
     [Preserve]
+    [Serializable]
     public class BeatmapMetadata
     {
         public string Title;
@@ -27,6 +29,7 @@ namespace OsuVR
         public float OverallDifficulty = 5f;
         public float HPDrainRate = 5f;
         public int FileFormatVersion = 14;
+        public int Mode = 0; // 0=osu!, 1=taiko, 2=ctb, 3=mania；本游戏仅支持 0
 
         public string GetDisplayTitle(bool useOriginalLanguage)
         {
@@ -77,6 +80,29 @@ namespace OsuVR
 
     public static class SongMetaLoader
     {
+        // =========================================================
+        // 谱面索引缓存：按 .osu 路径键控，mtime+文件大小校验命中。
+        // 无效谱面（坏谱/非 osu! 模式）做负缓存，避免每次进选曲重扫全库。
+        // =========================================================
+        [Serializable]
+        private class SongIndexEntry
+        {
+            public string path;            // .osu 绝对路径
+            public long lastWriteTicks;    // LastWriteTimeUtc.Ticks
+            public long fileSize;
+            public BeatmapMetadata meta;   // null = 已知无效（坏谱/非 osu! 模式）
+        }
+
+        [Serializable]
+        private class SongIndexCache
+        {
+            public int version = 1;
+            public List<SongIndexEntry> entries = new List<SongIndexEntry>();
+        }
+
+        private const int IndexCacheVersion = 1;
+        private static string IndexCachePath => Path.Combine(Application.persistentDataPath, "song_index.json");
+
         private enum Section
         {
             None,
@@ -91,10 +117,30 @@ namespace OsuVR
 
         public static List<BeatmapMetadata> ScanSongFolder()
         {
-            List<BeatmapMetadata> maps = new List<BeatmapMetadata>();
+            return ScanAllWithCache();
+        }
+
+        /// <summary>
+        /// 全库扫描（带缓存）：只有新增/变更的 .osu 才重新解析，
+        /// 命中缓存的复用元数据，删除的文件自动从缓存剔除。
+        /// </summary>
+        private static List<BeatmapMetadata> ScanAllWithCache()
+        {
+            var result = new List<BeatmapMetadata>();
             string rootPath = BeatmapImporter.SongsDirectory;
 
-            if (!Directory.Exists(rootPath)) return maps;
+            if (!Directory.Exists(rootPath)) return result;
+
+            var cache = LoadIndexCache();
+            var cacheMap = new Dictionary<string, SongIndexEntry>();
+            foreach (var e in cache.entries)
+            {
+                if (e != null && !string.IsNullOrEmpty(e.path))
+                    cacheMap[e.path] = e;
+            }
+
+            var newEntries = new List<SongIndexEntry>();
+            bool dirty = false;
 
             string[] songDirs = Directory.GetDirectories(rootPath);
             foreach (var dir in songDirs)
@@ -102,57 +148,103 @@ namespace OsuVR
                 string[] osuFiles = Directory.GetFiles(dir, "*.osu");
                 foreach (var osuFile in osuFiles)
                 {
-                    BeatmapMetadata meta = ParseHeader(osuFile);
-                    if (meta != null)
+                    var fi = new FileInfo(osuFile);
+
+                    bool hit = cacheMap.TryGetValue(osuFile, out SongIndexEntry entry)
+                        && entry.lastWriteTicks == fi.LastWriteTimeUtc.Ticks
+                        && entry.fileSize == fi.Length;
+
+                    if (!hit)
                     {
-                        meta.FolderPath = dir;
-                        meta.OsuFilePath = osuFile;
-                        maps.Add(meta);
+                        entry = new SongIndexEntry
+                        {
+                            path = osuFile,
+                            lastWriteTicks = fi.LastWriteTimeUtc.Ticks,
+                            fileSize = fi.Length,
+                            meta = ParseHeader(osuFile) // 坏谱/非 osu! 模式返回 null（负缓存）
+                        };
+                        dirty = true;
                     }
+
+                    newEntries.Add(entry);
+
+                    if (entry.meta == null) continue; // 已知无效，不入列表
+
+                    entry.meta.FolderPath = dir;
+                    entry.meta.OsuFilePath = osuFile;
+                    result.Add(entry.meta);
                 }
             }
-            return maps;
+
+            // 文件被删除（newEntries 变少）或有新增/变更时，回写缓存
+            if (dirty || newEntries.Count != cache.entries.Count)
+            {
+                cache.entries = newEntries;
+                SaveIndexCache(cache);
+            }
+
+            return result;
+        }
+
+        private static SongIndexCache LoadIndexCache()
+        {
+            try
+            {
+                if (File.Exists(IndexCachePath))
+                {
+                    string json = File.ReadAllText(IndexCachePath);
+                    var cache = JsonUtility.FromJson<SongIndexCache>(json);
+                    if (cache != null && cache.version == IndexCacheVersion && cache.entries != null)
+                        return cache;
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[SongMetaLoader] 谱面索引缓存读取失败，将重建: {e.Message}");
+            }
+            return new SongIndexCache { version = IndexCacheVersion };
+        }
+
+        private static void SaveIndexCache(SongIndexCache cache)
+        {
+            try
+            {
+                File.WriteAllText(IndexCachePath, JsonUtility.ToJson(cache));
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[SongMetaLoader] 谱面索引缓存写入失败: {e.Message}");
+            }
         }
 
         public static List<BeatmapSet> ScanSongFolderGrouped()
         {
             List<BeatmapSet> sets = new List<BeatmapSet>();
-            string rootPath = BeatmapImporter.SongsDirectory;
+            var setMap = new Dictionary<string, BeatmapSet>();
 
-            if (!Directory.Exists(rootPath)) return sets;
-
-            string[] songDirs = Directory.GetDirectories(rootPath);
-            foreach (var dir in songDirs)
+            var metas = ScanAllWithCache();
+            foreach (var meta in metas)
             {
-                BeatmapSet set = new BeatmapSet
+                if (!setMap.TryGetValue(meta.FolderPath, out BeatmapSet set))
                 {
-                    FolderPath = dir
-                };
-
-                string[] osuFiles = Directory.GetFiles(dir, "*.osu");
-                foreach (var osuFile in osuFiles)
-                {
-                    BeatmapMetadata meta = ParseHeader(osuFile);
-                    if (meta != null)
-                    {
-                        meta.FolderPath = dir;
-                        meta.OsuFilePath = osuFile;
-                        set.Difficulties.Add(meta);
-
-                        if (string.IsNullOrEmpty(set.Title))
-                            set.Title = meta.Title;
-                        if (string.IsNullOrEmpty(set.Artist))
-                            set.Artist = meta.Artist;
-                        if (string.IsNullOrEmpty(set.BackgroundPath) && !string.IsNullOrEmpty(meta.BackgroundFilename))
-                            set.BackgroundPath = Path.Combine(dir, meta.BackgroundFilename);
-                    }
-                }
-
-                if (set.Difficulties.Count > 0)
-                {
-                    set.Difficulties.Sort((a, b) => a.OverallDifficulty.CompareTo(b.OverallDifficulty));
+                    set = new BeatmapSet { FolderPath = meta.FolderPath };
+                    setMap[meta.FolderPath] = set;
                     sets.Add(set);
                 }
+
+                set.Difficulties.Add(meta);
+
+                if (string.IsNullOrEmpty(set.Title))
+                    set.Title = meta.Title;
+                if (string.IsNullOrEmpty(set.Artist))
+                    set.Artist = meta.Artist;
+                if (string.IsNullOrEmpty(set.BackgroundPath) && !string.IsNullOrEmpty(meta.BackgroundFilename))
+                    set.BackgroundPath = Path.Combine(meta.FolderPath, meta.BackgroundFilename);
+            }
+
+            foreach (var set in sets)
+            {
+                set.Difficulties.Sort((a, b) => a.OverallDifficulty.CompareTo(b.OverallDifficulty));
             }
             return sets;
         }
@@ -274,6 +366,10 @@ namespace OsuVR
                 case "PreviewTime":
                     int.TryParse(value, out int preview);
                     meta.PreviewTime = preview;
+                    break;
+                case "Mode":
+                    int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int mode);
+                    meta.Mode = mode;
                     break;
             }
         }
@@ -404,6 +500,16 @@ namespace OsuVR
             meta.HPDrainRate = Mathf.Clamp(meta.HPDrainRate, 0f, 10f);
 
             if (string.IsNullOrEmpty(meta.AudioFilename)) return null;
+
+            // 过滤非 osu! 模式谱面（taiko/ctb/mania），按难度粒度跳过：
+            // 混模式的谱集会只保留 osu! 难度，整个谱面被按 osu! 解析会产生乱谱
+            if (meta.Mode != 0)
+            {
+#if UNITY_EDITOR
+                Debug.Log($"[SongMetaLoader] 跳过非 osu! 模式谱面 (Mode={meta.Mode}): {meta.Title} [{meta.Version}]");
+#endif
+                return null;
+            }
 
             return meta;
         }
