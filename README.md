@@ -3,7 +3,7 @@
 ![Unity](https://img.shields.io/badge/Made%20with-Unity%202022.3%20LTS-black?style=flat&logo=unity)
 ![C#](https://img.shields.io/badge/Language-C%23-blue)
 ![Platform](https://img.shields.io/badge/Platform-PC%20VR%20%2F%20Standalone%20VR%20(OpenXR)-green)
-![Status](https://img.shields.io/badge/Status-v0.7.3-brightgreen)
+![Status](https://img.shields.io/badge/Status-v0.7.4-brightgreen)
 
 **中文** | [English](README_EN.md)
 
@@ -17,7 +17,7 @@
 
 你可以利用手中的虚拟射线，在纯粹的音波起伏与绚丽的光影交错中，轻松惬意地享受每一首高质量 osu! 谱面带来的视听震撼。
 
-> 🟢 **当前状态：v0.7.3**
+> 🟢 **当前状态：v0.7.4**
 
 > 核心链路（启动 -> 选曲 -> 游玩 -> 结算）完全打通。单点 (Circle)、滑条 (Slider)、转盘 (Spinner) 的生成与计分系统均已完备。Storyboard 全指令解析 + GPU 实例化渲染已上线，参考 osu!lazer 与 storybrew 的命令评估逻辑，支持视频背景播放与三层独立合成渲染。底层已全面引入 Unity Jobs + Burst 多线程架构，Storyboard 全链路多线程化。亮度与不透明度通过设置面板统一控制，三层管线预乘 alpha 混合保证一致的视觉表现。
 >
@@ -95,7 +95,7 @@ Assets/
 ### 1. 一首歌是怎么在屏幕上跑起来的？(核心数据流向)
 理解数据流是理解本项目架构的绝对关键：
 * **解析阶段 (Parsing)**: 当玩家在选歌界面 (`SongSelectScene`) 选中一首心仪的曲目后，跨场景单例 `GameContext` 会将其路径默默记下。场景切换至 `GameScene` 后，`OsuParser` 瞬间介入，将复杂的 `.osu` 文本按行拆解，精准翻译为内存中结构化的 `Beatmap` 数据模型。
-* **映射阶段 (Mapping)**: 紧接着，数学魔术师 `CoordinateMapper` 开始工作。它提取每一个音符的 2D 坐标，运用三角函数将其从平坦的二维屏幕“捏弯”，精确部署到以玩家头部为圆心的 3D 环形曲面上的对应位置。
+* **映射阶段 (Mapping)**: 紧接着，`CoordinateMapper` 开始工作。它提取每一个音符的 2D 坐标，将 osu! 的 512×384 游玩区域等比映射到玩家前方约 2 米、视线高度处一块 1.5 米 × 1.1 米的竖直打击平面上，忠实还原原版 osu! 的平面游玩体验。
 * **生成阶段 (Spawning)**: 引擎总指挥 `RhythmGameManager` 开始监听极其底层的硬件音频时间 (DSP Time)。它会根据谱面的缩圈速度 (AR)，提前计算好提前量，并呼叫后勤部长 `NotePoolManager`，从对象池中将沉睡的音符一个接一个地唤醒 (Spawn) 到玩家面前。
 * **判定阶段 (Judgement)**: 当玩家的射线触碰到音符时，铁血裁判 `ScoreManager` 会在一毫秒内算出你的操作误差，决定你是 Great 还是 Miss。随后，它立即向视觉部门 `JudgementVisualizer` 发送信号，在对应的 3D 坐标引爆绚丽的命中文字与光晕。
 

@@ -330,7 +330,6 @@ GameObject:
   - component: {fileID: 4853651860894337067}
   - component: {fileID: 6597355342681302920}
   - component: {fileID: -1637953178495709404}
-  - component: {fileID: -4500134418609693527}
   - component: {fileID: 5177908724939746381}
   m_Layer: 6
   m_Name: HitCircle_Prefab
@@ -430,22 +429,6 @@ MonoBehaviour:
   isHovered: 0
   approachCircleObject: {fileID: 4241342781259666631}
   glowIntensity: 3.5
---- !u!114 &-4500134418609693527
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5026766453584379729}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d6a3b39a0779bd04db07af30828f0095, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  isRelaxEnabled: 1
-  hitTimingOffsetMs: -20
-  missWindowMs: 150
-  latchMemoryMs: 50
 --- !u!135 &5177908724939746381
 SphereCollider:
   m_ObjectHideFlags: 0

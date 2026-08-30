@@ -3,7 +3,7 @@
 ![Unity](https://img.shields.io/badge/Made%20with-Unity%202022.3%20LTS-black?style=flat&logo=unity)
 ![C#](https://img.shields.io/badge/Language-C%23-blue)
 ![Platform](https://img.shields.io/badge/Platform-PC%20VR%20%2F%20Standalone%20VR%20(OpenXR)-green)
-![Status](https://img.shields.io/badge/Status-v0.7.3-brightgreen)
+![Status](https://img.shields.io/badge/Status-v0.7.4-brightgreen)
 
 [中文](README.md) | **English**
 
@@ -17,7 +17,7 @@ Our ambition goes beyond simply porting 2D notes into 3D space — we aim to **c
 
 Using virtual ray pointers in your hands, you can effortlessly enjoy the audiovisual thrill of every high-quality osu! beatmap amidst pure sound waves and dazzling light effects.
 
-> 🟢 **Current Status: v0.7.3**
+> 🟢 **Current Status: v0.7.4**
 
 > The core loop (Launch -> Song Select -> Play -> Result) is fully functional. Generation and scoring systems for Circle, Slider, and Spinner are all complete. Storyboard full-command parsing + GPU instanced rendering is live, referencing osu!lazer and storybrew's command evaluation logic, with video background playback and three-layer compositing rendering support. The underlying architecture has fully adopted Unity Jobs + Burst multithreading, with the entire Storyboard pipeline multithreaded. Brightness and opacity are controlled via a unified settings panel, with three-layer premultiplied alpha blending ensuring consistent visual output.
 >
@@ -96,7 +96,7 @@ Want to fork our project for deep customization or personal modifications? You'r
 ### 1. How Does a Song Run on Screen? (Core Data Flow)
 Understanding the data flow is absolutely key to understanding this project's architecture:
 * **Parsing Stage**: When a player selects a song in the song selection screen (`SongSelectScene`), the cross-scene singleton `GameContext` silently records its path. After scene transition to `GameScene`, `OsuParser` instantly steps in, parsing the complex `.osu` text line by line and accurately translating it into a structured `Beatmap` data model in memory.
-* **Mapping Stage**: Next, the mathematical wizard `CoordinateMapper` gets to work. It extracts each note's 2D coordinates, applies trigonometric functions to "bend" them from a flat 2D screen, and precisely deploys them to corresponding positions on a 3D curved ring surface centered on the player's head.
+* **Mapping Stage**: Next, `CoordinateMapper` gets to work. It extracts each note's 2D coordinates and linearly maps the osu! 512×384 playfield onto a 1.5m × 1.1m vertical striking plane positioned about 2 meters in front of the player at eye level, faithfully recreating the classic flat osu! playfield experience.
 * **Spawning Stage**: The engine conductor `RhythmGameManager` starts monitoring the extremely low-level hardware audio time (DSP Time). Based on the beatmap's approach rate (AR), it pre-calculates the advance amount and calls the logistics chief `NotePoolManager` to awaken sleeping notes one by one from the object pool (Spawn) in front of the player.
 * **Judgement Stage**: When the player's ray touches a note, the iron-fisted judge `ScoreManager` calculates your operation error within a millisecond, determining whether it's a Great or Miss. It then immediately signals the visual department `JudgementVisualizer` to detonate dazzling hit text and glow effects at the corresponding 3D coordinates.
 

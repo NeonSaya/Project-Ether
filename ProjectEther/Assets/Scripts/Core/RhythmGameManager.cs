@@ -7,10 +7,7 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
-using Unity.Jobs;
-using Unity.Burst;
 using Unity.Collections;
-using Unity.Mathematics;
 using OsuVR;
 using OsuVR.Storyboard;
 using OsuVR.Storyboard.Data;
@@ -148,36 +145,14 @@ namespace OsuVR
         private float speedMultiplier = 1f;
 
         // =========================================================
-        //  Phase 3: SoA 扁平化数据 + Burst 预计算
+        //  Phase 3: SoA 扁平化数据
         // =========================================================
 
         // 音符核心数据 (SoA 设计, Allocator.Persistent)
         NativeArray<double> _noteSpawnTimes;      // 每个音符的 spawn 时间
-        NativeArray<float3> _noteWorldPositions;   // 预计算的世界坐标 (Burst MapToWorld)
         NativeArray<int> _noteTypes;               // 0=Circle, 1=Slider, 2=Spinner
         NativeArray<double> _noteStartTimes;       // 每个音符的 StartTime
         bool _noteDataInitialized = false;
-
-        // Burst Job: osu! 坐标 → 世界坐标 (纯数学, 完美 Burst 兼容)
-        [BurstCompile]
-        struct MapToWorldJob : IJobParallelFor
-        {
-            [ReadOnly] public NativeArray<float2> OsuPositions;
-            [WriteOnly] public NativeArray<float3> WorldPositions;
-
-            // CoordinateMapper 常量 (运行时不可变)
-            public float OSU_W, OSU_H, TARGET_W, TARGET_H, TARGET_DIST;
-
-            public void Execute(int i)
-            {
-                float2 pos = OsuPositions[i];
-                float nx = (pos.x / OSU_W) - 0.5f;
-                float ny = (pos.y / OSU_H) - 0.5f;
-                float worldX = nx * TARGET_W;
-                float worldY = -ny * TARGET_H;
-                WorldPositions[i] = new float3(worldX, worldY + 0.5f, TARGET_DIST);
-            }
-        }
 
         // 静态计算公式
         public static double CalculateTimePreempt(float ar)
@@ -977,7 +952,7 @@ namespace OsuVR
         }
 
         // =========================================================
-        //  Phase 3: SoA 扁平化 + Burst MapToWorld 预计算
+        //  Phase 3: SoA 扁平化
         // =========================================================
 
         void InitializeNoteData()
@@ -991,46 +966,28 @@ namespace OsuVR
 
             // 1. 创建 SoA NativeArray (Allocator.Persistent)
             _noteSpawnTimes = new NativeArray<double>(count, Allocator.Persistent);
-            _noteWorldPositions = new NativeArray<float3>(count, Allocator.Persistent);
             _noteTypes = new NativeArray<int>(count, Allocator.Persistent);
             _noteStartTimes = new NativeArray<double>(count, Allocator.Persistent);
 
             // 2. 填充 spawn times + types (主线程: 访问 OOP 数据)
-            var osuPositions = new NativeArray<float2>(count, Allocator.TempJob);
             for (int i = 0; i < count; i++)
             {
                 var obj = hitObjects[i];
                 _noteSpawnTimes[i] = obj.StartTime - obj.TimePreempt;
                 _noteStartTimes[i] = obj.StartTime;
-                osuPositions[i] = new float2(obj.Position.x, obj.Position.y);
 
                 if (obj is SpinnerObject) _noteTypes[i] = 2;
                 else if (obj is SliderObject) _noteTypes[i] = 1;
                 else _noteTypes[i] = 0;
             }
 
-            // 3. Burst Job: 批量 osu! → 世界坐标 (约束: 加载期全量预计算, 运行时零计算)
-            var mapJob = new MapToWorldJob
-            {
-                OsuPositions = osuPositions,
-                WorldPositions = _noteWorldPositions,
-                OSU_W = 512f,
-                OSU_H = 384f,
-                TARGET_W = 1.5f,
-                TARGET_H = 1.1f,
-                TARGET_DIST = 2.0f
-            };
-            mapJob.Schedule(count, 64).Complete();
-            osuPositions.Dispose();
-
             _noteDataInitialized = true;
-            Debug.Log($"[Phase3] NoteData 初始化完成: {count} 音符, 世界坐标已预计算");
+            Debug.Log($"[Phase3] NoteData 初始化完成: {count} 音符");
         }
 
         void DisposeNoteData()
         {
             if (_noteSpawnTimes.IsCreated) _noteSpawnTimes.Dispose();
-            if (_noteWorldPositions.IsCreated) _noteWorldPositions.Dispose();
             if (_noteTypes.IsCreated) _noteTypes.Dispose();
             if (_noteStartTimes.IsCreated) _noteStartTimes.Dispose();
             _noteDataInitialized = false;

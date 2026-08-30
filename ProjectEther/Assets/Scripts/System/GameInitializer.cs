@@ -8,7 +8,6 @@ namespace OsuVR
         static void InitializeGame()
         {
             CreateGameContext();
-            CreateSceneFlowManager();
             CreateUnicodeFontLoader();
         }
 
@@ -19,16 +18,6 @@ namespace OsuVR
                 var go = new GameObject("[GameContext]");
                 go.AddComponent<GameContext>();
                 Debug.Log("[GameInitializer] GameContext 已创建");
-            }
-        }
-
-        static void CreateSceneFlowManager()
-        {
-            if (SceneFlowManager.Instance == null)
-            {
-                var go = new GameObject("[SceneFlowManager]");
-                go.AddComponent<SceneFlowManager>();
-                Debug.Log("[GameInitializer] SceneFlowManager 已创建");
             }
         }
 
