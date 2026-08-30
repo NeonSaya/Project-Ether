@@ -3,7 +3,7 @@
 ![Unity](https://img.shields.io/badge/Made%20with-Unity%202022.3%20LTS-black?style=flat&logo=unity)
 ![C#](https://img.shields.io/badge/Language-C%23-blue)
 ![Platform](https://img.shields.io/badge/Platform-PC%20VR%20%2F%20Standalone%20VR%20(OpenXR)-green)
-![Status](https://img.shields.io/badge/Status-v0.7.3-brightgreen)
+![Status](https://img.shields.io/badge/Status-v0.7.4-brightgreen)
 
 [中文](README.md) | **English**
 
@@ -17,7 +17,7 @@ Our ambition goes beyond simply porting 2D notes into 3D space — we aim to **c
 
 Using virtual ray pointers in your hands, you can effortlessly enjoy the audiovisual thrill of every high-quality osu! beatmap amidst pure sound waves and dazzling light effects.
 
-> 🟢 **Current Status: v0.7.3**
+> 🟢 **Current Status: v0.7.4**
 
 > The core loop (Launch -> Song Select -> Play -> Result) is fully functional. Generation and scoring systems for Circle, Slider, and Spinner are all complete. Storyboard full-command parsing + GPU instanced rendering is live, referencing osu!lazer and storybrew's command evaluation logic, with video background playback and three-layer compositing rendering support. The underlying architecture has fully adopted Unity Jobs + Burst multithreading, with the entire Storyboard pipeline multithreaded. Brightness and opacity are controlled via a unified settings panel, with three-layer premultiplied alpha blending ensuring consistent visual output.
 >

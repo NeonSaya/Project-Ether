@@ -3,7 +3,7 @@
 ![Unity](https://img.shields.io/badge/Made%20with-Unity%202022.3%20LTS-black?style=flat&logo=unity)
 ![C#](https://img.shields.io/badge/Language-C%23-blue)
 ![Platform](https://img.shields.io/badge/Platform-PC%20VR%20%2F%20Standalone%20VR%20(OpenXR)-green)
-![Status](https://img.shields.io/badge/Status-v0.7.3-brightgreen)
+![Status](https://img.shields.io/badge/Status-v0.7.4-brightgreen)
 
 **中文** | [English](README_EN.md)
 
@@ -17,7 +17,7 @@
 
 你可以利用手中的虚拟射线，在纯粹的音波起伏与绚丽的光影交错中，轻松惬意地享受每一首高质量 osu! 谱面带来的视听震撼。
 
-> 🟢 **当前状态：v0.7.3**
+> 🟢 **当前状态：v0.7.4**
 
 > 核心链路（启动 -> 选曲 -> 游玩 -> 结算）完全打通。单点 (Circle)、滑条 (Slider)、转盘 (Spinner) 的生成与计分系统均已完备。Storyboard 全指令解析 + GPU 实例化渲染已上线，参考 osu!lazer 与 storybrew 的命令评估逻辑，支持视频背景播放与三层独立合成渲染。底层已全面引入 Unity Jobs + Burst 多线程架构，Storyboard 全链路多线程化。亮度与不透明度通过设置面板统一控制，三层管线预乘 alpha 混合保证一致的视觉表现。
 >
