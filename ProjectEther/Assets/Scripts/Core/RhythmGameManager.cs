@@ -136,6 +136,11 @@ namespace OsuVR
         private string currentBeatmapPath;
         private Dictionary<HitObject, GameObject> activeNoteObjects = new Dictionary<HitObject, GameObject>();
 
+        /// <summary>音符列表只读视图（供 AutoPlayManager 等外部系统访问，替代反射私有字段）</summary>
+        public IReadOnlyList<HitObject> HitObjects => hitObjects;
+        /// <summary>当前活跃音符对象的只读视图（供 AutoPlayManager 使用，替代反射）</summary>
+        public IReadOnlyDictionary<HitObject, GameObject> ActiveNoteObjects => activeNoteObjects;
+
         private double bufferStartDspTime = 0;
         /// <summary>是否处于缓冲期（音乐尚未开始但已启动游戏）</summary>
         public bool isBufferPhase => !isPlaying && bufferStartDspTime > 0;
@@ -571,8 +576,7 @@ namespace OsuVR
             if (!File.Exists(absoluteOsuFilePath))
             {
                 Debug.LogError($"[Load] 致命错误：文件不存在 -> {absoluteOsuFilePath}");
-                LoadBeatmap();
-                StartGame();
+                ReturnToMenuWithToast("ui_beatmap_load_failed");
                 return;
             }
 
@@ -726,10 +730,23 @@ namespace OsuVR
             catch (System.Exception e)
             {
                 Debug.LogError($"加载失败: {e.Message}\n{e.StackTrace}");
-                // 出错时回退到默认加载
-                LoadBeatmap();
-                StartGame();
+                // 谱面加载失败：提示并返回主菜单
+                // （原逻辑"回退默认加载"在 GameContext 无数据时会二次失败、进入坏状态）
+                ReturnToMenuWithToast("ui_beatmap_load_failed");
             }
+        }
+
+        /// <summary>
+        /// 提示失败原因并返回主菜单（Toast 跨场景存活，切场景后仍可见）
+        /// </summary>
+        private void ReturnToMenuWithToast(string localizationKey)
+        {
+            VRToast.Show(LocalizationManager.GetText(localizationKey), Color.red, 5f);
+            string menuScene = GameContext.Instance != null ? GameContext.Instance.MenuSceneName : "MainMenuScene";
+            if (VRSceneTransitionManager.Instance != null)
+                VRSceneTransitionManager.Instance.TransitionToScene(menuScene);
+            else
+                SceneManager.LoadScene(menuScene);
         }
 
         /// <summary>
@@ -753,6 +770,7 @@ namespace OsuVR
                     Debug.LogError($"[Audio] 尝试加载的路径是: {audioPath}");
 
                     // 即使音频加载失败，也要强行开始游戏 (无声游玩)，否则会卡在黑屏
+                    VRToast.Show(LocalizationManager.GetText("ui_audio_load_failed"), new Color(1f, 0.85f, 0.3f), 5f);
                     StartGame();
                 }
                 else
@@ -795,6 +813,7 @@ namespace OsuVR
                     else
                     {
                         Debug.LogError("下载的 AudioClip 为空！");
+                        VRToast.Show(LocalizationManager.GetText("ui_audio_load_failed"), new Color(1f, 0.85f, 0.3f), 5f);
                         StartGame();
                     }
                 }

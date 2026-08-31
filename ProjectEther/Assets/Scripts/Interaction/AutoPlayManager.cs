@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
-using System.Reflection;
 using UnityEngine.InputSystem.XR;
 using UnityEngine.XR.Interaction.Toolkit;
 
@@ -72,12 +71,11 @@ namespace OsuVR
         private HitObject lastAssignedNote;
         private AutoHand lastAssignedHand;
 
-        private FieldInfo _notesField;
         private List<HitObject> _allNotes;
         private int _noteStartIndex = 0;
         private HashSet<HitObject> _assignedNotes = new HashSet<HitObject>();
 
-        private Dictionary<HitObject, GameObject> _activeObjectsRef;
+        private IReadOnlyDictionary<HitObject, GameObject> _activeObjectsRef;
         private GameObject _tempRoot;
 
         /// <summary>
@@ -89,9 +87,8 @@ namespace OsuVR
 
             _cachedMainCam = Camera.main;
 
-            _notesField = typeof(RhythmGameManager).GetField("hitObjects", BindingFlags.NonPublic | BindingFlags.Instance);
-            var activeObjField = typeof(RhythmGameManager).GetField("activeNoteObjects", BindingFlags.NonPublic | BindingFlags.Instance);
-            if (activeObjField != null) _activeObjectsRef = (Dictionary<HitObject, GameObject>)activeObjField.GetValue(gameManager);
+            // 直接访问公开只读视图（IL2CPP managed stripping 下反射私有字段不可靠）
+            _activeObjectsRef = gameManager.ActiveNoteObjects;
 
             _tempRoot = new GameObject("[AutoPlay_Temp_Hands]");
             _tempRoot.transform.position = Vector3.zero;
@@ -131,17 +128,16 @@ namespace OsuVR
             lastAssignedHand = null;
 
             // 重新获取 hitObjects（谱面可能已重新加载）
-            if (gameManager != null && _notesField != null)
+            if (gameManager != null)
             {
-                var currentNotes = (List<HitObject>)_notesField.GetValue(gameManager);
+                var currentNotes = gameManager.HitObjects;
                 if (currentNotes != null)
                 {
                     _allNotes = currentNotes.OrderBy(n => n.StartTime).ToList();
                     _noteStartIndex = 0;
                     _assignedNotes.Clear();
                 }
-                var activeObjField = typeof(RhythmGameManager).GetField("activeNoteObjects", BindingFlags.NonPublic | BindingFlags.Instance);
-                if (activeObjField != null) _activeObjectsRef = (Dictionary<HitObject, GameObject>)activeObjField.GetValue(gameManager);
+                _activeObjectsRef = gameManager.ActiveNoteObjects;
             }
 
             // 确保 Auto 模式已接管（重试后立即接管）
@@ -782,9 +778,9 @@ namespace OsuVR
         /// </summary>
         private void AssignTasks(double currentTime)
         {
-            if (_notesField == null) return;
+            if (gameManager == null) return;
 
-            var currentNotes = (List<HitObject>)_notesField.GetValue(gameManager);
+            var currentNotes = gameManager.HitObjects;
             if (currentNotes == null) return;
 
             if (_allNotes == null || _allNotes.Count != currentNotes.Count)

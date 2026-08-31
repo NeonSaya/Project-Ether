@@ -112,6 +112,8 @@ namespace OsuVR
         private bool hasStarted = false;     // 滑条是否已经开始
         private bool headHit = false;        // 滑条头是否被击中
         private bool finished = false;       // 滑条是否结束
+        // 上一次 TryHitHead 采样到的 (当前时间 - 打击时间)，用于帧量化修正
+        private double lastHeadCheckDiff = double.NaN;
 
         // 公共属性：供 AutoPlayManager 访问
         public bool IsHeadHit => headHit;
@@ -347,6 +349,7 @@ namespace OsuVR
             }
 
             headHit = false;
+            lastHeadCheckDiff = double.NaN;
             finished = false;
 
             // 重置折返标记状态（对象池复用时必须重置）
@@ -492,6 +495,7 @@ namespace OsuVR
 
             ticksGot = 0;
             headHit = false;
+            lastHeadCheckDiff = double.NaN;
             finished = false;
             currentAlpha = 1f;
             UpdateMaterialAlpha();
@@ -524,6 +528,7 @@ namespace OsuVR
             if (_propBlock != null) _propBlock.Clear();
 
             headHit = false;
+            lastHeadCheckDiff = double.NaN;
             finished = false;
 
             isLeftHandTracking = false;
@@ -1548,6 +1553,9 @@ namespace OsuVR
                 return;
             }
 
+            double prevHeadCheckDiff = lastHeadCheckDiff;
+            lastHeadCheckDiff = offset;
+
             // AutoPlay 模式：允许最多提前 16ms 判定（约一帧），确保精确同步
             // 正常模式：最早判定区间为 -13ms (osu! 标准的提前判定窗口)
             // 加上音效延迟补偿，使音效与视觉打击同步
@@ -1592,6 +1600,12 @@ namespace OsuVR
                 // 3. 计算动态分数 (300/100/50)
                 // AutoPlay 模式：强制判定时间为 0ms
                 double effectiveOffset = isAutoPlay ? 0 : offset;
+                // 帧量化修正：判定窗口在本帧与上次检查之间开启（玩家早已在半径内悬停）时，
+                // 真实命中时刻即窗口边界，而非本帧采样时间（消除 0~1 帧量化误差）
+                // 两次检查间隔大于 40ms 说明射线中途离开过，无法用上次采样推断，回退到当前采样
+                if (!isAutoPlay && !double.IsNaN(prevHeadCheckDiff)
+                    && prevHeadCheckDiff < earlyWindow && (offset - prevHeadCheckDiff) <= 40.0)
+                    effectiveOffset = earlyWindow;
                 double maxWindow = 250.0;
                 double absDiff = System.Math.Abs(effectiveOffset);
                 double accuracy01 = 1.0 - (absDiff / maxWindow);

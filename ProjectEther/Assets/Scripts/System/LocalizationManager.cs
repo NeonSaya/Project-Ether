@@ -127,6 +127,8 @@ namespace OsuVR
                 {"ui_unknown_mapper", new[] {"Unknown", "未知", "不明"}},
                 {"ui_mapped_by", new[] {"Mapped by {0}", "谱师: {0}", "マッパー: {0}"}},
                 {"ui_mods_display", new[] {"Mods: {0}", "Mods: {0}", "モッド: {0}"}},
+                {"ui_beatmap_load_failed", new[] {"Beatmap failed to load, returning to menu", "谱面加载失败，返回主菜单", "譜面の読み込みに失敗しました。メニューに戻ります"}},
+                {"ui_audio_load_failed", new[] {"Audio failed to load, playing without sound", "音频加载失败，将无声游玩", "音声の読み込みに失敗しました。無音でプレイします"}},
             };
         }
 

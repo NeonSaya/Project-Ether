@@ -63,6 +63,8 @@ namespace OsuVR
         private static readonly Dictionary<int, Material> _clonedMaterials = new Dictionary<int, Material>();
         // 添加一个变量来防止第一帧暴毙
         private bool isFirstFrame = true;
+        // 上一次 CheckHitOrMiss 采样到的 (当前时间 - 打击时间)，用于帧量化修正
+        private double lastCheckDiff = double.NaN;
         private MeshRenderer bodyRenderer;
         private MeshRenderer overlayRenderer;
         // 缓存光晕贴图
@@ -454,6 +456,7 @@ namespace OsuVR
             isActive = true;
             hasBeenHit = false;
             isHovered = false;
+            lastCheckDiff = double.NaN;
 
             // 恢复可见性 (防止上一条命是 Miss 导致缩小成 0 了)
             transform.localScale = Vector3.one;
@@ -535,6 +538,8 @@ namespace OsuVR
 
             double now = gameManager.GetCurrentMusicTimeMs();
             double diff = now - hitObject.StartTime;
+            double prevCheckDiff = lastCheckDiff;
+            lastCheckDiff = diff;
 
             // 如果刚生成 diff 就很大，说明 Manager 的时间同步有问题
             if (isFirstFrame)
@@ -572,10 +577,14 @@ namespace OsuVR
             // 条件3: isHovered (被射线指着)
             if (diff >= earlyWindow && diff <= hitWindow)
             {
-                if (isHovered) 
+                if (isHovered)
                 {
                     // AutoPlay 模式：强制判定时间为 0ms
                     double hitAccuracy = isAutoPlay ? 0 : diff;
+                    // 帧量化修正：判定窗口在本帧与上次检查之间开启（玩家早已悬停）时，
+                    // 真实命中时刻即窗口边界，而非本帧采样时间（消除 0~1 帧量化误差）
+                    if (!isAutoPlay && !double.IsNaN(prevCheckDiff) && prevCheckDiff < earlyWindow)
+                        hitAccuracy = earlyWindow;
                     OnHit(hitAccuracy, hoveringHandIsRight);
                 }
             }
