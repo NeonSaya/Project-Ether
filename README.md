@@ -138,7 +138,7 @@ Assets/
    * 找到每个谱面文件夹中的 `.osz` 压缩包（如果没有，可以在 osu! 官网下载页右键谱面选择 "Download .osz"）。
    * 将 `.osz` 文件放入以下路径：
      - **PC**: `C:/Users/<你的用户名>/AppData/LocalLow/Nyaon/ProjectEther/Songs/`
-     - **Android**: `内部存储/Android/data/com.Nyaon.ProjectEther/files/Songs/`（设置界面的导入按钮当前版本存在问题，将在后续版本修复）
+     - **Android**: `内部存储/Android/data/com.Nyaon.ProjectEther/files/Songs/`（也可以在设置界面点击“导入谱面”，通过系统文件选择器直接选择 `.osz` 文件导入，支持多选）
    * 项目启动时会自动扫描并解压 `.osz` 文件，之后就能在选歌界面看到对应的谱面了。也可以在设置界面中直接打开 Songs 文件夹拖入 `.osz`。
 
    > **提示**：如果 `.osz` 是文件夹形式（已解压的谱面），也可以直接放入上述目录。确保每个谱面文件夹内包含 `.osu` 文件、音频文件和背景图。

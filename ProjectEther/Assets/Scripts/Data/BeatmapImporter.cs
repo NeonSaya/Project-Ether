@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using UnityEngine;
@@ -50,7 +51,19 @@ namespace OsuVR
 
         // ============================================================
         //  Android: 原生文件选择器导入 .osz
+        //
+        //  真机（Pico/Quest）上从 VR 切到 2D 选择器再返回时，Activity 可能
+        //  重建、Unity 重新初始化，因此「复制文件」由 FilePickerActivity.java
+        //  的后台线程直接完成（写入 persistentDataPath/Songs），不依赖
+        //  Unity 的恢复时序。本类只负责解压与提示：
+        //    1. OpenAndroidFilePicker -> startActivityForResult(1001)
+        //    2. Java 复制完成 -> UnitySendMessage("ok:..|err:..") 快通道
+        //       + SharedPreferences 慢通道（消息丢失时 C# 主动拉取）
+        //    3. HandleImportMessage -> ImportNewOszFiles() 解压 + toast
         // ============================================================
+
+        /// <summary>必须与 FilePickerActivity.java 的 REQUEST_PICK_OSU 一致</summary>
+        private const int FilePickerRequestCode = 1001;
 
         private static System.Action<ImportResult, string> _onFilePicked;
         private static BeatmapImporterHelper _helper;
@@ -74,7 +87,7 @@ namespace OsuVR
                     using (var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
                     {
                         var activity = player.GetStatic<AndroidJavaObject>("currentActivity");
-                        activity.Call("startActivityForResult", intent, 1001);
+                        activity.Call("startActivityForResult", intent, FilePickerRequestCode);
                     }
                 }
 
@@ -83,7 +96,11 @@ namespace OsuVR
             catch (System.Exception e)
             {
                 Debug.LogError($"[Importer] Android 文件选择器启动失败: {e.Message}");
-                _onFilePicked?.Invoke(ImportResult.Error, e.Message);
+                // 典型场景: 设备未注册任何文件选择器 (ActivityNotFoundException)
+                string hint = e.Message != null && e.Message.Contains("No Activity found")
+                    ? "此设备的系统未提供文件选择器，请手动将 .osz 文件复制到 Songs 目录"
+                    : e.Message;
+                _onFilePicked?.Invoke(ImportResult.Error, hint);
             }
 #else
             Debug.Log("[Importer] 非 Android 平台，跳过文件选择器");
@@ -96,16 +113,11 @@ namespace OsuVR
             _onFilePicked?.Invoke(result, detail);
         }
 
-        internal static void ProcessAndroidResult(string uriString)
-        {
-            var helper = GetOrCreateHelper();
-            helper.StartCoroutine(ProcessAndroidUriCoroutine(uriString));
-        }
-
         private static BeatmapImporterHelper GetOrCreateHelper()
         {
             if (_helper == null)
             {
+                // GameObject 名必须与 FilePickerActivity.java 的 UNITY_HELPER_OBJECT 一致
                 var go = new GameObject("[BeatmapImporterHelper]");
                 _helper = go.AddComponent<BeatmapImporterHelper>();
                 Object.DontDestroyOnLoad(go);
@@ -113,101 +125,100 @@ namespace OsuVR
             return _helper;
         }
 
-        private static System.Collections.IEnumerator ProcessAndroidUriCoroutine(string uriString)
+        /// <summary>
+        /// 处理 Java 端回传的导入结果消息。
+        /// 格式: ""=取消; "ok:a.osz|b.osz[|err:原因]"=至少一个复制成功; "err:原因"=全部失败
+        /// </summary>
+        internal static void HandleImportMessage(string message)
         {
-#if UNITY_ANDROID && !UNITY_EDITOR
-            string destPath = null;
-            string errorDetail = null;
-            try
+            // 消费掉 Java 侧存档，防止 OnApplicationFocus 兜底通道重复处理
+            ConsumePendingResult();
+
+            if (string.IsNullOrEmpty(message))
             {
-                Debug.Log($"[Importer] 开始处理 URI: {uriString}");
+                Debug.Log("[Importer] 文件选择已取消");
+                InvokeCallback(ImportResult.Cancelled, null);
+                return;
+            }
 
-                using (var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
+            if (message.StartsWith("ok:"))
+            {
+                // Java 已把文件复制进 Songs，这里只做解压
+                ImportNewOszFiles();
+                HasNewImport = true;
+
+                var names = new List<string>();
+                string partialError = null;
+                foreach (var token in message.Substring(3).Split('|'))
                 {
-                    var activity = player.GetStatic<AndroidJavaObject>("currentActivity");
-                    var resolver = activity.Call<AndroidJavaObject>("getContentResolver");
-
-                    using (var uriClass = new AndroidJavaClass("android.net.Uri"))
+                    if (token.StartsWith("err:"))
                     {
-                        var uri = uriClass.CallStatic<AndroidJavaObject>("parse", uriString);
-                        var inputStream = resolver.Call<AndroidJavaObject>("openInputStream", uri);
-
-                        string fileName = "imported.osz";
-                        try
-                        {
-                            using (var cursor = resolver.Call<AndroidJavaObject>("query", uri, null, null, null, null))
-                            {
-                                if (cursor != null && cursor.Call<bool>("moveToFirst"))
-                                {
-                                    int nameIndex = cursor.Call<int>("getColumnIndex", "_display_name");
-                                    if (nameIndex >= 0)
-                                        fileName = cursor.Call<string>("getString", nameIndex);
-                                }
-                            }
-                        }
-                        catch (System.Exception queryEx)
-                        {
-                            Debug.LogWarning($"[Importer] 查询文件名失败，使用默认名: {queryEx.Message}");
-                        }
-
-                        if (!fileName.EndsWith(".osz"))
-                            fileName += ".osz";
-
-                        destPath = Path.Combine(SongsDirectory, fileName);
-                        Debug.Log($"[Importer] 目标路径: {destPath}");
-
-                        using (var outputStream = new FileStream(destPath, FileMode.Create))
-                        {
-                            byte[] buffer = new byte[8192];
-                            int bytesRead;
-                            int totalBytes = 0;
-                            while (true)
-                            {
-                                bytesRead = inputStream.Call<int>("read", buffer);
-                                if (bytesRead <= 0) break;
-                                outputStream.Write(buffer, 0, bytesRead);
-                                totalBytes += bytesRead;
-                            }
-                            Debug.Log($"[Importer] 文件复制完成: {totalBytes} bytes");
-                        }
-
-                        inputStream.Call("close");
+                        partialError = token.Substring(4);
+                        continue;
                     }
+                    if (token.Length > 0)
+                        names.Add(token.EndsWith(".osz") ? token.Substring(0, token.Length - 4) : token);
                 }
 
-                Debug.Log($"[Importer] 文件已复制到: {destPath}");
+                string detail = string.Join(", ", names);
+                if (partialError != null)
+                    detail += $"\n(部分文件导入失败: {partialError})";
+                InvokeCallback(ImportResult.Success, detail);
             }
-            catch (System.Exception e)
+            else if (message.StartsWith("err:"))
             {
-                errorDetail = $"{e.Message}\n\n{e.StackTrace}";
-                Debug.LogError($"[Importer] 复制文件失败: {e.Message}\n{e.StackTrace}");
-            }
-
-            if (!string.IsNullOrEmpty(destPath) && File.Exists(destPath))
-            {
-                try
-                {
-                    ImportOsz(destPath);
-                    HasNewImport = true;
-                    string fileName = Path.GetFileNameWithoutExtension(destPath);
-                    _onFilePicked?.Invoke(ImportResult.Success, fileName);
-                }
-                catch (System.Exception e)
-                {
-                    errorDetail = $"解压失败: {e.Message}\n\n{e.StackTrace}";
-                    Debug.LogError($"[Importer] 解压失败: {errorDetail}");
-                    _onFilePicked?.Invoke(ImportResult.Error, errorDetail);
-                }
+                InvokeCallback(ImportResult.Error, message.Substring(4));
             }
             else
             {
-                string msg = errorDetail ?? "文件复制失败（目标文件不存在）";
-                _onFilePicked?.Invoke(ImportResult.Error, msg);
+                InvokeCallback(ImportResult.Error, message);
             }
-            yield return null;
+        }
+
+        /// <summary>
+        /// 兜底通道: 从 Java 侧拉取未送达的导入结果（UnitySendMessage 因
+        /// Activity 重建/Unity 重启丢失时，结果仍保存在 SharedPreferences）。
+        /// 在 OnApplicationFocus 与选歌界面启动时调用。
+        /// </summary>
+        public static void PullPendingImports()
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            try
+            {
+                string message = ConsumePendingResult();
+                if (!string.IsNullOrEmpty(message))
+                {
+                    Debug.Log($"[Importer] 拉取到未送达的导入结果: {message}");
+                    HandleImportMessage(message);
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[Importer] 拉取导入结果失败: {e.Message}");
+            }
+#endif
+        }
+
+        /// <summary>取走并清空 Java 侧保存的导入结果（空串表示无）</summary>
+        private static string ConsumePendingResult()
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            try
+            {
+                using (var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
+                {
+                    var activity = player.GetStatic<AndroidJavaObject>("currentActivity");
+                    using (var cls = new AndroidJavaClass("com.nyaon.projectether.FilePickerActivity"))
+                        return cls.CallStatic<string>("consumePendingResult", activity);
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[Importer] 消费导入结果失败: {e.Message}");
+                return "";
+            }
 #else
-            yield return null;
-            _onFilePicked?.Invoke(ImportResult.Cancelled, null);
+            return "";
 #endif
         }
 
@@ -232,7 +243,17 @@ namespace OsuVR
                 string fileName = Path.GetFileNameWithoutExtension(oszPath);
                 string targetFolder = Path.Combine(SongsDirectory, fileName);
 
-                if (Directory.Exists(targetFolder)) return;
+                if (Directory.Exists(targetFolder))
+                {
+                    // 重复导入: 目标文件夹已存在，直接清掉 .osz，
+                    // 否则它会一直残留在 Songs 里，导致每次启动都被重复扫描
+                    try { File.Delete(oszPath); }
+                    catch (System.Exception e)
+                    {
+                        Debug.LogWarning($"[Importer] 清理重复的 .osz 失败: {e.Message}");
+                    }
+                    return;
+                }
 
                 Debug.Log($"正在解压: {fileName}...");
                 ZipFile.ExtractToDirectory(oszPath, targetFolder);
@@ -250,21 +271,25 @@ namespace OsuVR
     }
 
     /// <summary>
-    /// Android 回调辅助 MonoBehaviour (由 UnitySendMessage 调用)
+    /// Android 回调辅助 MonoBehaviour。
+    /// 由 FilePickerActivity.java 通过 UnitySendMessage("[BeatmapImporterHelper]", "OnFilesPicked", ...) 调用
     /// </summary>
     public class BeatmapImporterHelper : MonoBehaviour
     {
-        public void OnFilePicked(string uriString)
+        /// <summary>
+        /// message: ""=取消; "ok:a.osz|b.osz[|err:原因]"=Java 复制完成; "err:原因"=失败
+        /// </summary>
+        public void OnFilesPicked(string message)
         {
-            if (string.IsNullOrEmpty(uriString))
-            {
-                Debug.Log("[Importer] 文件选择已取消");
-                BeatmapImporter.InvokeCallback(ImportResult.Cancelled, null);
-                return;
-            }
+            BeatmapImporter.HandleImportMessage(message);
+        }
 
-            Debug.Log($"[Importer] 收到文件: {uriString}");
-            BeatmapImporter.ProcessAndroidResult(uriString);
+        // 从 2D 选择器返回 VR 时触发。若 UnitySendMessage 因 Activity 重建
+        // 丢失，这里从 Java 侧 SharedPreferences 拉取同一结果兜底
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            if (hasFocus)
+                BeatmapImporter.PullPendingImports();
         }
     }
 }

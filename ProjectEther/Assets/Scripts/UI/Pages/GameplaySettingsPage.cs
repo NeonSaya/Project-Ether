@@ -135,6 +135,9 @@ namespace OsuVR
 
                 var canvas = _toastObj.AddComponent<Canvas>();
                 canvas.renderMode = RenderMode.WorldSpace;
+                // 始终压在其它 UI 之上（主 UI 的 sortingOrder=100，场景切换遮罩=9999）
+                canvas.overrideSorting = true;
+                canvas.sortingOrder = 500;
                 var scaler = _toastObj.AddComponent<CanvasScaler>();
                 scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
                 scaler.dynamicPixelsPerUnit = 10f;
