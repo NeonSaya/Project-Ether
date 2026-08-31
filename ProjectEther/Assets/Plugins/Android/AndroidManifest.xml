@@ -4,7 +4,9 @@
     package="com.unity3d.player"
     xmlns:tools="http://schemas.android.com/tools">
     <application>
-        <activity android:name="com.unity3d.player.UnityPlayerActivity"
+        <!-- 自定义 Activity：接管文件选择器的 onActivityResult 并回传 Unity，
+             其余行为与 UnityPlayerActivity 完全一致（见 FilePickerActivity.java） -->
+        <activity android:name="com.nyaon.projectether.FilePickerActivity"
                   android:theme="@style/UnityThemeSelector">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

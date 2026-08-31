@@ -139,7 +139,7 @@ Understanding the data flow is absolutely key to understanding this project's ar
    * Find the `.osz` archive in each beatmap folder (if not present, you can right-click the beatmap on the osu! official download page and select "Download .osz").
    * Place the `.osz` files in the following path:
      - **PC**: `C:/Users/<YourUsername>/AppData/LocalLow/Nyaon/ProjectEther/Songs/`
-     - **Android**: `Internal Storage/Android/data/com.Nyaon.ProjectEther/files/Songs/` (the import button in settings has issues in the current version, will be fixed in a future update)
+     - **Android**: `Internal Storage/Android/data/com.Nyaon.ProjectEther/files/Songs/` (you can also tap "Import" in the settings panel and pick `.osz` files directly through the system file picker, with multi-select support)
    * The project will automatically scan and extract `.osz` files on startup, after which you'll see the corresponding beatmaps in the song selection screen. You can also directly open the Songs folder from the settings panel and drag in `.osz` files.
 
    > **Tip**: If the `.osz` is in folder form (already extracted beatmaps), it can also be placed directly in the above directory. Ensure each beatmap folder contains `.osu` files, audio files, and background images.
