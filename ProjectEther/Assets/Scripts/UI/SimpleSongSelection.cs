@@ -70,6 +70,9 @@ namespace OsuVR
         {
             AutoAttachLocalizedTexts();
             Debug.Log($"[SimpleSongSelection] 歌曲文件夹: {BeatmapImporter.SongsDirectory}");
+            // Android: 拉取 Java 侧可能未送达的导入结果（Activity 重建/Unity 重启兜底），
+            // 内部会触发解压；随后 ImportNewOszFiles 再扫一遍剩余 .osz
+            BeatmapImporter.PullPendingImports();
             BeatmapImporter.ImportNewOszFiles();
             
             if (listContent != null)
@@ -779,6 +782,9 @@ namespace OsuVR
 
                 var canvas = _toastObj.AddComponent<Canvas>();
                 canvas.renderMode = RenderMode.WorldSpace;
+                // 始终压在其它 UI 之上（主 UI 的 sortingOrder=100，场景切换遮罩=9999）
+                canvas.overrideSorting = true;
+                canvas.sortingOrder = 500;
                 var scaler = _toastObj.AddComponent<CanvasScaler>();
                 scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
                 scaler.dynamicPixelsPerUnit = 10f;

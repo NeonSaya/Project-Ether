@@ -5,9 +5,12 @@
     xmlns:tools="http://schemas.android.com/tools">
     <application>
         <!-- 自定义 Activity：接管文件选择器的 onActivityResult 并回传 Unity，
-             其余行为与 UnityPlayerActivity 完全一致（见 FilePickerActivity.java） -->
+             其余行为与 UnityPlayerActivity 完全一致（见 FilePickerActivity.java）。
+             configChanges 必不可少：VR <-> 2D 选择器切换会触发 uiMode/screenSize
+             等配置变化，缺失将导致 Activity 销毁重建、Unity 重新初始化（黑屏）。 -->
         <activity android:name="com.nyaon.projectether.FilePickerActivity"
-                  android:theme="@style/UnityThemeSelector">
+                  android:theme="@style/UnityThemeSelector"
+                  android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|orientation|screenLayout|uiMode|screenSize|smallestScreenSize|fontScale|layoutDirection|density">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
