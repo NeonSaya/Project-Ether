@@ -19,7 +19,8 @@ namespace OsuVR.Storyboard
             public string BackgroundPath;
         }
 
-        static readonly string[] VideoExtensions = { ".mp4", ".avi", ".webm", ".mkv", ".flv", ".mov" };
+        /// <summary>Unity VideoPlayer 跨平台可解码的格式（Windows WMF / Android MediaCodec 均保证）</summary>
+        static readonly string[] SupportedVideoExtensions = { ".mp4", ".webm", ".mov" };
 
         /// <summary>
         /// 扫描谱面目录，检测可用的媒体资产
@@ -35,10 +36,20 @@ namespace OsuVR.Storyboard
                 string path = Path.Combine(folder, beatmap.Events.VideoFilename);
                 if (File.Exists(path))
                 {
-                    result.HasVideo = true;
-                    result.VideoPath = path;
-                    result.VideoOffset = beatmap.Events.VideoOffset;
-                    Debug.Log($"[MediaScanner] 检测到视频: {beatmap.Events.VideoFilename}");
+                    string ext = Path.GetExtension(path).ToLowerInvariant();
+                    if (System.Array.IndexOf(SupportedVideoExtensions, ext) >= 0)
+                    {
+                        result.HasVideo = true;
+                        result.VideoPath = path;
+                        result.VideoOffset = beatmap.Events.VideoOffset;
+                        Debug.Log($"[MediaScanner] 检测到视频: {beatmap.Events.VideoFilename}");
+                    }
+                    else
+                    {
+                        // 此前直接把 .avi/.mkv/.flv 交给 VideoPlayer，必然解码失败
+                        // 现在显式跳过并回退背景图，日志告知原因
+                        Debug.LogWarning($"[MediaScanner] 视频格式 VideoPlayer 无法解码 ({ext})，回退到背景图: {beatmap.Events.VideoFilename}");
+                    }
                 }
                 else
                 {
