@@ -78,6 +78,34 @@ namespace OsuVR
         private IReadOnlyDictionary<HitObject, GameObject> _activeObjectsRef;
         private GameObject _tempRoot;
 
+        // 滑条 GameObject -> 渲染器数组缓存。
+        // GetComponentsInChildren 每帧每滑条调用开销大（分配 + 遍历层级），
+        // 以滑条根 childCount 为签名：followBall 等子物体动态挂载时自动失效重取
+        private struct RendererCacheEntry { public Renderer[] renderers; public int childCount; }
+        private readonly Dictionary<GameObject, RendererCacheEntry> _sliderRendererCache = new Dictionary<GameObject, RendererCacheEntry>();
+
+        private static bool HasNullRenderer(Renderer[] renderers)
+        {
+            for (int i = 0; i < renderers.Length; i++)
+                if (renderers[i] == null) return true;
+            return false;
+        }
+
+        private Renderer[] GetSliderRenderers(GameObject obj)
+        {
+            if (obj == null) return null;
+
+            if (_sliderRendererCache.TryGetValue(obj, out var entry)
+                && entry.childCount == obj.transform.childCount
+                && !HasNullRenderer(entry.renderers))
+                return entry.renderers;
+
+            entry.renderers = obj.GetComponentsInChildren<Renderer>(true);
+            entry.childCount = obj.transform.childCount;
+            _sliderRendererCache[obj] = entry;
+            return entry.renderers;
+        }
+
         /// <summary>
         /// 初始化：获取反射字段引用，创建临时手柄容器，初始化双手控制器
         /// </summary>
@@ -124,6 +152,7 @@ namespace OsuVR
             _allNotes = null;
             _noteStartIndex = 0;
             _assignedNotes.Clear();
+            _sliderRendererCache.Clear();
             lastAssignedNote = null;
             lastAssignedHand = null;
 
@@ -462,7 +491,7 @@ namespace OsuVR
 
                         if (_activeObjectsRef != null && _activeObjectsRef.TryGetValue(danger, out GameObject obj) && obj != null)
                         {
-                            var renderers = obj.GetComponentsInChildren<Renderer>(true);
+                            var renderers = GetSliderRenderers(obj);
                             foreach (var r in renderers)
                             {
                                 Vector3 closestPoint = r.bounds.ClosestPoint(baseWorld);
@@ -698,7 +727,7 @@ namespace OsuVR
 
                 if (_activeObjectsRef != null && _activeObjectsRef.TryGetValue(s, out GameObject obj) && obj != null)
                 {
-                    var renderers = obj.GetComponentsInChildren<Renderer>(true);
+                    var renderers = GetSliderRenderers(obj);
                     foreach (var r in renderers)
                     {
                         if (r.name.Contains("Ball") || r.name.Contains("Sphere") || r.gameObject.name.Contains("FollowBall"))

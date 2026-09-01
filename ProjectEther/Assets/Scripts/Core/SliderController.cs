@@ -182,6 +182,10 @@ namespace OsuVR
         // 在 SliderController 类中添加这个列表，用来记录所有生成的子物体（Tick, 箭头等）
         private List<GameObject> garbageList = new List<GameObject>();
 
+        // 通过 r.material 触发的材质实例克隆（渲染队列/ZWrite 定制）。
+        // 这些克隆不会随 GameObject 销毁而释放，必须手动 Destroy，否则整局泄漏
+        private readonly List<Material> clonedMaterials = new List<Material>();
+
         private static Texture2D cachedSoftDotTex;
         private static Material cachedReverseMat;
 
@@ -830,8 +834,11 @@ namespace OsuVR
                     else if (objName.Contains("Overlay")) targetQueue = baseQueue + 6;
                     else if (objName.Contains("ApproachCircle")) targetQueue = baseQueue + 8;
 
-                    r.material.renderQueue = targetQueue;
-                    r.material.SetInt("_ZWrite", 0);
+                    // .material 首次访问会克隆共享材质（本滑条专属渲染队列），需登记待销毁
+                    Material headMat = r.material;
+                    headMat.renderQueue = targetQueue;
+                    headMat.SetInt("_ZWrite", 0);
+                    clonedMaterials.Add(headMat);
 
                     r.GetPropertyBlock(headMbp);
                     headMbp.SetColor(ColorPropertyId, hdrComboColor);
@@ -867,7 +874,10 @@ namespace OsuVR
                 // 使用工厂缓存的光晕材质（含程序化生成的空心光环贴图）
                 var dstMR = headHalo.AddComponent<MeshRenderer>();
                 dstMR.material = HitObjectFactory.GetHaloMaterial();
-                dstMR.material.renderQueue = baseQueue + 4;
+                // 工厂材质是全滑条共享资产，改 renderQueue 前的 .material 访问会产生克隆
+                Material haloMat = dstMR.material;
+                haloMat.renderQueue = baseQueue + 4;
+                clonedMaterials.Add(haloMat);
 
                 // 光晕变换：1.25倍大小，纯 2D 平面模式
                 headHalo.transform.localPosition = Vector3.zero;
@@ -1175,7 +1185,10 @@ namespace OsuVR
                     followBallRenderer = followBall.GetComponent<Renderer>();
                     if (followBallRenderer != null)
                     {
-                        followBallRenderer.material.renderQueue = this.cachedBaseQueue + 7;
+                        // .material 克隆（专属渲染队列），登记待销毁
+                        Material ballMat = followBallRenderer.material;
+                        ballMat.renderQueue = this.cachedBaseQueue + 7;
+                        clonedMaterials.Add(ballMat);
                     }
                     ballCollider = followBall.GetComponent<SphereCollider>();
                     if (ballCollider == null) ballCollider = followBall.AddComponent<SphereCollider>();
@@ -2153,6 +2166,14 @@ namespace OsuVR
                 }
             }
             garbageList.Clear(); // 清空列表，断开所有”尸体”引用
+
+            // 1.5 销毁本滑条定制渲染队列时产生的材质克隆（防显存泄漏）
+            for (int i = 0; i < clonedMaterials.Count; i++)
+            {
+                if (clonedMaterials[i] != null)
+                    DestroyImmediate(clonedMaterials[i]);
+            }
+            clonedMaterials.Clear();
 
             // 清空折返粒子引用（GameObject 已被 Destroy，引用变成”假非空”）
             headReversePS = null;

@@ -103,6 +103,7 @@ namespace OsuVR
                 {"ui_import_success", new[] {"Imported: {0}", "导入成功: {0}", "インポート完了: {0}"}},
                 {"ui_import_cancelled", new[] {"Import cancelled", "导入已取消", "キャンセルされました"}},
                 {"ui_import_error", new[] {"Import failed", "导入失败", "インポート失敗"}},
+                {"ui_import_duplicate", new[] {"Skipped duplicate beatmap: {0}", "已跳过重复谱面: {0}", "重複ビートマップをスキップ: {0}"}},
                 {"ui_import_folder_opened", new[] {"Drag .osz files into the opened folder", "请将 .osz 文件拖入已打开的文件夹", "開いたフォルダに.oszファイルをドロップしてください"}},
                 {"ui_left_controller_z_offset", new[] {"Left Controller Z Offset", "左手控制器Z轴偏移", "左コントローラーZオフセット"}},
                 {"ui_right_controller_z_offset", new[] {"Right Controller Z Offset", "右手控制器Z轴偏移", "右コントローラーZオフセット"}},

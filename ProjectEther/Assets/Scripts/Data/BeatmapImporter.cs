@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Security.Cryptography;
 using UnityEngine;
 
 namespace OsuVR
@@ -226,39 +227,70 @@ namespace OsuVR
         //  OSZ 解压
         // ============================================================
 
+        /// <summary>已导入 .osz 的 MD5 记录文件（Songs 目录下，每行一个哈希）。
+        /// 用于内容去重：同一文件改名后再次导入会被跳过。
+        /// 注：记录在本功能上线之前的存量歌曲无哈希可查，改名重导会重复一次，属已知限制。</summary>
+        private static readonly string HashFilePath =
+            Path.Combine(Application.persistentDataPath, "Songs", ".imported.md5");
+
         public static void ImportNewOszFiles()
         {
             string[] oszFiles = Directory.GetFiles(SongsDirectory, "*.osz");
             if (oszFiles.Length == 0) return;
 
             Debug.Log($"[Importer] 发现 {oszFiles.Length} 个新 .osz 文件，准备解压...");
+            var duplicates = new List<string>();
             foreach (var oszPath in oszFiles)
-                ImportOsz(oszPath);
+            {
+                if (ImportOsz(oszPath, out bool duplicate))
+                    duplicates.Add(Path.GetFileNameWithoutExtension(oszPath));
+            }
+
+            if (duplicates.Count > 0)
+            {
+                string detail = string.Join(", ", duplicates);
+                Debug.Log($"[Importer] 跳过 {duplicates.Count} 个重复谱面: {detail}");
+                VRToast.Show(string.Format(LocalizationManager.GetText("ui_import_duplicate"), detail),
+                    new Color(1f, 0.85f, 0.3f), 5f);
+            }
         }
 
-        private static void ImportOsz(string oszPath)
+        /// <summary>解压单个 .osz。返回 true 表示因重复（内容或文件名）被跳过。</summary>
+        private static bool ImportOsz(string oszPath, out bool duplicate)
         {
+            duplicate = false;
             try
             {
                 string fileName = Path.GetFileNameWithoutExtension(oszPath);
                 string targetFolder = Path.Combine(SongsDirectory, fileName);
 
+                // 内容去重：同一 .osz 改名后再次导入（MD5 一致）则直接跳过
+                string hash = ComputeFileMd5(oszPath);
+                var imported = LoadImportedHashes();
+                if (hash != null && imported.Contains(hash))
+                {
+                    TryDeleteOsz(oszPath, "重复内容");
+                    duplicate = true;
+                    return true;
+                }
+
                 if (Directory.Exists(targetFolder))
                 {
                     // 重复导入: 目标文件夹已存在，直接清掉 .osz，
-                    // 否则它会一直残留在 Songs 里，导致每次启动都被重复扫描
-                    try { File.Delete(oszPath); }
-                    catch (System.Exception e)
-                    {
-                        Debug.LogWarning($"[Importer] 清理重复的 .osz 失败: {e.Message}");
-                    }
-                    return;
+                    // 否则它会一直残留在 Songs 里，导致每次启动都被重复扫描。
+                    // 顺带记录哈希，让之后改名的重复导入也能命中
+                    if (hash != null) SaveImportedHashes(hash, imported);
+                    TryDeleteOsz(oszPath, "重复文件名");
+                    duplicate = true;
+                    return true;
                 }
 
                 Debug.Log($"正在解压: {fileName}...");
                 ZipFile.ExtractToDirectory(oszPath, targetFolder);
                 File.Delete(oszPath);
+                if (hash != null) SaveImportedHashes(hash, imported);
                 Debug.Log($"<color=green>导入成功:</color> {fileName}");
+                return false;
             }
             catch (System.Exception e)
             {
@@ -266,6 +298,61 @@ namespace OsuVR
                 string fileName = Path.GetFileNameWithoutExtension(oszPath);
                 string targetFolder = Path.Combine(SongsDirectory, fileName);
                 if (Directory.Exists(targetFolder)) Directory.Delete(targetFolder, true);
+                return false;
+            }
+        }
+
+        private static void TryDeleteOsz(string oszPath, string reason)
+        {
+            try { File.Delete(oszPath); }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[Importer] 清理重复的 .osz 失败 ({reason}): {e.Message}");
+            }
+        }
+
+        /// <summary>流式计算文件 MD5（返回小写十六进制；失败返回 null，不阻塞导入）</summary>
+        private static string ComputeFileMd5(string path)
+        {
+            try
+            {
+                using (var md5 = MD5.Create())
+                using (var stream = File.OpenRead(path))
+                    return System.BitConverter.ToString(md5.ComputeHash(stream)).Replace("-", "").ToLowerInvariant();
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[Importer] 计算 MD5 失败 ({path}): {e.Message}");
+                return null;
+            }
+        }
+
+        private static HashSet<string> LoadImportedHashes()
+        {
+            var set = new HashSet<string>();
+            try
+            {
+                if (File.Exists(HashFilePath))
+                    foreach (var line in File.ReadAllLines(HashFilePath))
+                        if (line.Length == 32) set.Add(line);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[Importer] 读取导入记录失败: {e.Message}");
+            }
+            return set;
+        }
+
+        private static void SaveImportedHashes(string newHash, HashSet<string> imported)
+        {
+            try
+            {
+                imported.Add(newHash);
+                File.WriteAllLines(HashFilePath, imported);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[Importer] 写入导入记录失败: {e.Message}");
             }
         }
     }
