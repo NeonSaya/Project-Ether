@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.18028378, g: 0.22571412, b: 0.30692285, a: 1}
+  m_IndirectSpecularColor: {r: 0, g: 0, b: 0, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -1409,8 +1409,6 @@ MonoBehaviour:
   normalizationFactor: 25
   targetAudioSource: {fileID: 2066471134}
   lockTargetSource: 0
-  spectrumAnalyzer: {fileID: 0}
-  useLaspCapture: 1
 --- !u!4 &1148476270
 Transform:
   m_ObjectHideFlags: 0
@@ -6889,7 +6887,7 @@ MonoBehaviour:
   globalGlowMaterial: {fileID: 2100000, guid: a0853bb720fe0bc4c8f32b7a408e9a8c, type: 2}
   osuFileName: test.osu
   musicSource: {fileID: 0}
-  musicClip: {fileID: 8300000, guid: 24df2d662e64d6349afb02cb658ccd96, type: 3}
+  musicClip: {fileID: 0}
   hitCirclePrefab: {fileID: 5026766453584379729, guid: 6cc26bdd4f36015438bb5a90bcc131ef,
     type: 3}
   sliderPrefab: {fileID: 8225510774563580309, guid: 549833058cabb0a4ea465588159b6da1,
@@ -6943,7 +6941,7 @@ AudioSource:
   m_Enabled: 1
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
-  m_audioClip: {fileID: 8300000, guid: 95987a30f156585468825fc1fb915d7c, type: 3}
+  m_audioClip: {fileID: 0}
   m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1
