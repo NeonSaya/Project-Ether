@@ -304,7 +304,7 @@ namespace OsuVR
 
         private void OnCreditsClicked()
         {
-            Debug.Log("[MainMenu] Credits - 待实现");
+            VRSceneTransitionManager.Instance.TransitionToScene("CreditsScene");
         }
 
         private void OnQuitClicked()
