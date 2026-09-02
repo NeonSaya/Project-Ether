@@ -1,0 +1,13 @@
+{
+    "name": "ProjectEther.Judgement",
+    "rootNamespace": "OsuVR",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "referencesAssembliesAndModules": []
+}

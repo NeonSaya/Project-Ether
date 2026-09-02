@@ -19,7 +19,7 @@ namespace OsuVR
         public Transform approachCircle; // 缩圈圆环的Transform
 
         [Header("判定设置")]
-        [Tooltip("判定窗口（毫秒）：在打击时间前后多少毫秒内算击中")]
+        [Tooltip("判定窗口回退值（毫秒）：无 Manager 时使用；实际判定窗口随谱面 OD 变化（RhythmGameManager.GetJudgementWindowMs，OD8=250ms 基准）")]
         public float hitWindow = 250f;
 
         [Tooltip("最大缩圈倍数：圆环开始时是Note的几倍大")]
@@ -72,6 +72,9 @@ namespace OsuVR
         private static Mesh cachedQuadMesh;
 
         private int myRenderQueue = 3050;
+
+        /// <summary>实际生效的判定窗口（毫秒）：随谱面 OD 变化（OD8=250ms 基准，OD 越高越早 Miss）；无 Manager 时回退 hitWindow 字段值。提前窗固定 -13ms 不受影响。</summary>
+        private double EffectiveHitWindow => gameManager != null ? gameManager.JudgementWindowMs : hitWindow;
 
 
         private Camera MainCamera
@@ -548,11 +551,11 @@ namespace OsuVR
                 // 如果第一帧就延迟超过 100ms，打印警告
                 if (diff > 100)
                 {
-                    Debug.LogWarning($"[Timing Lag] 音符生成延迟！Diff: {diff:F2}ms (Window: {hitWindow})");
+                    Debug.LogWarning($"[Timing Lag] 音符生成延迟！Diff: {diff:F2}ms (Window: {EffectiveHitWindow})");
                 }
 
                 // 如果是第一帧且判定为 Miss，强制不判 Miss，给它一次机会
-                if (diff > hitWindow)
+                if (diff > EffectiveHitWindow)
                 {
                     return;
                 }
@@ -573,9 +576,9 @@ namespace OsuVR
             double earlyWindow = isAutoPlay ? -16 : -13;
 
             // 条件1: diff >= earlyWindow (缩圈几乎重合)
-            // 条件2: diff <= hitWindow (允许延迟 hitWindow 毫秒)
+            // 条件2: diff <= EffectiveHitWindow (晚击上限随 OD 变化，OD8=250ms 基准)
             // 条件3: isHovered (被射线指着)
-            if (diff >= earlyWindow && diff <= hitWindow)
+            if (diff >= earlyWindow && diff <= EffectiveHitWindow)
             {
                 if (isHovered)
                 {
@@ -596,7 +599,7 @@ namespace OsuVR
             }
             // --- MISS 判定 ---
             // 条件：当前时间已经超过了 (打击时间 + 宽容度) 且还没被打中
-            else if (diff > hitWindow)
+            else if (diff > EffectiveHitWindow)
             {
                 OnMiss();
             }
@@ -671,7 +674,7 @@ namespace OsuVR
             // 播放特效
             if (CodeOnlyVFX.Instance != null)
             {
-                double acc01 = 1.0 - (System.Math.Abs(accuracy) / 250.0);
+                double acc01 = 1.0 - (System.Math.Abs(accuracy) / EffectiveHitWindow);
                 int score = RhythmGameManager.CalculateScoreFromAccuracy(acc01);
                 CodeOnlyVFX.Instance.PlayHit(
                     transform.position,

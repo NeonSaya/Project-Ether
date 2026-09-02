@@ -62,12 +62,6 @@ namespace OsuVR
         public float ScoreMultiplierForCalculation { get; private set; } = 1f;
 
         /// <summary>
-        /// 固定判定窗口 (毫秒)
-        /// OD 不影响判定窗口，固定为 250ms
-        /// </summary>
-        public const double FIXED_HIT_WINDOW = 250.0;
-
-        /// <summary>
         /// 构造函数：根据 ModSelection 初始化效果
         /// </summary>
         public ModEffectsApplier(ModSelection selection)
@@ -260,15 +254,6 @@ namespace OsuVR
             {
                 return 1200 - 150 * (modifiedAR - 5);
             }
-        }
-
-        /// <summary>
-        /// 获取固定判定窗口 (毫秒)
-        /// OD 不影响判定窗口，固定为 250ms
-        /// </summary>
-        public double GetHitWindow()
-        {
-            return FIXED_HIT_WINDOW;
         }
 
         // =========================================================

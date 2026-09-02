@@ -1580,8 +1580,10 @@ namespace OsuVR
 
             bool isAutoPlay = gameManager != null && gameManager.useAutoPlay;
             double earlyWindow = isAutoPlay ? -16 : -13;
+            // 判定窗口随谱面 OD 变化（OD8=250ms 基准，OD 越高越早 Miss）；无 Manager 时回退 250ms
+            double hitWindowMs = gameManager != null ? gameManager.JudgementWindowMs : 250.0;
 
-            if (offset >= earlyWindow && offset <= 250)
+            if (offset >= earlyWindow && offset <= hitWindowMs)
             {
                 headHit = true;
 
@@ -1602,7 +1604,7 @@ namespace OsuVR
                 if (HapticManager.Instance != null) HapticManager.Instance.PlayHitHaptic(isRightHand, (int)sliderData.HitSound, vol);
                 if (CodeOnlyVFX.Instance != null)
                 {
-                    double absDiff01 = 1.0 - (System.Math.Abs(offset) / 250.0);
+                    double absDiff01 = 1.0 - (System.Math.Abs(offset) / hitWindowMs);
                     int vfxScore = RhythmGameManager.CalculateScoreFromAccuracy(System.Math.Clamp(absDiff01, 0.0, 1.0));
                     CodeOnlyVFX.Instance.PlayHit(transform.position, transform.rotation, this.sliderWidth, currentComboColor, this.nextNotePosition, vfxScore);
                 }
@@ -1619,7 +1621,7 @@ namespace OsuVR
                 if (!isAutoPlay && !double.IsNaN(prevHeadCheckDiff)
                     && prevHeadCheckDiff < earlyWindow && (offset - prevHeadCheckDiff) <= 40.0)
                     effectiveOffset = earlyWindow;
-                double maxWindow = 250.0;
+                double maxWindow = hitWindowMs;
                 double absDiff = System.Math.Abs(effectiveOffset);
                 double accuracy01 = 1.0 - (absDiff / maxWindow);
                 accuracy01 = System.Math.Clamp(accuracy01, 0.0, 1.0);
@@ -1683,10 +1685,11 @@ namespace OsuVR
                     : (sliderData.EndTime - sliderData.StartTime);
 
                 // 触发 Head Miss 的三大条件：
-                // 1. 时间超过正常最大打击窗口 (250ms)
+                // 1. 时间超过判定窗口 (随 OD 变化，OD8=250ms 基准)
                 // 2. 球已经跑完了一个折返段的时间 (针对快速滑条，球走远了算漏)
                 // 3. 整个滑条已经彻底结束 (解决极短滑条不显示 Miss 也不消失的问题)
-                bool isTimeoutMiss = (diff > 250) || (diff > spanDuration && diff > 0) || (currentMusicTimeCache >= sliderData.EndTime);
+                double headWindowMs = gameManager != null ? gameManager.JudgementWindowMs : 250.0;
+                bool isTimeoutMiss = (diff > headWindowMs) || (diff > spanDuration && diff > 0) || (currentMusicTimeCache >= sliderData.EndTime);
 
                 if (isTimeoutMiss)
                 {
