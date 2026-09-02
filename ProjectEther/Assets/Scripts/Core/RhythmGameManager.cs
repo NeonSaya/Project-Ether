@@ -919,13 +919,21 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 获取固定判定窗口 (250ms)
+        /// OD 绑定的判定窗口（毫秒）：350 - 12.5 × OD（OD Clamp 在 0~10）。
+        /// 同时用作「悬停命中注册窗口」（晚击上限）与「计分宽度」（|timeDiff| → accuracy01 的分母）。
+        /// 基准 OD8 = 250ms（与历史固定窗口一致）；OD10 = 225ms（收紧但保持宽松不过难）；OD0 = 350ms（放宽但计分 300 档 ±70ms 不至于无挑战）。
+        /// 对应档位：300 = ±0.2W，100 = ±0.4W，50 ≈ ±W（见 CalculateScoreFromAccuracy）。
+        /// 提前窗固定 -13ms（AutoPlay -16ms）不随 OD 变化；速度 Mod（DT/HT）不影响判定窗口。
+        /// 公式实现见 JudgementConfig（独立程序集，带单元测试）。
         /// </summary>
-        public static double GetFixedHitWindow()
-        {
-            // OD 固定为 250ms 判定窗口
-            return 250.0;
-        }
+        public static double GetJudgementWindowMs(float od) => JudgementConfig.GetWindowMs(od);
+
+        /// <summary>
+        /// 当前谱面的判定窗口（随 OD 变化）；未加载谱面时回退 250ms（与历史固定窗口行为一致）。
+        /// </summary>
+        public double JudgementWindowMs => (currentBeatmap != null && currentBeatmap.Difficulty != null)
+            ? GetJudgementWindowMs(currentBeatmap.Difficulty.OverallDifficulty)
+            : 250.0;
 
         /// <summary>
         /// 缓冲期结束，正式开始游戏
@@ -1401,7 +1409,7 @@ namespace OsuVR
             while (nextNoteIndex < hitObjects.Count)
             {
                 double startTime = useSoA ? _noteStartTimes[nextNoteIndex] : hitObjects[nextNoteIndex].StartTime;
-                if (currentTime > startTime + 250.0)
+                if (currentTime > startTime + JudgementWindowMs)
                 {
 #if UNITY_EDITOR
                     Debug.LogWarning($"[Manager] 丢弃过期音符: {startTime}ms (当前: {currentTime:F0})");
@@ -1449,7 +1457,7 @@ namespace OsuVR
                 HitObject hitObject = hitObjects[nextNoteIndex];
 
                 // 安全检查: 过期音符已在步骤1处理, 跳过
-                if (currentTime > hitObject.StartTime + 250.0)
+                if (currentTime > hitObject.StartTime + JudgementWindowMs)
                 {
                     nextNoteIndex++;
                     continue;
@@ -1657,8 +1665,8 @@ namespace OsuVR
                 if (scoreManager != null)
                 {
                     // 将毫秒误差转换为 0-1 的准确率
-                    // 1.0 = 完美 (0ms误差), 0.0 = 极限 (250ms误差)
-                    double maxWindow = 250.0; // 对应 NoteController 的 hitWindow
+                    // 1.0 = 完美 (0ms误差), 0.0 = 极限 (判定窗口边缘，随 OD 变化)
+                    double maxWindow = JudgementWindowMs; // 与 NoteController 的命中注册窗口一致 (OD 绑定)
                     double absDiff = System.Math.Abs(timeDiff);
 
                     // 计算公式：1 - (误差 / 最大宽容度)
@@ -1732,19 +1740,11 @@ namespace OsuVR
             }
         }
 
-        public static int CalculateScoreFromAccuracy(double accuracy01)
-        {
-            // accuracy01: 1.0 是完美重合，0.0 是判定边缘
-            // 相当于：
-            // > 0.8 (误差 < 50ms) -> 300
-            // > 0.6 (误差 < 100ms) -> 100
-            // > 0.2 (误差 < 200ms) -> 50
-
-            if (accuracy01 >= 0.8f) return 300;
-            if (accuracy01 >= 0.6f) return 100;
-            if (accuracy01 >= 0.01f) return 50; // 只要不是 0，至少给 50 分
-            return 0; // 只有真的是 0 (误差 > 250ms) 才判 Miss
-        }
+        /// <summary>
+        /// accuracy01 (1.0=完美重合, 0.0=判定边缘) → 分数档位 300/100/50/0。
+        /// 实现见 JudgementConfig.ScoreFromAccuracy（独立程序集，带单元测试）。
+        /// </summary>
+        public static int CalculateScoreFromAccuracy(double accuracy01) => JudgementConfig.ScoreFromAccuracy(accuracy01);
 
         /// <summary>
         /// 获取格式化时间字符串

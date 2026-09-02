@@ -19,6 +19,7 @@ public class ShaderStripGuard : IPreprocessShaders
         "OsuVR/FlashlightMask",
         "OsuVR/HolographicScreen",
         "OsuVR/SBOverlay",
+        "OsuVR/SBVideoOverlay",
         "Osu/ApproachCircle_SmartDepth",
         "Osu/SliderVR_Flat_Stencil_VR_Fixed",
 

@@ -182,6 +182,10 @@ namespace OsuVR
         // 在 SliderController 类中添加这个列表，用来记录所有生成的子物体（Tick, 箭头等）
         private List<GameObject> garbageList = new List<GameObject>();
 
+        // 通过 r.material 触发的材质实例克隆（渲染队列/ZWrite 定制）。
+        // 这些克隆不会随 GameObject 销毁而释放，必须手动 Destroy，否则整局泄漏
+        private readonly List<Material> clonedMaterials = new List<Material>();
+
         private static Texture2D cachedSoftDotTex;
         private static Material cachedReverseMat;
 
@@ -830,8 +834,11 @@ namespace OsuVR
                     else if (objName.Contains("Overlay")) targetQueue = baseQueue + 6;
                     else if (objName.Contains("ApproachCircle")) targetQueue = baseQueue + 8;
 
-                    r.material.renderQueue = targetQueue;
-                    r.material.SetInt("_ZWrite", 0);
+                    // .material 首次访问会克隆共享材质（本滑条专属渲染队列），需登记待销毁
+                    Material headMat = r.material;
+                    headMat.renderQueue = targetQueue;
+                    headMat.SetInt("_ZWrite", 0);
+                    clonedMaterials.Add(headMat);
 
                     r.GetPropertyBlock(headMbp);
                     headMbp.SetColor(ColorPropertyId, hdrComboColor);
@@ -867,7 +874,10 @@ namespace OsuVR
                 // 使用工厂缓存的光晕材质（含程序化生成的空心光环贴图）
                 var dstMR = headHalo.AddComponent<MeshRenderer>();
                 dstMR.material = HitObjectFactory.GetHaloMaterial();
-                dstMR.material.renderQueue = baseQueue + 4;
+                // 工厂材质是全滑条共享资产，改 renderQueue 前的 .material 访问会产生克隆
+                Material haloMat = dstMR.material;
+                haloMat.renderQueue = baseQueue + 4;
+                clonedMaterials.Add(haloMat);
 
                 // 光晕变换：1.25倍大小，纯 2D 平面模式
                 headHalo.transform.localPosition = Vector3.zero;
@@ -1175,7 +1185,10 @@ namespace OsuVR
                     followBallRenderer = followBall.GetComponent<Renderer>();
                     if (followBallRenderer != null)
                     {
-                        followBallRenderer.material.renderQueue = this.cachedBaseQueue + 7;
+                        // .material 克隆（专属渲染队列），登记待销毁
+                        Material ballMat = followBallRenderer.material;
+                        ballMat.renderQueue = this.cachedBaseQueue + 7;
+                        clonedMaterials.Add(ballMat);
                     }
                     ballCollider = followBall.GetComponent<SphereCollider>();
                     if (ballCollider == null) ballCollider = followBall.AddComponent<SphereCollider>();
@@ -1567,8 +1580,10 @@ namespace OsuVR
 
             bool isAutoPlay = gameManager != null && gameManager.useAutoPlay;
             double earlyWindow = isAutoPlay ? -16 : -13;
+            // 判定窗口随谱面 OD 变化（OD8=250ms 基准，OD 越高越早 Miss）；无 Manager 时回退 250ms
+            double hitWindowMs = gameManager != null ? gameManager.JudgementWindowMs : 250.0;
 
-            if (offset >= earlyWindow && offset <= 250)
+            if (offset >= earlyWindow && offset <= hitWindowMs)
             {
                 headHit = true;
 
@@ -1589,7 +1604,7 @@ namespace OsuVR
                 if (HapticManager.Instance != null) HapticManager.Instance.PlayHitHaptic(isRightHand, (int)sliderData.HitSound, vol);
                 if (CodeOnlyVFX.Instance != null)
                 {
-                    double absDiff01 = 1.0 - (System.Math.Abs(offset) / 250.0);
+                    double absDiff01 = 1.0 - (System.Math.Abs(offset) / hitWindowMs);
                     int vfxScore = RhythmGameManager.CalculateScoreFromAccuracy(System.Math.Clamp(absDiff01, 0.0, 1.0));
                     CodeOnlyVFX.Instance.PlayHit(transform.position, transform.rotation, this.sliderWidth, currentComboColor, this.nextNotePosition, vfxScore);
                 }
@@ -1606,7 +1621,7 @@ namespace OsuVR
                 if (!isAutoPlay && !double.IsNaN(prevHeadCheckDiff)
                     && prevHeadCheckDiff < earlyWindow && (offset - prevHeadCheckDiff) <= 40.0)
                     effectiveOffset = earlyWindow;
-                double maxWindow = 250.0;
+                double maxWindow = hitWindowMs;
                 double absDiff = System.Math.Abs(effectiveOffset);
                 double accuracy01 = 1.0 - (absDiff / maxWindow);
                 accuracy01 = System.Math.Clamp(accuracy01, 0.0, 1.0);
@@ -1670,10 +1685,11 @@ namespace OsuVR
                     : (sliderData.EndTime - sliderData.StartTime);
 
                 // 触发 Head Miss 的三大条件：
-                // 1. 时间超过正常最大打击窗口 (250ms)
+                // 1. 时间超过判定窗口 (随 OD 变化，OD8=250ms 基准)
                 // 2. 球已经跑完了一个折返段的时间 (针对快速滑条，球走远了算漏)
                 // 3. 整个滑条已经彻底结束 (解决极短滑条不显示 Miss 也不消失的问题)
-                bool isTimeoutMiss = (diff > 250) || (diff > spanDuration && diff > 0) || (currentMusicTimeCache >= sliderData.EndTime);
+                double headWindowMs = gameManager != null ? gameManager.JudgementWindowMs : 250.0;
+                bool isTimeoutMiss = (diff > headWindowMs) || (diff > spanDuration && diff > 0) || (currentMusicTimeCache >= sliderData.EndTime);
 
                 if (isTimeoutMiss)
                 {
@@ -2153,6 +2169,14 @@ namespace OsuVR
                 }
             }
             garbageList.Clear(); // 清空列表，断开所有”尸体”引用
+
+            // 1.5 销毁本滑条定制渲染队列时产生的材质克隆（防显存泄漏）
+            for (int i = 0; i < clonedMaterials.Count; i++)
+            {
+                if (clonedMaterials[i] != null)
+                    DestroyImmediate(clonedMaterials[i]);
+            }
+            clonedMaterials.Clear();
 
             // 清空折返粒子引用（GameObject 已被 Destroy，引用变成”假非空”）
             headReversePS = null;
