@@ -3,7 +3,7 @@
 ![Unity](https://img.shields.io/badge/Made%20with-Unity%202022.3%20LTS-black?style=flat&logo=unity)
 ![C#](https://img.shields.io/badge/Language-C%23-blue)
 ![Platform](https://img.shields.io/badge/Platform-PC%20VR%20%2F%20Standalone%20VR%20(OpenXR)-green)
-![Status](https://img.shields.io/badge/Status-v0.7.4-brightgreen)
+![Status](https://img.shields.io/badge/Status-v0.7.5-brightgreen)
 
 [中文](README.md) | **English**
 
@@ -17,7 +17,7 @@ Our ambition goes beyond simply porting 2D notes into 3D space — we aim to **c
 
 Using virtual ray pointers in your hands, you can effortlessly enjoy the audiovisual thrill of every high-quality osu! beatmap amidst pure sound waves and dazzling light effects.
 
-> 🟢 **Current Status: v0.7.4**
+> 🟢 **Current Status: v0.7.5**
 
 > The core loop (Launch -> Song Select -> Play -> Result) is fully functional. Generation and scoring systems for Circle, Slider, and Spinner are all complete. Storyboard full-command parsing + GPU instanced rendering is live, referencing osu!lazer and storybrew's command evaluation logic, with video background playback and three-layer compositing rendering support. The underlying architecture has fully adopted Unity Jobs + Burst multithreading, with the entire Storyboard pipeline multithreaded. Brightness and opacity are controlled via a unified settings panel, with three-layer premultiplied alpha blending ensuring consistent visual output.
 >
@@ -279,4 +279,4 @@ This project's transformation from cocoon to butterfly would not be possible wit
 ---
 
 ## 📄 License
-This project always embraces the open-source spirit, released under the permissive **MIT License**. Use it however you like. For details, please refer to the [LICENSE](LICENSE) file in the repository root directory.
+This project always embraces the open-source spirit, released under the **GNU General Public License v3.0 (GPL-3.0)**. You are free to use, modify, and redistribute this project, but any derivative work must also be open-sourced under GPL-3.0, and closed-source commercial use is prohibited. For details, please refer to the [LICENSE](LICENSE) file in the repository root directory.

@@ -279,25 +279,30 @@ namespace OsuVR
             AddSpacing(parent, 8f);
 
             AddGroupTitle(parent, "Engine & Tools", null);
-            AddEntry(parent, "Unity [Unity Companion License] — URP / XR Interaction Toolkit / VFX Graph / TextMeshPro");
+            AddEntry(parent, "Unity [Unity Companion License] — URP / XR Interaction Toolkit / VFX Graph / TextMeshPro / Input System");
             AddEntry(parent, "Liberation Sans font [SIL OFL 1.1]");
+            AddEntry(parent, "Source Han Sans (Adobe & Google) [SIL OFL 1.1] — CJK UI font (Simplified Chinese / Japanese)");
             AddSpacing(parent, 12f);
 
             // ============ Section 3: Open Source Licenses ============
             AddSectionTitle(parent, "Open Source Licenses", "ui_credits_section_licenses");
 
-            AddEntry(parent, "MIT License — applies to: osu!lazer (c) ppy Pty Ltd & contributors, storybrew (c) Damnae, OsuParsers (c) mrflashstudio, AudioLink (c) llealloo, X-PostProcessing-Library (c) contributors, Effekseer (c) contributors, Project Ether (c) 2026 NyaonSaya><", 12f, MutedColor);
+            AddEntry(parent, "MIT License — applies to: osu!lazer (c) ppy Pty Ltd & contributors, storybrew (c) Damnae, OsuParsers (c) mrflashstudio, AudioLink (c) llealloo, X-PostProcessing-Library (c) contributors, Effekseer (c) contributors", 12f, MutedColor);
             AddParagraph(parent, MitLicenseText, 11f);
+            AddSpacing(parent, 10f);
+
+            AddEntry(parent, "GNU General Public License v3.0 — applies to: Project Ether (c) 2026 NyaonSaya><. See https://www.gnu.org/licenses/gpl-3.0.html", 12f, MutedColor);
             AddSpacing(parent, 10f);
 
             AddEntry(parent, "The Unlicense — applies to: Lasp (c) Keijiro Takahashi", 12f, MutedColor);
             AddParagraph(parent, UnlicenseText, 11f);
             AddSpacing(parent, 10f);
 
-            AddEntry(parent, "Apache License 2.0 — applies to: osu-droid. Licensed under the Apache License, Version 2.0. See http://www.apache.org/licenses/LICENSE-2.0", 12f, MutedColor);
+            AddEntry(parent, "Apache License 2.0 — applies to: osu-droid. Licensed under the Apache License, Version 2.0. See https://www.apache.org/licenses/LICENSE-2.0", 12f, MutedColor);
             AddSpacing(parent, 10f);
 
-            AddEntry(parent, "Liberation Sans is licensed under the SIL Open Font License 1.1.", 12f, MutedColor);
+            AddEntry(parent, "Liberation Sans and Source Han Sans fonts are licensed under the SIL Open Font License 1.1 (https://openfontlicense.org).", 12f, MutedColor);
+            AddEntry(parent, "X-PostProcessing-Library shader sources are derived from Unity's Post Processing Stack and remain under the Unity Companion License.", 12f, MutedColor);
             AddEntry(parent, "Unity Editor & Engine components are subject to the Unity Companion License. See https://unity.com/legal", 12f, MutedColor);
             AddSpacing(parent, 12f);
 
@@ -306,7 +311,7 @@ namespace OsuVR
             AddEntry(parent, "Project Ether is a free, fan-made, non-commercial VR beatmap player. It is not affiliated with osu! or ppy Pty Ltd.");
             AddEntry(parent, "\"osu!\" is a trademark of ppy Pty Ltd.");
             AddEntry(parent, "All beatmaps, music, videos and storyboards belong to their original creators and artists.");
-            AddEntry(parent, "Project Ether (c) 2026 NyaonSaya>< — open source under the MIT License.");
+            AddEntry(parent, "Project Ether (c) 2026 NyaonSaya>< — open source under the GNU General Public License v3.0.");
         }
 
         // ============================================================
