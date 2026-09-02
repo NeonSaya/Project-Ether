@@ -279,4 +279,4 @@ This project's transformation from cocoon to butterfly would not be possible wit
 ---
 
 ## 📄 License
-This project always embraces the open-source spirit, released under the permissive **MIT License**. Use it however you like. For details, please refer to the [LICENSE](LICENSE) file in the repository root directory.
+This project always embraces the open-source spirit, released under the **GNU General Public License v3.0 (GPL-3.0)**. You are free to use, modify, and redistribute this project, but any derivative work must also be open-sourced under GPL-3.0, and closed-source commercial use is prohibited. For details, please refer to the [LICENSE](LICENSE) file in the repository root directory.

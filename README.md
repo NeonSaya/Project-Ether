@@ -277,4 +277,4 @@ A: 我们的 SB 引擎参考了 osu!lazer 和 storybrew 的开源实现，力求
 ---
 
 ## 📄 开源协议 (License)
-本项目始终拥抱开源精神，基于宽松的 **MIT License** 协议开源。想怎么用怎么用，详情请参阅仓库根目录里的 [LICENSE](LICENSE) 文件。
+本项目始终拥抱开源精神，基于 **GNU General Public License v3.0 (GPL-3.0)** 协议开源。你可以自由使用、修改、分发本项目，但任何衍生作品的源码也必须以 GPL-3.0 协议开放，禁止闭源商用。详情请参阅仓库根目录里的 [LICENSE](LICENSE) 文件。
