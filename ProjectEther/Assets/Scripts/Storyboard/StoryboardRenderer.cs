@@ -779,24 +779,61 @@ namespace OsuVR.Storyboard
             var textures = new List<Texture2D>();
             int maxWidth = 0, maxHeight = 0;
 
+            int skippedCount = 0;
             for (int i = 0; i < paths.Count; i++)
             {
                 // Android 文件系统反斜杠不是分隔符且大小写敏感：谱面里 "SB\bg.png" 类引用必须归一化
                 string fullPath = System.IO.Path.Combine(beatmapFolder, paths[i].Replace('\\', '/'));
                 if (!System.IO.File.Exists(fullPath))
                 {
-                    Debug.LogWarning($"[SBRenderer] SB 纹理不存在, 跳过: {paths[i]}");
-                    continue;
+                    skippedCount++;
+                    // 安卓上额外尝试大小写不敏感查找（ext4 严格区分，osu! 谱面引用常大小写不一致）
+                    if (Application.platform == RuntimePlatform.Android)
+                    {
+                        string dir = System.IO.Path.GetDirectoryName(fullPath);
+                        string fileName = System.IO.Path.GetFileName(fullPath);
+                        bool found = false;
+                        if (dir != null && System.IO.Directory.Exists(dir))
+                        {
+                            foreach (var f in System.IO.Directory.GetFiles(dir))
+                            {
+                                if (string.Equals(System.IO.Path.GetFileName(f), fileName, System.StringComparison.OrdinalIgnoreCase))
+                                {
+                                    fullPath = f;
+                                    found = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!found)
+                        {
+                            Debug.LogWarning($"[SBRenderer] [Android] SB 纹理不存在(大小写也不匹配), 跳过: {paths[i]} → {fullPath}");
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[SBRenderer] SB 纹理不存在, 跳过: {paths[i]}");
+                        continue;
+                    }
                 }
 
                 var tex = LoadTexture(fullPath);
                 if (tex == null)
+                {
+                    skippedCount++;
                     continue;  // 解码失败, 已在 LoadTexture 内打印警告
+                }
 
                 validPaths.Add(paths[i]);
                 textures.Add(tex);
                 if (tex.width > maxWidth) maxWidth = tex.width;
                 if (tex.height > maxHeight) maxHeight = tex.height;
+            }
+
+            if (skippedCount > 0)
+            {
+                Debug.LogWarning($"[SBRenderer] SB 纹理加载统计: {textures.Count}/{paths.Count} 成功, {skippedCount} 跳过");
             }
 
             if (textures.Count == 0)
@@ -807,8 +844,14 @@ namespace OsuVR.Storyboard
 
             SBDebugLog.Mem($"纹理加载完成: {textures.Count} 张, max={maxWidth}x{maxHeight}");
 
-            maxWidth = Mathf.Min(maxWidth, 2048);
-            maxHeight = Mathf.Min(maxHeight, 2048);
+            // 尊重 GPU 硬件上限（Pico/Quest 等设备 maxTextureSize 可能 < 2048）
+            int gpuMax = SystemInfo.maxTextureSize;
+            maxWidth = Mathf.Min(maxWidth, 2048, gpuMax);
+            maxHeight = Mathf.Min(maxHeight, 2048, gpuMax);
+            if (gpuMax < 2048)
+            {
+                Debug.LogWarning($"[SBRenderer] GPU maxTextureSize={gpuMax}, SB 纹理分辨率已限制");
+            }
 
             // 安全限制: Texture2DArray 总大小上限按平台分档（Android 一体机显存紧张，给 512MB；PC 1.8GB）
             long MAX_BYTES = Application.platform == RuntimePlatform.Android
@@ -905,10 +948,14 @@ namespace OsuVR.Storyboard
                 {
                     sprite.CachedTexIndex = -1;
                 }
-                else if (!string.IsNullOrEmpty(element.ImagePath) &&
-                         textureIndexMap.TryGetValue(element.ImagePath, out int idx))
+                else if (!string.IsNullOrEmpty(element.ImagePath))
                 {
-                    sprite.CachedTexIndex = idx;
+                    // textureIndexMap 的 key 是归一化路径（小写+正斜杠），必须用相同格式查找
+                    string normalizedKey = element.ImagePath.Replace('\\', '/').ToLowerInvariant();
+                    if (textureIndexMap.TryGetValue(normalizedKey, out int idx))
+                    {
+                        sprite.CachedTexIndex = idx;
+                    }
                 }
             });
         }
