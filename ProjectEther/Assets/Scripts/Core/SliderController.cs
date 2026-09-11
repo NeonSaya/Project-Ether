@@ -468,6 +468,7 @@ namespace OsuVR
             if (!meshRenderer) meshRenderer = GetComponent<MeshRenderer>();
             if (!meshCollider) meshCollider = GetComponent<MeshCollider>();
             if (!meshCollider) meshCollider = gameObject.AddComponent<MeshCollider>();
+            PhysicsUtil.EnsureKinematicRigidbody(gameObject); // 移动碰撞体补 kinematic RB（非凸 MeshCollider 仅允许 kinematic/静态，语义不变）
             if (sharedMaterial != null) meshRenderer.sharedMaterial = sharedMaterial;
             if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
 
@@ -1199,6 +1200,7 @@ namespace OsuVR
                     }
                     ballCollider = followBall.GetComponent<SphereCollider>();
                     if (ballCollider == null) ballCollider = followBall.AddComponent<SphereCollider>();
+            PhysicsUtil.EnsureKinematicRigidbody(followBall); // 移动碰撞体补 kinematic RB
                     followBall.SetActive(false);
                 }
             }

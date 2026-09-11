@@ -167,6 +167,7 @@ namespace OsuVR
             }
             boxCol.size = new Vector3(20f, 20f, 0.01f);
             boxCol.isTrigger = true;
+            PhysicsUtil.EnsureKinematicRigidbody(gameObject); // 移动碰撞体补 kinematic RB
 
             // UI 重置
             if (meterImage) { meterImage.fillAmount = 0f; meterImage.color = Color.white; }

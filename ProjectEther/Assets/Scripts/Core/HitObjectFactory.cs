@@ -583,6 +583,7 @@ namespace OsuVR
             var sc = ball.AddComponent<SphereCollider>();
             sc.isTrigger = true;
             sc.radius = 0.5f;
+            PhysicsUtil.EnsureKinematicRigidbody(ball); // 移动碰撞体补 kinematic RB，避免 PhysX broadphase 每帧重建
 
             ball.layer = 6;
 
@@ -738,6 +739,7 @@ namespace OsuVR
             var sc = go.AddComponent<SphereCollider>();
             sc.isTrigger = trigger;
             sc.radius = radius;
+            PhysicsUtil.EnsureKinematicRigidbody(go); // 移动碰撞体补 kinematic RB，避免 PhysX broadphase 每帧重建
         }
 
         #endregion
