@@ -159,7 +159,7 @@ namespace OsuVR
             headerValueRt.anchorMax = new Vector2(0.5f, 0.5f);
             headerValueRt.sizeDelta = new Vector2(0f, 24f);
             var headerValueTmp = headerValueGo.AddComponent<TextMeshProUGUI>();
-            headerValueTmp.text = string.Format(valueFormat, currentVal);
+            headerValueTmp.text = string.Format(System.Globalization.CultureInfo.InvariantCulture, valueFormat, currentVal);
             headerValueTmp.fontSize = 16f;
             headerValueTmp.fontStyle = FontStyles.Bold;
             headerValueTmp.color = Color.white;
@@ -233,7 +233,7 @@ namespace OsuVR
             var capturedTmp = headerValueTmp;
             slider.onValueChanged.AddListener(v =>
             {
-                capturedTmp.text = string.Format(capturedFormat, v);
+                capturedTmp.text = string.Format(System.Globalization.CultureInfo.InvariantCulture, capturedFormat, v);
             });
 
             AddControlSounds(sliderGo, true);

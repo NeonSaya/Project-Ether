@@ -337,6 +337,9 @@ namespace OsuVR
 
         void OnDestroy()
         {
+            // 静态 Instance 随场景卸载置空，防止残留“假非空”引用
+            if (Instance == this) Instance = null;
+
             CirclePool?.Clear();
             SliderPool?.Clear();
             SpinnerPool?.Clear();

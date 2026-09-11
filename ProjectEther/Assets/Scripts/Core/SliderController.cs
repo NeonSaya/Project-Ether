@@ -690,6 +690,13 @@ namespace OsuVR
             var (borderMesh, bodyMesh, borderMat, bodyMat) = SliderMeshGenerator.GeneratePhysicalSlider(
                     worldPathPoints, radius, borderThickness, customBorderColor, customBodyColor, currentStencilId);
 
+            // Shader 全缺或路径为空时生成器返回 null 元组，必须判空否则 NRE
+            if (borderMesh == null || bodyMesh == null || borderMat == null || bodyMat == null)
+            {
+                Debug.LogError("[SliderController] 滑条网格/材质生成失败（Shader 缺失或路径为空），跳过本滑条视觉");
+                return;
+            }
+
             bodyMesh.RecalculateBounds();
             borderMesh.RecalculateBounds();
             Bounds safeBounds = bodyMesh.bounds;

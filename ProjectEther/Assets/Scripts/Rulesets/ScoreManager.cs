@@ -57,6 +57,7 @@ namespace OsuVR
         private int _hit100 = 0;                        // 100 判定数 (良好)
         private int _hit50 = 0;                         // 50 判定数 (一般)
         private int _hitMiss = 0;                       // Miss 判定数
+        private bool _comboEverBroken = false;            // 连击是否曾中断（含滑条内部漏打，RegisterMissScoreOnly 不记 _hitMiss 但必须阻断 FC）
 
         // ================================================================
         // 滑条统计
@@ -125,6 +126,7 @@ namespace OsuVR
             _hit100 = 0;
             _hit50 = 0;
             _hitMiss = 0;
+            _comboEverBroken = false;
 
             _totalSliders = 0;
             _slidersPerfect = 0;
@@ -172,6 +174,12 @@ namespace OsuVR
 
             // 模拟一次完美的 Full Combo (AutoPlay)
             // 以此计算出准确的分母：_maxComboPortionTotal 和 _totalMapJudgements
+
+            if (allHitObjects == null)
+            {
+                Debug.LogError("[ScoreManager] Initialize 收到 null 谱面列表，计分系统未初始化");
+                return;
+            }
 
             _totalNoteCount = allHitObjects.Count;
 
@@ -310,6 +318,7 @@ namespace OsuVR
         {
             _totalHitsPerformed++;
             _currentCombo = 0;
+            _comboEverBroken = true;
 
             _currentBaseScore += 0;
             _currentMaxBaseScore += maxScoreValue;
@@ -416,7 +425,7 @@ namespace OsuVR
 
             double accuracyProgress = 0;
             if (_totalMapJudgements > 0)
-                accuracyProgress = (double)_totalHitsPerformed / _totalMapJudgements;
+                accuracyProgress = Math.Min(1.0, (double)_totalHitsPerformed / _totalMapJudgements); // 防超计数导致分数超上限
 
             double part1 = 500000 * accuracy * comboProgress;
             double part2 = 500000 * Math.Pow(accuracy, 5) * accuracyProgress;
@@ -453,7 +462,7 @@ namespace OsuVR
             if (_currentMaxBaseScore > 0)
                 accuracy = _currentBaseScore / _currentMaxBaseScore;
 
-            bool isFullCombo = _hitMiss == 0;
+            bool isFullCombo = _hitMiss == 0 && !_comboEverBroken;
             // _hit300 包含 Circle(1次) + Slider Head(1次) + Slider Tail(1次) + Spinner(1次)
             // 所以完美时 _hit300 = _totalNoteCount + _totalSliders (每个 slider 额外贡献一次 tail 判定)
             bool isPerfectPlay = isFullCombo && _hit300 == _totalNoteCount + _totalSliders && _hit100 == 0 && _hit50 == 0;

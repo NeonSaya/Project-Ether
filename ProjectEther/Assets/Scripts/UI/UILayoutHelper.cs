@@ -184,7 +184,7 @@ namespace OsuVR
             {
                 var col = go.AddComponent<BoxCollider>();
                 col.isTrigger = true;
-                col.size = new Vector3(0f, height, 10f);
+                col.size = new Vector3(width, height, 10f); // 用实际宽度，零 X 的退化碰撞体物理射线永不命中
             }
 
             // 按钮文字
@@ -538,7 +538,7 @@ namespace OsuVR
                 SetChildLayoutElement(valueTextTf, ValuePreferredWidth);
                 valueTmp = valueTextTf.GetComponent<TextMeshProUGUI>();
                 if (valueTmp != null)
-                    valueTmp.text = string.Format(valueFormat, currentVal * valueScale);
+                    valueTmp.text = string.Format(System.Globalization.CultureInfo.InvariantCulture, valueFormat, currentVal * valueScale);
             }
 
             // Wire slider value change to update text
@@ -549,7 +549,7 @@ namespace OsuVR
                 var capturedTmp = valueTmp;
                 slider.onValueChanged.AddListener(v =>
                 {
-                    capturedTmp.text = string.Format(capturedFormat, v * capturedScale);
+                    capturedTmp.text = string.Format(System.Globalization.CultureInfo.InvariantCulture, capturedFormat, v * capturedScale);
                 });
             }
 
@@ -674,7 +674,7 @@ namespace OsuVR
             {
                 var tmp = valueTextTf.GetComponent<TextMeshProUGUI>();
                 if (tmp != null)
-                    tmp.text = string.Format(valueFormat, slider.value * valueScale);
+                    tmp.text = string.Format(System.Globalization.CultureInfo.InvariantCulture, valueFormat, slider.value * valueScale);
             }
         }
     }

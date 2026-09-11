@@ -90,6 +90,12 @@ namespace OsuVR
         private static Mesh BuildSausageMesh(List<Vector3> path, float w, string name)
         {
             Mesh m = new Mesh { name = name };
+            // 空路径/未初始化路径守卫：避免 NRE 与 0 顶点空网格导致的 MeshCollider 静默失效
+            if (path == null || path.Count == 0)
+            {
+                Debug.LogWarning("[SliderMeshGenerator] 路径为空，返回空网格");
+                return m;
+            }
             m.indexFormat = IndexFormat.UInt32;
             List<Vector3> v = new List<Vector3>();
             List<int> t = new List<int>();

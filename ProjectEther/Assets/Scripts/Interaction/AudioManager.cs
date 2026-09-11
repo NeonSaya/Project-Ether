@@ -54,6 +54,13 @@ namespace OsuVR
                 return;
             }
 
+            // Inspector 未配置时给默认皮肤兜底，避免第一次击打就 NRE
+            if (defaultSkin == null)
+            {
+                defaultSkin = ScriptableObject.CreateInstance<SkinConfig>();
+                Debug.LogWarning("[AudioManager] 未配置 SkinConfig，使用默认值兜底");
+            }
+
             InitializeAudioSources();
         }
 
@@ -105,14 +112,24 @@ namespace OsuVR
             }
             beatmapSkinCache.Clear();
 
-            StartCoroutine(LoadSamplesRoutine(mapFolderPath));
+            // 停掉上一谱面的加载协程，防止快速切歌时旧协程把上谱 clip 写进刚清空的新缓存
+            if (_loadSamplesCoroutine != null)
+            {
+                StopCoroutine(_loadSamplesCoroutine);
+                _loadSamplesCoroutine = null;
+            }
+            _loadSamplesCoroutine = StartCoroutine(LoadSamplesRoutine(mapFolderPath));
         }
+
+        private Coroutine _loadSamplesCoroutine;
 
         private IEnumerator LoadSamplesRoutine(string folder)
         {
-            string[] files = Directory.GetFiles(folder, "*.wav");
+            // Android 文件系统大小写敏感：".WAV" 用 "*.wav" 模式匹配不到，改为全量枚举+忽略大小写过滤
+            string[] files = Directory.GetFiles(folder);
             foreach (var filePath in files)
             {
+                if (!filePath.EndsWith(".wav", System.StringComparison.OrdinalIgnoreCase)) continue;
                 string fileName = Path.GetFileNameWithoutExtension(filePath).ToLower();
 
                 if (!fileName.Contains("hit") && !fileName.Contains("slider")) continue;

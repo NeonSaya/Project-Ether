@@ -10,6 +10,9 @@ namespace OsuVR
         [SerializeField]
         public string localizationKey;
 
+        /// <summary>调试开关：开启后每次文本刷新都打日志（默认关闭，一次切语言会刷几十条）</summary>
+        public static bool VerboseLogging = false;
+
         private TextMeshProUGUI textComponent;
 
         private TMP_FontAsset originalFont;
@@ -106,7 +109,7 @@ namespace OsuVR
 
             string text = LocalizationManager.GetText(localizationKey);
             
-            Debug.Log($"[LocalizedText] UpdateText - Key: {localizationKey}, Lang: {currentLang}, Font: {targetFont.name}, Text: {text}");
+            if (VerboseLogging) Debug.Log($"[LocalizedText] UpdateText - Key: {localizationKey}, Lang: {currentLang}, Font: {targetFont.name}, Text: {text}");
             
             if (textComponent.font != targetFont)
             {

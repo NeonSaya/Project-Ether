@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace OsuVR
@@ -74,6 +74,37 @@ namespace OsuVR
 
             if (persist && audioSource != null)
             {
+                // 若音频源与其它管理器同对象（如 GameManager 上同时挂了 RhythmGameManager），
+                // 直接 DontDestroyOnLoad 会把整个管理器残留成僵尸对象（Update 空转、InputAction 不释放），
+                // 这里迁移到独立的持久化 GameObject，只保留音乐播放能力
+                bool sharedWithManager = audioSource.GetComponent<RhythmGameManager>() != null;
+                if (sharedWithManager)
+                {
+                    var go = new GameObject("PersistedMusicSource");
+                    var newSource = go.AddComponent<AudioSource>();
+
+                    // 复制播放状态，保证音乐无缝延续
+                    newSource.clip = audioSource.clip;
+                    newSource.time = audioSource.time;
+                    newSource.pitch = audioSource.pitch;
+                    newSource.volume = audioSource.volume;
+                    newSource.loop = audioSource.loop;
+                    newSource.spatialBlend = audioSource.spatialBlend;
+                    newSource.priority = audioSource.priority;
+                    newSource.outputAudioMixerGroup = audioSource.outputAudioMixerGroup;
+
+                    bool wasPlaying = audioSource.isPlaying;
+                    audioSource.Stop(); // 旧源停用，组件随 GameScene 卸载一并销毁
+
+                    if (wasPlaying) newSource.Play();
+
+                    audioSource = newSource;
+
+                    // 音频可视化系统换绑到新源，结算/菜单阶段频谱继续响应
+                    if (AudioVisualizationManager.Instance != null)
+                        AudioVisualizationManager.Instance.SetTargetAudioSource(newSource);
+                }
+
                 // 将 AudioSource 的 GameObject 移动到持久化管理器下
                 audioSource.transform.SetParent(null);
                 DontDestroyOnLoad(audioSource.gameObject);

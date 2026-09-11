@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
 using UnityEngine.InputSystem.XR;
@@ -232,6 +232,15 @@ namespace OsuVR
             }
             foreach (var c in hand.disabledComponents) if (c != null) c.enabled = true;
             hand.disabledComponents.Clear();
+
+            // 恢复用户原始的射线偏转设置（与 RestoreHandForPlayerControl 对齐，
+            // 否则 AutoPlay 结束后手柄卡在 Direct1to1+零偏移）
+            if (hand.controller != null)
+            {
+                hand.controller.currentMode = hand.userMode;
+                hand.controller.verticalOffset = hand.userVerticalOffset;
+                hand.controller.directOffset = hand.userDirectOffset;
+            }
         }
 
         /// <summary>

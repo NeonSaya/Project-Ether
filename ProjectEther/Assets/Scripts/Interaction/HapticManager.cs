@@ -29,6 +29,13 @@ namespace OsuVR
             {
                 Instance = this;
                 DontDestroyOnLoad(gameObject);
+
+                // Inspector 未配置时给默认配置兜底，避免第一次击打就 NRE
+                if (profile == null)
+                {
+                    profile = ScriptableObject.CreateInstance<HapticProfile>();
+                    Debug.LogWarning("[HapticManager] 未配置 HapticProfile，使用默认值兜底");
+                }
             }
             else
             {

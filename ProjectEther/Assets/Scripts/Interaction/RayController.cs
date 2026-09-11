@@ -318,18 +318,22 @@ namespace OsuVR
         //  3D 物理射线 (音符判定) — 预分配集合避免 GC
         // ============================================================
 
+        // SphereCastNonAlloc 复用缓冲区（一次性分配，每帧零 GC）
+        private readonly RaycastHit[] _hitBuffer = new RaycastHit[256];
+
         private void PerformRaycastAll()
         {
             if (visualRay == null) return;
             Vector3 origin = visualRay.position, direction = visualRay.forward;
-            RaycastHit[] hits = Physics.SphereCastAll(new Ray(origin, direction), rayRadius, rayLength, noteLayer, QueryTriggerInteraction.Collide);
+            int hitCount = Physics.SphereCastNonAlloc(new Ray(origin, direction), rayRadius, _hitBuffer, rayLength, noteLayer, QueryTriggerInteraction.Collide);
 
             currentHitMap.Clear();
             currentHitObjects.Clear();
             float minDist = float.MaxValue; Vector3 closestPt = Vector3.zero; GameObject closestObj = null;
 
-            foreach (var hit in hits)
+            for (int _hi = 0; _hi < hitCount; _hi++)
             {
+                var hit = _hitBuffer[_hi];
                 GameObject obj = hit.collider.gameObject;
                 currentHitObjects.Add(obj);
                 if (!currentHitMap.ContainsKey(obj)) currentHitMap.Add(obj, hit.point);

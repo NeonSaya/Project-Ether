@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
@@ -236,6 +236,11 @@ namespace OsuVR
         private System.Type audioLinkCachedType;
         private MonoBehaviour audioLinkCachedInstance;
         private System.Reflection.MethodInfo audioLinkGetDataMethod;
+        // 反射委托化：CreateDelegate 之后按普通委托调用，零装箱零 object[] 分配
+        // （原来每帧 ~512 次 MethodInfo.Invoke：8频段×16bin + 128柱×3点插值，~28KB/帧 GC）
+        private System.Func<Vector2, Vector4> _audioLinkGetData;
+        private readonly float[] _audioLinkBins = new float[128];
+        private float _audioLinkNoDataTimer = 0f;
         private System.Reflection.MethodInfo audioLinkIsAvailableMethod;
 
         // 流星层 speedModifier 缓存
@@ -355,6 +360,20 @@ namespace OsuVR
                     {
                         audioLinkGetDataMethod = audioLinkCachedType.GetMethod("GetDataAtPixel", new System.Type[] { typeof(Vector2) });
                     }
+                    if (_audioLinkGetData == null && audioLinkGetDataMethod != null)
+                    {
+                        try
+                        {
+                            _audioLinkGetData = (System.Func<Vector2, Vector4>)System.Delegate.CreateDelegate(
+                                typeof(System.Func<Vector2, Vector4>), audioLinkCachedInstance, audioLinkGetDataMethod);
+                        }
+                        catch (System.Exception e)
+                        {
+                            Debug.LogWarning($"[EtherealEnvironment] AudioLink 委托创建失败，禁用 AudioLink 通道: {e.Message}");
+                            audioLinkAvailable = false;
+                            audioLinkCachedInstance = null;
+                        }
+                    }
                     if (audioLinkIsAvailableMethod == null)
                     {
                         audioLinkIsAvailableMethod = audioLinkCachedType.GetMethod("AudioDataIsAvailable",
@@ -451,6 +470,10 @@ namespace OsuVR
             DetectPhase(scene);
             // 每次加载场景时重新检测AudioLink（因为AudioLink预制体可能只在特定场景存在）
             CheckAudioLinkAvailability();
+            // RhythmGameManager 是 GameScene 场景对象，Awake 时的一次性查找在完整流程下必为 null，
+            // 进 GameScene 后延迟重找，否则节拍/Kiai 环境响应全程失效
+            if (currentPhase == GamePhase.Playing)
+                Invoke(nameof(FindRhythmGameManager), 1f);
         }
 
         void OnActiveSceneChanged(Scene oldScene, Scene newScene)
@@ -2019,12 +2042,17 @@ namespace OsuVR
         /// </summary>
         private void UpdateSpectrumFromAudioLink()
         {
-            // 非游戏阶段：跳过频谱更新，清零 AudioVisualizationManager 设置的全局 Shader 变量
+            // 非游戏阶段：跳过频谱更新。全局音频变量统一由 AudioVisualizationManager 维护，
+            // 这里不再每帧清零——两个 DontDestroyOnLoad 单例抢写同一组全局变量，胜负取决于未定义
+            // 的脚本执行顺序（结算页音乐会触发数据闪烁）。仅当 AVM 不存在时兜底清零。
             if (currentPhase != GamePhase.Playing)
             {
-                Shader.SetGlobalFloat("_Global_Audio_Bass", 0f);
-                Shader.SetGlobalFloat("_Global_Audio_Mid", 0f);
-                Shader.SetGlobalFloat("_Global_Audio_Treble", 0f);
+                if (AudioVisualizationManager.Instance == null)
+                {
+                    Shader.SetGlobalFloat("_Global_Audio_Bass", 0f);
+                    Shader.SetGlobalFloat("_Global_Audio_Mid", 0f);
+                    Shader.SetGlobalFloat("_Global_Audio_Treble", 0f);
+                }
                 return;
             }
 
@@ -2043,15 +2071,27 @@ namespace OsuVR
                         bool dataAvailable = (bool)audioLinkIsAvailableMethod.Invoke(audioLinkCachedInstance, null);
                         if (!dataAvailable)
                         {
-                            // 数据不可用，可能刚启用 readback，等待一帧
-                            // 不立即回退，保持 audioLinkAvailable 标志
+                            // 数据不可用：给 1 秒宽限（readback 启动延迟），超时降级到 AVM 三频段，
+                            // 防止频谱永久冻结（原来无超时，dataAvailable 永假时频谱卡死）
+                            _audioLinkNoDataTimer += dt;
+                            if (_audioLinkNoDataTimer > 1f)
+                            {
+                                audioLinkAvailable = false;
+                                audioLinkCachedInstance = null;
+                                Debug.LogWarning("[EtherealEnvironment] AudioLink 数据持续不可用，降级到 AVM 三频段");
+                            }
                             return;
                         }
+                        _audioLinkNoDataTimer = 0f;
                     }
 
-                    if (audioLinkGetDataMethod != null)
+                    if (_audioLinkGetData != null)
                     {
                         // ALPASS_DFT 位置 = uint2(0,4)，128x2 频谱数据
+                        // 一次性取全部 128 bin 到缓存（普通委托调用，零装箱），8频段与128柱共用同一份数据
+                        for (int bin = 0; bin < 128; bin++)
+                            _audioLinkBins[bin] = _audioLinkGetData(new Vector2(bin, 4)).x;
+
                         // 压缩为8频段：每频段取16个bin的平均值
                         for (int band = 0; band < spectrumBands; band++)
                         {
@@ -2061,13 +2101,9 @@ namespace OsuVR
 
                             for (int bin = startBin; bin < startBin + 16 && bin < 128; bin++)
                             {
-                                // DFT数据在 y=4 和 y=5 两行
-                                var result = audioLinkGetDataMethod.Invoke(audioLinkCachedInstance, new object[] { new Vector2(bin, 4) });
-                                if (result is Vector4 v4)
-                                {
-                                    sum += v4.x;
-                                    validCount++;
-                                }
+                                // DFT数据在 y=4 和 y=5 两行（来自上方统一缓存，数值与原反射逐点取数完全一致）
+                                sum += _audioLinkBins[bin];
+                                validCount++;
                             }
 
                             spectrumBandValues[band] = validCount > 0 ? sum / validCount : 0f;
@@ -2136,15 +2172,10 @@ namespace OsuVR
                             int binRight = Mathf.Min(binCenter + 1, 127);
                             float interpT = binFloat - binCenter;
 
-                            // 获取三个bin的数据
-                            var resultLeft = audioLinkGetDataMethod.Invoke(audioLinkCachedInstance, new object[] { new Vector2(binLeft, 4) });
-                            var resultCenter = audioLinkGetDataMethod.Invoke(audioLinkCachedInstance, new object[] { new Vector2(binCenter, 4) });
-                            var resultRight = audioLinkGetDataMethod.Invoke(audioLinkCachedInstance, new object[] { new Vector2(binRight, 4) });
-
-                            float valueLeft = 0f, valueCenter = 0f, valueRight = 0f;
-                            if (resultLeft is Vector4 v4L) valueLeft = v4L.x;
-                            if (resultCenter is Vector4 v4C) valueCenter = v4C.x;
-                            if (resultRight is Vector4 v4R) valueRight = v4R.x;
+                            // 获取三个bin的数据（统一缓存）
+                            float valueLeft = _audioLinkBins[binLeft];
+                            float valueCenter = _audioLinkBins[binCenter];
+                            float valueRight = _audioLinkBins[binRight];
 
                             // 使用二次插值（Catmull-Rom简化版）获得更平滑曲线
                             float rawValue;
@@ -2460,11 +2491,12 @@ namespace OsuVR
             float dt = Time.deltaTime;
             float lerpFactor = 1f - Mathf.Exp(-audioResponseSmooth * dt);
 
-            // 使用8频段数据（如果可用）或三频段数据
-            float bass = spectrumBandSmoothed[0] + spectrumBandSmoothed[1]; // Band 0-1: Bass
-            float lowMid = spectrumBandSmoothed[2] + spectrumBandSmoothed[3]; // Band 2-3: LowMid
-            float highMid = spectrumBandSmoothed[4] + spectrumBandSmoothed[5]; // Band 4-5: HighMid
-            float treble = spectrumBandSmoothed[6] + spectrumBandSmoothed[7]; // Band 6-7: Treble
+            // 使用8频段数据（如果可用）或三频段数据；数组长度按序列化 spectrumBands 分配，需防越界
+            float Band(int i) => (spectrumBandSmoothed != null && i < spectrumBandSmoothed.Length) ? spectrumBandSmoothed[i] : 0f;
+            float bass = Band(0) + Band(1); // Band 0-1: Bass
+            float lowMid = Band(2) + Band(3); // Band 2-3: LowMid
+            float highMid = Band(4) + Band(5); // Band 4-5: HighMid
+            float treble = Band(6) + Band(7); // Band 6-7: Treble
 
             // 如果AudioLink不可用，使用AudioVisualizationManager的数据
             if (!audioLinkAvailable)

@@ -33,7 +33,8 @@ namespace OsuVR.Storyboard
             // 1. 从 [Events] 解析结果获取视频引用
             if (!string.IsNullOrEmpty(beatmap.Events.VideoFilename))
             {
-                string path = Path.Combine(folder, beatmap.Events.VideoFilename);
+                // Android 反斜杠非分隔符：归一化谱面里的 Windows 风格路径
+                string path = Path.Combine(folder, beatmap.Events.VideoFilename.Replace('\\', '/'));
                 if (File.Exists(path))
                 {
                     string ext = Path.GetExtension(path).ToLowerInvariant();
@@ -84,7 +85,7 @@ namespace OsuVR.Storyboard
             // 4. 查找静态背景图
             if (!string.IsNullOrEmpty(beatmap.Events.BackgroundFilename))
             {
-                string bgPath = Path.Combine(folder, beatmap.Events.BackgroundFilename);
+                string bgPath = Path.Combine(folder, beatmap.Events.BackgroundFilename.Replace('\\', '/'));
                 if (File.Exists(bgPath))
                 {
                     result.BackgroundPath = bgPath;

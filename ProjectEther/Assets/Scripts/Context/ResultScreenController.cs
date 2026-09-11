@@ -148,7 +148,7 @@ namespace OsuVR
                 { "Max Combo", "ui_max_combo" },
                 { "Rank", "ui_rank" },
                 { "RETRY", "ui_retry" },
-                { "Back to Menu", "ui_main_menu" },
+                { "Back to Menu", "ui_song_select" }, // 实际跳选歌场景（:701），与 VRPauseMenu 同一映射
                 { "Mapper", "ui_mapper" }
             };
 
@@ -399,7 +399,7 @@ namespace OsuVR
                 if (textScore != null)
                     textScore.text = displayScore.ToString("D7");
                 if (textAccuracy != null)
-                    textAccuracy.text = $"{displayAccuracy * 100:F2}%";
+                    textAccuracy.text = (displayAccuracy * 100).ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + "%";
                 if (textMaxCombo != null)
                     textMaxCombo.text = $"{result.maxCombo}x";
 
@@ -413,7 +413,7 @@ namespace OsuVR
             if (textScore != null)
                 textScore.text = result.finalScore.ToString("D7");
             if (textAccuracy != null)
-                textAccuracy.text = $"{result.accuracy * 100:F2}%";
+                textAccuracy.text = (result.accuracy * 100).ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + "%";
             if (textMaxCombo != null)
             {
                 textMaxCombo.text = $"{result.maxCombo}x";

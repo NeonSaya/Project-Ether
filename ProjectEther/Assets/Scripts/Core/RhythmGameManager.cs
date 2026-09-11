@@ -769,9 +769,9 @@ namespace OsuVR
                     Debug.LogError($"音频加载错误: {www.error}");
                     Debug.LogError($"[Audio] 尝试加载的路径是: {audioPath}");
 
-                    // 即使音频加载失败，也要强行开始游戏 (无声游玩)，否则会卡在黑屏
-                    VRToast.Show(LocalizationManager.GetText("ui_audio_load_failed"), new Color(1f, 0.85f, 0.3f), 5f);
-                    StartGame();
+                    // 音频加载失败：无法开局（StartGame 有 clip==null 守卫），提示后直接返回主菜单，避免黑屏卡死
+                    ReturnToMenuWithToast("ui_audio_load_failed");
+                    yield break;
                 }
                 else
                 {
@@ -813,8 +813,8 @@ namespace OsuVR
                     else
                     {
                         Debug.LogError("下载的 AudioClip 为空！");
-                        VRToast.Show(LocalizationManager.GetText("ui_audio_load_failed"), new Color(1f, 0.85f, 0.3f), 5f);
-                        StartGame();
+                        ReturnToMenuWithToast("ui_audio_load_failed");
+                        yield break;
                     }
                 }
             }
@@ -1567,7 +1567,9 @@ namespace OsuVR
             // 5. 设置名称 (方便调试，不再 Instantiate 所以要手动改名)
             if (noteObject != null)
             {
-                noteObject.name = $"{hitObject.GetType().Name}_{hitObject.StartTime}ms";
+#if UNITY_EDITOR
+                noteObject.name = $"{hitObject.GetType().Name}_{hitObject.StartTime}ms"; // 仅编辑器内命名（构建包省掉字符串插值+反射的 GC）
+#endif
 
                 // 6. 添加到活动列表
                 activeNoteObjects[hitObject] = noteObject;
