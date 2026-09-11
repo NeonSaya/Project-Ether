@@ -351,6 +351,9 @@ namespace OsuVR
                 if (audioLinkCachedInstance == null)
                 {
                     audioLinkCachedInstance = FindAnyObjectByType(audioLinkCachedType) as MonoBehaviour;
+                    // 场景重载后 AudioLink 是全新实例；旧委托仍绑定已销毁实例，
+                    // 其 GetDataAtPixel 只会返回冻结的旧 audioData 数组（频谱卡死根因），必须重建
+                    _audioLinkGetData = null;
                 }
 
                 if (audioLinkCachedInstance != null)

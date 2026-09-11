@@ -291,7 +291,8 @@ namespace OsuVR
         public void ApplyControllerOffsets()
         {
             // AutoPlay 模式下跳过被 AI 控制的 controller，避免覆盖零偏移 Direct1to1 模式
-            var autoPlay = RhythmGameManager.Instance != null ? RhythmGameManager.Instance.autoPlayManager : null;
+            var rgm = FindFirstObjectByType<RhythmGameManager>();
+            var autoPlay = rgm != null ? rgm.autoPlayManager : null;
 
             var rayControllers = FindObjectsOfType<RayController>();
             foreach (var rc in rayControllers)
