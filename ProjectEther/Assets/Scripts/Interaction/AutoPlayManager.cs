@@ -84,6 +84,18 @@ namespace OsuVR
         private struct RendererCacheEntry { public Renderer[] renderers; public int childCount; }
         private readonly Dictionary<GameObject, RendererCacheEntry> _sliderRendererCache = new Dictionary<GameObject, RendererCacheEntry>();
 
+        /// <summary>
+        /// 检查指定的 RayController 是否正被 AutoPlay 控制。
+        /// AutoPlay 激活时，controller 的 directOffset / verticalOffset / currentMode 由 AI 管理，
+        /// 外部设置应用应跳过这些 controller，避免覆盖 AI 的零偏移 Direct1to1 模式。
+        /// </summary>
+        public bool IsControlling(RayController ray)
+        {
+            if (ray == null || !isActiveAndEnabled || isPaused) return false;
+            return (leftHand != null && leftHand.controller == ray)
+                || (rightHand != null && rightHand.controller == ray);
+        }
+
         private static bool HasNullRenderer(Renderer[] renderers)
         {
             for (int i = 0; i < renderers.Length; i++)
