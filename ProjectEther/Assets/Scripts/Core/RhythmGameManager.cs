@@ -680,9 +680,15 @@ namespace OsuVR
                     if (renderer != null)
                     {
                         bool hasValidSB = sbData != null && sbData.TotalElementCount > 0;
-                        string videoPath = mediaScan.HasVideo ? mediaScan.VideoPath : null;
+                        // 故事板播放开关同时门控 SB 与视频（与本开关注释意图一致：开启时才解析和渲染 SB/视频）
+                        string videoPath = (sbPlaybackEnabled && mediaScan.HasVideo) ? mediaScan.VideoPath : null;
 
-                        if (hasValidSB && mediaScan.HasVideo)
+                        if (!sbPlaybackEnabled)
+                        {
+                            // 播放关闭：卸载上一首残留的 SB/视频，防止旧内容经 GetRenderTexture 注入幕布继续显示
+                            renderer.UnloadAll();
+                        }
+                        else if (hasValidSB && !string.IsNullOrEmpty(videoPath))
                         {
                             // 复合模式: Video + Storyboard
                             renderer.LoadVideoAndStoryboard(videoPath, mediaScan.VideoOffset, sbData, beatmapFolder, widescreen);
@@ -692,7 +698,7 @@ namespace OsuVR
                             // 纯 Storyboard
                             renderer.LoadStoryboard(sbData, beatmapFolder, widescreen);
                         }
-                        else if (mediaScan.HasVideo)
+                        else if (!string.IsNullOrEmpty(videoPath))
                         {
                             // 纯 Video
                             renderer.LoadVideo(videoPath, mediaScan.VideoOffset);
