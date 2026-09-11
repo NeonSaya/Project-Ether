@@ -463,6 +463,7 @@ namespace OsuVR
             if (!shader) { Debug.LogError("[HitObjectFactory] SolidLayer Shader 不可用!"); return; }
 
             Material mat = new Material(shader);
+            RuntimeMaterialTracker.GetOrAdd(parent).Track(mat); // 登记销毁，防显存泄漏
 
             // 2. 赋予刚才生成的"大实心圆"贴图
             if (cachedSolidTexture == null) cachedSolidTexture = CreateSolidCircleTexture();
@@ -551,7 +552,9 @@ namespace OsuVR
             }
             else
             {
-                mr.material = CreateDefaultTickMaterial();
+                var tickMat = CreateDefaultTickMaterial();
+                RuntimeMaterialTracker.GetOrAdd(tick).Track(tickMat);
+                mr.material = tickMat;
             }
 
             tick.layer = 6;
@@ -573,11 +576,14 @@ namespace OsuVR
             mf.sharedMesh = cachedSphereMesh;
 
             var mr = ball.AddComponent<MeshRenderer>();
-            mr.material = CreateFollowBallMaterial();
+            var ballMat = CreateFollowBallMaterial();
+            RuntimeMaterialTracker.GetOrAdd(ball).Track(ballMat);
+            mr.material = ballMat;
 
             var sc = ball.AddComponent<SphereCollider>();
             sc.isTrigger = true;
             sc.radius = 0.5f;
+            PhysicsUtil.EnsureKinematicRigidbody(ball); // 移动碰撞体补 kinematic RB，避免 PhysX broadphase 每帧重建
 
             ball.layer = 6;
 
@@ -624,7 +630,9 @@ namespace OsuVR
 
             var mr = body.AddComponent<MeshRenderer>();
             // 始终使用默认 Body 材质（确保透明支持）
-            mr.material = CreateDefaultBodyMaterial();
+            var bodyMat = CreateDefaultBodyMaterial();
+            RuntimeMaterialTracker.GetOrAdd(parent).Track(bodyMat);
+            mr.material = bodyMat;
 
             body.layer = 6;
         }
@@ -651,7 +659,9 @@ namespace OsuVR
             // 优先级：外部材质 > 置顶 Shader 材质 > 默认材质
             if (cachedApproachMaterial != null)
             {
-                mr.material = new Material(cachedApproachMaterial);
+                var approachClone = new Material(cachedApproachMaterial);
+                RuntimeMaterialTracker.GetOrAdd(parent).Track(approachClone);
+                mr.material = approachClone;
                 mr.material.mainTexture = cachedApproachTexture;
             }
             else if (cachedApproachCircleMaterial != null)
@@ -660,7 +670,9 @@ namespace OsuVR
             }
             else
             {
-                mr.material = CreateDefaultApproachMaterial();
+                var approachMat = CreateDefaultApproachMaterial();
+                RuntimeMaterialTracker.GetOrAdd(parent).Track(approachMat);
+                mr.material = approachMat;
             }
 
             approach.layer = 6;
@@ -727,6 +739,7 @@ namespace OsuVR
             var sc = go.AddComponent<SphereCollider>();
             sc.isTrigger = trigger;
             sc.radius = radius;
+            PhysicsUtil.EnsureKinematicRigidbody(go); // 移动碰撞体补 kinematic RB，避免 PhysX broadphase 每帧重建
         }
 
         #endregion

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  IL2CPP 防剥离清单。
+  EtherealEnvironment/AudioLinkAdapter 通过字符串反射访问 AudioLink 包成员
+  （GetDataAtPixel / AudioDataIsAvailable / EnableReadback / audioDataToggle / audioSource 等），
+  成员级 stripping 会把这些仅被反射引用的成员静默裁掉，导致构建包 AudioLink 通道无声失效。
+  保留整程序集代价极小（AudioLink 本身体量小），换构建安全。
+-->
+<linker>
+  <assembly fullname="AudioLink" preserve="all"/>
+</linker>

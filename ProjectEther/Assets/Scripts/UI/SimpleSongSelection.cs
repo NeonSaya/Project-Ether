@@ -50,6 +50,8 @@ namespace OsuVR
 
         private List<BeatmapSet> beatmapSets = new List<BeatmapSet>();
         private BeatmapSet selectedSet;
+        private Texture2D _runtimeBgTexture; // 运行时加载的背景纹理（负责销毁）
+        private readonly System.Collections.Generic.List<UnityEngine.XR.InputDevice> _rightHandDevices = new System.Collections.Generic.List<UnityEngine.XR.InputDevice>(2);
         private BeatmapMetadata selectedDifficulty;
         
         private bool isModPanelActive = false;
@@ -244,10 +246,11 @@ namespace OsuVR
         {
             if (cachedScrollRect == null) return;
 
-            var rightHandDevices = new List<InputDevice>();
+            _rightHandDevices.Clear();
             InputDevices.GetDevicesWithCharacteristics(
                 InputDeviceCharacteristics.Right | InputDeviceCharacteristics.Controller, 
-                rightHandDevices);
+                _rightHandDevices);
+            var rightHandDevices = _rightHandDevices;
 
             if (rightHandDevices.Count > 0)
             {
@@ -368,9 +371,17 @@ namespace OsuVR
         {
             if (backgroundImage == null) return;
 
+            // 释放上一张运行时背景纹理，防止浏览谱面时显存无限泄漏（一体机 OOM）
+            if (_runtimeBgTexture != null)
+            {
+                Destroy(_runtimeBgTexture);
+                _runtimeBgTexture = null;
+            }
+
             Texture2D bgTex = SongMetaLoader.LoadBackground(backgroundPath);
             if (bgTex != null)
             {
+                _runtimeBgTexture = bgTex;
                 backgroundImage.texture = bgTex;
                 backgroundImage.color = new Color(1f, 1f, 1f, 0.12f);
                 backgroundImage.gameObject.SetActive(true);
@@ -471,12 +482,12 @@ namespace OsuVR
             {
                 if (csText != null)
                 {
-                    csText.text = mapData.CircleSize.ToString("F1");
+                    csText.text = mapData.CircleSize.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
                 }
 
                 if (arText != null)
                 {
-                    arText.text = mapData.ApproachRate.ToString("F1");
+                    arText.text = mapData.ApproachRate.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
                 }
 
                 if (odText != null)

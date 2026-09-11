@@ -131,6 +131,20 @@ namespace OsuVR.Storyboard
         }
 
         /// <summary>
+        /// 计算行的缩进层级（前导空格/下划线数）。osu! 规范：1 级=sprite 直接命令，2 级=Loop 内层命令。
+        /// </summary>
+        static int GetIndentLevel(string rawLine)
+        {
+            int level = 0;
+            foreach (char ch in rawLine)
+            {
+                if (ch == ' ' || ch == '_') level++;
+                else break;
+            }
+            return level;
+        }
+
+        /// <summary>
         /// 内部解析核心 (变量替换已完成)
         /// </summary>
         static SBStoryboard ParseInternal(List<string> lines)
@@ -190,7 +204,11 @@ namespace OsuVR.Storyboard
                         }
                         else
                         {
-                            // 普通命令
+                            // 普通命令：按缩进层级决定归属（osu! 规范：1 级缩进=sprite 直接命令，2 级=Loop 内层）。
+                            // 原实现 currentLoop 不随缩进闭合：Loop 块之后的直接命令会被错误吞进 Loop 内部，
+                            // 导致 LoopDuration 被拉长、直接命令从直接窗口消失（t=5500 输出 2.0 而非 0.5 的根因之一）
+                            if (currentLoop != null && GetIndentLevel(rawLine) < 2)
+                                currentLoop = null;
                             var target = currentLoop != null ? (object)currentLoop : currentElement;
                             ParseCommand(line, target);
                         }
@@ -307,7 +325,7 @@ namespace OsuVR.Storyboard
                 // Easing 可以是数字 (0-34) 或名称
                 if (int.TryParse(parts[1].Trim(), out int easingInt))
                 {
-                    if (easingInt >= 0 && easingInt <= 34)
+                    if (easingInt >= 0 && easingInt <= 35) // 35 = OutPow10（SBEasing/Job 均支持）
                         easing = (SBEasing)easingInt;
                 }
                 else

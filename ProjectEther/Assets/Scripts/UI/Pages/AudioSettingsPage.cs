@@ -62,7 +62,7 @@ namespace OsuVR
                     SettingsManager.Instance.SetAudioOffset(newVal);
                     audioOffsetSlider.SetValueWithoutNotify(newVal);
                     if (audioOffsetValueText != null)
-                        audioOffsetValueText.text = string.Format(OffsetFormat, newVal);
+                        audioOffsetValueText.text = string.Format(System.Globalization.CultureInfo.InvariantCulture, OffsetFormat, newVal);
                     PlayClickSound();
                 });
 
@@ -85,7 +85,7 @@ namespace OsuVR
             {
                 audioOffsetSlider.SetValueWithoutNotify(tempSettings.audioOffsetMs);
                 if (audioOffsetValueText != null)
-                    audioOffsetValueText.text = string.Format(OffsetFormat, tempSettings.audioOffsetMs);
+                    audioOffsetValueText.text = string.Format(System.Globalization.CultureInfo.InvariantCulture, OffsetFormat, tempSettings.audioOffsetMs);
             }
         }
 

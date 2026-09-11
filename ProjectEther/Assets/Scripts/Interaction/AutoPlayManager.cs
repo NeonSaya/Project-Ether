@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
 using UnityEngine.InputSystem.XR;
@@ -83,6 +83,18 @@ namespace OsuVR
         // 以滑条根 childCount 为签名：followBall 等子物体动态挂载时自动失效重取
         private struct RendererCacheEntry { public Renderer[] renderers; public int childCount; }
         private readonly Dictionary<GameObject, RendererCacheEntry> _sliderRendererCache = new Dictionary<GameObject, RendererCacheEntry>();
+
+        /// <summary>
+        /// 检查指定的 RayController 是否正被 AutoPlay 控制。
+        /// AutoPlay 激活时，controller 的 directOffset / verticalOffset / currentMode 由 AI 管理，
+        /// 外部设置应用应跳过这些 controller，避免覆盖 AI 的零偏移 Direct1to1 模式。
+        /// </summary>
+        public bool IsControlling(RayController ray)
+        {
+            if (ray == null || !isActiveAndEnabled || isPaused) return false;
+            return (leftHand != null && leftHand.controller == ray)
+                || (rightHand != null && rightHand.controller == ray);
+        }
 
         private static bool HasNullRenderer(Renderer[] renderers)
         {
@@ -232,6 +244,15 @@ namespace OsuVR
             }
             foreach (var c in hand.disabledComponents) if (c != null) c.enabled = true;
             hand.disabledComponents.Clear();
+
+            // 恢复用户原始的射线偏转设置（与 RestoreHandForPlayerControl 对齐，
+            // 否则 AutoPlay 结束后手柄卡在 Direct1to1+零偏移）
+            if (hand.controller != null)
+            {
+                hand.controller.currentMode = hand.userMode;
+                hand.controller.verticalOffset = hand.userVerticalOffset;
+                hand.controller.directOffset = hand.userDirectOffset;
+            }
         }
 
         /// <summary>

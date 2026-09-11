@@ -104,7 +104,7 @@ namespace OsuVR.Storyboard.Engine
                         State.B = cc.StartValue.b / 255f;
                         break;
                     case SBBoolCommand bc:
-                        ApplyBool(bc.Target, bc.StartValue);
+                        // P 命令仅在激活窗口内有效，不作为初始值（与 Flattener 对齐）
                         break;
                 }
             }

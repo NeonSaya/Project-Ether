@@ -233,6 +233,7 @@ namespace OsuVR
                 slider.AddComponent<MeshFilter>();
                 slider.AddComponent<MeshRenderer>();
                 slider.AddComponent<MeshCollider>();
+                PhysicsUtil.EnsureKinematicRigidbody(slider); // 移动碰撞体补 kinematic RB
                 slider.AddComponent<SliderController>();
 
                 if (sliderMaterial != null)
@@ -261,6 +262,7 @@ namespace OsuVR
                 Debug.LogWarning("[NotePoolManager] Spinner prefab is not assigned!");
                 GameObject spinner = new GameObject("Spinner_Procedural");
                 spinner.AddComponent<SphereCollider>();
+                PhysicsUtil.EnsureKinematicRigidbody(spinner); // 移动碰撞体补 kinematic RB
                 spinner.AddComponent<SpinnerController>();
                 spinner.layer = 6;
                 return spinner;
@@ -337,6 +339,9 @@ namespace OsuVR
 
         void OnDestroy()
         {
+            // 静态 Instance 随场景卸载置空，防止残留“假非空”引用
+            if (Instance == this) Instance = null;
+
             CirclePool?.Clear();
             SliderPool?.Clear();
             SpinnerPool?.Clear();

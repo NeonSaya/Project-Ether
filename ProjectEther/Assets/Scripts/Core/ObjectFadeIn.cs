@@ -123,7 +123,8 @@ namespace OsuVR
         {
             if (renderer == null) return Color.white;
 
-            MaterialPropertyBlock tempBlock = new MaterialPropertyBlock();
+            if (propBlock == null) propBlock = new MaterialPropertyBlock();
+            MaterialPropertyBlock tempBlock = propBlock;
             renderer.GetPropertyBlock(tempBlock);
 
             if (tempBlock.isEmpty)
@@ -171,7 +172,8 @@ namespace OsuVR
         {
             if (renderer == null) return Color.black;
 
-            MaterialPropertyBlock tempBlock = new MaterialPropertyBlock();
+            if (propBlock == null) propBlock = new MaterialPropertyBlock();
+            MaterialPropertyBlock tempBlock = propBlock;
             renderer.GetPropertyBlock(tempBlock);
 
             if (tempBlock.HasProperty("_EmissionColor"))
@@ -312,6 +314,17 @@ namespace OsuVR
         {
             isInitialized = false;
             hasFinishedFadeIn = false;
+
+            // 清空上一轮残留的 PropertyBlock（含上轮淡出/隐藏写入的 alpha），
+            // 防止下一轮 Initialize 把残留 alpha 误当基色（HD 模式二次复用会全程隐形）
+            if (cachedRenderers != null)
+            {
+                for (int i = 0; i < cachedRenderers.Length; i++)
+                {
+                    if (cachedRenderers[i] != null)
+                        cachedRenderers[i].SetPropertyBlock(null);
+                }
+            }
             
             // 恢复所有 Renderer 的启用状态
             if (cachedRenderers != null)

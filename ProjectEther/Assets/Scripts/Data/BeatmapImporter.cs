@@ -255,6 +255,41 @@ namespace OsuVR
             }
         }
 
+        /// <summary>
+        /// 安全解压 zip：逐条校验条目路径，拒绝路径穿越（zip-slip）。
+        /// .osz 是不可信的社区内容，恶意条目（../ 或绝对路径）可能写出 Songs 目录之外。
+        /// </summary>
+        private static void ExtractZipSafely(string zipPath, string targetFolder)
+        {
+            Directory.CreateDirectory(targetFolder);
+            string fullTarget = Path.GetFullPath(targetFolder);
+            if (!fullTarget.EndsWith(Path.DirectorySeparatorChar.ToString()))
+                fullTarget += Path.DirectorySeparatorChar;
+
+            using (var archive = ZipFile.OpenRead(zipPath))
+            {
+                foreach (var entry in archive.Entries)
+                {
+                    string destPath = Path.GetFullPath(Path.Combine(fullTarget, entry.FullName.Replace('/', Path.DirectorySeparatorChar)));
+                    if (!destPath.StartsWith(fullTarget, System.StringComparison.Ordinal))
+                    {
+                        Debug.LogWarning($"[Importer] 跳过可疑 zip 条目（路径越界）: {entry.FullName}");
+                        continue;
+                    }
+
+                    if (string.IsNullOrEmpty(entry.Name))
+                    {
+                        Directory.CreateDirectory(destPath);
+                        continue;
+                    }
+
+                    string parentDir = Path.GetDirectoryName(destPath);
+                    if (!string.IsNullOrEmpty(parentDir)) Directory.CreateDirectory(parentDir);
+                    entry.ExtractToFile(destPath, true);
+                }
+            }
+        }
+
         /// <summary>解压单个 .osz。返回 true 表示因重复（内容或文件名）被跳过。</summary>
         private static bool ImportOsz(string oszPath, out bool duplicate)
         {
@@ -286,7 +321,7 @@ namespace OsuVR
                 }
 
                 Debug.Log($"正在解压: {fileName}...");
-                ZipFile.ExtractToDirectory(oszPath, targetFolder);
+                ExtractZipSafely(oszPath, targetFolder);
                 File.Delete(oszPath);
                 if (hash != null) SaveImportedHashes(hash, imported);
                 Debug.Log($"<color=green>导入成功:</color> {fileName}");

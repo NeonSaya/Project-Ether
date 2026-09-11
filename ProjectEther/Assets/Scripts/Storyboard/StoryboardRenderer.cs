@@ -179,6 +179,11 @@ namespace OsuVR.Storyboard
         RenderTexture videoRT;
         bool hasVideo;
         int videoOffsetMs;
+        // 宽屏 SB 的 X 偏移（LoadStoryboard 传入，854×480 空间 → 640 空间 = -107）
+        float _sbXOffset = 0f;
+        // 音乐时间冻结检测（暂停时视频同步暂停，防止视频继续播放又被 drift seek 反复回跳）
+        double _lastMusicTimeMs = -1;
+        float _musicFrozenTimer = 0f;
 
         // ---- 纹理数组 ----
         Texture2DArray textureArray;
@@ -297,6 +302,11 @@ namespace OsuVR.Storyboard
             SBDebugLog.Begin();
             SBDebugLog.Mem("LoadStoryboard 开始");
             SBDebugLog.Log($"元素数={storyboard.TotalElementCount}");
+
+            // 宽屏 SB 不做坐标偏移：osu! 宽屏语义是「可见范围向两侧扩展到 ±107」，
+            // 坐标原点仍在 640 游玩区左上角（320 仍为中心）。真实谱面验证：作者坐标按 640 空间书写，
+            // 偏移 -107 会导致 SB 整体左移、与背景图错位（图层错位回归的根因）。
+            _sbXOffset = 0f;
 
             EnsureCameraSetup();
             CacheRhythmGameManager();
@@ -483,7 +493,8 @@ namespace OsuVR.Storyboard
                     FrameMap = _flatTimeline.FrameMap,
                     Output = _jobInputs,
                     CurrentTime = musicTime,
-                    SpriteCount = _jobActiveCount
+                    SpriteCount = _jobActiveCount,
+                    XOffset = _sbXOffset
                 };
                 var evalHandle = evalJob.Schedule(_jobActiveCount, 64);
 
@@ -685,6 +696,17 @@ namespace OsuVR.Storyboard
 
         void SyncVideoTime(double musicTimeMs)
         {
+            // 音乐时间冻结检测（暂停）：冻结超过 0.15s 就同步暂停视频，
+            // 否则视频继续播放、每 0.3s 被 drift seek 回跳，暂停期反复跳帧
+            bool timeFrozen = _lastMusicTimeMs >= 0 && math.abs(musicTimeMs - _lastMusicTimeMs) < 0.01;
+            _lastMusicTimeMs = musicTimeMs;
+            _musicFrozenTimer = timeFrozen ? _musicFrozenTimer + Time.unscaledDeltaTime : 0f;
+            if (_musicFrozenTimer > 0.15f)
+            {
+                if (videoPlayer.isPlaying) videoPlayer.Pause();
+                return;
+            }
+
             // osu! 语义: 视频在 map 时间到达 offset 时开始播放 → videoTime = mapTime - offset
             double targetVideoTime = (musicTimeMs - videoOffsetMs) / 1000.0;
 
@@ -759,7 +781,8 @@ namespace OsuVR.Storyboard
 
             for (int i = 0; i < paths.Count; i++)
             {
-                string fullPath = System.IO.Path.Combine(beatmapFolder, paths[i]);
+                // Android 文件系统反斜杠不是分隔符且大小写敏感：谱面里 "SB\bg.png" 类引用必须归一化
+                string fullPath = System.IO.Path.Combine(beatmapFolder, paths[i].Replace('\\', '/'));
                 if (!System.IO.File.Exists(fullPath))
                 {
                     Debug.LogWarning($"[SBRenderer] SB 纹理不存在, 跳过: {paths[i]}");
@@ -787,8 +810,10 @@ namespace OsuVR.Storyboard
             maxWidth = Mathf.Min(maxWidth, 2048);
             maxHeight = Mathf.Min(maxHeight, 2048);
 
-            // 安全限制: 确保 Texture2DArray 总大小不超过 1.8GB (留余量)
-            const long MAX_BYTES = (long)(1.8 * 1024 * 1024 * 1024);
+            // 安全限制: Texture2DArray 总大小上限按平台分档（Android 一体机显存紧张，给 512MB；PC 1.8GB）
+            long MAX_BYTES = Application.platform == RuntimePlatform.Android
+                ? (long)(512L * 1024 * 1024)
+                : (long)(1.8 * 1024 * 1024 * 1024);
             long bytesPerLayer = (long)maxWidth * maxHeight * 4; // RGBA32
             int maxLayers = textures.Count;
 

@@ -109,7 +109,6 @@ namespace OsuVR.Storyboard.Engine
             // 1. 使用现有 SBCommandGroupBuilder 展开命令 (M→X+Y, S→SX+SY, etc.)
             var group = SBCommandGroupBuilder.Build(element);
 
-            int cmdOffset = outCommands.Count;
             int loopOffset = outLoops.Count;
 
             // 2. 分离直接命令和 Loop 命令
@@ -127,6 +126,10 @@ namespace OsuVR.Storyboard.Engine
                     directCmds.Add(cmd);
                 }
             }
+
+            // [修复] cmdOffset 必须在 FlattenLoopInner 追加内层命令之后再采样，
+            // 否则 sprite 的直接命令窗口会混入 Loop 内层命令，Job 在 Loop 开始前就按绝对时间求值它们
+            int cmdOffset = outCommands.Count;
 
             // 3. 直接命令按 StartTime 排序后写入 flat array
             directCmds.Sort((a, b) =>
@@ -363,12 +366,8 @@ namespace OsuVR.Storyboard.Engine
                         break;
 
                     case SBBoolCommand bc:
-                        switch (bc.Target)
-                        {
-                            case SBCommandTarget.BlendingMode: sprite.InitAdditive = bc.StartValue ? (byte)1 : (byte)0; break;
-                            case SBCommandTarget.FlipH: sprite.InitFlipH = bc.StartValue ? (byte)1 : (byte)0; break;
-                            case SBCommandTarget.FlipV: sprite.InitFlipV = bc.StartValue ? (byte)1 : (byte)0; break;
-                        }
+                        // P 命令（翻转/加法混合）仅在激活窗口内有效，不作为初始值
+                        // （osu! wiki：P 仅在命令生效期间应用，窗口前应为默认值 false）
                         break;
                 }
             }

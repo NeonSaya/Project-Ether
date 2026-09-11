@@ -151,6 +151,9 @@ namespace OsuVR.Storyboard
             EnsureEdgeFadeTexture();
             if (rt == null) return;
 
+            // 背景板/故事板播放任一关闭时，不显示 SB Overlay（防止绕过 Setup/ApplyVisibility 的隐藏）
+            if (!IsStoryboardEnabled() || !IsStoryboardPlaybackEnabled()) return;
+
             // 确保 Overlay 层存在
             EnsureOverlayCreated();
 
@@ -191,6 +194,9 @@ namespace OsuVR.Storyboard
                 Debug.LogWarning("[HolographicScreen] SetVideoTexture: videoTexture is null!");
                 return;
             }
+
+            // 背景板/故事板播放任一关闭时，不注入视频层（否则取消勾选后视频仍会显示）
+            if (!IsStoryboardEnabled() || !IsStoryboardPlaybackEnabled()) return;
 
             EnsureEdgeFadeTexture();
             EnsureVideoOverlayCreated();
@@ -242,6 +248,13 @@ namespace OsuVR.Storyboard
             return true;
         }
 
+        bool IsStoryboardPlaybackEnabled()
+        {
+            if (SettingsManager.Instance != null && SettingsManager.Instance.Settings != null)
+                return SettingsManager.Instance.Settings.enableStoryboardPlayback;
+            return true;
+        }
+
         float GetScreenDistance()
         {
             if (SettingsManager.Instance != null && SettingsManager.Instance.Settings != null)
@@ -262,6 +275,24 @@ namespace OsuVR.Storyboard
 
         void ApplyVisibility()
         {
+            // 背景板关闭：幕布整体隐藏（背景/视频/SB Overlay 全灭），覆盖所有显示分支
+            if (!IsStoryboardEnabled())
+            {
+                if (screenObject != null) screenObject.SetActive(false);
+                if (videoOverlayObject != null) videoOverlayObject.SetActive(false);
+                if (overlayObject != null) overlayObject.SetActive(false);
+                return;
+            }
+
+            // 故事板播放关闭：SB Overlay 与视频层隐藏，仅保留静态背景图
+            if (!IsStoryboardPlaybackEnabled())
+            {
+                if (videoOverlayObject != null) videoOverlayObject.SetActive(false);
+                if (overlayObject != null) overlayObject.SetActive(false);
+                if (screenObject != null) screenObject.SetActive(_hasContent);
+                return;
+            }
+
             // BG 与视频互斥: 有视频时隐藏背景, 视频覆盖背景
             if (_hasVideo)
             {

@@ -468,6 +468,7 @@ namespace OsuVR
             if (!meshRenderer) meshRenderer = GetComponent<MeshRenderer>();
             if (!meshCollider) meshCollider = GetComponent<MeshCollider>();
             if (!meshCollider) meshCollider = gameObject.AddComponent<MeshCollider>();
+            PhysicsUtil.EnsureKinematicRigidbody(gameObject); // 移动碰撞体补 kinematic RB（非凸 MeshCollider 仅允许 kinematic/静态，语义不变）
             if (sharedMaterial != null) meshRenderer.sharedMaterial = sharedMaterial;
             if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
 
@@ -689,6 +690,13 @@ namespace OsuVR
 
             var (borderMesh, bodyMesh, borderMat, bodyMat) = SliderMeshGenerator.GeneratePhysicalSlider(
                     worldPathPoints, radius, borderThickness, customBorderColor, customBodyColor, currentStencilId);
+
+            // Shader 全缺或路径为空时生成器返回 null 元组，必须判空否则 NRE
+            if (borderMesh == null || bodyMesh == null || borderMat == null || bodyMat == null)
+            {
+                Debug.LogError("[SliderController] 滑条网格/材质生成失败（Shader 缺失或路径为空），跳过本滑条视觉");
+                return;
+            }
 
             bodyMesh.RecalculateBounds();
             borderMesh.RecalculateBounds();
@@ -1192,6 +1200,7 @@ namespace OsuVR
                     }
                     ballCollider = followBall.GetComponent<SphereCollider>();
                     if (ballCollider == null) ballCollider = followBall.AddComponent<SphereCollider>();
+            PhysicsUtil.EnsureKinematicRigidbody(followBall); // 移动碰撞体补 kinematic RB
                     followBall.SetActive(false);
                 }
             }

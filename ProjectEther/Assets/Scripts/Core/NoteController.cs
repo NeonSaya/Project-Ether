@@ -312,6 +312,7 @@ namespace OsuVR
                 sc.radius = 0.5f;
                 // 确保它是 Trigger 或者是普通碰撞体都可以，SphereCast 都能检测到
                 sc.isTrigger = true;
+                PhysicsUtil.EnsureKinematicRigidbody(gameObject); // 移动碰撞体补 kinematic RB
             }
             // ---------------------------------------------------------
             // 纯 2D 平面模式：所有音符基准物理 Z 轴偏移为 0

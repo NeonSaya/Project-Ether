@@ -95,8 +95,8 @@ namespace OsuVR
             {
                 if (_renderer) _renderer.enabled = true;
 
-                // 计算进度 (0 = 开始, 1 = 结束)
-                float progress = 1f - (float)(timeRemaining / timePreempt);
+                // 计算进度 (0 = 开始, 1 = 结束)；timePreempt=0（畸形/极端 AR）防除零产生 NaN 毒化 transform
+                float progress = timePreempt > 0.0001 ? 1f - (float)(timeRemaining / timePreempt) : 1f;
 
                 // 线性插值：从 4x 到 1x
                 float scale = Mathf.Lerp(4f, 1f, progress);

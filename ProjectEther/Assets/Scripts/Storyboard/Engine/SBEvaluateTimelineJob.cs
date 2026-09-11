@@ -24,6 +24,8 @@ namespace OsuVR.Storyboard.Engine
 
         public double CurrentTime;
         public int SpriteCount;
+        /// <summary>宽屏 SB 的 X 坐标偏移（widescreen=854×480 空间 → 本引擎 640 空间，-107；普通=0）</summary>
+        public float XOffset;
 
         public void Execute(int i)
         {
@@ -63,7 +65,7 @@ namespace OsuVR.Storyboard.Engine
             for (int li = sprite.LoopOffset + sprite.LoopCount - 1;
                  li >= sprite.LoopOffset && found < 10; li--)
             {
-                EvalLoop(Loops[li], CurrentTime, ref mask, ref found,
+                EvalLoop(Loops[li], sprite, CurrentTime, ref mask, ref found,
                     ref alpha, ref x, ref y, ref scaleX, ref scaleY, ref rotation,
                     ref r, ref g, ref b, ref flipH, ref flipV, ref additive);
             }
@@ -95,7 +97,7 @@ namespace OsuVR.Storyboard.Engine
             // ---- 6. 写入输出 ----
             Output[i] = new SpriteInputData
             {
-                X = x,
+                X = x + XOffset,
                 Y = y,
                 ScaleX = scaleX,
                 ScaleY = scaleY,
@@ -185,7 +187,23 @@ namespace OsuVR.Storyboard.Engine
         //  Loop 动态求值 (不预展开, 运行时计算迭代)
         // =========================================================
 
-        void EvalLoop(SBLoopFlatData loop, double time, ref int mask, ref int found,
+        /// <summary>
+        /// 检查指定属性是否存在「Loop 结束后才开始、且当前已生效」的直接命令。
+        /// 直接命令按 StartTime 升序存储，从尾往前找该属性最新一条已生效命令即可。
+        /// </summary>
+        bool HasEffectiveDirectCommandAfter(in SBSpriteFlatData sprite, int target, double loopEndTime, double time)
+        {
+            for (int ci = sprite.CmdOffset + sprite.CmdCount - 1; ci >= sprite.CmdOffset; ci--)
+            {
+                var d = Commands[ci];
+                if (d.StartTime > time) continue;
+                if (d.Target == target)
+                    return d.StartTime > loopEndTime;
+            }
+            return false;
+        }
+
+        void EvalLoop(SBLoopFlatData loop, in SBSpriteFlatData sprite, double time, ref int mask, ref int found,
             ref float alpha, ref float x, ref float y,
             ref float scaleX, ref float scaleY, ref float rotation,
             ref float r, ref float g, ref float b,
@@ -200,12 +218,16 @@ namespace OsuVR.Storyboard.Engine
             // 1. Past loop end: hold last command's EndValue (storybrew: Commands[^1] at final iteration)
             if (loop.LoopCount > 0 && loopTime >= loop.LoopCount * loop.LoopDuration)
             {
+                double loopEndTime = loop.StartTime + loop.LoopCount * loop.LoopDuration;
                 for (int ci = loop.InnerCmdOffset + loop.InnerCmdCount - 1;
                      ci >= loop.InnerCmdOffset && found < 10; ci--)
                 {
                     var cmd = Commands[ci];
                     int bit = 1 << cmd.Target;
                     if ((mask & bit) != 0) continue;
+                    // [修复] 该属性若存在 Loop 结束后才开始且当前已生效的直接命令，
+                    // 让位给直接命令（时间序合并，与 osu!/lazer 一致），不再永久卡在 Loop 末值
+                    if (HasEffectiveDirectCommandAfter(sprite, cmd.Target, loopEndTime, time)) continue;
                     mask |= bit;
                     found++;
                     ApplyEndValue(cmd,

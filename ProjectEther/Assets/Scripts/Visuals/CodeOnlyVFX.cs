@@ -364,6 +364,9 @@ namespace OsuVR
                     // 尺寸回归正常 Note 大小 (假设 size=1.0)
                     main.startSize = new ParticleSystem.MinMaxCurve(cubeSize, cubeSize * 1.2f);
 
+                    // 池化复用必须重置 startSpeed（PlayHit 会按 accScale 缩到最低 0.4 倍，否则转盘特效速度取决于上次判定档位）
+                    main.startSpeed = new ParticleSystem.MinMaxCurve(1.5f, 6.0f);
+
                     var shape = ps.shape;
                     shape.radius = burstRadius; // 回归正常半径
 

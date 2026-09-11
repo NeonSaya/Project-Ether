@@ -28,6 +28,10 @@ namespace OsuVR
 
             try
             {
+                // 日志轮转：超过 5MB 就清空重开，防止 Android persistentData 无限膨胀
+                if (File.Exists(logPath) && new FileInfo(logPath).Length > 5 * 1024 * 1024)
+                    File.Delete(logPath);
+
                 using (var writer = new StreamWriter(logPath, true))
                 {
                     writer.WriteLine("");
