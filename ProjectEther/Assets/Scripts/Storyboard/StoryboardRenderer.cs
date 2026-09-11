@@ -303,8 +303,10 @@ namespace OsuVR.Storyboard
             SBDebugLog.Mem("LoadStoryboard 开始");
             SBDebugLog.Log($"元素数={storyboard.TotalElementCount}");
 
-            // 宽屏 SB（854×480 坐标空间）映射到本引擎 640 空间，X 偏移 -107（osu! 宽屏坐标系中心对齐）
-            _sbXOffset = widescreen ? -107f : 0f;
+            // 宽屏 SB 不做坐标偏移：osu! 宽屏语义是「可见范围向两侧扩展到 ±107」，
+            // 坐标原点仍在 640 游玩区左上角（320 仍为中心）。真实谱面验证：作者坐标按 640 空间书写，
+            // 偏移 -107 会导致 SB 整体左移、与背景图错位（图层错位回归的根因）。
+            _sbXOffset = 0f;
 
             EnsureCameraSetup();
             CacheRhythmGameManager();
