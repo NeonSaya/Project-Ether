@@ -55,6 +55,18 @@ namespace OsuVR
             Instance = this;
         }
 
+        void OnDestroy()
+        {
+            if (Instance == this) Instance = null;
+
+            // 释放运行时创建的材质与贴图，清空对象池
+            if (flashMat != null) { Destroy(flashMat); flashMat = null; }
+            if (missMat != null) { Destroy(missMat); missMat = null; }
+            if (overlayFontMat != null) { Destroy(overlayFontMat); overlayFontMat = null; }
+            if (_softDotTex != null) { Destroy(_softDotTex); _softDotTex = null; }
+            pool?.Clear();
+        }
+
         void Start()
         {
             if (!isPrewarmed) Prewarm();

@@ -45,12 +45,6 @@ namespace OsuVR
         private GameObject headInstance;
         private GameObject arrowInstance;
 
-        [Header("调试设置")]
-        public bool showDebugLabel = true;
-        public GameObject debugTextPrefab;
-        private TextMeshPro debugTextInstance;
-
-
         private bool headHitValid = false;
 
         // 折返粒子特效引用
@@ -548,20 +542,6 @@ namespace OsuVR
             if (arrowInstance) arrowInstance.SetActive(false);
             if (followBall) followBall.SetActive(false);
 
-            // 销毁旧的调试文本
-            // 如果变量引用还在，直接销毁
-            if (debugTextInstance != null)
-            {
-                Destroy(debugTextInstance.gameObject);
-                debugTextInstance = null;
-            }
-            // 双重保险：以防引用丢失但物体还在（比如代码重编译后），按名字找一下
-            Transform oldDebug = transform.Find("DebugLabel");
-            if (oldDebug != null)
-            {
-                Destroy(oldDebug.gameObject);
-            }
-
             // 5. 清理 Mesh
             if (combinedMesh != null)
             {
@@ -736,21 +716,6 @@ namespace OsuVR
             if (!isMeshValid)
             {
                 Debug.LogError($"❌ 滑条生成失败! Time: {sliderData.StartTime}ms, Points: {worldPathPoints.Count}");
-
-                // 如果生成失败，把调试文字变红！
-                if (debugTextInstance != null)
-                {
-                    debugTextInstance.color = Color.red;
-                    debugTextInstance.text += "\n[MESH ERROR]";
-                }
-            }
-            else
-            {
-                // 如果成功，显示顶点数 (方便观察性能)
-                if (debugTextInstance != null)
-                {
-                    debugTextInstance.text += $"\n({combinedMesh.vertexCount}v)";
-                }
             }
 
             // 3. 赋值
@@ -2079,57 +2044,6 @@ namespace OsuVR
 
             // 调用你现有的优化寻路
             return GetPositionOnPathOptimized((float)spanProgress);
-        }
-
-        /// <summary>
-        /// [调试] 创建头顶的调试标签
-        /// </summary>
-        private void CreateDebugLabel()
-        {
-            if (!showDebugLabel) return;
-
-            // 如果没有分配 Prefab，就代码动态生成一个临时的
-            GameObject labelObj = null;
-            if (debugTextPrefab != null)
-            {
-                labelObj = Instantiate(debugTextPrefab, transform);
-            }
-            else
-            {
-                labelObj = new GameObject("DebugLabel");
-                labelObj.transform.parent = transform;
-                labelObj.transform.localScale = Vector3.one * 0.05f; // 缩小一点
-
-                // 挂载 TextMesh (如果没有 TMP，这是最简单的原生方案)
-                TextMesh tm = labelObj.AddComponent<TextMesh>();
-                tm.characterSize = 0.1f;
-                tm.fontSize = 40;
-                tm.anchor = TextAnchor.LowerCenter;
-                tm.alignment = TextAlignment.Center;
-                tm.color = Color.white;
-            }
-
-            // 设置位置：在滑条头上方 0.1 米
-            labelObj.transform.localPosition = new Vector3(0, 0.1f, 0);
-            // 旋转：朝向相机 (简单起见，直接反向)
-            labelObj.transform.localRotation = Quaternion.identity;
-
-            // 设置文字内容
-            // 显示：开始时间 | 连击号
-            string info = $"{sliderData.StartTime}ms\n#{sliderData.ComboIndex}";
-
-            // 尝试获取组件 (兼容 TextMeshPro 和 TextMesh)
-            var tmp = labelObj.GetComponent<TextMeshPro>();
-            if (tmp)
-            {
-                tmp.text = info;
-                debugTextInstance = tmp;
-            }
-            else
-            {
-                var tm = labelObj.GetComponent<TextMesh>();
-                if (tm) tm.text = info;
-            }
         }
 
         /// <summary>

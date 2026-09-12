@@ -146,6 +146,7 @@ namespace OsuVR
         private SphereCollider triggerCollider;
 
         private MaterialPropertyBlock mpb;
+        private Material _runtimeMaterial; // 运行时创建的粒子材质（OnDestroy 释放）
         private ParticleSystemRenderer psRenderer;
         private Texture2D glowTexture;
 
@@ -670,6 +671,18 @@ namespace OsuVR
                 _particleNative.Dispose();
                 _nativeInitialized = false;
             }
+
+            // 释放运行时创建的材质与贴图
+            if (_runtimeMaterial != null)
+            {
+                Destroy(_runtimeMaterial);
+                _runtimeMaterial = null;
+            }
+            if (glowTexture != null)
+            {
+                Destroy(glowTexture);
+                glowTexture = null;
+            }
         }
 
         // =========================================================
@@ -779,6 +792,7 @@ namespace OsuVR
             }
 
             Material particleMat = new Material(particleShader);
+            _runtimeMaterial = particleMat;
             particleMat.enableInstancing = true;
 
             if (glowTexture != null)

@@ -373,16 +373,8 @@ namespace OsuVR
         /// </summary>
         private AudioClip GetClip(SampleSet set, HitSoundType type, int index, bool isSlide = false, bool isTick = false)
         {
-            string prefix = set.ToString().ToLower();
-            string middle = "hit";
-            string suffix = type.ToString().ToLower();
-
-            if (isSlide) { middle = "slider"; suffix = "slide"; }
-            else if (isTick) { middle = "slider"; suffix = "tick"; }
-            else if (type == HitSoundType.Normal) suffix = "normal";
-
-            string indexStr = (index > 1) ? index.ToString() : "";
-            string searchKey = $"{prefix}-{middle}{suffix}{indexStr}";
+            // key 空间有限（皮肤集×音效类型×编号×slide/tick），预缓存拼接结果，击打热路径零分配
+            string searchKey = GetSearchKey(set, type, index, isSlide, isTick);
 
             // 从自定义缓存找
             if (beatmapSkinCache.TryGetValue(searchKey, out AudioClip customClip))
@@ -390,16 +382,39 @@ namespace OsuVR
                 return customClip;
             }
 
-            // 回退查找
+            // 回退查找（去编号基础 key = index 1 的 key）
             if (index > 1)
             {
-                string fallbackKey = $"{prefix}-{middle}{suffix}";
+                string fallbackKey = GetSearchKey(set, type, 1, isSlide, isTick);
                 if (beatmapSkinCache.TryGetValue(fallbackKey, out AudioClip fallbackClip))
                     return fallbackClip;
             }
 
             // 从默认皮肤找
             return defaultSkin.GetDefaultClip(set, type, isSlide, isTick);
+        }
+
+        private readonly Dictionary<int, string> _searchKeyCache = new Dictionary<int, string>();
+
+        private string GetSearchKey(SampleSet set, HitSoundType type, int index, bool isSlide, bool isTick)
+        {
+            if (index < 0) index = 0; // 负值视为无编号（与旧逻辑 indexStr 为空一致），同时避免负数哈希位污染
+            int h = ((int)set << 20) | ((int)type << 14) | ((index & 0x3FF) << 4) | (isSlide ? 2 : 0) | (isTick ? 1 : 0);
+            if (!_searchKeyCache.TryGetValue(h, out string key))
+            {
+                string prefix = set.ToString().ToLower();
+                string middle = "hit";
+                string suffix = type.ToString().ToLower();
+
+                if (isSlide) { middle = "slider"; suffix = "slide"; }
+                else if (isTick) { middle = "slider"; suffix = "tick"; }
+                else if (type == HitSoundType.Normal) suffix = "normal";
+
+                string indexStr = (index > 1) ? index.ToString() : "";
+                key = $"{prefix}-{middle}{suffix}{indexStr}";
+                _searchKeyCache[h] = key;
+            }
+            return key;
         }
 
         private void PlayOneShot(AudioClip clip, float vol)

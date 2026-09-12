@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 
@@ -23,8 +23,9 @@ namespace OsuVR
         [Range(1, 50)]
         public int tessellationSegments = 1;
 
-        // 缓存列表，避免 GC
+        // 缓存列表与四边形数组，避免 GC
         private List<UIVertex> stream = new List<UIVertex>();
+        private readonly UIVertex[] quadBuffer = new UIVertex[4];
 
         protected override void Awake()
         {
@@ -114,7 +115,8 @@ namespace OsuVR
                 UIVertex newV2 = LerpUIVertex(v1, v2, t2);
                 UIVertex newV3 = LerpUIVertex(v0, v3, t2);
 
-                vh.AddUIVertexQuad(new UIVertex[] { newV0, newV1, newV2, newV3 });
+                quadBuffer[0] = newV0; quadBuffer[1] = newV1; quadBuffer[2] = newV2; quadBuffer[3] = newV3;
+                vh.AddUIVertexQuad(quadBuffer);
             }
         }
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using TMPro;
 using System.Collections;
@@ -43,6 +43,12 @@ namespace OsuVR
         private Vector3 comboOriginalScale;     // 连击文本原始缩放
         private Color comboOriginalColor;       // 连击文本原始颜色
 
+        // 零 GC 文本缓存（动画期每帧刷新，避免 ToString 分配）
+        private long _lastScoreShown = -1;
+        private readonly char[] _scoreBuf = new char[12];
+        private int _lastAccCenti = -1;
+        private readonly char[] _accBuf = new char[8];
+
         // =========================================================
         // 生命周期
         // =========================================================
@@ -66,26 +72,26 @@ namespace OsuVR
             if (Mathf.Abs(displayScore - targetScore) > 1f)
             {
                 displayScore = Mathf.Lerp(displayScore, targetScore, Time.deltaTime * scoreScrollSpeed);
-                if (textScore) textScore.text = ((long)displayScore).ToString("D6");
+                SetScoreText((long)displayScore);
             }
             else if ((long)displayScore != targetScore)
             {
                 // 差值过小时直接对齐，防止小数抖动
                 displayScore = targetScore;
-                if (textScore) textScore.text = targetScore.ToString("D6");
+                SetScoreText(targetScore);
             }
 
             // 2. 准确率滚动动画
             if (Mathf.Abs((float)(displayAcc - targetAcc)) > 0.0001f)
             {
                 displayAcc = Mathf.Lerp((float)displayAcc, (float)targetAcc, Time.deltaTime * 3f);
-                if (textAcc) textAcc.text = $"{displayAcc * 100:F2}%";
+                SetAccText(displayAcc);
             }
             else if (Math.Abs(displayAcc - targetAcc) > 0.000001)
             {
                 // 强制对齐到目标值，防止浮点精度问题
                 displayAcc = targetAcc;
-                if (textAcc) textAcc.text = $"{displayAcc * 100:F2}%";
+                SetAccText(displayAcc);
             }
         }
 
@@ -132,6 +138,62 @@ namespace OsuVR
         // =========================================================
         // 辅助方法
         // =========================================================
+
+        /// <summary>
+        /// 零 GC 写入分数文本（等效 "D6" 格式，SetCharArray 直写缓冲）
+        /// </summary>
+        private void SetScoreText(long value)
+        {
+            if (textScore == null || value == _lastScoreShown) return;
+            _lastScoreShown = value;
+            if (value < 0) value = 0;
+
+            int i = _scoreBuf.Length;
+            long v = value;
+            do { _scoreBuf[--i] = (char)('0' + (int)(v % 10)); v /= 10; } while (v > 0);
+            // 不足 6 位补前导零（D6 语义）
+            while (_scoreBuf.Length - i < 6 && i > 0) _scoreBuf[--i] = '0';
+            textScore.SetCharArray(_scoreBuf, i, _scoreBuf.Length - i);
+        }
+
+        /// <summary>
+        /// 零 GC 写入准确率文本（等效 "F2" 百分比，SetCharArray 直写缓冲）
+        /// </summary>
+        private void SetAccText(double acc)
+        {
+            if (textAcc == null) return;
+            double pct = acc * 100.0;
+            if (pct < 0.0) pct = 0.0;
+            if (pct > 100.0) pct = 100.0;
+            // 与 "F2" 一致的四舍五入（正数 away-from-zero）
+            int centi = (int)Math.Floor(pct * 100.0 + 0.5);
+            if (centi == _lastAccCenti) return;
+            _lastAccCenti = centi;
+
+            int whole = centi / 100;
+            int frac = centi % 100;
+            int i = 0;
+            if (whole >= 100)
+            {
+                _accBuf[i++] = (char)('0' + whole / 100);
+                _accBuf[i++] = (char)('0' + (whole / 10) % 10);
+                _accBuf[i++] = (char)('0' + whole % 10);
+            }
+            else if (whole >= 10)
+            {
+                _accBuf[i++] = (char)('0' + whole / 10);
+                _accBuf[i++] = (char)('0' + whole % 10);
+            }
+            else
+            {
+                _accBuf[i++] = (char)('0' + whole);
+            }
+            _accBuf[i++] = '.';
+            _accBuf[i++] = (char)('0' + frac / 10);
+            _accBuf[i++] = (char)('0' + frac % 10);
+            _accBuf[i++] = '%';
+            textAcc.SetCharArray(_accBuf, 0, i);
+        }
 
         /// <summary>
         /// 更新连击文本

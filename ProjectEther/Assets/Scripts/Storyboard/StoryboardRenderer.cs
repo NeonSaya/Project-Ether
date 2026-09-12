@@ -171,9 +171,6 @@ namespace OsuVR.Storyboard
         SBFlatTimelineData _flatTimeline;
         string currentBeatmapFolder;
 
-        // ---- 引擎 (旧管线, 仅保留用于向后兼容) ----
-        SBOsbPlayer osbPlayer;
-
         // ---- 视频 (VideoPlayer 直接解码到 RenderTexture) ----
         VideoPlayer videoPlayer;
         RenderTexture videoRT;
@@ -327,12 +324,6 @@ namespace OsuVR.Storyboard
                                  $"超出部分将被截断不渲染");
             }
 
-            // 旧管线保留 (用于旧代码路径兼容, 不再每帧调用)
-            osbPlayer = new SBOsbPlayer();
-            osbPlayer.LoadStoryboard(storyboard);
-
-            CacheTextureIndices();
-
             isRendering = true;
 
             // SB Background 层: 有无 Fade 命令的 sprite → 全不透明替代背景, 隐藏背景图
@@ -421,9 +412,6 @@ namespace OsuVR.Storyboard
             // 释放 DOD 扁平化数据
             if (_flatTimeline.Sprites.IsCreated) _flatTimeline.Dispose();
 
-            osbPlayer?.Unload();
-            osbPlayer = null;
-
             if (textureArray != null) { Destroy(textureArray); textureArray = null; }
             textureIndexMap?.Clear();
 
@@ -468,7 +456,7 @@ namespace OsuVR.Storyboard
         void Update()
         {
             if (!isRendering) return;
-            if (_flatTimeline.SpriteCount == 0 && osbPlayer == null && !hasVideo) return;
+            if (_flatTimeline.SpriteCount == 0 && !hasVideo) return;
 
             double musicTime = GetCurrentMusicTime();
 
@@ -484,7 +472,7 @@ namespace OsuVR.Storyboard
             {
                 _jobActiveCount = math.min(_flatTimeline.SpriteCount, MaxInstances);
 
-                // Job 1: 时间轴求值 (替代 SBOsbPlayer.Update + CollectSpritesToNativeArray)
+                // Job 1: 时间轴求值 (Burst 并行, 零主线程求值)
                 var evalJob = new SBEvaluateTimelineJob
                 {
                     Sprites = _flatTimeline.Sprites,
@@ -512,60 +500,6 @@ namespace OsuVR.Storyboard
                 _jobHandle = buildJob.Schedule(_jobActiveCount, 256, evalHandle);
                 _jobScheduled = true;
             }
-        }
-
-        /// <summary>
-        /// 收集活跃精灵到 NativeArray (主线程)
-        /// </summary>
-        int CollectSpritesToNativeArray(double musicTime)
-        {
-            int count = 0;
-
-            for (int layer = 0; layer < 5; layer++)
-            {
-                var sprite = osbPlayer.GetLayerActiveHead(layer);
-                var tail = osbPlayer.GetLayerActiveTail(layer);
-
-                while (sprite != tail && count < MaxInstances)
-                {
-                    var state = sprite.State;
-
-                    // 纹理索引: 优先缓存, 动画在主线程解析
-                    int texIndex = sprite.CachedTexIndex;
-                    if (texIndex < 0)
-                        texIndex = ResolveTextureIndex(sprite.Element, musicTime, sprite.StartTime);
-
-                    Vector2Int texSize = texIndex >= 0 ? textureDimensions[texIndex] : Vector2Int.zero;
-
-                    int originIdx = sprite.Element != null ? (int)sprite.Element.Origin : 1;
-                    if ((uint)originIdx >= (uint)OriginOffsets.Length) originIdx = 1;
-
-                    _jobInputs[count] = new SpriteInputData
-                    {
-                        X = state.X,
-                        Y = state.Y,
-                        ScaleX = state.ScaleX,
-                        ScaleY = state.ScaleY,
-                        Rotation = state.Rotation,
-                        Alpha = state.Alpha,
-                        R = state.R,
-                        G = state.G,
-                        B = state.B,
-                        FlipH = state.FlipH ? (byte)1 : (byte)0,
-                        FlipV = state.FlipV ? (byte)1 : (byte)0,
-                        Additive = state.Additive ? (byte)1 : (byte)0,
-                        TexIndex = texIndex,
-                        OriginIndex = originIdx,
-                        TexWidth = texSize.x,
-                        TexHeight = texSize.y
-                    };
-
-                    count++;
-                    sprite = sprite.Next;
-                }
-            }
-
-            return count;
         }
 
         // =========================================================
@@ -617,33 +551,6 @@ namespace OsuVR.Storyboard
                 Graphics.DrawMeshInstancedProcedural(quadMesh, 0, sbMaterialAdditive, bounds, _jobActiveCount,
                     null, ShadowCastingMode.Off, false, storyboardLayer, null);
             }
-        }
-
-        /// <summary>
-        /// 解析元素的纹理索引 (动画按当前帧解析)
-        /// </summary>
-        int ResolveTextureIndex(SBElement element, double musicTime, double elementStartTime)
-        {
-            string path = element.ImagePath;
-            if (string.IsNullOrEmpty(path)) return -1;
-
-            if (element is SBStoryboardAnimation anim)
-            {
-                int frame = anim.GetCurrentFrame(musicTime, elementStartTime);
-                path = anim.BuildFramePath(frame);
-            }
-
-            // 统一路径格式: 反斜杠→正斜杠, 小写
-            string normalized = path.Replace('\\', '/').ToLowerInvariant();
-
-            if (textureIndexMap != null && textureIndexMap.TryGetValue(normalized, out int idx))
-                return idx;
-
-            // 回退: 尝试原始路径
-            if (textureIndexMap != null && textureIndexMap.TryGetValue(path, out int fallbackIdx))
-                return fallbackIdx;
-
-            return -1;
         }
 
         // =========================================================
@@ -936,28 +843,6 @@ namespace OsuVR.Storyboard
             SBDebugLog.Mem("源纹理释放完成");
 
             Debug.Log($"[SBRenderer] 纹理数组打包完成: {layerCount} 层, {maxWidth}x{maxHeight}");
-        }
-
-        void CacheTextureIndices()
-        {
-            if (osbPlayer == null || textureIndexMap == null) return;
-            osbPlayer.ForEachSprite((layer, sprite) =>
-            {
-                var element = sprite.Element;
-                if (element is SBStoryboardAnimation)
-                {
-                    sprite.CachedTexIndex = -1;
-                }
-                else if (!string.IsNullOrEmpty(element.ImagePath))
-                {
-                    // textureIndexMap 的 key 是归一化路径（小写+正斜杠），必须用相同格式查找
-                    string normalizedKey = element.ImagePath.Replace('\\', '/').ToLowerInvariant();
-                    if (textureIndexMap.TryGetValue(normalizedKey, out int idx))
-                    {
-                        sprite.CachedTexIndex = idx;
-                    }
-                }
-            });
         }
 
         Texture2D LoadTexture(string path)
