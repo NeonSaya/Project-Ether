@@ -32,6 +32,9 @@ namespace OsuVR
         [Tooltip("Enable VSync")]
         public bool enableVSync = false;
 
+        [Tooltip("Show RAM, FPS and audio monitor")]
+        public bool showFps = false;
+
         [Tooltip("Anti-aliasing level (0=Disabled, 2=2x, 4=4x, 8=8x)")]
         [Range(0, 8)]
         public int antiAliasing = 4;
@@ -111,6 +114,7 @@ namespace OsuVR
             clone.sfxVolume = this.sfxVolume;
             clone.qualityLevel = this.qualityLevel;
             clone.enableVSync = this.enableVSync;
+            clone.showFps = this.showFps;
             clone.antiAliasing = this.antiAliasing;
             clone.particleDensity = this.particleDensity;
             clone.renderScale = this.renderScale;
@@ -141,6 +145,7 @@ namespace OsuVR
             sfxVolume = other.sfxVolume;
             qualityLevel = other.qualityLevel;
             enableVSync = other.enableVSync;
+            showFps = other.showFps;
             antiAliasing = other.antiAliasing;
             particleDensity = other.particleDensity;
             renderScale = other.renderScale;
@@ -168,6 +173,7 @@ namespace OsuVR
             sfxVolume = 1.0f;
             qualityLevel = 1;
             enableVSync = false;
+            showFps = false;
             antiAliasing = 4;
             particleDensity = 1.0f;
             renderScale = 1.0f;

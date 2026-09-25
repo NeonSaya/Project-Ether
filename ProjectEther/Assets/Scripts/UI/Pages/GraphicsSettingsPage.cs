@@ -17,6 +17,7 @@ namespace OsuVR
         private TMP_Dropdown antiAliasingDropdown;
         private Slider particleDensitySlider;
         private Slider renderScaleSlider;
+        private Toggle showFpsToggle;
 
         private Toggle enableStoryboardToggle;
         private Toggle enableStoryboardPlaybackToggle;
@@ -143,6 +144,19 @@ namespace OsuVR
             );
 #endif
 
+            showFpsToggle = CreateToggle(
+                parent,
+                "Performance Monitor",
+                "ui_show_fps",
+                tempSettings.showFps,
+                v =>
+                {
+                    tempSettings.showFps = v;
+                    SettingsManager.Instance.SetShowFps(v);
+                    PlayClickSound();
+                }
+            );
+
             // --- 背景板 / 故事板 ---
 
             enableStoryboardToggle = CreateToggle(
@@ -234,6 +248,7 @@ namespace OsuVR
                     100f
                 );
 
+            SetToggleValueWithoutNotify(showFpsToggle, tempSettings.showFps);
             SetToggleValueWithoutNotify(enableStoryboardToggle, tempSettings.enableStoryboard);
             SetToggleValueWithoutNotify(
                 enableStoryboardPlaybackToggle,

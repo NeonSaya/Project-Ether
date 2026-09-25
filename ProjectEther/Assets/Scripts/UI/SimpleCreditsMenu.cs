@@ -337,6 +337,11 @@ namespace OsuVR
                 parent,
                 "Unity [Unity Companion License] — URP / XR Interaction Toolkit / VFX Graph / TextMeshPro / Input System"
             );
+            AddEntry(
+                parent,
+                "Graphy (Tayx94 / Martín Pane) [MIT] - FPS, Memory & Audio stats and graphs\n"
+                    + "https://github.com/Tayx94/graphy"
+            );
             AddEntry(parent, "Liberation Sans font [SIL OFL 1.1]");
             AddEntry(
                 parent,
@@ -349,10 +354,11 @@ namespace OsuVR
 
             AddEntry(
                 parent,
-                "MIT License — applies to: osu!lazer (c) ppy Pty Ltd & contributors, storybrew (c) Damnae, OsuParsers (c) mrflashstudio, AudioLink (c) llealloo, X-PostProcessing-Library (c) contributors, Effekseer (c) contributors",
+                "MIT License — applies to: osu!lazer (c) ppy Pty Ltd & contributors, storybrew (c) Damnae, OsuParsers (c) mrflashstudio, AudioLink (c) llealloo, X-PostProcessing-Library (c) contributors, Effekseer (c) contributors, Graphy",
                 12f,
                 MutedColor
             );
+            AddEntry(parent, "Copyright (c) 2018 Martín Pane", 12f, MutedColor);
             AddParagraph(parent, MitLicenseText, 11f);
             AddSpacing(parent, 10f);
 

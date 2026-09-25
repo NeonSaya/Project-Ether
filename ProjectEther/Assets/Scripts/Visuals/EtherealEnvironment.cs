@@ -265,6 +265,7 @@ namespace OsuVR
 
         // 镜面地板
         private GameObject mirrorFloorObj;
+        private GameObject fpsDisplay;
         private Material mirrorFloorMaterial;
         private Material mirrorFallbackMaterial; // URP Lit 不可用时的兜底材质
 
@@ -370,6 +371,11 @@ namespace OsuVR
             GenerateResources();
 
             CreateMirrorFloor();
+            SetFpsVisible(
+                SettingsManager.Instance != null
+                    ? SettingsManager.Instance.Settings.showFps
+                    : PlayerPrefs.GetInt("Settings_ShowFps", 0) == 1
+            );
             CreateNebulaLayer();
             CreateStardustLayer();
             CreateFallingStarLayer();
@@ -1156,6 +1162,27 @@ namespace OsuVR
 
             // 确保地板在正确位置接收阴影
             mr.receiveShadows = true;
+        }
+
+        public void SetFpsVisible(bool visible)
+        {
+            if (visible && fpsDisplay == null && mirrorFloorObj != null)
+            {
+                var prefab = Resources.Load<GameObject>("GraphyFloorDisplay");
+                if (prefab == null)
+                {
+                    Debug.LogError("[EtherealEnvironment] GraphyFloorDisplay prefab is missing.");
+                    return;
+                }
+
+                fpsDisplay = Instantiate(prefab, mirrorFloorObj.transform, false);
+                fpsDisplay.name = "Graphy Performance Monitor";
+                fpsDisplay.transform.localPosition = new Vector3(0f, 0.25f, 2f);
+                fpsDisplay.transform.localRotation = Quaternion.Euler(60f, 0f, 0f);
+            }
+
+            if (fpsDisplay != null)
+                fpsDisplay.SetActive(visible);
         }
 
         // ---- 星云层 ----
