@@ -186,6 +186,27 @@ namespace OsuVR.Storyboard
         SBFlatTimelineData _flatTimeline;
         SBTriggerRuntime triggerRuntime;
 
+        enum PendingTriggerKind : byte
+        {
+            Named,
+            HitSound,
+            HitSamples,
+        }
+
+        struct PendingTrigger
+        {
+            public PendingTriggerKind Kind;
+            public string Name;
+            public double Time;
+            public SampleSet Normal;
+            public SampleSet Addition;
+            public HitSoundType Sounds;
+            public int CustomIndex;
+            public List<HitSampleInfo> Samples;
+        }
+
+        readonly List<PendingTrigger> pendingTriggers = new List<PendingTrigger>(16);
+
         // ---- 视频 (VideoPlayer 直接解码到 RenderTexture) ----
         VideoPlayer videoPlayer;
         RenderTexture videoRT;
@@ -443,6 +464,7 @@ namespace OsuVR.Storyboard
             _flatTimeline = default;
             underlayTexture = null;
             triggerRuntime = null;
+            pendingTriggers.Clear();
             _jobActiveCount = 0;
             drawCommands?.Clear();
             ClearRenderTexture();
@@ -488,22 +510,62 @@ namespace OsuVR.Storyboard
             UnloadVideo();
         }
 
-        bool PrepareTrigger()
+        void QueueTrigger(PendingTrigger trigger)
         {
-            if (!isRendering || triggerRuntime == null || !triggerRuntime.HasTriggers)
-                return false;
+            if (isRendering && triggerRuntime != null && triggerRuntime.HasTriggers)
+                pendingTriggers.Add(trigger);
+        }
+
+        void ProcessPendingTriggers()
+        {
+            if (pendingTriggers.Count == 0 || triggerRuntime == null)
+                return;
             if (_jobScheduled)
             {
                 _jobHandle.Complete();
                 _jobScheduled = false;
             }
-            return true;
+
+            for (int i = 0; i < pendingTriggers.Count; i++)
+            {
+                var trigger = pendingTriggers[i];
+                switch (trigger.Kind)
+                {
+                    case PendingTriggerKind.Named:
+                        triggerRuntime.FireNamed(ref _flatTimeline, trigger.Name, trigger.Time);
+                        break;
+                    case PendingTriggerKind.HitSound:
+                        triggerRuntime.FireHitSound(
+                            ref _flatTimeline,
+                            trigger.Time,
+                            trigger.Normal,
+                            trigger.Addition,
+                            trigger.Sounds,
+                            trigger.CustomIndex
+                        );
+                        break;
+                    case PendingTriggerKind.HitSamples:
+                        triggerRuntime.FireHitSamples(
+                            ref _flatTimeline,
+                            trigger.Time,
+                            trigger.Samples
+                        );
+                        break;
+                }
+            }
+            pendingTriggers.Clear();
         }
 
         public void NotifyTrigger(string name, double time)
         {
-            if (PrepareTrigger())
-                triggerRuntime.FireNamed(ref _flatTimeline, name, time);
+            QueueTrigger(
+                new PendingTrigger
+                {
+                    Kind = PendingTriggerKind.Named,
+                    Name = name,
+                    Time = time,
+                }
+            );
         }
 
         public void NotifyHitSound(
@@ -513,21 +575,29 @@ namespace OsuVR.Storyboard
             int customIndex
         )
         {
-            if (PrepareTrigger())
-                triggerRuntime.FireHitSound(
-                    ref _flatTimeline,
-                    GetCurrentMusicTime(),
-                    normal,
-                    addition,
-                    sounds,
-                    customIndex
-                );
+            QueueTrigger(
+                new PendingTrigger
+                {
+                    Kind = PendingTriggerKind.HitSound,
+                    Time = GetCurrentMusicTime(),
+                    Normal = normal,
+                    Addition = addition,
+                    Sounds = sounds,
+                    CustomIndex = customIndex,
+                }
+            );
         }
 
         public void NotifyHitSamples(List<HitSampleInfo> samples)
         {
-            if (PrepareTrigger())
-                triggerRuntime.FireHitSamples(ref _flatTimeline, GetCurrentMusicTime(), samples);
+            QueueTrigger(
+                new PendingTrigger
+                {
+                    Kind = PendingTriggerKind.HitSamples,
+                    Time = GetCurrentMusicTime(),
+                    Samples = samples,
+                }
+            );
         }
 
         public void SetUnderlay(Texture texture, bool encoded)
@@ -553,6 +623,7 @@ namespace OsuVR.Storyboard
                 return;
 
             double musicTime = GetCurrentMusicTime();
+            ProcessPendingTriggers();
 
             // 1. 视频: 时间同步 (VideoPlayer 直接解码到 videoRT)
             if (hasVideo && videoPlayer != null && videoPlayer.isPrepared)
@@ -618,6 +689,7 @@ namespace OsuVR.Storyboard
         {
             if (!isRendering)
                 return;
+            ProcessPendingTriggers();
             ScheduleStoryboardFrame(milliseconds);
             if (_jobScheduled)
             {

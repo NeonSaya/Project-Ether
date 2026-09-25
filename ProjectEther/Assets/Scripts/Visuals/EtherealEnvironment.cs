@@ -1177,7 +1177,7 @@ namespace OsuVR
 
                 fpsDisplay = Instantiate(prefab, mirrorFloorObj.transform, false);
                 fpsDisplay.name = "Graphy Performance Monitor";
-                fpsDisplay.transform.localPosition = new Vector3(0f, 0.25f, 2f);
+                fpsDisplay.transform.localPosition = new Vector3(0f, 1.2f, 2f);
                 fpsDisplay.transform.localRotation = Quaternion.Euler(60f, 0f, 0f);
             }
 

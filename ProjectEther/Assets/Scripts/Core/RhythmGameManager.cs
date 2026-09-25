@@ -1854,15 +1854,17 @@ namespace OsuVR
 
                     // 现在传入的是正确的 0~1 值，可以正确计分了
                     int scoreValue = CalculateScoreFromAccuracy(accuracy01);
+                    if (scoreManager != null)
+                    {
+                        scoreManager.RegisterHit(scoreValue);
+                    }
+
+                    // HitObjectHit 触发不应依赖 ScoreManager 绑定；判定成功即通知 Storyboard
                     if (scoreValue > 0)
                         StoryboardRenderer.Instance?.NotifyTrigger(
                             "HitObjectHit",
                             currentMusicTimeMs
                         );
-                    if (scoreManager != null)
-                    {
-                        scoreManager.RegisterHit(scoreValue);
-                    }
 
                     if (JudgementVisualizer.Instance != null && !(hitObject is SliderObject))
                     {
