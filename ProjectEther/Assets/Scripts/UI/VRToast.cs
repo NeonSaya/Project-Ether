@@ -1,6 +1,6 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 
 namespace OsuVR
 {
@@ -17,7 +17,8 @@ namespace OsuVR
 
         public static void Show(string message, Color color, float duration = DefaultDuration)
         {
-            if (string.IsNullOrEmpty(message)) return;
+            if (string.IsNullOrEmpty(message))
+                return;
             if (_behaviour == null)
             {
                 var go = new GameObject("[VRToast]");
@@ -43,7 +44,8 @@ namespace OsuVR
 
             private void EnsureCreated()
             {
-                if (_tmp != null) return;
+                if (_tmp != null)
+                    return;
 
                 transform.localScale = Vector3.one * 0.002f;
 
@@ -83,18 +85,24 @@ namespace OsuVR
             {
                 // 跟随相机：放在玩家视线前方 1.5m、略低于视线，任何朝向都能看到
                 var cam = Camera.main;
-                if (cam == null) cam = FindFirstObjectByType<Camera>();
+                if (cam == null)
+                    cam = FindFirstObjectByType<Camera>();
                 if (cam != null)
                 {
                     Vector3 forward = cam.transform.forward;
                     forward.y = 0f;
-                    if (forward.sqrMagnitude < 0.001f) forward = Vector3.forward;
+                    if (forward.sqrMagnitude < 0.001f)
+                        forward = Vector3.forward;
                     forward.Normalize();
-                    transform.position = cam.transform.position + forward * 1.5f + Vector3.down * 0.2f;
-                    transform.rotation = Quaternion.LookRotation(transform.position - cam.transform.position);
+                    transform.position =
+                        cam.transform.position + forward * 1.5f + Vector3.down * 0.2f;
+                    transform.rotation = Quaternion.LookRotation(
+                        transform.position - cam.transform.position
+                    );
                 }
 
-                if (!_active) return;
+                if (!_active)
+                    return;
 
                 float elapsed = Time.unscaledTime - _fadeStart;
                 if (elapsed >= _duration)

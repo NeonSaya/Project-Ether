@@ -7,7 +7,9 @@ namespace OsuVR
     {
         [Header("Audio Settings")]
         [Range(-200f, 200f)]
-        [Tooltip("Audio offset in milliseconds. Positive = notes appear later, Negative = notes appear earlier")]
+        [Tooltip(
+            "Audio offset in milliseconds. Positive = notes appear later, Negative = notes appear earlier"
+        )]
         public float audioOffsetMs = 0f;
 
         [Range(0f, 1f)]
@@ -131,7 +133,8 @@ namespace OsuVR
 
         public void CopyFrom(GameSettings other)
         {
-            if (other == null) return;
+            if (other == null)
+                return;
             audioOffsetMs = other.audioOffsetMs;
             masterVolume = other.masterVolume;
             musicVolume = other.musicVolume;

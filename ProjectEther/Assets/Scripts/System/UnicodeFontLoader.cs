@@ -1,5 +1,5 @@
-using UnityEngine;
 using TMPro;
+using UnityEngine;
 using UnityEngine.TextCore.LowLevel;
 
 namespace OsuVR
@@ -18,7 +18,9 @@ namespace OsuVR
         private bool autoLoadSystemFont = false;
 
         [SerializeField]
-        [Tooltip("System font names to try loading (in order) - Japanese fonts first for proper Japanese support")]
+        [Tooltip(
+            "System font names to try loading (in order) - Japanese fonts first for proper Japanese support"
+        )]
         private readonly string[] systemFontNames = new string[]
         {
             "Yu Gothic",
@@ -27,7 +29,7 @@ namespace OsuVR
             "Microsoft YaHei",
             "SimHei",
             "SimSun",
-            "Arial Unicode MS"
+            "Arial Unicode MS",
         };
 
         private void Awake()
@@ -74,31 +76,45 @@ namespace OsuVR
                 if (systemFont != null)
                 {
                     Debug.Log($"[UnicodeFontLoader] Found system font: {fontName}");
-                    
-                    TMP_FontAsset fontAsset = TMP_FontAsset.CreateFontAsset(systemFont, 90, 9, 
-                        GlyphRenderMode.SDFAA, 
-                        2048, 2048, 
-                        AtlasPopulationMode.Dynamic);
-                    
-                    // TMP_FontAsset.CreateFontAsset might return an empty/corrupted font asset if it fails
-                    // to load the OS font. We must check if atlasTextures is actually assigned.
-                    if (fontAsset != null && fontAsset.atlasTextures != null && fontAsset.atlasTextures.Length > 0 && fontAsset.atlasTextures[0] != null)
+
+                    TMP_FontAsset fontAsset = TMP_FontAsset.CreateFontAsset(
+                        systemFont,
+                        90,
+                        9,
+                        GlyphRenderMode.SDFAA,
+                        2048,
+                        2048,
+                        AtlasPopulationMode.Dynamic
+                    );
+
+                    // 当加载 OS 字体失败时，TMP_FontAsset.CreateFontAsset 可能返回空的或损坏的字体资产。
+                    // 因此必须检查 atlasTextures 是否确实被赋值。
+                    if (
+                        fontAsset != null
+                        && fontAsset.atlasTextures != null
+                        && fontAsset.atlasTextures.Length > 0
+                        && fontAsset.atlasTextures[0] != null
+                    )
                     {
                         unicodeFont = fontAsset;
                         SetFallbackFont(fontAsset);
-                        
-                        Debug.Log($"[UnicodeFontLoader] Created dynamic font asset for: {fontName}");
+
+                        Debug.Log(
+                            $"[UnicodeFontLoader] Created dynamic font asset for: {fontName}"
+                        );
                         return;
                     }
                     else if (fontAsset != null)
                     {
-                        // Clean up the broken asset
+                        // 清理这个损坏的资产
                         Destroy(fontAsset);
                     }
                 }
             }
 
-            Debug.LogWarning("[UnicodeFontLoader] Could not find any suitable system font for Unicode support");
+            Debug.LogWarning(
+                "[UnicodeFontLoader] Could not find any suitable system font for Unicode support"
+            );
         }
 
         private void SetFallbackFont(TMP_FontAsset font)

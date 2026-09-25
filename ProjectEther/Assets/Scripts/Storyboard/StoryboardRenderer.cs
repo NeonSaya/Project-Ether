@@ -1,14 +1,14 @@
 using System.Collections.Generic;
+using OsuVR.Storyboard.Data;
+using OsuVR.Storyboard.Engine;
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Jobs;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.PostProcessing;
 using UnityEngine.Video;
-using Unity.Jobs;
-using Unity.Burst;
-using Unity.Collections;
-using Unity.Mathematics;
-using OsuVR.Storyboard.Data;
-using OsuVR.Storyboard.Engine;
 
 namespace OsuVR.Storyboard
 {
@@ -41,12 +41,11 @@ namespace OsuVR.Storyboard
         // ---- 隔离坐标 ----
         static readonly Vector3 IsolatedPosition = new Vector3(0, -1000f, 0);
 
-        // ---- Layer ----
-
+        // ---- 图层 ----
 
         // ---- GPU 实例化参数 ----
         const int InitialInstanceCapacity = 8192;
-        const int InstanceDataStride = 96;   // sizeof(SpriteInstanceData)
+        const int InstanceDataStride = 96; // sizeof(SpriteInstanceData) 的字节数
 
         const float SBQuadZ = 0f;
 
@@ -54,13 +53,15 @@ namespace OsuVR.Storyboard
         //  GPU 实例数据结构 (与 SBInstanced.shader 精确对齐)
         // =========================================================
 
-        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        [System.Runtime.InteropServices.StructLayout(
+            System.Runtime.InteropServices.LayoutKind.Sequential
+        )]
         struct SpriteInstanceData
         {
-            public Matrix4x4 objectToWorld; // 64 bytes
-            public Vector4 color;           // 16 bytes
-            public Vector4 params0;         // 16 bytes (x=texIndex, y=blendMode, z=flipH, w=flipV)
-        }   // Total: 96 bytes
+            public Matrix4x4 objectToWorld; // 64 字节
+            public Vector4 color; // 16 字节
+            public Vector4 params0; // 16 字节 (x=texIndex, y=blendMode, z=flipH, w=flipV)
+        } // 合计: 96 字节
 
         // SpriteInputData 已移至 SBFlatData.cs (OsuVR.Storyboard.Engine 命名空间)
 
@@ -71,12 +72,20 @@ namespace OsuVR.Storyboard
         [BurstCompile]
         struct BuildInstanceJob : IJobParallelFor
         {
-            [ReadOnly] public NativeArray<SpriteInputData> Inputs;
-            [ReadOnly] public NativeArray<float2> OriginOffsets;
-            [ReadOnly] public NativeArray<int2> TextureDimensions;
-            [WriteOnly] public NativeArray<SpriteInstanceData> Output;
+            [ReadOnly]
+            public NativeArray<SpriteInputData> Inputs;
 
-            public int CanvasW, CanvasH;
+            [ReadOnly]
+            public NativeArray<float2> OriginOffsets;
+
+            [ReadOnly]
+            public NativeArray<int2> TextureDimensions;
+
+            [WriteOnly]
+            public NativeArray<SpriteInstanceData> Output;
+
+            public int CanvasW,
+                CanvasH;
             public float IsolatedY;
             public int InputCount;
 
@@ -91,10 +100,11 @@ namespace OsuVR.Storyboard
                 var input = Inputs[i];
 
                 // GPU 剔除法: 不可见精灵 Scale→zero, Vertex Shader 瞬间剔除
-                // Match lazer/stable legacy behaviour: alpha above 1 wraps and is used
-                // by storyboard authors for deliberate flicker patterns.
+                // 与 lazer/stable 的旧版行为一致: alpha 大于 1 时回绕取余,
+                // SB 作者会利用这一点刻意做出闪烁效果。
                 float alpha = input.Alpha;
-                if (alpha > 1f) alpha = math.fmod(alpha, 1f);
+                if (alpha > 1f)
+                    alpha = math.fmod(alpha, 1f);
                 if (alpha <= 0f || input.TexIndex < 0)
                 {
                     Output[i] = default;
@@ -116,12 +126,15 @@ namespace OsuVR.Storyboard
                 float scaleY = texHeight * input.ScaleY * (input.FlipV != 0 ? -1f : 1f);
 
                 int originIdx = input.OriginIndex;
-                if ((uint)originIdx >= (uint)OriginOffsets.Length) originIdx = 1;
+                if ((uint)originIdx >= (uint)OriginOffsets.Length)
+                    originIdx = 1;
                 float2 pivot = OriginOffsets[originIdx];
 
-                // AdjustOrigin: flip XOR negative scale
-                if ((input.FlipH != 0) ^ (input.VectorScaleX < 0)) pivot.x = -pivot.x;
-                if ((input.FlipV != 0) ^ (input.VectorScaleY < 0)) pivot.y = -pivot.y;
+                // AdjustOrigin: 翻转与负缩放取异或, 为真时反转对应的 pivot 分量
+                if ((input.FlipH != 0) ^ (input.VectorScaleX < 0))
+                    pivot.x = -pivot.x;
+                if ((input.FlipV != 0) ^ (input.VectorScaleY < 0))
+                    pivot.y = -pivot.y;
 
                 Matrix4x4 m = Matrix4x4.identity;
 
@@ -153,10 +166,7 @@ namespace OsuVR.Storyboard
                 {
                     objectToWorld = m,
                     color = new float4(input.R, input.G, input.B, alpha),
-                    params0 = new float4(
-                        input.TexIndex,
-                        input.Additive != 0 ? 1f : 0f,
-                        0f, 0f)
+                    params0 = new float4(input.TexIndex, input.Additive != 0 ? 1f : 0f, 0f, 0f),
                 };
             }
         }
@@ -172,19 +182,19 @@ namespace OsuVR.Storyboard
         bool underlayEncoded;
         GameObject isolatedRoot;
 
-
         // ---- 引擎 (DOD 扁平化管线) ----
         SBFlatTimelineData _flatTimeline;
         SBTriggerRuntime triggerRuntime;
-
 
         // ---- 视频 (VideoPlayer 直接解码到 RenderTexture) ----
         VideoPlayer videoPlayer;
         RenderTexture videoRT;
         bool hasVideo;
         int videoOffsetMs;
+
         // 普通/宽屏都以 (320,240) 为中心，禁止额外 X 平移。
         float _sbXOffset = 0f;
+
         // 音乐时间冻结检测（暂停时视频同步暂停，防止视频继续播放又被 drift seek 反复回跳）
         double _lastMusicTimeMs = -1;
         float _musicFrozenTimer = 0f;
@@ -209,16 +219,16 @@ namespace OsuVR.Storyboard
         // ---- Origin 偏移缓存 ----
         static readonly Vector2[] OriginOffsets = new Vector2[]
         {
-            new Vector2(-0.5f,  0.5f),  // [0] TopLeft
-            new Vector2( 0.0f,  0.0f),  // [1] Centre
-            new Vector2(-0.5f,  0.0f),  // [2] CentreLeft
-            new Vector2( 0.5f,  0.5f),  // [3] TopRight
-            new Vector2( 0.0f, -0.5f),  // [4] BottomCentre
-            new Vector2( 0.0f,  0.5f),  // [5] TopCentre
-            new Vector2(-0.5f,  0.5f),  // [6] Custom → fallback to TopLeft
-            new Vector2( 0.5f,  0.0f),  // [7] CentreRight
-            new Vector2(-0.5f, -0.5f),  // [8] BottomLeft
-            new Vector2( 0.5f, -0.5f),  // [9] BottomRight
+            new Vector2(-0.5f, 0.5f), // [0] TopLeft（左上）
+            new Vector2(0.0f, 0.0f), // [1] Centre（中心）
+            new Vector2(-0.5f, 0.0f), // [2] CentreLeft（中左）
+            new Vector2(0.5f, 0.5f), // [3] TopRight（右上）
+            new Vector2(0.0f, -0.5f), // [4] BottomCentre（下中）
+            new Vector2(0.0f, 0.5f), // [5] TopCentre（上中）
+            new Vector2(-0.5f, 0.5f), // [6] Custom（自定义）→ 回退到 TopLeft（左上）
+            new Vector2(0.5f, 0.0f), // [7] CentreRight（中右）
+            new Vector2(-0.5f, -0.5f), // [8] BottomLeft（左下）
+            new Vector2(0.5f, -0.5f), // [9] BottomRight（右下）
         };
 
         // =========================================================
@@ -238,7 +248,7 @@ namespace OsuVR.Storyboard
         static readonly int InstanceOffsetId = Shader.PropertyToID("_InstanceOffset");
 
         // =========================================================
-        //  Lifecycle
+        //  生命周期
         // =========================================================
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -253,9 +263,14 @@ namespace OsuVR.Storyboard
 
         void Awake()
         {
-            if (Instance != null) { Destroy(gameObject); return; }
+            if (Instance != null)
+            {
+                Destroy(gameObject);
+                return;
+            }
             Instance = this;
-            if (Application.isPlaying) DontDestroyOnLoad(gameObject);
+            if (Application.isPlaying)
+                DontDestroyOnLoad(gameObject);
 
             // GPU 缓冲区
             instanceCapacity = InitialInstanceCapacity;
@@ -265,14 +280,15 @@ namespace OsuVR.Storyboard
 
             // Job System Persistent 预分配 (约束 2: 绝对禁止每帧 New/Dispose)
             InitializeJobSystem();
-
-
         }
 
         void InitializeJobSystem()
         {
             _jobInputs = new NativeArray<SpriteInputData>(instanceCapacity, Allocator.Persistent);
-            _jobOutput = new NativeArray<SpriteInstanceData>(instanceCapacity, Allocator.Persistent);
+            _jobOutput = new NativeArray<SpriteInstanceData>(
+                instanceCapacity,
+                Allocator.Persistent
+            );
             _jobTextureDimensions = new NativeArray<int2>(0, Allocator.Persistent);
 
             // Origin offsets: 静态只读, Persistent
@@ -291,17 +307,26 @@ namespace OsuVR.Storyboard
                 _jobScheduled = false;
             }
 
-            if (_jobInputs.IsCreated) _jobInputs.Dispose();
-            if (_jobOutput.IsCreated) _jobOutput.Dispose();
-            if (_jobOriginOffsets.IsCreated) _jobOriginOffsets.Dispose();
-            if (_jobTextureDimensions.IsCreated) _jobTextureDimensions.Dispose();
+            if (_jobInputs.IsCreated)
+                _jobInputs.Dispose();
+            if (_jobOutput.IsCreated)
+                _jobOutput.Dispose();
+            if (_jobOriginOffsets.IsCreated)
+                _jobOriginOffsets.Dispose();
+            if (_jobTextureDimensions.IsCreated)
+                _jobTextureDimensions.Dispose();
         }
 
         // =========================================================
         //  公开 API
         // =========================================================
 
-        public void LoadStoryboard(SBStoryboard storyboard, string beatmapFolder, bool widescreen = false, string backgroundPath = null)
+        public void LoadStoryboard(
+            SBStoryboard storyboard,
+            string beatmapFolder,
+            bool widescreen = false,
+            string backgroundPath = null
+        )
         {
             UnloadAll();
 
@@ -326,7 +351,6 @@ namespace OsuVR.Storyboard
                 EnsureCameraSetup();
                 CacheRhythmGameManager();
 
-
                 BuildTextures(storyboard, beatmapFolder);
                 SBDebugLog.Mem("纹理加载完成");
                 UpdateNativeTextureDimensions();
@@ -334,7 +358,11 @@ namespace OsuVR.Storyboard
                 EnsureSBMaterial();
 
                 // DOD 管线: 扁平化所有 SB 数据到 NativeArray
-                _flatTimeline = SBTimelineFlattener.Flatten(storyboard, textureIndexMap, textureDimensions);
+                _flatTimeline = SBTimelineFlattener.Flatten(
+                    storyboard,
+                    textureIndexMap,
+                    textureDimensions
+                );
                 triggerRuntime = new SBTriggerRuntime(storyboard);
                 SBDebugLog.Mem($"DOD 扁平化完成: {_flatTimeline.SpriteCount} sprites");
 
@@ -342,8 +370,8 @@ namespace OsuVR.Storyboard
 
                 isRendering = true;
 
-                // lazer replaces the preview background when the Background layer refers
-                // to that exact asset, even if it has fade commands or appears much later.
+                // 当 Background 图层引用的正是该背景资源时, lazer 会替换预览背景图,
+                // 即使该元素带有淡入命令、或出现时间晚得多也一样。
                 string backgroundKey = NormalizeStoryboardPath(backgroundPath);
                 if (backgroundKey.Length > 0)
                     foreach (var element in storyboard.Layers[(int)SBLayer.Background])
@@ -353,18 +381,24 @@ namespace OsuVR.Storyboard
                             break;
                         }
 
-                SBDebugLog.Log($"[SBRenderer] 加载完成: {storyboard.TotalElementCount} 元素, {storyboardTextures.Count} 纹理");
+                SBDebugLog.Log(
+                    $"[SBRenderer] 加载完成: {storyboard.TotalElementCount} 元素, {storyboardTextures.Count} 纹理"
+                );
             }
-            finally { SBDebugLog.End(); }
+            finally
+            {
+                SBDebugLog.End();
+            }
         }
 
         public void LoadVideo(string videoPath, int videoOffset)
         {
-            if (string.IsNullOrEmpty(videoPath)) return;
+            if (string.IsNullOrEmpty(videoPath))
+                return;
 
             UnloadVideo();
             hasVideo = true;
-            isRendering = true;   // 视频时间同步需要 Update 循环
+            isRendering = true; // 视频时间同步需要 Update 循环
             videoOffsetMs = videoOffset;
 
             // 纯视频模式也必须缓存 RhythmGameManager:
@@ -374,11 +408,19 @@ namespace OsuVR.Storyboard
 
             CreateVideoPlayer(videoPath);
 
-            Debug.Log($"[SBRenderer] 已加载视频: {System.IO.Path.GetFileName(videoPath)}, offset={videoOffset}ms");
+            Debug.Log(
+                $"[SBRenderer] 已加载视频: {System.IO.Path.GetFileName(videoPath)}, offset={videoOffset}ms"
+            );
         }
 
-        public void LoadVideoAndStoryboard(string videoPath, int videoOffset,
-            SBStoryboard storyboard, string beatmapFolder, bool widescreen = false, string backgroundPath = null)
+        public void LoadVideoAndStoryboard(
+            string videoPath,
+            int videoOffset,
+            SBStoryboard storyboard,
+            string beatmapFolder,
+            bool widescreen = false,
+            string backgroundPath = null
+        )
         {
             LoadStoryboard(storyboard, beatmapFolder, widescreen, backgroundPath);
             LoadVideo(videoPath, videoOffset);
@@ -396,7 +438,8 @@ namespace OsuVR.Storyboard
             }
 
             // 释放 DOD 扁平化数据
-            if (_flatTimeline.Sprites.IsCreated) _flatTimeline.Dispose();
+            if (_flatTimeline.Sprites.IsCreated)
+                _flatTimeline.Dispose();
             _flatTimeline = default;
             underlayTexture = null;
             triggerRuntime = null;
@@ -405,12 +448,16 @@ namespace OsuVR.Storyboard
             ClearRenderTexture();
 
             foreach (var texture in storyboardTextures)
-                if (texture != null) ReleaseObject(texture);
+                if (texture != null)
+                    ReleaseObject(texture);
             storyboardTextures.Clear();
             textureIndexMap?.Clear();
 
-            if (storyboardMaterial != null) { ReleaseObject(storyboardMaterial); storyboardMaterial = null; }
-
+            if (storyboardMaterial != null)
+            {
+                ReleaseObject(storyboardMaterial);
+                storyboardMaterial = null;
+            }
         }
 
         public void UnloadVideo()
@@ -443,21 +490,44 @@ namespace OsuVR.Storyboard
 
         bool PrepareTrigger()
         {
-            if (!isRendering || triggerRuntime == null || !triggerRuntime.HasTriggers) return false;
-            if (_jobScheduled) { _jobHandle.Complete(); _jobScheduled = false; }
+            if (!isRendering || triggerRuntime == null || !triggerRuntime.HasTriggers)
+                return false;
+            if (_jobScheduled)
+            {
+                _jobHandle.Complete();
+                _jobScheduled = false;
+            }
             return true;
         }
+
         public void NotifyTrigger(string name, double time)
         {
-            if (PrepareTrigger()) triggerRuntime.FireNamed(ref _flatTimeline, name, time);
+            if (PrepareTrigger())
+                triggerRuntime.FireNamed(ref _flatTimeline, name, time);
         }
-        public void NotifyHitSound(SampleSet normal, SampleSet addition, HitSoundType sounds, int customIndex)
+
+        public void NotifyHitSound(
+            SampleSet normal,
+            SampleSet addition,
+            HitSoundType sounds,
+            int customIndex
+        )
         {
-            if (PrepareTrigger()) triggerRuntime.FireHitSound(ref _flatTimeline, GetCurrentMusicTime(), normal, addition, sounds, customIndex);
+            if (PrepareTrigger())
+                triggerRuntime.FireHitSound(
+                    ref _flatTimeline,
+                    GetCurrentMusicTime(),
+                    normal,
+                    addition,
+                    sounds,
+                    customIndex
+                );
         }
+
         public void NotifyHitSamples(List<HitSampleInfo> samples)
         {
-            if (PrepareTrigger()) triggerRuntime.FireHitSamples(ref _flatTimeline, GetCurrentMusicTime(), samples);
+            if (PrepareTrigger())
+                triggerRuntime.FireHitSamples(ref _flatTimeline, GetCurrentMusicTime(), samples);
         }
 
         public void SetUnderlay(Texture texture, bool encoded)
@@ -467,6 +537,7 @@ namespace OsuVR.Storyboard
         }
 
         public RenderTexture GetRenderTexture() => renderTexture;
+
         public RenderTexture GetVideoRenderTexture() => videoRT;
 
         // =========================================================
@@ -476,8 +547,10 @@ namespace OsuVR.Storyboard
 
         void Update()
         {
-            if (!isRendering) return;
-            if (_flatTimeline.SpriteCount == 0 && !hasVideo) return;
+            if (!isRendering)
+                return;
+            if (_flatTimeline.SpriteCount == 0 && !hasVideo)
+                return;
 
             double musicTime = GetCurrentMusicTime();
 
@@ -486,14 +559,19 @@ namespace OsuVR.Storyboard
                 SyncVideoTime(musicTime);
 
             // 2. 以下需要 renderCamera (SB 渲染)
-            if (renderCamera == null) return;
+            if (renderCamera == null)
+                return;
 
             ScheduleStoryboardFrame(musicTime);
         }
 
         void ScheduleStoryboardFrame(double musicTime)
         {
-            if (_flatTimeline.SpriteCount > 0 && storyboardMaterial != null && storyboardTextures.Count > 0)
+            if (
+                _flatTimeline.SpriteCount > 0
+                && storyboardMaterial != null
+                && storyboardTextures.Count > 0
+            )
             {
                 if (_jobScheduled)
                 {
@@ -513,7 +591,7 @@ namespace OsuVR.Storyboard
                     Output = _jobInputs,
                     CurrentTime = musicTime,
                     SpriteCount = _jobActiveCount,
-                    XOffset = _sbXOffset
+                    XOffset = _sbXOffset,
                 };
                 var evalHandle = evalJob.Schedule(_jobActiveCount, 64);
 
@@ -527,7 +605,7 @@ namespace OsuVR.Storyboard
                     CanvasW = CanvasWidth,
                     CanvasH = CanvasHeight,
                     IsolatedY = 0f,
-                    InputCount = _jobActiveCount
+                    InputCount = _jobActiveCount,
                 };
                 _jobHandle = buildJob.Schedule(_jobActiveCount, 256, evalHandle);
                 _jobScheduled = true;
@@ -535,10 +613,11 @@ namespace OsuVR.Storyboard
         }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-        // Deterministic frame capture uses the production evaluator and GPU submission.
+        // 确定性帧捕获复用正式的求值器与 GPU 提交流程。
         public void RenderAtTime(double milliseconds)
         {
-            if (!isRendering) return;
+            if (!isRendering)
+                return;
             ScheduleStoryboardFrame(milliseconds);
             if (_jobScheduled)
             {
@@ -556,7 +635,8 @@ namespace OsuVR.Storyboard
 
         void LateUpdate()
         {
-            if (!isRendering) return;
+            if (!isRendering)
+                return;
             if (_jobScheduled)
             {
                 _jobHandle.Complete();
@@ -567,7 +647,8 @@ namespace OsuVR.Storyboard
 
         void RenderInstances()
         {
-            if (renderTexture == null || storyboardMaterial == null) return;
+            if (renderTexture == null || storyboardMaterial == null)
+                return;
             drawCommands.Clear();
             drawCommands.SetRenderTarget(rasterSurface != null ? rasterSurface : renderTexture);
             drawCommands.SetViewport(new Rect(0, 0, renderTexture.width, renderTexture.height));
@@ -575,8 +656,8 @@ namespace OsuVR.Storyboard
             if (_jobActiveCount > 0)
                 instanceBuffer.SetData(_jobOutput, 0, 0, _jobActiveCount);
             storyboardMaterial.SetBuffer("_InstanceData", instanceBuffer);
-            // Cancel the isolation translation before vertex multiplication to avoid
-            // rounding large world coordinates at half-pixel boundaries.
+            // 在顶点变换前抵消隔离用的平移, 避免过大的世界坐标
+            // 在半像素边界处被取整。
             var view = renderCamera.worldToCameraMatrix * Matrix4x4.Translate(IsolatedPosition);
             var vp = GL.GetGPUProjectionMatrix(renderCamera.projectionMatrix, false) * view;
             if (underlayTexture != null)
@@ -584,43 +665,77 @@ namespace OsuVR.Storyboard
                 drawProperties.Clear();
                 drawProperties.SetTexture(MainTexId, underlayTexture);
                 drawProperties.SetFloat("_UnderlayEncoded", underlayEncoded ? 1 : 0);
-                drawCommands.DrawMesh(quadMesh, Matrix4x4.identity, storyboardMaterial, 0, 2, drawProperties);
+                drawCommands.DrawMesh(
+                    quadMesh,
+                    Matrix4x4.identity,
+                    storyboardMaterial,
+                    0,
+                    2,
+                    drawProperties
+                );
             }
             if (!isWidescreen)
             {
                 float width = renderTexture.height * (4f / 3f);
-                drawCommands.EnableScissorRect(new Rect((renderTexture.width - width) * 0.5f, 0, width, renderTexture.height));
+                drawCommands.EnableScissorRect(
+                    new Rect((renderTexture.width - width) * 0.5f, 0, width, renderTexture.height)
+                );
             }
-            int first = 0, texture = -1, blend = -1;
+            int first = 0,
+                texture = -1,
+                blend = -1;
             for (int i = 0; i <= _jobActiveCount; i++)
             {
-                int next = -1, nextBlend = -1;
+                int next = -1,
+                    nextBlend = -1;
                 if (i < _jobActiveCount && _jobOutput[i].color.w > 0)
                 {
                     next = (int)_jobOutput[i].params0.x;
                     nextBlend = _jobOutput[i].params0.y > 0.5f ? 1 : 0;
                 }
-                if (next == texture && nextBlend == blend) continue;
+                if (next == texture && nextBlend == blend)
+                    continue;
                 if (texture >= 0 && texture < storyboardTextures.Count)
                 {
                     drawProperties.Clear();
                     var source = storyboardTextures[texture];
                     drawProperties.SetTexture(MainTexId, source);
-                    drawProperties.SetVector("_MainTex_TexelSize", new Vector4(1f / source.width, 1f / source.height, source.width, source.height));
+                    drawProperties.SetVector(
+                        "_MainTex_TexelSize",
+                        new Vector4(
+                            1f / source.width,
+                            1f / source.height,
+                            source.width,
+                            source.height
+                        )
+                    );
                     drawProperties.SetInt(InstanceOffsetId, first);
                     drawProperties.SetMatrix("_StoryboardVP", vp);
-                    drawCommands.DrawMeshInstancedProcedural(quadMesh, 0, storyboardMaterial, blend, i - first, drawProperties);
+                    drawCommands.DrawMeshInstancedProcedural(
+                        quadMesh,
+                        0,
+                        storyboardMaterial,
+                        blend,
+                        i - first,
+                        drawProperties
+                    );
                 }
                 first = i;
                 texture = next;
                 blend = nextBlend;
             }
-            if (!isWidescreen) drawCommands.DisableScissorRect();
-            // Rasterize in display orientation, then adapt to Unity RT orientation.
-            // Flipping geometry changes edge inclusion at half-pixel boundaries.
+            if (!isWidescreen)
+                drawCommands.DisableScissorRect();
+            // 先按显示方向光栅化, 再适配 Unity 的 RT 方向。
+            // 翻转几何会改变半像素边界处的边缘像素归属。
             if (rasterSurface != null)
-                drawCommands.Blit(rasterSurface, renderTexture, new Vector2(1, -1), new Vector2(0, 1));
-            // Explicit command order bypasses URP transparent sorting and LightMode selection.
+                drawCommands.Blit(
+                    rasterSurface,
+                    renderTexture,
+                    new Vector2(1, -1),
+                    new Vector2(0, 1)
+                );
+            // 显式的命令顺序绕过 URP 的透明排序与 LightMode 选择。
             var previousTarget = RenderTexture.active;
             bool previousSRGB = GL.sRGBWrite;
             try
@@ -637,7 +752,8 @@ namespace OsuVR.Storyboard
 
         void ClearRenderTexture()
         {
-            if (renderTexture == null) return;
+            if (renderTexture == null)
+                return;
             var previous = RenderTexture.active;
             RenderTexture.active = renderTexture;
             GL.Clear(false, true, Color.clear);
@@ -646,7 +762,8 @@ namespace OsuVR.Storyboard
 
         void EnsureInstanceCapacity(int required)
         {
-            if (required <= instanceCapacity) return;
+            if (required <= instanceCapacity)
+                return;
             if (_jobScheduled)
             {
                 _jobHandle.Complete();
@@ -654,23 +771,29 @@ namespace OsuVR.Storyboard
             }
 
             instanceCapacity = Mathf.NextPowerOfTwo(required);
-            if (_jobInputs.IsCreated) _jobInputs.Dispose();
-            if (_jobOutput.IsCreated) _jobOutput.Dispose();
+            if (_jobInputs.IsCreated)
+                _jobInputs.Dispose();
+            if (_jobOutput.IsCreated)
+                _jobOutput.Dispose();
             _jobInputs = new NativeArray<SpriteInputData>(instanceCapacity, Allocator.Persistent);
-            _jobOutput = new NativeArray<SpriteInstanceData>(instanceCapacity, Allocator.Persistent);
-            if (instanceBuffer != null) instanceBuffer.Release();
+            _jobOutput = new NativeArray<SpriteInstanceData>(
+                instanceCapacity,
+                Allocator.Persistent
+            );
+            if (instanceBuffer != null)
+                instanceBuffer.Release();
             instanceBuffer = new ComputeBuffer(instanceCapacity, InstanceDataStride);
         }
 
         void UpdateNativeTextureDimensions()
         {
-            if (_jobTextureDimensions.IsCreated) _jobTextureDimensions.Dispose();
+            if (_jobTextureDimensions.IsCreated)
+                _jobTextureDimensions.Dispose();
             int count = textureDimensions == null ? 0 : textureDimensions.Length;
             _jobTextureDimensions = new NativeArray<int2>(count, Allocator.Persistent);
             for (int i = 0; i < count; i++)
                 _jobTextureDimensions[i] = new int2(textureDimensions[i].x, textureDimensions[i].y);
         }
-
 
         // =========================================================
         //  视频渲染 (Graphics.DrawMesh, 无 GameObject)
@@ -696,7 +819,7 @@ namespace OsuVR.Storyboard
             videoPlayer.source = VideoSource.Url;
             videoPlayer.url = url;
             videoPlayer.playOnAwake = false;
-            videoPlayer.isLooping = false;  // osu! 视频只播放一次, 不循环 (末帧冻结)
+            videoPlayer.isLooping = false; // osu! 视频只播放一次, 不循环 (末帧冻结)
             videoPlayer.skipOnDrop = true;
             videoPlayer.audioOutputMode = VideoAudioOutputMode.None;
             videoPlayer.renderMode = VideoRenderMode.RenderTexture;
@@ -713,23 +836,29 @@ namespace OsuVR.Storyboard
             videoPlayer.prepareCompleted += (vp) =>
             {
                 // 不在此自动 Play: 由 SyncVideoTime 根据音乐时间接管启停, 避免视频早于音乐开播
-                Debug.Log($"[SBRenderer] 视频准备完成: {vp.width}x{vp.height}, 时长={vp.length:F1}s");
+                Debug.Log(
+                    $"[SBRenderer] 视频准备完成: {vp.width}x{vp.height}, 时长={vp.length:F1}s"
+                );
             };
 
             videoPlayer.Prepare();
-            Debug.Log($"[SBRenderer] VideoPlayer 已创建: {url}, RT={videoRT.width}x{videoRT.height}");
+            Debug.Log(
+                $"[SBRenderer] VideoPlayer 已创建: {url}, RT={videoRT.width}x{videoRT.height}"
+            );
         }
 
         void SyncVideoTime(double musicTimeMs)
         {
             // 音乐时间冻结检测（暂停）：冻结超过 0.15s 就同步暂停视频，
             // 否则视频继续播放、每 0.3s 被 drift seek 回跳，暂停期反复跳帧
-            bool timeFrozen = _lastMusicTimeMs >= 0 && math.abs(musicTimeMs - _lastMusicTimeMs) < 0.01;
+            bool timeFrozen =
+                _lastMusicTimeMs >= 0 && math.abs(musicTimeMs - _lastMusicTimeMs) < 0.01;
             _lastMusicTimeMs = musicTimeMs;
             _musicFrozenTimer = timeFrozen ? _musicFrozenTimer + Time.unscaledDeltaTime : 0f;
             if (_musicFrozenTimer > 0.15f)
             {
-                if (videoPlayer.isPlaying) videoPlayer.Pause();
+                if (videoPlayer.isPlaying)
+                    videoPlayer.Pause();
                 return;
             }
 
@@ -738,7 +867,8 @@ namespace OsuVR.Storyboard
 
             if (targetVideoTime < 0)
             {
-                if (videoPlayer.isPlaying) videoPlayer.Pause();
+                if (videoPlayer.isPlaying)
+                    videoPlayer.Pause();
                 return;
             }
 
@@ -746,7 +876,8 @@ namespace OsuVR.Storyboard
             double videoLength = videoPlayer.length;
             if (videoLength > 0 && targetVideoTime >= videoLength)
             {
-                if (videoPlayer.isPlaying) videoPlayer.Pause();
+                if (videoPlayer.isPlaying)
+                    videoPlayer.Pause();
                 return;
             }
 
@@ -775,8 +906,11 @@ namespace OsuVR.Storyboard
             var pathSet = new HashSet<string>();
             foreach (var element in storyboard.GetAllElementsInRenderOrder())
             {
-                if (string.IsNullOrEmpty(element.ImagePath)) continue;
-                int frameCount = element is SBStoryboardAnimation animation ? animation.FrameCount : 1;
+                if (string.IsNullOrEmpty(element.ImagePath))
+                    continue;
+                int frameCount = element is SBStoryboardAnimation animation
+                    ? animation.FrameCount
+                    : 1;
                 for (int frame = 0; frame < frameCount; frame++)
                 {
                     string relativePath = element is SBStoryboardAnimation animated
@@ -808,43 +942,60 @@ namespace OsuVR.Storyboard
             }
 
             textureDimensions = dimensions.ToArray();
-            Debug.Log($"[SBRenderer] SB 纹理加载统计: {storyboardTextures.Count}/{paths.Count} 成功, {skipped} 跳过");
+            Debug.Log(
+                $"[SBRenderer] SB 纹理加载统计: {storyboardTextures.Count}/{paths.Count} 成功, {skipped} 跳过"
+            );
         }
 
         static string NormalizeStoryboardPath(string path)
         {
-            if (string.IsNullOrEmpty(path)) return string.Empty;
+            if (string.IsNullOrEmpty(path))
+                return string.Empty;
             return path.Replace('\\', '/').Trim().Trim('"').ToLowerInvariant();
         }
 
         internal static string ResolveStoryboardAssetPath(string beatmapFolder, string relativePath)
         {
-            if (string.IsNullOrEmpty(beatmapFolder) || string.IsNullOrEmpty(relativePath)) return null;
+            if (string.IsNullOrEmpty(beatmapFolder) || string.IsNullOrEmpty(relativePath))
+                return null;
             string normalized = relativePath.Replace('\\', '/').Trim().Trim('"');
             if (!System.IO.Path.HasExtension(normalized))
             {
                 foreach (string extension in new[] { ".png", ".jpg", ".jpeg" })
                 {
-                    string candidate = ResolveStoryboardAssetPath(beatmapFolder, normalized + extension);
-                    if (candidate != null) return candidate;
+                    string candidate = ResolveStoryboardAssetPath(
+                        beatmapFolder,
+                        normalized + extension
+                    );
+                    if (candidate != null)
+                        return candidate;
                 }
                 return null;
             }
             string exact = System.IO.Path.Combine(beatmapFolder, normalized);
-            if (System.IO.File.Exists(exact)) return exact;
+            if (System.IO.File.Exists(exact))
+                return exact;
 
             string current = beatmapFolder;
             string[] parts = normalized.Split('/');
             for (int i = 0; i < parts.Length; i++)
             {
                 string part = parts[i];
-                if (string.IsNullOrEmpty(part) || part == ".") continue;
+                if (string.IsNullOrEmpty(part) || part == ".")
+                    continue;
                 bool isFile = i == parts.Length - 1;
                 if (isFile)
                 {
-                    if (!System.IO.Directory.Exists(current)) return null;
+                    if (!System.IO.Directory.Exists(current))
+                        return null;
                     foreach (string file in System.IO.Directory.GetFiles(current))
-                        if (string.Equals(System.IO.Path.GetFileName(file), part, System.StringComparison.OrdinalIgnoreCase))
+                        if (
+                            string.Equals(
+                                System.IO.Path.GetFileName(file),
+                                part,
+                                System.StringComparison.OrdinalIgnoreCase
+                            )
+                        )
                             return file;
                     return null;
                 }
@@ -855,43 +1006,71 @@ namespace OsuVR.Storyboard
                     current = exactDirectory;
                     continue;
                 }
-                if (!System.IO.Directory.Exists(current)) return null;
+                if (!System.IO.Directory.Exists(current))
+                    return null;
                 string matched = null;
                 foreach (string directory in System.IO.Directory.GetDirectories(current))
-                    if (string.Equals(System.IO.Path.GetFileName(directory), part, System.StringComparison.OrdinalIgnoreCase))
+                    if (
+                        string.Equals(
+                            System.IO.Path.GetFileName(directory),
+                            part,
+                            System.StringComparison.OrdinalIgnoreCase
+                        )
+                    )
                     {
                         matched = directory;
                         break;
                     }
-                if (matched == null) return null;
+                if (matched == null)
+                    return null;
                 current = matched;
             }
             return null;
         }
-
 
         internal static Texture2D LoadTexture(string path)
         {
             Texture2D texture = null;
             try
             {
-                if (!System.IO.File.Exists(path)) return null;
-                // Keep the source dimensions and pixels. The old array packer rescaled
-                // every image to the largest SB texture, which changes sprite content.
-                var image = StbImageSharp.ImageResult.FromMemory(System.IO.File.ReadAllBytes(path), StbImageSharp.ColorComponents.RedGreenBlueAlpha);
-                if (image.Width > SystemInfo.maxTextureSize || image.Height > SystemInfo.maxTextureSize)
-                    throw new System.NotSupportedException("image exceeds device texture-size limit");
-                // STB returns top-to-bottom rows; Unity raw texture storage starts at the bottom.
+                if (!System.IO.File.Exists(path))
+                    return null;
+                // 保留源图的尺寸与像素。旧的数组打包会把每张图
+                // 缩放到最大的 SB 纹理尺寸, 这会改变精灵的内容。
+                var image = StbImageSharp.ImageResult.FromMemory(
+                    System.IO.File.ReadAllBytes(path),
+                    StbImageSharp.ColorComponents.RedGreenBlueAlpha
+                );
+                if (
+                    image.Width > SystemInfo.maxTextureSize
+                    || image.Height > SystemInfo.maxTextureSize
+                )
+                    throw new System.NotSupportedException(
+                        "image exceeds device texture-size limit"
+                    );
+                // STB 返回的像素行自上而下排列, 而 Unity 的原始纹理由底部行开始存储。
                 int stride = checked(image.Width * 4);
                 var row = new byte[stride];
                 for (int y = 0; y < image.Height / 2; y++)
                 {
                     int opposite = image.Height - 1 - y;
                     System.Buffer.BlockCopy(image.Data, y * stride, row, 0, stride);
-                    System.Buffer.BlockCopy(image.Data, opposite * stride, image.Data, y * stride, stride);
+                    System.Buffer.BlockCopy(
+                        image.Data,
+                        opposite * stride,
+                        image.Data,
+                        y * stride,
+                        stride
+                    );
                     System.Buffer.BlockCopy(row, 0, image.Data, opposite * stride, stride);
                 }
-                texture = new Texture2D(image.Width, image.Height, TextureFormat.RGBA32, true, true);
+                texture = new Texture2D(
+                    image.Width,
+                    image.Height,
+                    TextureFormat.RGBA32,
+                    true,
+                    true
+                );
                 texture.SetPixelData(image.Data, 0);
                 texture.Apply(true, true);
                 texture.filterMode = FilterMode.Trilinear;
@@ -901,27 +1080,33 @@ namespace OsuVR.Storyboard
             }
             catch (System.Exception e)
             {
-                if (texture != null) ReleaseObject(texture);
+                if (texture != null)
+                    ReleaseObject(texture);
                 Debug.LogWarning($"[SBRenderer] 纹理加载异常: {path}, {e.Message}");
                 return null;
             }
         }
+
         // =========================================================
         //  共享资源创建
         // =========================================================
 
         void EnsureSBMaterial()
         {
-            if (storyboardMaterial != null) return;
+            if (storyboardMaterial != null)
+                return;
             var shader = Shader.Find("OsuVR/SBInstanced");
             if (shader == null || !shader.isSupported)
-                throw new System.NotSupportedException("Storyboard shader is unavailable on this graphics backend");
+                throw new System.NotSupportedException(
+                    "Storyboard shader is unavailable on this graphics backend"
+                );
             storyboardMaterial = new Material(shader) { enableInstancing = true };
         }
 
         Mesh EnsureQuadMesh()
         {
-            if (quadMesh != null) return quadMesh;
+            if (quadMesh != null)
+                return quadMesh;
 
             quadMesh = new Mesh();
             quadMesh.name = "SB_InstancedQuad";
@@ -929,9 +1114,9 @@ namespace OsuVR.Storyboard
             quadMesh.vertices = new Vector3[]
             {
                 new Vector3(-0.5f, -0.5f, 0),
-                new Vector3(-0.5f,  0.5f, 0),
-                new Vector3( 0.5f,  0.5f, 0),
-                new Vector3( 0.5f, -0.5f, 0),
+                new Vector3(-0.5f, 0.5f, 0),
+                new Vector3(0.5f, 0.5f, 0),
+                new Vector3(0.5f, -0.5f, 0),
             };
             quadMesh.uv = new Vector2[]
             {
@@ -979,18 +1164,28 @@ namespace OsuVR.Storyboard
             renderCamera.backgroundColor = new Color(0f, 0f, 0f, 0f); // 透明黑: 预乘管线要求 rgb 也为 0
             renderCamera.stereoTargetEye = StereoTargetEyeMask.None;
 
-            renderTexture = new RenderTexture(RT_Width, RT_Height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
+            renderTexture = new RenderTexture(
+                RT_Width,
+                RT_Height,
+                0,
+                RenderTextureFormat.ARGB32,
+                RenderTextureReadWrite.Linear
+            );
             renderTexture.name = "Storyboard encoded RGB";
             renderTexture.wrapMode = TextureWrapMode.Clamp;
             renderTexture.antiAliasing = 1;
             renderTexture.Create();
             if (SystemInfo.graphicsUVStartsAtTop)
             {
-                rasterSurface = new RenderTexture(renderTexture.descriptor) { name = "Storyboard display raster", filterMode = FilterMode.Point };
+                rasterSurface = new RenderTexture(renderTexture.descriptor)
+                {
+                    name = "Storyboard display raster",
+                    filterMode = FilterMode.Point,
+                };
                 rasterSurface.Create();
             }
             renderCamera.targetTexture = renderTexture;
-            renderCamera.enabled = false; // The same projection is used by the ordered compositor.
+            renderCamera.enabled = false; // 有序合成器使用同一套投影矩阵。
             ClearRenderTexture();
 
             // 后处理: 确保模糊/bloom等效果烘焙进 SB RenderTexture
@@ -1017,19 +1212,23 @@ namespace OsuVR.Storyboard
             // 惰性重查: 场景切换后缓存可能失效 (Unity 假 null), 确保视频/SB 时间基准正确
             if (cachedRGM == null)
                 cachedRGM = FindFirstObjectByType<RhythmGameManager>();
-            if (cachedRGM != null) return cachedRGM.currentMusicTimeMs;
+            if (cachedRGM != null)
+                return cachedRGM.currentMusicTimeMs;
             return Time.time * 1000.0;
         }
 
         // =========================================================
-        //  Cleanup
+        //  清理
         // =========================================================
 
         static void ReleaseObject(UnityEngine.Object value)
         {
-            if (value == null) return;
-            if (Application.isPlaying) Destroy(value);
-            else DestroyImmediate(value);
+            if (value == null)
+                return;
+            if (Application.isPlaying)
+                Destroy(value);
+            else
+                DestroyImmediate(value);
         }
 
         void OnDestroy()
@@ -1041,17 +1240,22 @@ namespace OsuVR.Storyboard
             instanceBuffer?.Release();
             drawCommands?.Release();
 
-
             if (renderTexture != null)
             {
                 renderTexture.Release();
                 ReleaseObject(renderTexture);
             }
 
-            if (rasterSurface != null) { rasterSurface.Release(); ReleaseObject(rasterSurface); }
-            if (quadMesh != null) ReleaseObject(quadMesh);
+            if (rasterSurface != null)
+            {
+                rasterSurface.Release();
+                ReleaseObject(rasterSurface);
+            }
+            if (quadMesh != null)
+                ReleaseObject(quadMesh);
 
-            if (Instance == this) Instance = null;
+            if (Instance == this)
+                Instance = null;
         }
     }
 }

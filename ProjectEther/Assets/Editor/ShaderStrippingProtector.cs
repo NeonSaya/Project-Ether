@@ -1,7 +1,7 @@
+using System.Collections.Generic;
+using System.IO;
 using UnityEditor;
 using UnityEngine;
-using System.IO;
-using System.Collections.Generic;
 
 /// <summary>
 /// 资源偷渡法 (Dummy Resources Anti-Stripping):
@@ -19,31 +19,37 @@ public static class ShaderStrippingProtector
     static readonly (string shader, string[] keywords, string name)[] DummyDefs =
     {
         // === URP 核心 (最容易被剔除) ===
-        ("Universal Render Pipeline/Lit",          new[]{"_EMISSION","_METALLICSPECGLOSSMAP"}, "Dummy_URP_Lit"),
-        ("Universal Render Pipeline/Unlit",        new[]{"_SURFACE_TYPE_TRANSPARENT"},          "Dummy_URP_Unlit"),
-        ("Universal Render Pipeline/Particles/Unlit", new string[0],                            "Dummy_URP_ParticlesUnlit"),
-
+        (
+            "Universal Render Pipeline/Lit",
+            new[] { "_EMISSION", "_METALLICSPECGLOSSMAP" },
+            "Dummy_URP_Lit"
+        ),
+        (
+            "Universal Render Pipeline/Unlit",
+            new[] { "_SURFACE_TYPE_TRANSPARENT" },
+            "Dummy_URP_Unlit"
+        ),
+        ("Universal Render Pipeline/Particles/Unlit", new string[0], "Dummy_URP_ParticlesUnlit"),
         // === 移动端粒子 ===
-        ("Mobile/Particles/Additive",              new string[0],                               "Dummy_MobileParticlesAdditive"),
-        ("Legacy Shaders/Particles/Additive",      new string[0],                               "Dummy_LegacyParticlesAdditive"),
-        ("Mobile/Particles/Alpha Blended",         new string[0],                               "Dummy_MobileParticlesAlphaBlended"),
-
+        ("Mobile/Particles/Additive", new string[0], "Dummy_MobileParticlesAdditive"),
+        ("Legacy Shaders/Particles/Additive", new string[0], "Dummy_LegacyParticlesAdditive"),
+        ("Mobile/Particles/Alpha Blended", new string[0], "Dummy_MobileParticlesAlphaBlended"),
         // === 标准粒子 ===
-        ("Particles/Standard Unlit",               new string[0],                               "Dummy_ParticlesStandardUnlit"),
-        ("Universal Render Pipeline/Particles/Simple Lit", new string[0],                       "Dummy_URP_ParticlesSimpleLit"),
-
+        ("Particles/Standard Unlit", new string[0], "Dummy_ParticlesStandardUnlit"),
+        (
+            "Universal Render Pipeline/Particles/Simple Lit",
+            new string[0],
+            "Dummy_URP_ParticlesSimpleLit"
+        ),
         // === 内置 Unlit ===
-        ("Unlit/Texture",                          new string[0],                               "Dummy_UnlitTexture"),
-        ("Unlit/Transparent",                      new string[0],                               "Dummy_UnlitTransparent"),
-
+        ("Unlit/Texture", new string[0], "Dummy_UnlitTexture"),
+        ("Unlit/Transparent", new string[0], "Dummy_UnlitTransparent"),
         // === UI ===
-        ("UI/Default",                             new string[0],                               "Dummy_UI_Default"),
-
-        // === Sprite ===
-        ("Sprites/Default",                        new string[0],                               "Dummy_SpritesDefault"),
-
-        // === Fallback ===
-        ("Standard",                               new[]{"_EMISSION"},                          "Dummy_Standard"),
+        ("UI/Default", new string[0], "Dummy_UI_Default"),
+        // === 精灵（Sprite）===
+        ("Sprites/Default", new string[0], "Dummy_SpritesDefault"),
+        // === 兜底（Fallback）===
+        ("Standard", new[] { "_EMISSION" }, "Dummy_Standard"),
     };
 
     [MenuItem("Tools/Project Ether/Generate Anti-Stripping Materials")]
@@ -58,7 +64,9 @@ public static class ShaderStrippingProtector
             AssetDatabase.CreateFolder(parent, "AntiStrippingDummies");
         }
 
-        int created = 0, skipped = 0, failed = 0;
+        int created = 0,
+            skipped = 0,
+            failed = 0;
 
         foreach (var (shaderName, keywords, matName) in DummyDefs)
         {
@@ -99,7 +107,9 @@ public static class ShaderStrippingProtector
             AssetDatabase.CreateAsset(mat, assetPath);
             created++;
 
-            Debug.Log($"[AntiStrip] 已创建: {matName} (Shader: {shaderName}, Keywords: {keywords.Length})");
+            Debug.Log(
+                $"[AntiStrip] 已创建: {matName} (Shader: {shaderName}, Keywords: {keywords.Length})"
+            );
         }
 
         AssetDatabase.SaveAssets();
@@ -107,22 +117,28 @@ public static class ShaderStrippingProtector
 
         Debug.Log($"[AntiStrip] 完成! 创建={created}, 跳过={skipped}, 失败={failed}");
         Debug.Log($"[AntiStrip] 材质位于: {OutputDir}/");
-        Debug.Log("[AntiStrip] Unity 构建时会自动扫描 Resources 目录，精准编译这些材质引用的变体。");
+        Debug.Log(
+            "[AntiStrip] Unity 构建时会自动扫描 Resources 目录，精准编译这些材质引用的变体。"
+        );
     }
 
     static void SetDefaultProperties(Material mat, string shaderName)
     {
         // URP Lit: 设为白色基础色
-        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
-        if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
-        if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", Texture2D.whiteTexture);
-        if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", Texture2D.whiteTexture);
+        if (mat.HasProperty("_BaseColor"))
+            mat.SetColor("_BaseColor", Color.white);
+        if (mat.HasProperty("_Color"))
+            mat.SetColor("_Color", Color.white);
+        if (mat.HasProperty("_BaseMap"))
+            mat.SetTexture("_BaseMap", Texture2D.whiteTexture);
+        if (mat.HasProperty("_MainTex"))
+            mat.SetTexture("_MainTex", Texture2D.whiteTexture);
 
         // 透明模式 (用于 URP Unlit)
         if (mat.HasProperty("_Surface"))
         {
-            mat.SetFloat("_Surface", 1); // Transparent
-            mat.SetFloat("_Blend", 0);   // Alpha
+            mat.SetFloat("_Surface", 1); // 透明模式（Transparent）
+            mat.SetFloat("_Blend", 0); // Alpha 混合模式
         }
         if (mat.HasProperty("_SrcBlend"))
         {
@@ -132,10 +148,12 @@ public static class ShaderStrippingProtector
         }
 
         // Particle Additive: 设为白色
-        if (mat.HasProperty("_TintColor")) mat.SetColor("_TintColor", Color.white);
+        if (mat.HasProperty("_TintColor"))
+            mat.SetColor("_TintColor", Color.white);
 
         // Emission: 设为黑色 (不发光，但编译 _EMISSION 变体)
-        if (mat.HasProperty("_EmissionColor")) mat.SetColor("_EmissionColor", Color.black);
+        if (mat.HasProperty("_EmissionColor"))
+            mat.SetColor("_EmissionColor", Color.black);
     }
 
     /// <summary>

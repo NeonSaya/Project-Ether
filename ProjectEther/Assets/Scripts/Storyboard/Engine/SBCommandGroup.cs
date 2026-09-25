@@ -89,7 +89,8 @@ namespace OsuVR.Storyboard.Engine
         static int CompareCommands(SBSpriteCommand a, SBSpriteCommand b)
         {
             int cmp = a.StartTime.CompareTo(b.StartTime);
-            if (cmp != 0) return cmp;
+            if (cmp != 0)
+                return cmp;
             cmp = a.EndTime.CompareTo(b.EndTime);
             return cmp != 0 ? cmp : a.Sequence.CompareTo(b.Sequence);
         }

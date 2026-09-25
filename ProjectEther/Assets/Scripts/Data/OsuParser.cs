@@ -40,7 +40,7 @@ namespace OsuVR
             TimingPoints,
             Colours,
             HitObjects,
-            Variables
+            Variables,
         }
 
         // 完整解析入口：读取文件并分发到各个解析方法
@@ -58,7 +58,8 @@ namespace OsuVR
             foreach (var line in File.ReadLines(path))
             {
                 string trim = line.Trim();
-                if (string.IsNullOrWhiteSpace(trim) || trim.StartsWith("//")) continue;
+                if (string.IsNullOrWhiteSpace(trim) || trim.StartsWith("//"))
+                    continue;
 
                 // Storyboard 子命令：以空格或下划线开头的行，归属 [Events] 段
                 if (section == Section.Events && (line.StartsWith(" ") || line.StartsWith("_")))
@@ -70,7 +71,14 @@ namespace OsuVR
                 // 解析文件版本号 (通常在第一行: osu file format v14)
                 if (trim.StartsWith("osu file format v"))
                 {
-                    if (int.TryParse(trim.Substring(17).Trim(), NumberStyles.Integer, Inv, out int ver))
+                    if (
+                        int.TryParse(
+                            trim.Substring(17).Trim(),
+                            NumberStyles.Integer,
+                            Inv,
+                            out int ver
+                        )
+                    )
                         beatmap.FormatVersion = ver;
                     continue;
                 }
@@ -84,7 +92,8 @@ namespace OsuVR
                         section = Section.None;
 
                     // 特殊处理英式拼写 [Colours]
-                    if (sectionName == "Colours") section = Section.Colours;
+                    if (sectionName == "Colours")
+                        section = Section.Colours;
 
                     continue;
                 }
@@ -150,9 +159,11 @@ namespace OsuVR
                     double globalMultiplier = beatmap.Difficulty.SliderMultiplier;
 
                     double pxPerBeat = globalMultiplier * 100.0 * speedMultiplier;
-                    if (pxPerBeat < 0.001) pxPerBeat = 100.0; // 防呆
+                    if (pxPerBeat < 0.001)
+                        pxPerBeat = 100.0; // 防呆
 
-                    slider.Duration = (slider.PixelLength * slider.RepeatCount) / pxPerBeat * beatLength;
+                    slider.Duration =
+                        (slider.PixelLength * slider.RepeatCount) / pxPerBeat * beatLength;
                     slider.EndTime = slider.StartTime + slider.Duration;
                 }
             }
@@ -176,11 +187,12 @@ namespace OsuVR
             // 1. 确保有颜色定义 (如果没有，使用默认 osu! 颜色)
             if (beatmap.ComboColors == null || beatmap.ComboColors.Count == 0)
             {
-                beatmap.ComboColors = new List<Color> {
-                    new Color(1f, 192/255f, 0f),       // 黄
-                    new Color(0f, 202/255f, 0f),       // 绿
-                    new Color(18/255f, 124/255f, 1f),  // 蓝
-                    new Color(242/255f, 24/255f, 57/255f) // 红
+                beatmap.ComboColors = new List<Color>
+                {
+                    new Color(1f, 192 / 255f, 0f), // 黄
+                    new Color(0f, 202 / 255f, 0f), // 绿
+                    new Color(18 / 255f, 124 / 255f, 1f), // 蓝
+                    new Color(242 / 255f, 24 / 255f, 57 / 255f), // 红
                 };
             }
 
@@ -214,7 +226,8 @@ namespace OsuVR
                 // 根据索引分配颜色
                 int colorIndex = (obj.ComboIndex - 1) % beatmap.ComboColors.Count;
                 // 防止负数取模问题
-                if (colorIndex < 0) colorIndex += beatmap.ComboColors.Count;
+                if (colorIndex < 0)
+                    colorIndex += beatmap.ComboColors.Count;
 
                 obj.Color = beatmap.ComboColors[colorIndex];
             }
@@ -228,7 +241,8 @@ namespace OsuVR
             try
             {
                 string[] parts = line.Split(CommaSeparator, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length < 4) return;
+                if (parts.Length < 4)
+                    return;
 
                 // 1. 基础属性
                 float x = float.Parse(parts[0], Inv);
@@ -245,15 +259,31 @@ namespace OsuVR
                 bool isNewCombo = (rawType & 4) != 0;
 
                 // 4. 分发 (调用你原来的逻辑)
-                if ((rawType & 1) != 0) // Circle
+                if ((rawType & 1) != 0) // Circle (圆圈)
                 {
-                    CreateHitCircle(parts, time, position, beatmap, isNewCombo, comboOffset, hitSoundInt);
+                    CreateHitCircle(
+                        parts,
+                        time,
+                        position,
+                        beatmap,
+                        isNewCombo,
+                        comboOffset,
+                        hitSoundInt
+                    );
                 }
-                else if ((rawType & 2) != 0) // Slider
+                else if ((rawType & 2) != 0) // Slider (滑条)
                 {
-                    CreateSlider(parts, time, position, beatmap, isNewCombo, comboOffset, hitSoundInt);
+                    CreateSlider(
+                        parts,
+                        time,
+                        position,
+                        beatmap,
+                        isNewCombo,
+                        comboOffset,
+                        hitSoundInt
+                    );
                 }
-                else if ((rawType & 8) != 0) // Spinner
+                else if ((rawType & 8) != 0) // Spinner (转盘)
                 {
                     CreateSpinner(parts, time, beatmap, isNewCombo, hitSoundInt);
                 }
@@ -270,8 +300,15 @@ namespace OsuVR
         /// <summary>
         /// 创建滑条
         /// </summary>
-        private static void CreateSlider(string[] parts, double time, Vector2 startPosition,
-               Beatmap beatmap, bool isNewCombo, int comboOffset,int hitSoundInt)
+        private static void CreateSlider(
+            string[] parts,
+            double time,
+            Vector2 startPosition,
+            Beatmap beatmap,
+            bool isNewCombo,
+            int comboOffset,
+            int hitSoundInt
+        )
         {
             try
             {
@@ -286,7 +323,10 @@ namespace OsuVR
                 string curveData = parts[5];
 
                 // 使用管道符分割曲线数据
-                string[] curveParts = curveData.Split(PipeSeparator, StringSplitOptions.RemoveEmptyEntries);
+                string[] curveParts = curveData.Split(
+                    PipeSeparator,
+                    StringSplitOptions.RemoveEmptyEntries
+                );
 
                 if (curveParts.Length < 2)
                 {
@@ -329,14 +369,17 @@ namespace OsuVR
                 int repeatCount = parts.Length > 6 ? int.Parse(parts[6], Inv) : 1;
 
                 // 解析滑条长度（第7个参数）
-                double pixelLength = parts.Length > 7
-                    ? Math.Max(0.0, double.Parse(parts[7], Inv))
-                    : 0.0;
+                double pixelLength =
+                    parts.Length > 7 ? Math.Max(0.0, double.Parse(parts[7], Inv)) : 0.0;
 
                 // 判断是否真正开始新连击
-                bool actuallyNewCombo = beatmap.HitObjects.Count == 0 ||
-                                       (beatmap.HitObjects.Count > 0 && beatmap.HitObjects[beatmap.HitObjects.Count - 1] is SpinnerObject) ||
-                                       isNewCombo;
+                bool actuallyNewCombo =
+                    beatmap.HitObjects.Count == 0
+                    || (
+                        beatmap.HitObjects.Count > 0
+                        && beatmap.HitObjects[beatmap.HitObjects.Count - 1] is SpinnerObject
+                    )
+                    || isNewCombo;
 
                 // 创建滑条对象
                 SliderObject slider = new SliderObject(
@@ -374,10 +417,12 @@ namespace OsuVR
 
                 // 3. 计算每拍滑行的像素距离 (osu! 标准速度公式)
                 // 速度 = 全局倍率 * 100 * 局部倍率
-                double pxPerBeat = beatmap.Difficulty.SliderMultiplier * 100.0 * diffPoint.SpeedMultiplier;
+                double pxPerBeat =
+                    beatmap.Difficulty.SliderMultiplier * 100.0 * diffPoint.SpeedMultiplier;
 
                 // 防止除以零保护
-                if (pxPerBeat < 0.001) pxPerBeat = 0.001;
+                if (pxPerBeat < 0.001)
+                    pxPerBeat = 0.001;
 
                 // 4. 计算总拍数 = (长度 * 折返次数) / 每拍距离
                 double totalBeats = (pixelLength * repeatCount) / pxPerBeat;
@@ -392,7 +437,10 @@ namespace OsuVR
                 CalculateSliderPath(slider);
 
                 //计算滑条打点
-                slider.CalculateNestedHitObjects(beatmap.Difficulty.SliderTickRate, timingPoint.MsPerBeat);
+                slider.CalculateNestedHitObjects(
+                    beatmap.Difficulty.SliderTickRate,
+                    timingPoint.MsPerBeat
+                );
 
                 // 将滑条添加到谱面
                 beatmap.HitObjects.Add(slider);
@@ -410,16 +458,27 @@ namespace OsuVR
         /// <summary>
         /// 创建点击圆圈
         /// </summary>
-        private static void CreateHitCircle(string[] parts, double time, Vector2 position,
-            Beatmap beatmap, bool isNewCombo, int comboOffset, int hitSoundInt)
+        private static void CreateHitCircle(
+            string[] parts,
+            double time,
+            Vector2 position,
+            Beatmap beatmap,
+            bool isNewCombo,
+            int comboOffset,
+            int hitSoundInt
+        )
         {
             // 判断是否真正开始新连击的条件：
             // 1. 这是第一个对象
             // 2. 上一个对象是旋转圆圈
             // 3. 对象本身标记为新连击
-            bool actuallyNewCombo = beatmap.HitObjects.Count == 0 ||
-                                   (beatmap.HitObjects.Count > 0 && beatmap.HitObjects[beatmap.HitObjects.Count - 1] is SpinnerObject) ||
-                                   isNewCombo;
+            bool actuallyNewCombo =
+                beatmap.HitObjects.Count == 0
+                || (
+                    beatmap.HitObjects.Count > 0
+                    && beatmap.HitObjects[beatmap.HitObjects.Count - 1] is SpinnerObject
+                )
+                || isNewCombo;
 
             // 创建点击圆圈对象
             HitCircle circle = new HitCircle(time, position, actuallyNewCombo, comboOffset);
@@ -444,7 +503,13 @@ namespace OsuVR
         /// <summary>
         /// 创建转盘
         /// </summary>
-        private static void CreateSpinner(string[] parts, double time, Beatmap beatmap, bool isNewCombo, int hitSoundInt)
+        private static void CreateSpinner(
+            string[] parts,
+            double time,
+            Beatmap beatmap,
+            bool isNewCombo,
+            int hitSoundInt
+        )
         {
             try
             {
@@ -459,30 +524,38 @@ namespace OsuVR
                 double endTime = double.Parse(parts[5], Inv);
 
                 // 判断是否真正开始新连击
-                bool actuallyNewCombo = beatmap.HitObjects.Count == 0 ||
-                                       (beatmap.HitObjects.Count > 0 && beatmap.HitObjects[beatmap.HitObjects.Count - 1] is SpinnerObject) ||
-                                       isNewCombo;
+                bool actuallyNewCombo =
+                    beatmap.HitObjects.Count == 0
+                    || (
+                        beatmap.HitObjects.Count > 0
+                        && beatmap.HitObjects[beatmap.HitObjects.Count - 1] is SpinnerObject
+                    )
+                    || isNewCombo;
 
                 // 创建转盘对象
                 SpinnerObject spinner = new SpinnerObject(time, endTime, actuallyNewCombo);
-
 
                 spinner.HitSound = (HitSoundType)hitSoundInt;
 
                 // 如果有上一个对象，更新连击信息
                 if (beatmap.HitObjects.Count > 0)
                 {
-                    spinner.UpdateComboInformation(beatmap.HitObjects[beatmap.HitObjects.Count - 1]);
+                    spinner.UpdateComboInformation(
+                        beatmap.HitObjects[beatmap.HitObjects.Count - 1]
+                    );
                 }
 
                 // 解析音效信息（如果有）
 
-                if (parts.Length > 6) ParseExtras(spinner, parts[6]);
+                if (parts.Length > 6)
+                    ParseExtras(spinner, parts[6]);
 
                 // 将转盘添加到谱面
                 beatmap.HitObjects.Add(spinner);
 
-                Debug.Log($"创建转盘: 开始时间={time}ms, 结束时间={endTime}ms, 持续时间={(endTime - time)}ms");
+                Debug.Log(
+                    $"创建转盘: 开始时间={time}ms, 结束时间={endTime}ms, 持续时间={(endTime - time)}ms"
+                );
             }
             catch (FormatException e)
             {
@@ -498,57 +571,92 @@ namespace OsuVR
         {
             // 假设你项目里有 SliderPathCalculator
             // 如果没有，请告诉我，我再给你补贝塞尔计算
-            List<Vector2> rawPoints = SliderPathCalculator.CalculatePoints(slider.CurveType, slider.ControlPoints);
+            List<Vector2> rawPoints = SliderPathCalculator.CalculatePoints(
+                slider.CurveType,
+                slider.ControlPoints
+            );
             slider.PathPoints = TrimPathToLength(rawPoints, slider.PixelLength);
         }
 
         /// <summary>
         /// 解析 Extras 字符串 (SampleSet:AdditionSet:Index:Volume:Filename)
         /// </summary>
-       private static void ParseExtras(HitObject obj, string extras)
+        private static void ParseExtras(HitObject obj, string extras)
         {
-            if (string.IsNullOrEmpty(extras)) return;
+            if (string.IsNullOrEmpty(extras))
+                return;
             string[] p = extras.Split(ColonSeparator);
-            
+
             // 格式: sampleSet:addSet:index:volume:filename
-            if (p.Length > 0 && int.TryParse(p[0], NumberStyles.Integer, Inv, out int ss)) obj.SampleSet = (SampleSet)ss;
-            if (p.Length > 1 && int.TryParse(p[1], NumberStyles.Integer, Inv, out int ads)) obj.AdditionSet = (SampleSet)ads;
-            if (p.Length > 2 && int.TryParse(p[2], NumberStyles.Integer, Inv, out int idx)) obj.CustomIndex = idx;
-            if (p.Length > 3 && float.TryParse(p[3], NumberStyles.Float, Inv, out float vol)) obj.SampleVolume = vol;
-            if (p.Length > 4) obj.AudioFilename = p[4];
+            if (p.Length > 0 && int.TryParse(p[0], NumberStyles.Integer, Inv, out int ss))
+                obj.SampleSet = (SampleSet)ss;
+            if (p.Length > 1 && int.TryParse(p[1], NumberStyles.Integer, Inv, out int ads))
+                obj.AdditionSet = (SampleSet)ads;
+            if (p.Length > 2 && int.TryParse(p[2], NumberStyles.Integer, Inv, out int idx))
+                obj.CustomIndex = idx;
+            if (p.Length > 3 && float.TryParse(p[3], NumberStyles.Float, Inv, out float vol))
+                obj.SampleVolume = vol;
+            if (p.Length > 4)
+                obj.AudioFilename = p[4];
 
             // 兜底逻辑
-            if (obj.SampleSet == SampleSet.None) obj.SampleSet = SampleSet.Normal;
-            if (obj.AdditionSet == SampleSet.None) obj.AdditionSet = SampleSet.Normal;
+            if (obj.SampleSet == SampleSet.None)
+                obj.SampleSet = SampleSet.Normal;
+            if (obj.AdditionSet == SampleSet.None)
+                obj.AdditionSet = SampleSet.Normal;
         }
 
         // 解析 [General]
         private static void ParseGeneral(string line, GeneralSection general)
         {
             var pair = line.Split(':');
-            if (pair.Length < 2) return;
+            if (pair.Length < 2)
+                return;
             var key = pair[0].Trim();
             var value = pair[1].Trim();
 
             switch (key)
             {
-                case "AudioFilename": general.AudioFilename = value; break;
-                case "AudioLeadIn": int.TryParse(value, NumberStyles.Integer, Inv, out int leadIn); general.AudioLeadIn = leadIn; break;
-                case "PreviewTime": int.TryParse(value, NumberStyles.Integer, Inv, out int preview); general.PreviewTime = preview; break;
-                case "Mode": int.TryParse(value, NumberStyles.Integer, Inv, out int mode); general.Mode = mode; break;
-                case "StackLeniency": float.TryParse(value, NumberStyles.Float, Inv, out float stack); general.StackLeniency = stack; break;
-                case "WidescreenStoryboard": general.WidescreenStoryboard = value == "1"; break;
-                case "SampleSet": general.SampleSet = value; break;
-                case "Countdown": int.TryParse(value, NumberStyles.Integer, Inv, out int cd); general.Countdown = cd; break;
+                case "AudioFilename":
+                    general.AudioFilename = value;
+                    break;
+                case "AudioLeadIn":
+                    int.TryParse(value, NumberStyles.Integer, Inv, out int leadIn);
+                    general.AudioLeadIn = leadIn;
+                    break;
+                case "PreviewTime":
+                    int.TryParse(value, NumberStyles.Integer, Inv, out int preview);
+                    general.PreviewTime = preview;
+                    break;
+                case "Mode":
+                    int.TryParse(value, NumberStyles.Integer, Inv, out int mode);
+                    general.Mode = mode;
+                    break;
+                case "StackLeniency":
+                    float.TryParse(value, NumberStyles.Float, Inv, out float stack);
+                    general.StackLeniency = stack;
+                    break;
+                case "WidescreenStoryboard":
+                    general.WidescreenStoryboard = value == "1";
+                    break;
+                case "SampleSet":
+                    general.SampleSet = value;
+                    break;
+                case "Countdown":
+                    int.TryParse(value, NumberStyles.Integer, Inv, out int cd);
+                    general.Countdown = cd;
+                    break;
             }
         }
 
         // 解析 [Variables] ($key=value)
         private static void ParseVariable(string line, Dictionary<string, string> variables)
         {
-            if (string.IsNullOrEmpty(line) || !line.StartsWith("$")) return;
+            if (string.IsNullOrEmpty(line) || !line.StartsWith("$"))
+                return;
             int eqIndex = line.IndexOf('=');
-            if (eqIndex < 0) return;
+            if (eqIndex < 0)
+                return;
             string key = line.Substring(0, eqIndex).Trim();
             string value = line.Substring(eqIndex + 1).Trim();
             variables[key] = value;
@@ -558,22 +666,45 @@ namespace OsuVR
         private static void ParseMetadata(string line, MetadataSection metadata)
         {
             var pair = line.Split(':');
-            if (pair.Length < 2) return;
+            if (pair.Length < 2)
+                return;
             var key = pair[0].Trim();
             var value = pair[1].Trim();
 
             switch (key)
             {
-                case "Title": metadata.Title = value; break;
-                case "TitleUnicode": metadata.TitleUnicode = value; break;
-                case "Artist": metadata.Artist = value; break;
-                case "ArtistUnicode": metadata.ArtistUnicode = value; break;
-                case "Creator": metadata.Creator = value; break;
-                case "Version": metadata.Version = value; break;
-                case "BeatmapID": int.TryParse(value, NumberStyles.Integer, Inv, out int bid); metadata.BeatmapID = bid; break;
-                case "Source": metadata.Source = value; break;
-                case "Tags": metadata.Tags = value; break;
-                case "BeatmapSetID": int.TryParse(value, NumberStyles.Integer, Inv, out int sid); metadata.BeatmapSetID = sid; break;
+                case "Title":
+                    metadata.Title = value;
+                    break;
+                case "TitleUnicode":
+                    metadata.TitleUnicode = value;
+                    break;
+                case "Artist":
+                    metadata.Artist = value;
+                    break;
+                case "ArtistUnicode":
+                    metadata.ArtistUnicode = value;
+                    break;
+                case "Creator":
+                    metadata.Creator = value;
+                    break;
+                case "Version":
+                    metadata.Version = value;
+                    break;
+                case "BeatmapID":
+                    int.TryParse(value, NumberStyles.Integer, Inv, out int bid);
+                    metadata.BeatmapID = bid;
+                    break;
+                case "Source":
+                    metadata.Source = value;
+                    break;
+                case "Tags":
+                    metadata.Tags = value;
+                    break;
+                case "BeatmapSetID":
+                    int.TryParse(value, NumberStyles.Integer, Inv, out int sid);
+                    metadata.BeatmapSetID = sid;
+                    break;
             }
         }
 
@@ -581,19 +712,38 @@ namespace OsuVR
         private static void ParseDifficulty(string line, DifficultySection difficulty)
         {
             var pair = line.Split(':');
-            if (pair.Length < 2) return;
+            if (pair.Length < 2)
+                return;
             var key = pair[0].Trim();
             var value = pair[1].Trim();
 
             // 使用 Inv (CultureInfo.InvariantCulture) 确保小数解析正确
             switch (key)
             {
-                case "HPDrainRate": float.TryParse(value, NumberStyles.Float, Inv, out float hp); difficulty.HPDrainRate = hp; break;
-                case "CircleSize": float.TryParse(value, NumberStyles.Float, Inv, out float cs); difficulty.CircleSize = cs; break;
-                case "OverallDifficulty": float.TryParse(value, NumberStyles.Float, Inv, out float od); difficulty.OverallDifficulty = od; break;
-                case "ApproachRate": float.TryParse(value, NumberStyles.Float, Inv, out float ar); difficulty.ApproachRate = ar; break;
-                case "SliderMultiplier": double.TryParse(value, NumberStyles.Float, Inv, out double sm); difficulty.SliderMultiplier = sm; break;
-                case "SliderTickRate": double.TryParse(value, NumberStyles.Float, Inv, out double str); difficulty.SliderTickRate = str; break;
+                case "HPDrainRate":
+                    float.TryParse(value, NumberStyles.Float, Inv, out float hp);
+                    difficulty.HPDrainRate = hp;
+                    break;
+                case "CircleSize":
+                    float.TryParse(value, NumberStyles.Float, Inv, out float cs);
+                    difficulty.CircleSize = cs;
+                    break;
+                case "OverallDifficulty":
+                    float.TryParse(value, NumberStyles.Float, Inv, out float od);
+                    difficulty.OverallDifficulty = od;
+                    break;
+                case "ApproachRate":
+                    float.TryParse(value, NumberStyles.Float, Inv, out float ar);
+                    difficulty.ApproachRate = ar;
+                    break;
+                case "SliderMultiplier":
+                    double.TryParse(value, NumberStyles.Float, Inv, out double sm);
+                    difficulty.SliderMultiplier = sm;
+                    break;
+                case "SliderTickRate":
+                    double.TryParse(value, NumberStyles.Float, Inv, out double str);
+                    difficulty.SliderTickRate = str;
+                    break;
             }
         }
 
@@ -601,12 +751,16 @@ namespace OsuVR
         private static void ParseEvents(string line, Beatmap beatmap)
         {
             var parts = OsuVR.Storyboard.StoryboardParser.SplitCsv(line).ToArray();
-            if (parts.Length < 3) return;
+            if (parts.Length < 3)
+                return;
 
             string type = parts[0].Trim();
 
             // 背景图事件: 0,0,"filename",0,0  或  Background,0,"filename",0,0
-            if ((type == "0" || type.Equals("Background", StringComparison.OrdinalIgnoreCase)) && parts[1].Trim() == "0")
+            if (
+                (type == "0" || type.Equals("Background", StringComparison.OrdinalIgnoreCase))
+                && parts[1].Trim() == "0"
+            )
             {
                 string filename = parts[2].Trim('"');
                 beatmap.Events.BackgroundFilename = filename;
@@ -616,23 +770,46 @@ namespace OsuVR
             else if (type == "1" || type.Equals("Video", StringComparison.OrdinalIgnoreCase))
             {
                 string filename = parts[2].Trim('"');
-                int offset = int.TryParse(parts[1].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int off) ? off : 0;
+                int offset = int.TryParse(
+                    parts[1].Trim(),
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out int off
+                )
+                    ? off
+                    : 0;
                 beatmap.Events.VideoFilename = filename;
                 beatmap.Events.VideoOffset = offset;
             }
             // 休息时间: 2,Start,End 或 Break,Start,End
             else if (type == "2" || type.Equals("Break", StringComparison.OrdinalIgnoreCase))
             {
-                if (double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double start) &&
-                    double.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out double end))
+                if (
+                    double.TryParse(
+                        parts[1],
+                        NumberStyles.Float,
+                        CultureInfo.InvariantCulture,
+                        out double start
+                    )
+                    && double.TryParse(
+                        parts[2],
+                        NumberStyles.Float,
+                        CultureInfo.InvariantCulture,
+                        out double end
+                    )
+                )
                 {
                     beatmap.Events.Breaks.Add(new BreakPeriod(start, end));
                 }
             }
             // 故事板主对象: Sprite, Animation, Sample (osu! v14+ 使用字符串名称)
-            else if (type == "4" || type == "6" || type.Equals("Sprite", StringComparison.OrdinalIgnoreCase)
-                  || type.Equals("Animation", StringComparison.OrdinalIgnoreCase)
-                  || type.Equals("Sample", StringComparison.OrdinalIgnoreCase))
+            else if (
+                type == "4"
+                || type == "6"
+                || type.Equals("Sprite", StringComparison.OrdinalIgnoreCase)
+                || type.Equals("Animation", StringComparison.OrdinalIgnoreCase)
+                || type.Equals("Sample", StringComparison.OrdinalIgnoreCase)
+            )
             {
                 beatmap.Events.StoryboardLines.Add(line);
             }
@@ -642,17 +819,20 @@ namespace OsuVR
         private static void ParseTimingPoints(string line, ControlPoints controlPoints)
         {
             var parts = line.Split(',');
-            if (parts.Length < 2) return;
+            if (parts.Length < 2)
+                return;
 
             double time = double.Parse(parts[0], CultureInfo.InvariantCulture);
             double beatLength = double.Parse(parts[1], CultureInfo.InvariantCulture);
             int volume = 100;
-            if (parts.Length > 5) int.TryParse(parts[5], NumberStyles.Integer, Inv, out volume);
+            if (parts.Length > 5)
+                int.TryParse(parts[5], NumberStyles.Integer, Inv, out volume);
 
             bool uninherited = parts.Length <= 6 || parts[6].Trim() == "1";
 
             int effects = 0;
-            if (parts.Length > 7) int.TryParse(parts[7], NumberStyles.Integer, Inv, out effects);
+            if (parts.Length > 7)
+                int.TryParse(parts[7], NumberStyles.Integer, Inv, out effects);
             bool isKiai = (effects & 1) != 0;
 
             if (uninherited)
@@ -753,7 +933,8 @@ namespace OsuVR
             for (int i = 0; i < allPoints.Count; i++)
             {
                 var current = allPoints[i];
-                double nextTime = (i + 1 < allPoints.Count) ? allPoints[i + 1].Time : double.MaxValue;
+                double nextTime =
+                    (i + 1 < allPoints.Count) ? allPoints[i + 1].Time : double.MaxValue;
 
                 if (current.IsKiai && !kiaiStartTime.HasValue)
                 {
@@ -761,27 +942,35 @@ namespace OsuVR
                 }
                 else if (!current.IsKiai && kiaiStartTime.HasValue)
                 {
-                    beatmap.ControlPoints.KiaiPeriods.Add(new KiaiPeriod(kiaiStartTime.Value, current.Time));
+                    beatmap.ControlPoints.KiaiPeriods.Add(
+                        new KiaiPeriod(kiaiStartTime.Value, current.Time)
+                    );
                     kiaiStartTime = null;
                 }
             }
 
             if (kiaiStartTime.HasValue)
             {
-                double lastHitObjectTime = beatmap.HitObjects.Count > 0 
-                    ? beatmap.HitObjects.Max(h => h.EndTime) 
-                    : double.MaxValue;
-                beatmap.ControlPoints.KiaiPeriods.Add(new KiaiPeriod(kiaiStartTime.Value, lastHitObjectTime));
+                double lastHitObjectTime =
+                    beatmap.HitObjects.Count > 0
+                        ? beatmap.HitObjects.Max(h => h.EndTime)
+                        : double.MaxValue;
+                beatmap.ControlPoints.KiaiPeriods.Add(
+                    new KiaiPeriod(kiaiStartTime.Value, lastHitObjectTime)
+                );
             }
 
-            Debug.Log($"[OsuParser] 检测到 {beatmap.ControlPoints.KiaiPeriods.Count} 个 Kiai 时间段");
+            Debug.Log(
+                $"[OsuParser] 检测到 {beatmap.ControlPoints.KiaiPeriods.Count} 个 Kiai 时间段"
+            );
         }
 
         // 解析 [Colours] (Combo 颜色)
         private static void ParseColors(string line, List<Color> colors)
         {
             var pair = line.Split(':');
-            if (pair.Length < 2) return;
+            if (pair.Length < 2)
+                return;
 
             var key = pair[0].Trim();
             if (key.StartsWith("Combo"))
@@ -796,14 +985,14 @@ namespace OsuVR
                 }
             }
         }
-      
 
         /// <summary>
         /// 辅助函数：将路径裁剪到指定像素长度
         /// </summary>
         private static List<Vector2> TrimPathToLength(List<Vector2> points, double targetLength)
         {
-            if (points == null || points.Count < 2) return points;
+            if (points == null || points.Count < 2)
+                return points;
 
             List<Vector2> newPoints = new List<Vector2>();
             newPoints.Add(points[0]);
@@ -881,14 +1070,16 @@ namespace OsuVR
                 string[] nodeSoundTypes = null;
                 if (parts.Length > 8 && !string.IsNullOrEmpty(parts[8]))
                 {
-                    nodeSoundTypes = parts[8].Split(PipeChar, StringSplitOptions.RemoveEmptyEntries);
+                    nodeSoundTypes = parts[8]
+                        .Split(PipeChar, StringSplitOptions.RemoveEmptyEntries);
                 }
 
                 // 解析第9个参数: 节点音效库
                 string[] nodeSampleSets = null;
                 if (parts.Length > 9 && !string.IsNullOrEmpty(parts[9]))
                 {
-                    nodeSampleSets = parts[9].Split(PipeChar, StringSplitOptions.RemoveEmptyEntries);
+                    nodeSampleSets = parts[9]
+                        .Split(PipeChar, StringSplitOptions.RemoveEmptyEntries);
                 }
 
                 // 为每个节点创建音效列表
@@ -898,7 +1089,12 @@ namespace OsuVR
                     int soundType = 0;
                     if (nodeSoundTypes != null && i < nodeSoundTypes.Length)
                     {
-                        int.TryParse(nodeSoundTypes[i].Trim(), NumberStyles.Integer, Inv, out soundType);
+                        int.TryParse(
+                            nodeSoundTypes[i].Trim(),
+                            NumberStyles.Integer,
+                            Inv,
+                            out soundType
+                        );
                     }
 
                     // 获取音效库信息
@@ -907,13 +1103,40 @@ namespace OsuVR
                     {
                         // 格式: normalBank:addBank:customIndex:volume:filename
                         string[] bankParts = nodeSampleSets[i].Split(':');
-                        if (bankParts.Length >= 1 && int.TryParse(bankParts[0], NumberStyles.Integer, Inv, out int normalBank))
+                        if (
+                            bankParts.Length >= 1
+                            && int.TryParse(
+                                bankParts[0],
+                                NumberStyles.Integer,
+                                Inv,
+                                out int normalBank
+                            )
+                        )
                             bankInfo.Normal = ParseSampleBank(normalBank);
-                        if (bankParts.Length >= 2 && int.TryParse(bankParts[1], NumberStyles.Integer, Inv, out int addBank))
+                        if (
+                            bankParts.Length >= 2
+                            && int.TryParse(
+                                bankParts[1],
+                                NumberStyles.Integer,
+                                Inv,
+                                out int addBank
+                            )
+                        )
                             bankInfo.Add = ParseSampleBank(addBank);
-                        if (bankParts.Length >= 3 && int.TryParse(bankParts[2], NumberStyles.Integer, Inv, out int customIndex))
+                        if (
+                            bankParts.Length >= 3
+                            && int.TryParse(
+                                bankParts[2],
+                                NumberStyles.Integer,
+                                Inv,
+                                out int customIndex
+                            )
+                        )
                             bankInfo.CustomSampleBank = customIndex;
-                        if (bankParts.Length >= 4 && int.TryParse(bankParts[3], NumberStyles.Integer, Inv, out int volume))
+                        if (
+                            bankParts.Length >= 4
+                            && int.TryParse(bankParts[3], NumberStyles.Integer, Inv, out int volume)
+                        )
                             bankInfo.Volume = volume;
                     }
 
@@ -930,8 +1153,6 @@ namespace OsuVR
             }
         }
 
-
-
         /// <summary>
         /// 将音效类型转换为音效信息列表
         /// </summary>
@@ -942,55 +1163,62 @@ namespace OsuVR
             if (!string.IsNullOrEmpty(bankInfo.Filename))
             {
                 // 使用自定义音效文件
-                samples.Add(new FileHitSampleInfo
-                {
-                    Filename = bankInfo.Filename,
-                    Volume = bankInfo.Volume
-                });
+                samples.Add(
+                    new FileHitSampleInfo { Filename = bankInfo.Filename, Volume = bankInfo.Volume }
+                );
             }
             else
             {
                 // 使用默认音效库
-                bool isLayered = (soundType != (int)HitSoundType.None) &&
-                                ((soundType & (int)HitSoundType.Normal) == 0);
+                bool isLayered =
+                    (soundType != (int)HitSoundType.None)
+                    && ((soundType & (int)HitSoundType.Normal) == 0);
 
-                samples.Add(new BankHitSampleInfo(
-                    BankHitSampleInfo.HIT_NORMAL,
-                    bankInfo.Normal,
-                    bankInfo.CustomSampleBank,
-                    bankInfo.Volume,
-                    isLayered
-                ));
+                samples.Add(
+                    new BankHitSampleInfo(
+                        BankHitSampleInfo.HIT_NORMAL,
+                        bankInfo.Normal,
+                        bankInfo.CustomSampleBank,
+                        bankInfo.Volume,
+                        isLayered
+                    )
+                );
 
                 // 添加其他音效类型
                 if ((soundType & (int)HitSoundType.Finish) != 0)
                 {
-                    samples.Add(new BankHitSampleInfo(
-                        BankHitSampleInfo.HIT_FINISH,
-                        bankInfo.Add,
-                        bankInfo.CustomSampleBank,
-                        bankInfo.Volume
-                    ));
+                    samples.Add(
+                        new BankHitSampleInfo(
+                            BankHitSampleInfo.HIT_FINISH,
+                            bankInfo.Add,
+                            bankInfo.CustomSampleBank,
+                            bankInfo.Volume
+                        )
+                    );
                 }
 
                 if ((soundType & (int)HitSoundType.Whistle) != 0)
                 {
-                    samples.Add(new BankHitSampleInfo(
-                        BankHitSampleInfo.HIT_WHISTLE,
-                        bankInfo.Add,
-                        bankInfo.CustomSampleBank,
-                        bankInfo.Volume
-                    ));
+                    samples.Add(
+                        new BankHitSampleInfo(
+                            BankHitSampleInfo.HIT_WHISTLE,
+                            bankInfo.Add,
+                            bankInfo.CustomSampleBank,
+                            bankInfo.Volume
+                        )
+                    );
                 }
 
                 if ((soundType & (int)HitSoundType.Clap) != 0)
                 {
-                    samples.Add(new BankHitSampleInfo(
-                        BankHitSampleInfo.HIT_CLAP,
-                        bankInfo.Add,
-                        bankInfo.CustomSampleBank,
-                        bankInfo.Volume
-                    ));
+                    samples.Add(
+                        new BankHitSampleInfo(
+                            BankHitSampleInfo.HIT_CLAP,
+                            bankInfo.Add,
+                            bankInfo.CustomSampleBank,
+                            bankInfo.Volume
+                        )
+                    );
                 }
             }
 
@@ -1004,11 +1232,16 @@ namespace OsuVR
         {
             switch (sampleBank)
             {
-                case 0: return SampleBank.None;
-                case 1: return SampleBank.Normal;
-                case 2: return SampleBank.Soft;
-                case 3: return SampleBank.Drum;
-                default: return SampleBank.None;
+                case 0:
+                    return SampleBank.None;
+                case 1:
+                    return SampleBank.Normal;
+                case 2:
+                    return SampleBank.Soft;
+                case 3:
+                    return SampleBank.Drum;
+                default:
+                    return SampleBank.None;
             }
         }
 
@@ -1024,7 +1257,10 @@ namespace OsuVR
             Beatmap testBeatmap = new Beatmap();
             ParseHitObject(sliderLine, testBeatmap);
 
-            if (testBeatmap.HitObjects.Count > 0 && testBeatmap.HitObjects[0] is SliderObject slider)
+            if (
+                testBeatmap.HitObjects.Count > 0
+                && testBeatmap.HitObjects[0] is SliderObject slider
+            )
             {
                 Debug.Log($"滑条解析测试成功:");
                 Debug.Log($"  开始时间: {slider.StartTime}ms");
@@ -1036,7 +1272,6 @@ namespace OsuVR
             }
         }
 #endif
-
     }
 
     /// <summary>
@@ -1061,5 +1296,4 @@ namespace OsuVR
         public string Filename { get; set; }
         public new int Volume { get; set; }
     }
-
 }

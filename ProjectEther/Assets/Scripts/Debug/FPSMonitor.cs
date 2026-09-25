@@ -26,8 +26,8 @@ namespace OsuVR
         // =========================================================
 
         const int SampleCount = 1024;
-        float[] frameTimes;     // 帧时间环形缓冲区
-        float[] sortedBuffer;   // 预分配排序缓冲区 (1% Low 计算)
+        float[] frameTimes; // 帧时间环形缓冲区
+        float[] sortedBuffer; // 预分配排序缓冲区 (1% Low 计算)
         int sampleIndex;
         int sampleCount;
 
@@ -39,10 +39,10 @@ namespace OsuVR
         float avgFPS;
         float minFPS;
         float maxFPS;
-        float onePercentLow;    // 1% Low: 最差 1% 帧的平均帧率
-        float fivePercentLow;   // 5% Low: 最差 5% 帧的平均帧率
+        float onePercentLow; // 1% Low: 最差 1% 帧的平均帧率
+        float fivePercentLow; // 5% Low: 最差 5% 帧的平均帧率
         float frameTimeMs;
-        float frameTimeJitter;  // 帧时间标准差 (抖动)
+        float frameTimeJitter; // 帧时间标准差 (抖动)
 
         // =========================================================
         //  显示
@@ -93,14 +93,16 @@ namespace OsuVR
             if (Input.GetKeyDown(KeyCode.F1))
                 isVisible = !isVisible;
 
-            if (!isVisible) return;
+            if (!isVisible)
+                return;
 
             float dt = Time.unscaledDeltaTime;
 
             // 写入环形缓冲区
             frameTimes[sampleIndex] = dt;
             sampleIndex = (sampleIndex + 1) % SampleCount;
-            if (sampleCount < SampleCount) sampleCount++;
+            if (sampleCount < SampleCount)
+                sampleCount++;
 
             // 计算统计 (纯算术，零 GC)
             CalculateStats();
@@ -119,7 +121,8 @@ namespace OsuVR
 
         void CalculateStats()
         {
-            if (sampleCount == 0) return;
+            if (sampleCount == 0)
+                return;
 
             // 瞬时 FPS
             float dt = frameTimes[(sampleIndex - 1 + SampleCount) % SampleCount];
@@ -134,15 +137,17 @@ namespace OsuVR
             {
                 float t = frameTimes[i];
                 sum += t;
-                if (t < min) min = t;
-                if (t > max) max = t;
+                if (t < min)
+                    min = t;
+                if (t > max)
+                    max = t;
             }
 
             float mean = sum / sampleCount;
             frameTimeMs = mean * 1000f;
             avgFPS = 1f / mean;
-            minFPS = 1f / max;   // 最差帧 = 最大帧时间
-            maxFPS = 1f / min;   // 最佳帧 = 最小帧时间
+            minFPS = 1f / max; // 最差帧 = 最大帧时间
+            maxFPS = 1f / min; // 最佳帧 = 最小帧时间
 
             // 帧时间标准差 (抖动指标)
             float varianceSum = 0f;
@@ -182,10 +187,17 @@ namespace OsuVR
         {
             // 每 0.25s 分配一次 ~120 字节，对 90fps 无影响
             displayText = string.Format(
-                "FPS {0:F0}  Avg {1:F0}  1%L {2:F0}  5%L {3:F0}\n" +
-                "Min {4:F0}  Max {5:F0}  {6:F2}ms  J {7:F2}",
-                currentFPS, avgFPS, onePercentLow, fivePercentLow,
-                minFPS, maxFPS, frameTimeMs, frameTimeJitter);
+                "FPS {0:F0}  Avg {1:F0}  1%L {2:F0}  5%L {3:F0}\n"
+                    + "Min {4:F0}  Max {5:F0}  {6:F2}ms  J {7:F2}",
+                currentFPS,
+                avgFPS,
+                onePercentLow,
+                fivePercentLow,
+                minFPS,
+                maxFPS,
+                frameTimeMs,
+                frameTimeJitter
+            );
         }
 
         // =========================================================
@@ -194,7 +206,8 @@ namespace OsuVR
 
         void InitStyles()
         {
-            if (stylesInitialized) return;
+            if (stylesInitialized)
+                return;
 
             styleGood = new GUIStyle(GUI.skin.label);
             styleGood.fontSize = 18;
@@ -215,16 +228,21 @@ namespace OsuVR
 
         void OnGUI()
         {
-            if (!isVisible) return;
-            if (Event.current.type != EventType.Repaint) return;
+            if (!isVisible)
+                return;
+            if (Event.current.type != EventType.Repaint)
+                return;
 
             InitStyles();
 
             // 根据 1% Low 选择颜色
             GUIStyle style;
-            if (onePercentLow >= 88f) style = styleGood;   // VR 90fps 达标
-            else if (onePercentLow >= 58f) style = styleWarn; // 60fps 勉强
-            else style = styleBad;                           // 卡顿
+            if (onePercentLow >= 88f)
+                style = styleGood; // VR 90fps 达标
+            else if (onePercentLow >= 58f)
+                style = styleWarn; // 60fps 勉强
+            else
+                style = styleBad; // 卡顿
 
             const float x = 12f;
             const float y = 12f;

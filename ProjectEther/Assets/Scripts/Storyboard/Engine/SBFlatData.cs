@@ -9,20 +9,28 @@ namespace OsuVR.Storyboard.Engine
     public struct SBSpriteFlatData
     {
         // ---- 初始状态 (命令评估前的默认值) ----
-        public float InitX, InitY;
+        public float InitX,
+            InitY;
         public float InitAlpha;
-        public float InitScaleX, InitScaleY;
-        public float InitUniformScale, InitVectorScaleX, InitVectorScaleY;
+        public float InitScaleX,
+            InitScaleY;
+        public float InitUniformScale,
+            InitVectorScaleX,
+            InitVectorScaleY;
         public float InitRotation;
-        public float InitR, InitG, InitB;
-        public byte InitFlipH, InitFlipV, InitAdditive;
+        public float InitR,
+            InitG,
+            InitB;
+        public byte InitFlipH,
+            InitFlipV,
+            InitAdditive;
 
-        // ---- 直接命令范围 (索引 into NativeArray<SBCommandFlatData>) ----
-        public int TriggerHead; // linked history of fired commands, -1 when none
+        // ---- 直接命令范围 (NativeArray<SBCommandFlatData> 中的索引) ----
+        public int TriggerHead; // 已触发命令链表的头索引，无记录时为 -1
         public int CmdOffset;
         public int CmdCount;
 
-        // ---- Loop 范围 (索引 into NativeArray<SBLoopFlatData>) ----
+        // ---- Loop 范围 (NativeArray<SBLoopFlatData> 中的索引) ----
         public int LoopOffset;
         public int LoopCount;
 
@@ -32,14 +40,15 @@ namespace OsuVR.Storyboard.Engine
 
         // ---- 渲染属性 ----
         public int OriginIndex;
-        public int TexIndex;       // 静态 sprite 固定纹理索引, 动画 sprite 为 -1 (由 Burst Job 经 FrameMap 动态解析)
-        public int TexWidth, TexHeight;
+        public int TexIndex; // 静态 sprite 固定纹理索引, 动画 sprite 为 -1 (由 Burst Job 经 FrameMap 动态解析)
+        public int TexWidth,
+            TexHeight;
 
         // ---- 动画属性 (仅动画 sprite 有效, 非动画时 AnimFrameCount=0) ----
         public int AnimFrameCount;
         public double AnimFrameDelay;
-        public int AnimLoopType;   // 0=LoopForever, 1=LoopOnce
-        public int AnimFrameMapOffset; // 索引 into SBFlatTimelineData.FrameMap: 声明帧→纹理切片 (-1=缺失帧, 不绘制)
+        public int AnimLoopType; // 0=LoopForever, 1=LoopOnce
+        public int AnimFrameMapOffset; // SBFlatTimelineData.FrameMap 中的起始索引: 声明帧→纹理切片 (-1=缺失帧, 不绘制)
     }
 
     /// <summary>
@@ -51,16 +60,20 @@ namespace OsuVR.Storyboard.Engine
         public int Sequence;
         public double StartTime;
         public double EndTime;
-        public int Easing;         // (int)SBEasing, 用于 Burst 内 switch 分发
-        public int Target;         // (int)SBCommandTarget
+        public int Easing; // (int)SBEasing, 用于 Burst 内 switch 分发
+        public int Target; // (int)SBCommandTarget
 
         // ---- Float 值 (Alpha/X/Y/ScaleX/ScaleY/Rotation) ----
         public float FloatStart;
         public float FloatEnd;
 
         // ---- Color 值 (RGB 归一化到 0-1) ----
-        public float ColorStartR, ColorStartG, ColorStartB;
-        public float ColorEndR, ColorEndG, ColorEndB;
+        public float ColorStartR,
+            ColorStartG,
+            ColorStartB;
+        public float ColorEndR,
+            ColorEndG,
+            ColorEndB;
 
         // ---- Bool 值 (FlipH/FlipV/Additive) ----
         public byte BoolStart;
@@ -81,9 +94,9 @@ namespace OsuVR.Storyboard.Engine
     {
         public double StartTime;
         public double LoopDuration; // 单次迭代时长 (内层命令的最大 EndTime)
-        public int LoopCount;       // 总迭代次数 (-1 = 无限)
-        public int InnerCmdOffset;  // 内层命令在 SBCommandFlatData 中的起始索引
-        public int InnerCmdCount;   // 内层命令数量
+        public int LoopCount; // 总迭代次数 (-1 = 无限)
+        public int InnerCmdOffset; // 内层命令在 SBCommandFlatData 中的起始索引
+        public int InnerCmdCount; // 内层命令数量
     }
 
     /// <summary>
@@ -92,15 +105,23 @@ namespace OsuVR.Storyboard.Engine
     /// </summary>
     public struct SpriteInputData
     {
-        public float X, Y;
-        public float ScaleX, ScaleY;
-        public float VectorScaleX, VectorScaleY;
+        public float X,
+            Y;
+        public float ScaleX,
+            ScaleY;
+        public float VectorScaleX,
+            VectorScaleY;
         public float Rotation;
         public float Alpha;
-        public float R, G, B;
-        public byte FlipH, FlipV, Additive;
+        public float R,
+            G,
+            B;
+        public byte FlipH,
+            FlipV,
+            Additive;
         public int TexIndex;
         public int OriginIndex;
-        public int TexWidth, TexHeight;
+        public int TexWidth,
+            TexHeight;
     }
 }

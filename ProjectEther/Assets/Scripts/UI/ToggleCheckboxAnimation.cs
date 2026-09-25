@@ -8,12 +8,12 @@ namespace OsuVR
     {
         [Header("Animation Settings")]
         public float animationSpeed = 10f;
-        
+
         [Header("Colors")]
         public Color offBgColor = new Color(0.3f, 0.3f, 0.35f, 0.95f);
         public Color onBgColor = new Color(0.2f, 0.5f, 0.8f, 0.95f);
         public Color fillColor = new Color(0.25f, 0.55f, 0.85f, 1f);
-        
+
         [Header("Fill Size")]
         public float fillSizeOn = 20f;
         public float fillSizeOff = 0f;
@@ -27,12 +27,12 @@ namespace OsuVR
         void Awake()
         {
             toggle = GetComponent<Toggle>();
-            
+
             Transform bgTransform = transform.Find("Background");
             if (bgTransform != null)
             {
                 backgroundImage = bgTransform.GetComponent<Image>();
-                
+
                 Transform fillTransform = bgTransform.Find("Fill");
                 if (fillTransform != null)
                 {
@@ -59,24 +59,37 @@ namespace OsuVR
 
         void Update()
         {
-            if (fillRect == null || backgroundImage == null) return;
+            if (fillRect == null || backgroundImage == null)
+                return;
 
             float targetSize = targetState ? fillSizeOn : fillSizeOff;
             float currentSize = fillRect.sizeDelta.x;
-            
+
             if (Mathf.Abs(currentSize - targetSize) > 0.5f)
             {
-                float newSize = Mathf.Lerp(currentSize, targetSize, Time.deltaTime * animationSpeed);
+                float newSize = Mathf.Lerp(
+                    currentSize,
+                    targetSize,
+                    Time.deltaTime * animationSpeed
+                );
                 fillRect.sizeDelta = new Vector2(newSize, newSize);
-                
+
                 Color targetBgColor = targetState ? onBgColor : offBgColor;
-                backgroundImage.color = Color.Lerp(backgroundImage.color, targetBgColor, Time.deltaTime * animationSpeed);
-                
+                backgroundImage.color = Color.Lerp(
+                    backgroundImage.color,
+                    targetBgColor,
+                    Time.deltaTime * animationSpeed
+                );
+
                 if (fillImage != null)
                 {
                     float targetAlpha = targetState ? 1f : 0f;
                     Color currentColor = fillImage.color;
-                    float newAlpha = Mathf.Lerp(currentColor.a, targetAlpha, Time.deltaTime * animationSpeed);
+                    float newAlpha = Mathf.Lerp(
+                        currentColor.a,
+                        targetAlpha,
+                        Time.deltaTime * animationSpeed
+                    );
                     fillImage.color = new Color(fillColor.r, fillColor.g, fillColor.b, newAlpha);
                 }
             }
@@ -84,7 +97,7 @@ namespace OsuVR
             {
                 fillRect.sizeDelta = new Vector2(targetSize, targetSize);
                 backgroundImage.color = targetState ? onBgColor : offBgColor;
-                
+
                 if (fillImage != null)
                 {
                     float alpha = targetState ? 1f : 0f;
@@ -100,12 +113,12 @@ namespace OsuVR
                 float size = isOn ? fillSizeOn : fillSizeOff;
                 fillRect.sizeDelta = new Vector2(size, size);
             }
-            
+
             if (backgroundImage != null)
             {
                 backgroundImage.color = isOn ? onBgColor : offBgColor;
             }
-            
+
             if (fillImage != null)
             {
                 float alpha = isOn ? 1f : 0f;

@@ -1,8 +1,8 @@
-using UnityEngine;
-using UnityEngine.Pool;
-using TMPro;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
+using UnityEngine;
+using UnityEngine.Pool;
 
 namespace OsuVR
 {
@@ -57,24 +57,43 @@ namespace OsuVR
 
         void OnDestroy()
         {
-            if (Instance == this) Instance = null;
+            if (Instance == this)
+                Instance = null;
 
             // 释放运行时创建的材质与贴图，清空对象池
-            if (flashMat != null) { Destroy(flashMat); flashMat = null; }
-            if (missMat != null) { Destroy(missMat); missMat = null; }
-            if (overlayFontMat != null) { Destroy(overlayFontMat); overlayFontMat = null; }
-            if (_softDotTex != null) { Destroy(_softDotTex); _softDotTex = null; }
+            if (flashMat != null)
+            {
+                Destroy(flashMat);
+                flashMat = null;
+            }
+            if (missMat != null)
+            {
+                Destroy(missMat);
+                missMat = null;
+            }
+            if (overlayFontMat != null)
+            {
+                Destroy(overlayFontMat);
+                overlayFontMat = null;
+            }
+            if (_softDotTex != null)
+            {
+                Destroy(_softDotTex);
+                _softDotTex = null;
+            }
             pool?.Clear();
         }
 
         void Start()
         {
-            if (!isPrewarmed) Prewarm();
+            if (!isPrewarmed)
+                Prewarm();
         }
 
         public void Prewarm()
         {
-            if (isPrewarmed) return;
+            if (isPrewarmed)
+                return;
 
             // 1. 创建专门的容器物体，防止 Hierarchy 爆炸
             GameObject containerObj = new GameObject("Judgement Pool Container");
@@ -89,7 +108,9 @@ namespace OsuVR
             {
                 mainFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
                 if (mainFont == null)
-                    Debug.LogError("❌ [JudgementVisualizer] 严重错误：没有字体！请在 Inspector 中拖入 Font Asset！");
+                    Debug.LogError(
+                        "❌ [JudgementVisualizer] 严重错误：没有字体！请在 Inspector 中拖入 Font Asset！"
+                    );
             }
 
             // 3. 生成网格和材质
@@ -107,8 +128,10 @@ namespace OsuVR
 
             // 5. 预热
             var tempItems = new List<JudgementItem>();
-            for (int i = 0; i < 20; i++) tempItems.Add(pool.Get());
-            foreach (var item in tempItems) pool.Release(item);
+            for (int i = 0; i < 20; i++)
+                tempItems.Add(pool.Get());
+            foreach (var item in tempItems)
+                pool.Release(item);
 
             isPrewarmed = true;
             _cachedCamera = Camera.main;
@@ -124,18 +147,26 @@ namespace OsuVR
                 Destroy(temp);
             }
 
-            if (_softDotTex == null) _softDotTex = GenerateSoftDotTexture();
+            if (_softDotTex == null)
+                _softDotTex = GenerateSoftDotTexture();
 
             // 1. 准备发光材质 (用于 Great/Ok 闪光)
             if (flashMat == null)
             {
                 Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
-                if (!shader) shader = Shader.Find("Mobile/Particles/Additive");
-                if (!shader) shader = Shader.Find("Particles/Standard Unlit");
-                if (!shader) shader = Shader.Find("Universal Render Pipeline/Unlit");
-                if (!shader) shader = Shader.Find("Standard");
+                if (!shader)
+                    shader = Shader.Find("Mobile/Particles/Additive");
+                if (!shader)
+                    shader = Shader.Find("Particles/Standard Unlit");
+                if (!shader)
+                    shader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (!shader)
+                    shader = Shader.Find("Standard");
 
-                if (!shader) { Debug.LogError("[JudgementVisualizer] 闪光 Shader 不可用，跳过闪光材质"); }
+                if (!shader)
+                {
+                    Debug.LogError("[JudgementVisualizer] 闪光 Shader 不可用，跳过闪光材质");
+                }
                 else
                 {
                     flashMat = new Material(shader);
@@ -146,7 +177,8 @@ namespace OsuVR
                     flashMat.SetInt("_Cull", 0);
                     flashMat.renderQueue = 4000;
                     flashMat.mainTexture = _softDotTex;
-                    if (flashMat.HasProperty("_BaseMap")) flashMat.SetTexture("_BaseMap", _softDotTex);
+                    if (flashMat.HasProperty("_BaseMap"))
+                        flashMat.SetTexture("_BaseMap", _softDotTex);
                 }
             }
 
@@ -164,7 +196,8 @@ namespace OsuVR
                 missMat.renderQueue = 4000;
 
                 missMat.mainTexture = Texture2D.whiteTexture;
-                if (missMat.HasProperty("_BaseMap")) missMat.SetTexture("_BaseMap", Texture2D.whiteTexture);
+                if (missMat.HasProperty("_BaseMap"))
+                    missMat.SetTexture("_BaseMap", Texture2D.whiteTexture);
             }
 
             // 3. 准备置顶的字体材质
@@ -228,8 +261,10 @@ namespace OsuVR
             // 开启额外对齐方式，保证字距散开时始终居中
             tmp.horizontalAlignment = HorizontalAlignmentOptions.Center;
 
-            if (mainFont != null) tmp.font = mainFont;
-            if (overlayFontMat != null) tmp.fontSharedMaterial = overlayFontMat;
+            if (mainFont != null)
+                tmp.font = mainFont;
+            if (overlayFontMat != null)
+                tmp.fontSharedMaterial = overlayFontMat;
 
             // --- 闪光 ---
             GameObject flashObj = new GameObject("Flash");
@@ -267,12 +302,20 @@ namespace OsuVR
             bar2.transform.localRotation = Quaternion.Euler(0, 0, -45);
             bar2.layer = 0;
 
-            return new JudgementItem(root, tmp, mr, xObj, bar1.GetComponent<MeshRenderer>(), bar2.GetComponent<MeshRenderer>());
+            return new JudgementItem(
+                root,
+                tmp,
+                mr,
+                xObj,
+                bar1.GetComponent<MeshRenderer>(),
+                bar2.GetComponent<MeshRenderer>()
+            );
         }
 
         public void ShowJudgement(Vector3 pos, int score, Color comboColor)
         {
-            if (!isPrewarmed) Prewarm();
+            if (!isPrewarmed)
+                Prewarm();
 
             JudgementItem item = pool.Get();
             item.ResetState();
@@ -280,7 +323,9 @@ namespace OsuVR
             if (_cachedCamera != null)
             {
                 item.Root.transform.position = pos;
-                item.Root.transform.rotation = Quaternion.LookRotation(item.Root.transform.position - _cachedCamera.transform.position);
+                item.Root.transform.rotation = Quaternion.LookRotation(
+                    item.Root.transform.position - _cachedCamera.transform.position
+                );
             }
 
             string text = "";
@@ -289,10 +334,26 @@ namespace OsuVR
 
             switch (score)
             {
-                case 300: text = "GREAT"; mainColor = color300; scaleMult = 1.2f; break;
-                case 100: text = "OK"; mainColor = color100; scaleMult = 1.0f; break;
-                case 50: text = "MEH"; mainColor = color50; scaleMult = 0.9f; break;
-                case 0: text = "MISS"; mainColor = colorMiss; scaleMult = 1.1f; break;
+                case 300:
+                    text = "GREAT";
+                    mainColor = color300;
+                    scaleMult = 1.2f;
+                    break;
+                case 100:
+                    text = "OK";
+                    mainColor = color100;
+                    scaleMult = 1.0f;
+                    break;
+                case 50:
+                    text = "MEH";
+                    mainColor = color50;
+                    scaleMult = 0.9f;
+                    break;
+                case 0:
+                    text = "MISS";
+                    mainColor = colorMiss;
+                    scaleMult = 1.1f;
+                    break;
             }
 
             item.Tmp.text = text;
@@ -344,20 +405,29 @@ namespace OsuVR
 
         private void SetRendererColor(Renderer r, Color c)
         {
-            if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
+            if (_propBlock == null)
+                _propBlock = new MaterialPropertyBlock();
 
             r.GetPropertyBlock(_propBlock);
 
             // 注意：这里用 sharedMaterial 判断，绝不产生新实例
-            if (r.sharedMaterial.HasProperty(PropTintColor)) _propBlock.SetColor(PropTintColor, c);
-            else if (r.sharedMaterial.HasProperty(PropBaseColor)) _propBlock.SetColor(PropBaseColor, c);
-            else _propBlock.SetColor(PropColor, c);
+            if (r.sharedMaterial.HasProperty(PropTintColor))
+                _propBlock.SetColor(PropTintColor, c);
+            else if (r.sharedMaterial.HasProperty(PropBaseColor))
+                _propBlock.SetColor(PropBaseColor, c);
+            else
+                _propBlock.SetColor(PropColor, c);
 
             r.SetPropertyBlock(_propBlock);
         }
 
         // 注意：加了 flashCol 参数
-        IEnumerator AnimateJudgement(JudgementItem item, bool isMiss, float scaleMult, Color flashCol)
+        IEnumerator AnimateJudgement(
+            JudgementItem item,
+            bool isMiss,
+            float scaleMult,
+            Color flashCol
+        )
         {
             float duration = isMiss ? 0.7f : 0.6f;
             float time = 0f;
@@ -376,9 +446,10 @@ namespace OsuVR
 
                 if (!isMiss)
                 {
-                    // --- HIT ---
+                    // --- 命中（HIT）---
                     float scaleT = EaseOutCubic(Mathf.Clamp01(t * 3f));
-                    item.Root.transform.localScale = Vector3.one * (scaleT * scaleMult * globalScale);
+                    item.Root.transform.localScale =
+                        Vector3.one * (scaleT * scaleMult * globalScale);
 
                     float spreadT = EaseOutCubic(t);
                     item.Tmp.characterSpacing = Mathf.Lerp(startSpacing, endSpacing, spreadT);
@@ -387,7 +458,11 @@ namespace OsuVR
                     if (item.FlashRenderer.gameObject.activeSelf)
                     {
                         float flashScale = 1.0f + t * 1.5f;
-                        item.FlashRenderer.transform.localScale = new Vector3(flashScale, flashScale, 1f);
+                        item.FlashRenderer.transform.localScale = new Vector3(
+                            flashScale,
+                            flashScale,
+                            1f
+                        );
 
                         // 直接操作传进来的颜色，用无泄漏的 SetRendererColor
                         flashCol.a = Mathf.Lerp(0.6f, 0f, t * 2.5f);
@@ -396,18 +471,24 @@ namespace OsuVR
                 }
                 else
                 {
-                    // --- MISS ---
+                    // --- 未命中（MISS）---
                     float scaleT = EaseOutBack(Mathf.Clamp01(t * 5f));
-                    item.Root.transform.localScale = Vector3.one * (scaleT * scaleMult * globalScale);
+                    item.Root.transform.localScale =
+                        Vector3.one * (scaleT * scaleMult * globalScale);
 
                     float fallProgress = Mathf.Clamp01((t - 0.25f) / 0.75f);
                     float gravityT = EaseInCubic(fallProgress);
 
-                    item.Tmp.transform.localRotation = Quaternion.Euler(0, 0, Mathf.Lerp(0, -90f, gravityT));
+                    item.Tmp.transform.localRotation = Quaternion.Euler(
+                        0,
+                        0,
+                        Mathf.Lerp(0, -90f, gravityT)
+                    );
                     item.Root.transform.position = Vector3.Lerp(startPos, endPos, gravityT);
                 }
 
-                if (t > 0.5f) item.Tmp.alpha = 1f - (t - 0.5f) * 2f;
+                if (t > 0.5f)
+                    item.Tmp.alpha = 1f - (t - 0.5f) * 2f;
 
                 yield return null;
             }
@@ -443,10 +524,18 @@ namespace OsuVR
         }
 
         // ================= 缓动函数库 =================
-        float EaseOutElastic(float x) => x == 0 ? 0 : x >= 1 ? 1 : Mathf.Pow(2, -10 * x) * Mathf.Sin((x * 10 - 0.75f) * ((2 * Mathf.PI) / 3)) + 1;
-        float EaseOutBack(float x) => 1 + 2.70158f * Mathf.Pow(x - 1, 3) + 1.70158f * Mathf.Pow(x - 1, 2);
+        float EaseOutElastic(float x) =>
+            x == 0 ? 0
+            : x >= 1 ? 1
+            : Mathf.Pow(2, -10 * x) * Mathf.Sin((x * 10 - 0.75f) * ((2 * Mathf.PI) / 3)) + 1;
+
+        float EaseOutBack(float x) =>
+            1 + 2.70158f * Mathf.Pow(x - 1, 3) + 1.70158f * Mathf.Pow(x - 1, 2);
+
         float EaseOutCubic(float x) => 1 - Mathf.Pow(1 - x, 3);
+
         float EaseInCubic(float x) => x * x * x;
+
         private class JudgementItem
         {
             public GameObject Root;
@@ -456,9 +545,21 @@ namespace OsuVR
             public MeshRenderer XRenderer1;
             public MeshRenderer XRenderer2;
 
-            public JudgementItem(GameObject root, TextMeshPro tmp, MeshRenderer flash, GameObject xRoot, MeshRenderer xr1, MeshRenderer xr2)
+            public JudgementItem(
+                GameObject root,
+                TextMeshPro tmp,
+                MeshRenderer flash,
+                GameObject xRoot,
+                MeshRenderer xr1,
+                MeshRenderer xr2
+            )
             {
-                Root = root; Tmp = tmp; FlashRenderer = flash; XRoot = xRoot; XRenderer1 = xr1; XRenderer2 = xr2;
+                Root = root;
+                Tmp = tmp;
+                FlashRenderer = flash;
+                XRoot = xRoot;
+                XRenderer1 = xr1;
+                XRenderer2 = xr2;
             }
 
             public void ResetState()

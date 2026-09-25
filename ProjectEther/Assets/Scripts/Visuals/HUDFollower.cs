@@ -11,9 +11,9 @@ namespace OsuVR
     public class HUDFollower : MonoBehaviour
     {
         [Header("跟随设置")]
-        public float distance = 3.5f;       // 距离玩家多远
-        public float heightOffset = 1.5f;   // 相对于地面的高度
-        public float smoothTime = 0.3f;     // 平滑时间 (越大越慢)
+        public float distance = 3.5f; // 距离玩家多远
+        public float heightOffset = 1.5f; // 相对于地面的高度
+        public float smoothTime = 0.3f; // 平滑时间 (越大越慢)
         public float heightSmoothTime = 0.8f; // 高度跟随更慢，防止抬头低头时 UI 乱跑
 
         [Header("视角限制")]
@@ -43,7 +43,8 @@ namespace OsuVR
         {
             if (headTransform == null)
             {
-                if (Camera.main != null) headTransform = Camera.main.transform;
+                if (Camera.main != null)
+                    headTransform = Camera.main.transform;
                 return;
             }
 
@@ -64,15 +65,26 @@ namespace OsuVR
             float targetHeight = headTransform.position.y + heightOffset;
 
             // 使用 SmoothDamp 平滑高度
-            currentHeight = Mathf.SmoothDamp(currentHeight, targetHeight, ref heightVelocity, heightSmoothTime);
+            currentHeight = Mathf.SmoothDamp(
+                currentHeight,
+                targetHeight,
+                ref heightVelocity,
+                heightSmoothTime
+            );
             targetPos.y = currentHeight;
 
             // 3. 位置平滑跟随
-            transform.position = Vector3.SmoothDamp(transform.position, targetPos, ref currentVelocity, smoothTime);
+            transform.position = Vector3.SmoothDamp(
+                transform.position,
+                targetPos,
+                ref currentVelocity,
+                smoothTime
+            );
 
             // 4. 朝向：UI 始终看向头显，并叠加倾斜
             Vector3 lookDir = transform.position - headTransform.position;
-            if (lockPitch) lookDir.y = 0;
+            if (lockPitch)
+                lookDir.y = 0;
 
             if (lookDir != Vector3.zero)
             {
@@ -83,7 +95,11 @@ namespace OsuVR
                 Quaternion targetRot = baseRotation * Quaternion.Euler(pitchOffset, 0, 0);
 
                 // 旋转也平滑一点
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * 5f);
+                transform.rotation = Quaternion.Slerp(
+                    transform.rotation,
+                    targetRot,
+                    Time.deltaTime * 5f
+                );
             }
         }
     }

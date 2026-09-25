@@ -1,9 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using TMPro;
 
 namespace OsuVR
 {
@@ -15,7 +15,7 @@ namespace OsuVR
     ///     anchor(0,0)->(1,1), sizeDelta(0,0)
     ///     └─ SettingsContainer (Image: 0.05,0.05,0.08,0.85)
     ///        anchor(0,0)->(1,1), sizeDelta(0,0)
-    ///        ├─ TabBar (anchor 0,1->1,1, sizeDelta 0x50, pivot top)
+    ///        ├─ TabBar (anchor 0,1->1,1, sizeDelta 0x50, pivot 顶部)
     ///        │  HLG: padding(25,25,8,8), spacing=8, childControlWidth=1
     ///        ├─ ContentArea (anchor 0,0->1,1, pos(0,10), sizeDelta(-50,-130))
     ///        │  ├─ AudioPanel (active=1)
@@ -129,7 +129,11 @@ namespace OsuVR
 
             // ---- 根 Canvas ----
             // WorldSpace Canvas，固定尺寸（与 SimpleMainMenu 一致的模式）
-            var rootCanvas = UILayoutHelper.CreateCanvas("SettingsCanvas", CanvasWidth, CanvasHeight);
+            var rootCanvas = UILayoutHelper.CreateCanvas(
+                "SettingsCanvas",
+                CanvasWidth,
+                CanvasHeight
+            );
             rootCanvas.sortingOrder = SortingOrder;
             rootCanvas.transform.SetParent(transform, false);
             rootCanvas.transform.localPosition = new Vector3(0f, 0f, CanvasLocalZ);
@@ -146,11 +150,11 @@ namespace OsuVR
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
             scaler.dynamicPixelsPerUnit = 10f;
 
-            // Prefab: CanvasGroup on root
+            // Prefab：根物体上挂 CanvasGroup
             canvasGroup = rootCanvas.gameObject.AddComponent<CanvasGroup>();
 
             // ---- SettingsContainer ----
-            // Prefab: Image(0.05,0.05,0.08,0.85), full screen stretch
+            // Prefab：Image(0.05,0.05,0.08,0.85)，全屏拉伸
             var containerGo = new GameObject("SettingsContainer");
             containerGo.transform.SetParent(rootCanvas.transform, false);
             var containerRt = containerGo.AddComponent<RectTransform>();
@@ -184,8 +188,14 @@ namespace OsuVR
             tabHlg.childForceExpandWidth = true;
             tabHlg.childForceExpandHeight = true;
 
-            // Tab order: Audio, Graphics, Game, Controller (matches prefab)
-            string[] tabKeys = { "ui_tab_audio", "ui_tab_graphics", "ui_tab_game", "ui_tab_controller" };
+            // 标签页顺序：Audio、Graphics、Game、Controller（与 Prefab 一致）
+            string[] tabKeys =
+            {
+                "ui_tab_audio",
+                "ui_tab_graphics",
+                "ui_tab_game",
+                "ui_tab_controller",
+            };
             string[] tabDefaults = { "Audio", "Graphics", "Game", "Controller" };
             int tabCount = tabKeys.Length;
 
@@ -244,25 +254,34 @@ namespace OsuVR
             settingsScrollRect = scrollRect;
 
             // 初始化 tempSettings
-            tempSettings = SettingsManager.Instance?.Settings?.Clone() ?? ScriptableObject.CreateInstance<GameSettings>();
+            tempSettings =
+                SettingsManager.Instance?.Settings?.Clone()
+                ?? ScriptableObject.CreateInstance<GameSettings>();
 
-            // Create pages
+            // 创建页面
             pages = new SettingsPageBase[]
             {
                 new AudioSettingsPage(),
                 new GraphicsSettingsPage(),
                 new GameplaySettingsPage(),
-                new ControllerSettingsPage()
+                new ControllerSettingsPage(),
             };
 
             pagePanels = new RectTransform[pages.Length];
 
             for (int i = 0; i < pages.Length; i++)
             {
-                pages[i].Initialize(atomicSliderPrefab, atomicTogglePrefab, atomicDropdownPrefab,
-                    audioSource, hoverSound, clickSound);
+                pages[i]
+                    .Initialize(
+                        atomicSliderPrefab,
+                        atomicTogglePrefab,
+                        atomicDropdownPrefab,
+                        audioSource,
+                        hoverSound,
+                        clickSound
+                    );
 
-                // Create panel as child of ScrollContent
+                // 在 ScrollContent 下创建面板
                 var panelGo = new GameObject($"Page_{i}");
                 panelGo.transform.SetParent(scrollContentRt, false);
                 var panelRt = panelGo.AddComponent<RectTransform>();
@@ -274,7 +293,7 @@ namespace OsuVR
                 panelImg.color = PanelBgColor;
                 panelImg.raycastTarget = false;
 
-                // VLG for this page's controls
+                // 本页面控件的 VLG
                 var vlg = panelGo.AddComponent<VerticalLayoutGroup>();
                 vlg.padding = new RectOffset(16, 16, 11, 11);
                 vlg.spacing = 14f;
@@ -289,14 +308,14 @@ namespace OsuVR
                 pageFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
                 pageFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-                // Build page content
+                // 构建页面内容
                 pages[i].BuildContent(panelRt, tempSettings, 0f);
 
                 LayoutRebuilder.ForceRebuildLayoutImmediate(panelRt);
 
                 pagePanels[i] = panelRt;
 
-                // AudioPanel starts active, others inactive
+                // AudioPanel 初始激活，其余面板禁用
                 panelGo.SetActive(i == 0);
             }
 
@@ -320,11 +339,19 @@ namespace OsuVR
             bottomHlg.childForceExpandWidth = true;
             bottomHlg.childForceExpandHeight = true;
 
-            // Back button (matches prefab colors and style)
-            CreateBottomButton(bottomGo.transform, "Back", "ui_back",
-                () => { PlayClickSound(); VRSceneTransitionManager.Instance.TransitionToScene("MainMenuScene"); });
+            // 返回按钮（配色与样式与 Prefab 一致）
+            CreateBottomButton(
+                bottomGo.transform,
+                "Back",
+                "ui_back",
+                () =>
+                {
+                    PlayClickSound();
+                    VRSceneTransitionManager.Instance.TransitionToScene("MainMenuScene");
+                }
+            );
 
-            // Reset button
+            // 重置按钮
             CreateBottomButton(bottomGo.transform, "Reset", "ui_reset", OnResetClicked);
 
             // ---- 初始化 ----
@@ -344,11 +371,11 @@ namespace OsuVR
             go.transform.SetParent(parent, false);
             go.AddComponent<RectTransform>();
 
-            // Prefab: Image color (0.12,0.12,0.18,0.7)
+            // Prefab：Image 颜色 (0.12,0.12,0.18,0.7)
             var img = go.AddComponent<Image>();
             img.color = TabNormalColor;
 
-            // Prefab: Button colors
+            // Prefab：Button 颜色
             var button = go.AddComponent<Button>();
             var colors = button.colors;
             colors.normalColor = TabNormalColor;
@@ -361,7 +388,7 @@ namespace OsuVR
             int capturedIndex = index;
             button.onClick.AddListener(() => SwitchTab(capturedIndex));
 
-            // Indicator (bottom line)
+            // 指示条（底部横线）
             var indicatorGo = new GameObject("Indicator");
             indicatorGo.transform.SetParent(go.transform, false);
             var indicatorRt = indicatorGo.AddComponent<RectTransform>();
@@ -373,7 +400,7 @@ namespace OsuVR
             var indicatorImg = indicatorGo.AddComponent<Image>();
             indicatorImg.color = IndicatorInactiveColor;
 
-            // Text (fontSize=15, color 0.9,0.9,0.95,1, centered)
+            // 文本（fontSize=15, color 0.9,0.9,0.95,1，居中）
             var textGo = new GameObject("Text");
             textGo.transform.SetParent(go.transform, false);
             var textRt = textGo.AddComponent<RectTransform>();
@@ -393,7 +420,7 @@ namespace OsuVR
             var lt = textGo.AddComponent<LocalizedText>();
             lt.localizationKey = locKey;
 
-            // Hover effect
+            // 悬停效果
             UILayoutHelper.AddColorHoverEffect(go, img, TabNormalColor, TabHighlightedColor);
             UILayoutHelper.AddHoverSoundEffect(go, audioSource, hoverSound, 0.5f);
 
@@ -405,14 +432,18 @@ namespace OsuVR
         //  底部按钮（精确复刻 Prefab）
         // ============================================================
 
-        private void CreateBottomButton(Transform parent, string text, string locKey,
-            UnityEngine.Events.UnityAction onClick)
+        private void CreateBottomButton(
+            Transform parent,
+            string text,
+            string locKey,
+            UnityEngine.Events.UnityAction onClick
+        )
         {
             var go = new GameObject(text);
             go.transform.SetParent(parent, false);
             go.AddComponent<RectTransform>();
 
-            // Prefab: Image color (0.12,0.15,0.22,0.6)
+            // Prefab：Image 颜色 (0.12,0.15,0.22,0.6)
             var img = go.AddComponent<Image>();
             img.color = ButtonNormalColor;
 
@@ -426,7 +457,7 @@ namespace OsuVR
             button.targetGraphic = img;
             button.onClick.AddListener(onClick);
 
-            // Text (fontSize=15, color 0.9,0.9,0.95,1, centered)
+            // 文本（fontSize=15, color 0.9,0.9,0.95,1，居中）
             var textGo = new GameObject("Text");
             textGo.transform.SetParent(go.transform, false);
             var textRt = textGo.AddComponent<RectTransform>();
@@ -504,7 +535,7 @@ namespace OsuVR
         }
 
         // ============================================================
-        //  Show / Hide
+        //  显示 / 隐藏
         // ============================================================
 
         public void Show()

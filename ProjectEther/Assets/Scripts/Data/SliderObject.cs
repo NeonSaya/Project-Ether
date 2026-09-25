@@ -11,20 +11,21 @@ namespace OsuVR
     {
         Tick,
         Repeat,
-        Tail
+        Tail,
     }
 
     // 滑条嵌套物件（代表滑条过程中的每一个判定点）
     [Preserve]
     public class SliderNestedObject
     {
-        public double Time;          // 判定时间
-        public Vector2 Position;     // 判定发生时的球位置（相对坐标）
+        public double Time; // 判定时间
+        public Vector2 Position; // 判定发生时的球位置（相对坐标）
         public SliderEventType Type; // 类型
-        public int SpanIndex;        // 属于第几个跨度
-        public bool IsHit;           // 是否已击中（运行时状态）
-        public bool IsTimeFixed;    // 时间是否已锁定（防止重复计算）
+        public int SpanIndex; // 属于第几个跨度
+        public bool IsHit; // 是否已击中（运行时状态）
+        public bool IsTimeFixed; // 时间是否已锁定（防止重复计算）
     }
+
     /// <summary>
     /// 表示一个滑条击打对象
     /// </summary>
@@ -44,6 +45,7 @@ namespace OsuVR
         public List<Vector2> ControlPoints { get; set; }
 
         private List<Vector2> _pathPoints;
+
         /// <summary>
         /// 计算后的真实路径点（相对于滑条起点 Position）
         /// </summary>
@@ -55,7 +57,7 @@ namespace OsuVR
                 _pathPoints = value;
                 // 当路径更新时，重新计算长度缓存和结束位置
                 RecalculatePathCache();
-                _endPositionCache = null; 
+                _endPositionCache = null;
             }
         }
 
@@ -94,18 +96,21 @@ namespace OsuVR
         public double Velocity { get; set; } = 1.0;
 
         // 存储所有 Tick (检查点) 的时间
-        public List<SliderNestedObject> NestedHitObjects { get; private set; } = new List<SliderNestedObject>();
+        public List<SliderNestedObject> NestedHitObjects { get; private set; } =
+            new List<SliderNestedObject>();
 
         /// <summary>
         /// 滑条节点的音效列表 [节点索引][音效列表]
         /// </summary>
-        public List<List<HitSampleInfo>> NodeSamples { get; set; } = new List<List<HitSampleInfo>>();
+        public List<List<HitSampleInfo>> NodeSamples { get; set; } =
+            new List<List<HitSampleInfo>>();
 
         #endregion
 
         #region 缓存与计算属性
 
         private Vector2? _endPositionCache;
+
         // 预计算的路径累计长度，用于二分查找位置
         private float[] _cumulativeLengths;
         private float _totalPathDistance;
@@ -140,7 +145,8 @@ namespace OsuVR
             int repeatCount,
             double pixelLength,
             bool isNewCombo,
-            int comboOffset)
+            int comboOffset
+        )
             : base(startTime, position, HitObjectType.Slider, isNewCombo, comboOffset)
         {
             CurveType = curveType;
@@ -215,8 +221,10 @@ namespace OsuVR
         /// <param name="progress">总体进度 (0-1)，包含所有折返</param>
         public Vector2 GetPositionAtProgress(double progress)
         {
-            if (_pathPoints == null || _pathPoints.Count == 0) return Position;
-            if (_pathPoints.Count == 1) return Position + _pathPoints[0];
+            if (_pathPoints == null || _pathPoints.Count == 0)
+                return Position;
+            if (_pathPoints.Count == 1)
+                return Position + _pathPoints[0];
 
             // 1. 计算当前跨内的进度 (0~1)
             double spanFullProgress = progress * SpanCount;
@@ -246,28 +254,33 @@ namespace OsuVR
         /// <param name="t">单次路径进度 (0-1)</param>
         public Vector2 GetPositionOnPath(float t)
         {
-            if (_cumulativeLengths == null || _cumulativeLengths.Length == 0) return _pathPoints[0];
-            
+            if (_cumulativeLengths == null || _cumulativeLengths.Length == 0)
+                return _pathPoints[0];
+
             t = Mathf.Clamp01(t);
             float targetDist = t * _totalPathDistance;
 
             // 二分查找
             int index = System.Array.BinarySearch(_cumulativeLengths, targetDist);
-            if (index < 0) index = ~index; // 获取插入点
+            if (index < 0)
+                index = ~index; // 获取插入点
 
             // 处理边界
-            if (index <= 0) return _pathPoints[0];
-            if (index >= _cumulativeLengths.Length) return _pathPoints[_pathPoints.Count - 1];
+            if (index <= 0)
+                return _pathPoints[0];
+            if (index >= _cumulativeLengths.Length)
+                return _pathPoints[_pathPoints.Count - 1];
 
             // 在 index-1 和 index 之间插值
             int iA = index - 1;
             int iB = index;
-            
+
             float distA = _cumulativeLengths[iA];
             float distB = _cumulativeLengths[iB];
             float segmentLen = distB - distA;
 
-            if (segmentLen <= 0.0001f) return _pathPoints[iA];
+            if (segmentLen <= 0.0001f)
+                return _pathPoints[iA];
 
             float segmentT = (targetDist - distA) / segmentLen;
             return Vector2.Lerp(_pathPoints[iA], _pathPoints[iB], segmentT);
@@ -284,13 +297,15 @@ namespace OsuVR
             // 需要判断位置是否重叠、时间间隔是否足够小
             // 如果重叠，增加 StackHeight
         }
+
         /// <summary>
         /// [核心重写] 按照 osu! 逻辑生成所有嵌套判定物件 (Ticks, Repeats, Tail)
         /// </summary>
         public void CalculateNestedHitObjects(double tickRate, double beatLength)
         {
             NestedHitObjects.Clear();
-            if (tickRate <= 0 || beatLength <= 0 || RepeatCount == 0) return;
+            if (tickRate <= 0 || beatLength <= 0 || RepeatCount == 0)
+                return;
 
             // 1. 计算 Tick 间隔
             double tickInterval = beatLength / tickRate;
@@ -319,14 +334,16 @@ namespace OsuVR
 
                     Vector2 pos = GetPositionAtProgress(overallProgress);
 
-                    NestedHitObjects.Add(new SliderNestedObject
-                    {
-                        Time = absoluteTime,
-                        Type = SliderEventType.Tick,
-                        SpanIndex = span,
-                        Position = pos,
-                        IsHit = false
-                    });
+                    NestedHitObjects.Add(
+                        new SliderNestedObject
+                        {
+                            Time = absoluteTime,
+                            Type = SliderEventType.Tick,
+                            SpanIndex = span,
+                            Position = pos,
+                            IsHit = false,
+                        }
+                    );
 
                     currentTickTime += tickInterval;
                 }
@@ -338,26 +355,30 @@ namespace OsuVR
                 if (span < RepeatCount - 1)
                 {
                     // 这是一个折返点 (Repeat)
-                    NestedHitObjects.Add(new SliderNestedObject
-                    {
-                        Time = spanEndTime,
-                        Type = SliderEventType.Repeat,
-                        SpanIndex = span,
-                        Position = endPos,
-                        IsHit = false
-                    });
+                    NestedHitObjects.Add(
+                        new SliderNestedObject
+                        {
+                            Time = spanEndTime,
+                            Type = SliderEventType.Repeat,
+                            SpanIndex = span,
+                            Position = endPos,
+                            IsHit = false,
+                        }
+                    );
                 }
                 else
                 {
                     // 最后一个跨度，这是整个滑条的终点 (Tail)
-                    NestedHitObjects.Add(new SliderNestedObject
-                    {
-                        Time = spanEndTime,
-                        Type = SliderEventType.Tail,
-                        SpanIndex = span,
-                        Position = endPos,
-                        IsHit = false
-                    });
+                    NestedHitObjects.Add(
+                        new SliderNestedObject
+                        {
+                            Time = spanEndTime,
+                            Type = SliderEventType.Tail,
+                            SpanIndex = span,
+                            Position = endPos,
+                            IsHit = false,
+                        }
+                    );
                 }
             }
 

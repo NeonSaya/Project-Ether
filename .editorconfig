@@ -1,0 +1,87 @@
+# ============================================================
+# Project Ether 代码风格配置（编辑器 / 格式化器共用）
+#
+# 范围：只约束项目自有代码（Assets/Scripts、Assets/Editor、
+#       Assets/Tests、Tools、Assets/Shader）。
+#       第三方库（AudioLink、Effekseer、X-PostProcessing、
+#       TextMesh Pro 等）保持上游原样，格式化任务不覆盖它们。
+# 一键格式化：Trae 中按 Ctrl+Shift+B
+#       （任务定义见 .vscode/tasks.json，仅本机生效，不入库）
+# ============================================================
+root = true
+
+[*]
+charset = utf-8
+
+# ---------- 项目自有 C# 代码 ----------
+# 与现有代码风格一致：4 空格缩进、Allman 大括号（{ 单独一行）
+[ProjectEther/Assets/Scripts/**/*.cs]
+indent_style = space
+indent_size = 4
+tab_width = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_indent_case_contents = true
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_method_call_parameter_list_parentheses = false
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+
+[ProjectEther/Assets/Editor/**/*.cs]
+indent_style = space
+indent_size = 4
+tab_width = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_indent_case_contents = true
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_method_call_parameter_list_parentheses = false
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+
+[ProjectEther/Assets/Tests/**/*.cs]
+indent_style = space
+indent_size = 4
+tab_width = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_indent_case_contents = true
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_method_call_parameter_list_parentheses = false
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+
+[Tools/**/*.cs]
+indent_style = space
+indent_size = 4
+tab_width = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_indent_case_contents = true
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_method_call_parameter_list_parentheses = false
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+
+# ---------- 自有 Shader（仅缩进约定；CSharpier 不处理 ShaderLab） ----------
+[ProjectEther/Assets/Shader/*.shader]
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+
+[ProjectEther/Assets/Shader/*.hlsl]
+indent_style = space
+indent_size = 4
+insert_final_newline = true

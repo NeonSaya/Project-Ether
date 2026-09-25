@@ -21,7 +21,8 @@ namespace OsuVR
 
         [Header("滑条过程 (Slider)")]
         [Tooltip("滑条持续滑动时的微震 (每一帧调用，只需填强度)")]
-        [Range(0, 1)] public float SliderSlideIntensity = 0.05f;
+        [Range(0, 1)]
+        public float SliderSlideIntensity = 0.05f;
 
         [Tooltip("滑条经过 Tick (小豆豆) 的震动")]
         public HapticData SliderTick = new HapticData(0.3f, 0.05f);
@@ -36,7 +37,8 @@ namespace OsuVR
         [System.Serializable]
         public struct HapticData
         {
-            [Range(0, 1)] public float intensity;
+            [Range(0, 1)]
+            public float intensity;
             public float duration;
 
             public HapticData(float i, float d)

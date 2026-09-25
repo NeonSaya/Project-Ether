@@ -69,10 +69,12 @@ namespace OsuVR
 
         private bool TrySetupCamera()
         {
-            if (_cameraReady) return true;
+            if (_cameraReady)
+                return true;
 
             var mainCam = Camera.main;
-            if (mainCam == null) return false;
+            if (mainCam == null)
+                return false;
 
             _layer = mainCam.GetComponent<PostProcessLayer>();
             if (_layer == null)
@@ -102,16 +104,20 @@ namespace OsuVR
 
             if (!_cameraReady)
             {
-                Debug.LogError("[PostProcessManager] 超时：找不到 Main Camera，PostProcessLayer 未初始化");
+                Debug.LogError(
+                    "[PostProcessManager] 超时：找不到 Main Camera，PostProcessLayer 未初始化"
+                );
             }
         }
 
         /// <summary>
         /// 启用或禁用指定类型的效果
         /// </summary>
-        public void SetEffectEnabled<T>(bool enabled) where T : PostProcessEffectSettings
+        public void SetEffectEnabled<T>(bool enabled)
+            where T : PostProcessEffectSettings
         {
-            if (_runtimeProfile == null) return;
+            if (_runtimeProfile == null)
+                return;
 
             var settings = _runtimeProfile.GetSetting<T>();
             if (settings != null)
@@ -123,9 +129,11 @@ namespace OsuVR
         /// <summary>
         /// 添加效果到 Profile（如果不存在则创建）
         /// </summary>
-        public T AddEffect<T>() where T : PostProcessEffectSettings
+        public T AddEffect<T>()
+            where T : PostProcessEffectSettings
         {
-            if (_runtimeProfile == null) return null;
+            if (_runtimeProfile == null)
+                return null;
 
             var settings = _runtimeProfile.GetSetting<T>();
             if (settings == null)
@@ -140,9 +148,11 @@ namespace OsuVR
         /// <summary>
         /// 从 Profile 移除效果
         /// </summary>
-        public void RemoveEffect<T>() where T : PostProcessEffectSettings
+        public void RemoveEffect<T>()
+            where T : PostProcessEffectSettings
         {
-            if (_runtimeProfile == null) return;
+            if (_runtimeProfile == null)
+                return;
 
             var settings = _runtimeProfile.GetSetting<T>();
             if (settings != null)

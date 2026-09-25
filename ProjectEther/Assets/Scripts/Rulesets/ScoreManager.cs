@@ -7,10 +7,10 @@ namespace OsuVR
 {
     /// <summary>
     /// 分数管理器：基于 osu! Lazer 源码实现的分数计算系统
-    /// 
+    ///
     /// 分数公式：
     /// Total = (50万 * Acc * ComboProg) + (50万 * Acc^5 * AccProg) + Bonus
-    /// 
+    ///
     /// 其中：
     /// - Acc = currentBaseScore / currentMaxBaseScore (准确率)
     /// - ComboProg = currentComboPortion / maxComboPortion (连击进度)
@@ -25,58 +25,58 @@ namespace OsuVR
         // ================================================================
         // Lazer 源码常量
         // ================================================================
-        private const double MAX_SCORE = 1000000;       // 理论满分
-        private const double COMBO_EXPONENT = 0.5;      // 连击指数 (Sqrt)
+        private const double MAX_SCORE = 1000000; // 理论满分
+        private const double COMBO_EXPONENT = 0.5; // 连击指数 (Sqrt)
 
         // ================================================================
         // 运行时数据
         // ================================================================
-        private double _finalScore = 0;                 // 最终分数
-        private int _currentCombo = 0;                  // 当前连击
-        private int _maxComboReached = 0;               // 最大连击
+        private double _finalScore = 0; // 最终分数
+        private int _currentCombo = 0; // 当前连击
+        private int _maxComboReached = 0; // 最大连击
 
         // 判定统计
-        private int _totalHitsPerformed = 0;            // 当前判定次数 (分子部分)
-        private int _totalMapJudgements = 0;            // 全图判定总数 (分母部分，含Tick/Repeat)
+        private int _totalHitsPerformed = 0; // 当前判定次数 (分子部分)
+        private int _totalMapJudgements = 0; // 全图判定总数 (分母部分，含Tick/Repeat)
 
         // ================================================================
         // 分数计算核心变量
         // ================================================================
-        private double _currentBaseScore = 0;           // 分子：当前得分 (300+10+30...)
-        private double _currentMaxBaseScore = 0;        // 分母：当前进度的理论满分
+        private double _currentBaseScore = 0; // 分子：当前得分 (300+10+30...)
+        private double _currentMaxBaseScore = 0; // 分母：当前进度的理论满分
 
-        private double _currentComboPortion = 0;        // 分子：连击权重分
-        private double _maxComboPortionTotal = 0;       // 分母：全图理论连击权重分
+        private double _currentComboPortion = 0; // 分子：连击权重分
+        private double _maxComboPortionTotal = 0; // 分母：全图理论连击权重分
 
-        private double _currentBonusScore = 0;          // 仅限 Spinner Bonus (不影响 Acc)
+        private double _currentBonusScore = 0; // 仅限 Spinner Bonus (不影响 Acc)
 
         // ================================================================
         // 判定统计 (用于结算界面)
         // ================================================================
-        private int _hit300 = 0;                        // 300 判定数 (完美)
-        private int _hit100 = 0;                        // 100 判定数 (良好)
-        private int _hit50 = 0;                         // 50 判定数 (一般)
-        private int _hitMiss = 0;                       // Miss 判定数
-        private bool _comboEverBroken = false;            // 连击是否曾中断（含滑条内部漏打，RegisterMissScoreOnly 不记 _hitMiss 但必须阻断 FC）
+        private int _hit300 = 0; // 300 判定数 (完美)
+        private int _hit100 = 0; // 100 判定数 (良好)
+        private int _hit50 = 0; // 50 判定数 (一般)
+        private int _hitMiss = 0; // Miss 判定数
+        private bool _comboEverBroken = false; // 连击是否曾中断（含滑条内部漏打，RegisterMissScoreOnly 不记 _hitMiss 但必须阻断 FC）
 
         // ================================================================
         // 滑条统计
         // ================================================================
-        private int _totalSliders = 0;                  // 总滑条数
-        private int _slidersPerfect = 0;                // 完美滑条数
-        private int _slidersOk = 0;                     // 良好滑条数
-        private int _slidersMiss = 0;                   // 失败滑条数
+        private int _totalSliders = 0; // 总滑条数
+        private int _slidersPerfect = 0; // 完美滑条数
+        private int _slidersOk = 0; // 良好滑条数
+        private int _slidersMiss = 0; // 失败滑条数
 
         // ================================================================
         // Tick 统计
         // ================================================================
-        private int _totalTicks = 0;                    // 总 Tick 数
-        private int _ticksHit = 0;                      // 命中的 Tick 数
+        private int _totalTicks = 0; // 总 Tick 数
+        private int _ticksHit = 0; // 命中的 Tick 数
 
         // ================================================================
         // Spinner 统计
         // ================================================================
-        private int _spinnerBonus = 0;                  // 转盘奖励分
+        private int _spinnerBonus = 0; // 转盘奖励分
 
         // ================================================================
         // 谱面信息 (用于结算)
@@ -139,7 +139,8 @@ namespace OsuVR
             _spinnerBonus = 0;
             _totalNoteCount = 0;
 
-            if (boardController) boardController.UpdateDashboard(0, 0, 1.0);
+            if (boardController)
+                boardController.UpdateDashboard(0, 0, 1.0);
         }
 
         // ================================================================
@@ -207,7 +208,7 @@ namespace OsuVR
                     // 1. Head (300分)
                     SimulateHit(ref simCombo, 300);
 
-                    // 2. Nested Objects (Tick & Repeat)
+                    // 2. 嵌套物件（Tick 与 Repeat）
                     if (slider.NestedHitObjects != null)
                     {
                         foreach (var nested in slider.NestedHitObjects)
@@ -231,13 +232,22 @@ namespace OsuVR
                 }
             }
 
-            Debug.Log($"[Score] 初始化完成. 总判定数: {_totalMapJudgements}, 理论Combo权重: {_maxComboPortionTotal:F2}");
+            Debug.Log(
+                $"[Score] 初始化完成. 总判定数: {_totalMapJudgements}, 理论Combo权重: {_maxComboPortionTotal:F2}"
+            );
         }
 
         /// <summary>
         /// 设置谱面信息 (用于结算界面显示)
         /// </summary>
-        public void SetBeatmapInfo(string title, string titleUnicode, string artist, string artistUnicode, string difficulty, string mapper)
+        public void SetBeatmapInfo(
+            string title,
+            string titleUnicode,
+            string artist,
+            string artistUnicode,
+            string difficulty,
+            string mapper
+        )
         {
             _songTitle = title ?? "";
             _songTitleUnicode = titleUnicode ?? "";
@@ -281,7 +291,6 @@ namespace OsuVR
         {
             return _modEffects;
         }
-
 
         // 模拟击打辅助函数
         private void SimulateHit(ref int combo, int score)
@@ -350,7 +359,8 @@ namespace OsuVR
             if (scoreValue > 0)
             {
                 _currentCombo++;
-                if (_currentCombo > _maxComboReached) _maxComboReached = _currentCombo;
+                if (_currentCombo > _maxComboReached)
+                    _maxComboReached = _currentCombo;
             }
             else
             {
@@ -385,7 +395,8 @@ namespace OsuVR
             }
 
             _currentCombo++;
-            if (_currentCombo > _maxComboReached) _maxComboReached = _currentCombo;
+            if (_currentCombo > _maxComboReached)
+                _maxComboReached = _currentCombo;
 
             // 2. 计入 Acc 分子和分母
             _currentBaseScore += scoreValue;
@@ -398,9 +409,12 @@ namespace OsuVR
 
         public void RegisterSliderResult(bool isPerfect, bool isOk)
         {
-            if (isPerfect) _slidersPerfect++;
-            else if (isOk) _slidersOk++;
-            else _slidersMiss++;
+            if (isPerfect)
+                _slidersPerfect++;
+            else if (isOk)
+                _slidersOk++;
+            else
+                _slidersMiss++;
         }
 
         public void RegisterBonus(int bonusValue)
@@ -465,7 +479,11 @@ namespace OsuVR
             bool isFullCombo = _hitMiss == 0 && !_comboEverBroken;
             // _hit300 包含 Circle(1次) + Slider Head(1次) + Slider Tail(1次) + Spinner(1次)
             // 所以完美时 _hit300 = _totalNoteCount + _totalSliders (每个 slider 额外贡献一次 tail 判定)
-            bool isPerfectPlay = isFullCombo && _hit300 == _totalNoteCount + _totalSliders && _hit100 == 0 && _hit50 == 0;
+            bool isPerfectPlay =
+                isFullCombo
+                && _hit300 == _totalNoteCount + _totalSliders
+                && _hit100 == 0
+                && _hit50 == 0;
 
             string rank = ResultData.CalculateRank(accuracy, isPerfectPlay, isFullCombo);
 
@@ -502,7 +520,7 @@ namespace OsuVR
                 perfectJudgements = _hit300,
                 rank = rank,
                 playDate = DateTime.Now,
-                modString = modString
+                modString = modString,
             };
         }
 
@@ -510,12 +528,18 @@ namespace OsuVR
         {
             var mods = new System.Text.StringBuilder();
 
-            if (_isAutoPlay) mods.Append("AT ");
-            if (_isEasy) mods.Append("EZ ");
-            if (_isHardRock) mods.Append("HR ");
-            if (_isDoubleTime) mods.Append("DT ");
-            if (_isHalfTime) mods.Append("HT ");
-            if (_isHidden) mods.Append("HD ");
+            if (_isAutoPlay)
+                mods.Append("AT ");
+            if (_isEasy)
+                mods.Append("EZ ");
+            if (_isHardRock)
+                mods.Append("HR ");
+            if (_isDoubleTime)
+                mods.Append("DT ");
+            if (_isHalfTime)
+                mods.Append("HT ");
+            if (_isHidden)
+                mods.Append("HD ");
 
             return mods.ToString().Trim();
         }

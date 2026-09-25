@@ -13,8 +13,6 @@ namespace OsuVR
         /// 构造函数
         /// </summary>
         public HitCircle(double startTime, Vector2 position, bool isNewCombo, int comboOffset)
-            : base(startTime, position, HitObjectType.Circle, isNewCombo, comboOffset)
-        {
-        }
+            : base(startTime, position, HitObjectType.Circle, isNewCombo, comboOffset) { }
     }
 }

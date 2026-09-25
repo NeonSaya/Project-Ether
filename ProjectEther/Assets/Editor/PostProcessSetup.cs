@@ -1,6 +1,6 @@
+using OsuVR;
 using UnityEditor;
 using UnityEngine;
-using OsuVR;
 
 /// <summary>
 /// 编辑器工具：一键在当前场景添加 PostProcessManager
@@ -31,7 +31,8 @@ public static class PostProcessSetup
     [MenuItem("Tools/PostProcessing/Create Profile Asset")]
     public static void CreateProfileAsset()
     {
-        var profile = ScriptableObject.CreateInstance<UnityEngine.Rendering.PostProcessing.PostProcessProfile>();
+        var profile =
+            ScriptableObject.CreateInstance<UnityEngine.Rendering.PostProcessing.PostProcessProfile>();
         string path = "Assets/Settings/X-PostProcessProfile.asset";
 
         if (!AssetDatabase.IsValidFolder("Assets/Settings"))

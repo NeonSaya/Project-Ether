@@ -16,7 +16,8 @@ namespace OsuVR
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void AutoCreate()
         {
-            if (FindObjectOfType<RuntimeLogRecorder>() != null) return;
+            if (FindObjectOfType<RuntimeLogRecorder>() != null)
+                return;
             var go = new GameObject("[RuntimeLogRecorder]");
             go.AddComponent<RuntimeLogRecorder>();
         }
@@ -36,7 +37,9 @@ namespace OsuVR
                 {
                     writer.WriteLine("");
                     writer.WriteLine($"--- New Session [{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ---");
-                    writer.WriteLine($"[Platform] {Application.platform}, [Device] {SystemInfo.deviceModel}, [GPU] {SystemInfo.graphicsDeviceName}");
+                    writer.WriteLine(
+                        $"[Platform] {Application.platform}, [Device] {SystemInfo.deviceModel}, [GPU] {SystemInfo.graphicsDeviceName}"
+                    );
                     writer.Flush();
                 }
                 Debug.Log($"[LogRecorder] 日志路径: {logPath}");

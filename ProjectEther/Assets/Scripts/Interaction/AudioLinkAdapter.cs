@@ -4,17 +4,17 @@ namespace OsuVR
 {
     /// <summary>
     /// AudioLink适配器：桥接AudioLink系统与Project Ether音频可视化架构
-    /// 
+    ///
     /// 功能职责：
     /// 1. 自动同步AudioLink的音频源与AudioVisualizationManager
     /// 2. 处理歌曲切换时的音频流更新
     /// 3. 提供AudioLink全局纹理访问接口
-    /// 
+    ///
     /// 全局纹理说明：
     /// - AudioLink生成的全局纹理名称：_AudioTexture
     /// - 在Shader Graph中可通过Property节点访问（Mode: Global）
     /// - 纹理格式：CustomRenderTexture，包含频谱、波形、自相关等数据
-    /// 
+    ///
     /// 使用方法：
     /// 1. 在场景中放置AudioLink预制体
     /// 2. 将此脚本挂载到AudioLink物体上
@@ -67,7 +67,7 @@ namespace OsuVR
         {
             FindAudioLinkComponent();
             CacheReflectionInfo();
-            
+
             if (autoSync)
             {
                 SyncAudioSource();
@@ -96,7 +96,11 @@ namespace OsuVR
         private void CheckPlayingAudioSource()
         {
             AudioSource targetSource = GetTargetAudioSource();
-            if (targetSource != null && targetSource.isPlaying && currentAudioSource != targetSource)
+            if (
+                targetSource != null
+                && targetSource.isPlaying
+                && currentAudioSource != targetSource
+            )
             {
                 SyncAudioSource();
             }
@@ -119,14 +123,18 @@ namespace OsuVR
                     // 引用正确，无需重新查找
                     if (enableDebugLog)
                     {
-                        Debug.Log($"[AudioLinkAdapter] AudioLink组件已配置: {audioLinkComponent.gameObject.name}");
+                        Debug.Log(
+                            $"[AudioLinkAdapter] AudioLink组件已配置: {audioLinkComponent.gameObject.name}"
+                        );
                     }
                     return;
                 }
                 else
                 {
                     // 引用错误（可能是Inspector中配置失误），清除并重新查找
-                    Debug.LogWarning($"[AudioLinkAdapter] audioLinkComponent引用错误（类型: {audioLinkComponent.GetType().Name}），重新查找AudioLink...");
+                    Debug.LogWarning(
+                        $"[AudioLinkAdapter] audioLinkComponent引用错误（类型: {audioLinkComponent.GetType().Name}），重新查找AudioLink..."
+                    );
                     audioLinkComponent = null;
                 }
             }
@@ -142,14 +150,18 @@ namespace OsuVR
 
                 if (audioLinkComponent != null && enableDebugLog)
                 {
-                    Debug.Log($"[AudioLinkAdapter] 找到AudioLink组件: {audioLinkComponent.gameObject.name}");
+                    Debug.Log(
+                        $"[AudioLinkAdapter] 找到AudioLink组件: {audioLinkComponent.gameObject.name}"
+                    );
                 }
             }
             else
             {
                 if (enableDebugLog)
                 {
-                    Debug.LogWarning("[AudioLinkAdapter] 未找到AudioLink组件。请确保已安装AudioLink包。");
+                    Debug.LogWarning(
+                        "[AudioLinkAdapter] 未找到AudioLink组件。请确保已安装AudioLink包。"
+                    );
                 }
             }
         }
@@ -162,12 +174,20 @@ namespace OsuVR
             var audioLinkType = audioLinkComponent.GetType();
 
             // 缓存audioSource字段
-            audioSourceField = audioLinkType.GetField("audioSource",
-                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            audioSourceField = audioLinkType.GetField(
+                "audioSource",
+                System.Reflection.BindingFlags.Public
+                    | System.Reflection.BindingFlags.NonPublic
+                    | System.Reflection.BindingFlags.Instance
+            );
 
             // 缓存更新方法（如果存在）
-            updateAudioSourceMethod = audioLinkType.GetMethod("UpdateAudioSource",
-                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            updateAudioSourceMethod = audioLinkType.GetMethod(
+                "UpdateAudioSource",
+                System.Reflection.BindingFlags.Public
+                    | System.Reflection.BindingFlags.NonPublic
+                    | System.Reflection.BindingFlags.Instance
+            );
         }
 
         // =========================================================
@@ -211,7 +231,9 @@ namespace OsuVR
 
                     if (enableDebugLog)
                     {
-                        Debug.Log($"[AudioLinkAdapter] 已同步音频源: {targetSource.gameObject.name} (Clip: {targetSource.clip?.name ?? "null"})");
+                        Debug.Log(
+                            $"[AudioLinkAdapter] 已同步音频源: {targetSource.gameObject.name} (Clip: {targetSource.clip?.name ?? "null"})"
+                        );
                     }
 
                     // 调用更新方法（如果存在）
@@ -254,7 +276,9 @@ namespace OsuVR
             {
                 if (enableDebugLog)
                 {
-                    Debug.Log($"[AudioLinkAdapter] 使用场景中的AudioSource: {sceneSource.gameObject.name}");
+                    Debug.Log(
+                        $"[AudioLinkAdapter] 使用场景中的AudioSource: {sceneSource.gameObject.name}"
+                    );
                 }
                 return sceneSource;
             }
@@ -334,7 +358,9 @@ namespace OsuVR
         {
             Debug.Log($"[AudioLinkAdapter] 状态报告:");
             Debug.Log($"  - AudioLink组件: {(audioLinkComponent != null ? "已找到" : "未找到")}");
-            Debug.Log($"  - 当前音频源: {(currentAudioSource != null ? currentAudioSource.gameObject.name : "null")}");
+            Debug.Log(
+                $"  - 当前音频源: {(currentAudioSource != null ? currentAudioSource.gameObject.name : "null")}"
+            );
             Debug.Log($"  - 自动同步: {autoSync}");
             Debug.Log($"  - 全局纹理名称: {AUDIO_LINK_TEXTURE_NAME}");
         }

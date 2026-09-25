@@ -28,16 +28,16 @@ namespace OsuVR
 
         public enum EnvironmentState
         {
-            Idle,       // 梦幻深蓝紫 → 粉紫 → 樱花粉
-            Combo,      // 青蓝 → 翠 → 薄荷绿
-            Kiai        // 晨曦金 → 玫瑰橙 → 白金
+            Idle, // 梦幻深蓝紫 → 粉紫 → 樱花粉
+            Combo, // 青蓝 → 翠 → 薄荷绿
+            Kiai, // 晨曦金 → 玫瑰橙 → 白金
         }
 
         public enum GamePhase
         {
-            Menu,       // 主菜单 / 选歌
-            Playing,    // 打歌中
-            Result      // 结算
+            Menu, // 主菜单 / 选歌
+            Playing, // 打歌中
+            Result, // 结算
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -60,7 +60,9 @@ namespace OsuVR
         public float nebulaMaxRadius = 40f;
         public float nebulaMinSize = 12f;
         public float nebulaMaxSize = 35f;
-        [Range(0.01f, 0.3f)] public float nebulaAlpha = 0.12f;
+
+        [Range(0.01f, 0.3f)]
+        public float nebulaAlpha = 0.12f;
 
         [Header("星尘层")]
         public float stardustRadius = 60f;
@@ -69,7 +71,9 @@ namespace OsuVR
         public float stardustMinLifetime = 18f;
         public float stardustMaxLifetime = 30f;
         public float stardustSize = 0.05f;
-        [Range(0.05f, 0.4f)] public float stardustAlpha = 0.18f;
+
+        [Range(0.05f, 0.4f)]
+        public float stardustAlpha = 0.18f;
 
         [Header("光斑层")]
         public float bokehRadius = 35f;
@@ -88,7 +92,9 @@ namespace OsuVR
         public float fallingStarFallSpeed = 1.0f;
         public float fallingStarMinSize = 0.03f;
         public float fallingStarMaxSize = 0.12f;
-        [Range(0.1f, 1f)] public float fallingStarAlpha = 0.5f;
+
+        [Range(0.1f, 1f)]
+        public float fallingStarAlpha = 0.5f;
 
         [Header("晶体层")]
         public int crystalsMaxParticles = 40;
@@ -109,7 +115,9 @@ namespace OsuVR
         public float auroraMaxSizeX = 30f;
         public float auroraMinSizeY = 0.3f;
         public float auroraMaxSizeY = 0.8f;
-        [Range(0.01f, 0.15f)] public float auroraAlpha = 0.07f;
+
+        [Range(0.01f, 0.15f)]
+        public float auroraAlpha = 0.07f;
 
         [Header("脉冲波纹层 (节拍驱动)")]
         public int pulseRingMaxParticles = 20;
@@ -123,68 +131,117 @@ namespace OsuVR
         public int bubbleEmissionRate = 10;
         public float bubbleMinSize = 0.2f;
         public float bubbleMaxSize = 0.8f;
-        [Range(0.05f, 0.3f)] public float bubbleAlpha = 0.15f;
+
+        [Range(0.05f, 0.3f)]
+        public float bubbleAlpha = 0.15f;
         public float bubbleRiseSpeed = 0.4f;
 
         [Header("音频响应")]
-        [SerializeField] private float audioResponseSmooth = 10f;
-        [SerializeField] private float bassBrightnessGain = 1.2f;
-        [SerializeField] private float bassSizeKick = 2.5f;
-        [SerializeField] private float trebleHueShift = 0.3f;
+        [SerializeField]
+        private float audioResponseSmooth = 10f;
+
+        [SerializeField]
+        private float bassBrightnessGain = 1.2f;
+
+        [SerializeField]
+        private float bassSizeKick = 2.5f;
+
+        [SerializeField]
+        private float trebleHueShift = 0.3f;
 
         [Header("频谱精细响应 (AudioLink 8频段)")]
         [Tooltip("将128频谱压缩为8频段，用于粒子分组响应")]
-        [SerializeField] private int spectrumBands = 8;
+        [SerializeField]
+        private int spectrumBands = 8;
+
         [Tooltip("频谱平滑速度（越大响应越快，推荐30-50）")]
-        [SerializeField] private float spectrumSmoothSpeed = 40f;
+        [SerializeField]
+        private float spectrumSmoothSpeed = 40f;
+
         [Tooltip("即时响应模式：快速响应但保留少量平滑")]
-        [SerializeField] private bool instantResponseMode = false;
+        [SerializeField]
+        private bool instantResponseMode = false;
+
         [Tooltip("即时模式平滑因子（0-1，越小越平滑，推荐0.85）")]
-        [SerializeField] private float instantSmoothFactor = 0.25f;
+        [SerializeField]
+        private float instantSmoothFactor = 0.25f;
 
         [Header("镜面地板")]
         [Tooltip("地板大小(正方形边长)")]
-        [SerializeField] private float mirrorFloorSize = 5f;
+        [SerializeField]
+        private float mirrorFloorSize = 5f;
+
         [Tooltip("地板透明度")]
         [Range(0.05f, 0.5f)]
-        [SerializeField] private float mirrorFloorAlpha = 0.15f;
+        [SerializeField]
+        private float mirrorFloorAlpha = 0.15f;
+
         [Tooltip("地板反射强度")]
         [Range(0.1f, 1f)]
-        [SerializeField] private float mirrorReflectivity = 0.3f;
+        [SerializeField]
+        private float mirrorReflectivity = 0.3f;
 
         [Header("两侧频谱粒子 (地板两侧引导线)")]
         [Tooltip("每侧频谱条数量")]
-        [SerializeField] private int spectrumBarCount = 128;
+        [SerializeField]
+        private int spectrumBarCount = 128;
+
         [Tooltip("频谱条最大高度")]
-        [SerializeField] private float spectrumBarHeightMax = 20.0f;
+        [SerializeField]
+        private float spectrumBarHeightMax = 20.0f;
+
         [Tooltip("透明度")]
-        [SerializeField] private float spectrumBarAlpha = 0.5f;
+        [SerializeField]
+        private float spectrumBarAlpha = 0.5f;
+
         [Tooltip("频谱条基础宽度")]
-        [SerializeField] private float spectrumBarWidth = 0.08f;
+        [SerializeField]
+        private float spectrumBarWidth = 0.08f;
+
         [Tooltip("频谱增益倍数（放大AudioLink数据）")]
-        [SerializeField] private float spectrumGain = 2.0f;
+        [SerializeField]
+        private float spectrumGain = 2.0f;
+
         [Tooltip("频谱非线性放大指数（<1增强低值，>1增强高值）")]
-        [SerializeField] private float spectrumPower = 0.7f;
+        [SerializeField]
+        private float spectrumPower = 0.7f;
+
         [Tooltip("频谱最小阈值（低于此值不显示）")]
-        [SerializeField] private float spectrumMinThreshold = 0.005f;
+        [SerializeField]
+        private float spectrumMinThreshold = 0.005f;
+
         [Tooltip("低频额外增强倍数")]
-        [SerializeField] private float spectrumBassBoost = 2.5f;
+        [SerializeField]
+        private float spectrumBassBoost = 2.5f;
+
         [Tooltip("低频区域占比（前N%为低频）")]
-        [SerializeField] private float spectrumBassRatio = 0.25f;
+        [SerializeField]
+        private float spectrumBassRatio = 0.25f;
+
         [Tooltip("Kiai闪烁强度")]
-        [SerializeField] private float spectrumKiaiFlashIntensity = 0.8f;
+        [SerializeField]
+        private float spectrumKiaiFlashIntensity = 0.8f;
+
         [Tooltip("频谱分布偏移（正值让高频往左/前移，负值让低频往左/前移）")]
-        [SerializeField] private float spectrumDistributionShift = 0.35f;
+        [SerializeField]
+        private float spectrumDistributionShift = 0.35f;
 
         [Header("节拍驱动")]
         [Tooltip("节拍时晶体/星尘的亮度脉冲峰值")]
-        [SerializeField] private float beatBrightnessPeak = 1.5f;
+        [SerializeField]
+        private float beatBrightnessPeak = 1.5f;
+
         [Tooltip("节拍亮度脉冲衰减速度")]
-        [SerializeField] private float beatBrightnessDecay = 8f;
+        [SerializeField]
+        private float beatBrightnessDecay = 8f;
+
         [Tooltip("节拍提前量（秒）")]
-        [SerializeField] private float beatAnticipation = 0.015f;
+        [SerializeField]
+        private float beatAnticipation = 0.015f;
+
         [Tooltip("Kiai 时节拍脉冲倍率")]
-        [SerializeField] private float kiaiBeatMultiplier = 1.5f;
+        [SerializeField]
+        private float kiaiBeatMultiplier = 1.5f;
 
         // 色彩映射
         private Gradient gradientIdle;
@@ -228,16 +285,17 @@ namespace OsuVR
         private Material spectrumBarMaterial;
 
         // AudioLink 频谱数据
-        private float[] spectrumBandValues;          // 8频段值
-        private float[] spectrumBandSmoothed;        // 平滑后的值
-        private float[] spectrumBarHeights;          // 64条高度 (用于两侧频谱)
-        private float[] spectrumBarHeightsSmoothed;  // 平滑后的高度
+        private float[] spectrumBandValues; // 8频段值
+        private float[] spectrumBandSmoothed; // 平滑后的值
+        private float[] spectrumBarHeights; // 64条高度 (用于两侧频谱)
+        private float[] spectrumBarHeightsSmoothed; // 平滑后的高度
         private bool audioLinkAvailable = false;
 
         // AudioLink 反射缓存（避免每帧查找）
         private System.Type audioLinkCachedType;
         private MonoBehaviour audioLinkCachedInstance;
         private System.Reflection.MethodInfo audioLinkGetDataMethod;
+
         // 反射委托化：CreateDelegate 之后按普通委托调用，零装箱零 object[] 分配
         // （原来每帧 ~512 次 MethodInfo.Invoke：8频段×16bin + 128柱×3点插值，~28KB/帧 GC）
         private System.Func<Vector2, Vector4> _audioLinkGetData;
@@ -277,12 +335,12 @@ namespace OsuVR
 
         // BPM 精准节拍驱动
         private double nextBeatTimeMs = -1;
-        private double currentMsPerBeat = 500;   // 默认 120BPM
+        private double currentMsPerBeat = 500; // 默认 120BPM
         private int currentTimingPointIndex = -1;
         private Beatmap cachedBeatmapRef;
         private Camera _cachedCam;
         private RhythmGameManager rhythmGameManager;
-        private float beatBrightnessPulse = 0f;  // 节拍亮度脉冲值
+        private float beatBrightnessPulse = 0f; // 节拍亮度脉冲值
         private bool isKiaiActive = false;
 
         void Awake()
@@ -352,7 +410,8 @@ namespace OsuVR
                 // 如果实例已缓存，使用缓存；否则查找新实例
                 if (audioLinkCachedInstance == null)
                 {
-                    audioLinkCachedInstance = FindAnyObjectByType(audioLinkCachedType) as MonoBehaviour;
+                    audioLinkCachedInstance =
+                        FindAnyObjectByType(audioLinkCachedType) as MonoBehaviour;
                     // 场景重载后 AudioLink 是全新实例；旧委托仍绑定已销毁实例，
                     // 其 GetDataAtPixel 只会返回冻结的旧 audioData 数组（频谱卡死根因），必须重建
                     _audioLinkGetData = null;
@@ -363,60 +422,90 @@ namespace OsuVR
                     // 缓存反射方法（只缓存一次）
                     if (audioLinkGetDataMethod == null)
                     {
-                        audioLinkGetDataMethod = audioLinkCachedType.GetMethod("GetDataAtPixel", new System.Type[] { typeof(Vector2) });
+                        audioLinkGetDataMethod = audioLinkCachedType.GetMethod(
+                            "GetDataAtPixel",
+                            new System.Type[] { typeof(Vector2) }
+                        );
                     }
                     if (_audioLinkGetData == null && audioLinkGetDataMethod != null)
                     {
                         try
                         {
-                            _audioLinkGetData = (System.Func<Vector2, Vector4>)System.Delegate.CreateDelegate(
-                                typeof(System.Func<Vector2, Vector4>), audioLinkCachedInstance, audioLinkGetDataMethod);
+                            _audioLinkGetData = (System.Func<Vector2, Vector4>)
+                                System.Delegate.CreateDelegate(
+                                    typeof(System.Func<Vector2, Vector4>),
+                                    audioLinkCachedInstance,
+                                    audioLinkGetDataMethod
+                                );
                         }
                         catch (System.Exception e)
                         {
-                            Debug.LogWarning($"[EtherealEnvironment] AudioLink 委托创建失败，禁用 AudioLink 通道: {e.Message}");
+                            Debug.LogWarning(
+                                $"[EtherealEnvironment] AudioLink 委托创建失败，禁用 AudioLink 通道: {e.Message}"
+                            );
                             audioLinkAvailable = false;
                             audioLinkCachedInstance = null;
                         }
                     }
                     if (audioLinkIsAvailableMethod == null)
                     {
-                        audioLinkIsAvailableMethod = audioLinkCachedType.GetMethod("AudioDataIsAvailable",
-                            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                        audioLinkIsAvailableMethod = audioLinkCachedType.GetMethod(
+                            "AudioDataIsAvailable",
+                            System.Reflection.BindingFlags.Public
+                                | System.Reflection.BindingFlags.Instance
+                        );
                     }
 
                     // 关键修复：启用 audioDataToggle 以允许 GPU Readback
                     // AudioLink 默认 audioDataToggle = false，导致 GetDataAtPixel() 返回空数据
-                    var audioDataToggleField = audioLinkCachedType.GetField("audioDataToggle",
-                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    var audioDataToggleField = audioLinkCachedType.GetField(
+                        "audioDataToggle",
+                        System.Reflection.BindingFlags.Public
+                            | System.Reflection.BindingFlags.NonPublic
+                            | System.Reflection.BindingFlags.Instance
+                    );
                     if (audioDataToggleField != null)
                     {
-                        bool currentValue = (bool)audioDataToggleField.GetValue(audioLinkCachedInstance);
+                        bool currentValue = (bool)
+                            audioDataToggleField.GetValue(audioLinkCachedInstance);
                         if (!currentValue)
                         {
                             // 尝试调用 EnableReadback() 方法
-                            var enableReadbackMethod = audioLinkCachedType.GetMethod("EnableReadback",
-                                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                            var enableReadbackMethod = audioLinkCachedType.GetMethod(
+                                "EnableReadback",
+                                System.Reflection.BindingFlags.Public
+                                    | System.Reflection.BindingFlags.Instance
+                            );
                             if (enableReadbackMethod != null)
                             {
                                 enableReadbackMethod.Invoke(audioLinkCachedInstance, null);
-                                Debug.Log("[EtherealEnvironment] 已启用 AudioLink 数据回读 (EnableReadback)");
+                                Debug.Log(
+                                    "[EtherealEnvironment] 已启用 AudioLink 数据回读 (EnableReadback)"
+                                );
                             }
                             else
                             {
                                 // 直接设置字段
                                 audioDataToggleField.SetValue(audioLinkCachedInstance, true);
-                                Debug.Log("[EtherealEnvironment] 已启用 AudioLink 数据回读 (直接设置 audioDataToggle)");
+                                Debug.Log(
+                                    "[EtherealEnvironment] 已启用 AudioLink 数据回读 (直接设置 audioDataToggle)"
+                                );
                             }
                         }
                     }
 
                     // 优化延迟：降低fade参数实现即时响应
                     // fadeLength 控制线性衰减拖尾，fadeExpFalloff 控制指数衰减
-                    var fadeLengthField = audioLinkCachedType.GetField("fadeLength",
-                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-                    var fadeExpFalloffField = audioLinkCachedType.GetField("fadeExpFalloff",
-                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                    var fadeLengthField = audioLinkCachedType.GetField(
+                        "fadeLength",
+                        System.Reflection.BindingFlags.Public
+                            | System.Reflection.BindingFlags.Instance
+                    );
+                    var fadeExpFalloffField = audioLinkCachedType.GetField(
+                        "fadeExpFalloff",
+                        System.Reflection.BindingFlags.Public
+                            | System.Reflection.BindingFlags.Instance
+                    );
                     if (fadeLengthField != null)
                     {
                         fadeLengthField.SetValue(audioLinkCachedInstance, 0.05f); // 从默认0.25降到0.05，大幅减少拖尾
@@ -430,7 +519,8 @@ namespace OsuVR
                     // 检查 AudioDataIsAvailable() 方法确认数据可用
                     if (audioLinkIsAvailableMethod != null)
                     {
-                        bool dataAvailable = (bool)audioLinkIsAvailableMethod.Invoke(audioLinkCachedInstance, null);
+                        bool dataAvailable = (bool)
+                            audioLinkIsAvailableMethod.Invoke(audioLinkCachedInstance, null);
                         if (dataAvailable)
                         {
                             audioLinkAvailable = true;
@@ -438,7 +528,9 @@ namespace OsuVR
                         }
                         else
                         {
-                            Debug.LogWarning("[EtherealEnvironment] ⚠️ AudioLink 数据回读尚未就绪，可能在下一帧生效");
+                            Debug.LogWarning(
+                                "[EtherealEnvironment] ⚠️ AudioLink 数据回读尚未就绪，可能在下一帧生效"
+                            );
                             // 仍然标记为可用，下一帧应该能工作
                             audioLinkAvailable = true;
                         }
@@ -455,13 +547,17 @@ namespace OsuVR
                     // AudioLink包存在但场景中没有AudioLink实例
                     audioLinkCachedInstance = null;
                     Debug.LogWarning("[EtherealEnvironment] ⚠️ AudioLink包已安装但场景中无实例！");
-                    Debug.LogWarning("[EtherealEnvironment] 请在GameScene中添加AudioLink预制体：Packages/com.llealloo.audiolink/Runtime/Prefabs/AudioLink.prefab");
+                    Debug.LogWarning(
+                        "[EtherealEnvironment] 请在GameScene中添加AudioLink预制体：Packages/com.llealloo.audiolink/Runtime/Prefabs/AudioLink.prefab"
+                    );
                 }
             }
 
             audioLinkAvailable = false;
             audioLinkCachedInstance = null;
-            Debug.Log("[EtherealEnvironment] 使用 AudioVisualizationManager 三频段数据作为fallback");
+            Debug.Log(
+                "[EtherealEnvironment] 使用 AudioVisualizationManager 三频段数据作为fallback"
+            );
         }
 
         private void FindRhythmGameManager()
@@ -494,12 +590,18 @@ namespace OsuVR
             SceneManager.activeSceneChanged -= OnActiveSceneChanged;
 
             // 释放运行时生成的材质与贴图（此前仅进程退出才回收）
-            Destroy(nebulaMaterial);      Destroy(particleMaterial);
-            Destroy(fallingStarMaterial); Destroy(bokehMaterial);
-            Destroy(crystalMaterial);     Destroy(ringMaterial);
-            Destroy(auroraMaterial);      Destroy(pulseMaterial);
-            Destroy(bubbleMaterial);      Destroy(mirrorFloorMaterial);
-            Destroy(spectrumBarMaterial); Destroy(mirrorFallbackMaterial);
+            Destroy(nebulaMaterial);
+            Destroy(particleMaterial);
+            Destroy(fallingStarMaterial);
+            Destroy(bokehMaterial);
+            Destroy(crystalMaterial);
+            Destroy(ringMaterial);
+            Destroy(auroraMaterial);
+            Destroy(pulseMaterial);
+            Destroy(bubbleMaterial);
+            Destroy(mirrorFloorMaterial);
+            Destroy(spectrumBarMaterial);
+            Destroy(mirrorFallbackMaterial);
 
             Destroy(glowTexture);
             Destroy(spectrumTexture);
@@ -565,11 +667,15 @@ namespace OsuVR
                         break;
                     case GamePhase.Playing:
                         main.maxParticles = Mathf.RoundToInt(baseFallingStarMaxParticles * 0.15f);
-                        emission.rateOverTime = new ParticleSystem.MinMaxCurve(Mathf.RoundToInt(baseFallingStarRate * 0.1f));
+                        emission.rateOverTime = new ParticleSystem.MinMaxCurve(
+                            Mathf.RoundToInt(baseFallingStarRate * 0.1f)
+                        );
                         break;
                     case GamePhase.Result:
                         main.maxParticles = Mathf.RoundToInt(baseFallingStarMaxParticles * 0.5f);
-                        emission.rateOverTime = new ParticleSystem.MinMaxCurve(Mathf.RoundToInt(baseFallingStarRate * 0.4f));
+                        emission.rateOverTime = new ParticleSystem.MinMaxCurve(
+                            Mathf.RoundToInt(baseFallingStarRate * 0.4f)
+                        );
                         break;
                 }
             }
@@ -583,18 +689,29 @@ namespace OsuVR
                 {
                     case GamePhase.Menu:
                         main.maxParticles = baseBokehMaxParticles;
-                        main.startSize = new ParticleSystem.MinMaxCurve(bokehMinSize, bokehMaxSizeMenu);
+                        main.startSize = new ParticleSystem.MinMaxCurve(
+                            bokehMinSize,
+                            bokehMaxSizeMenu
+                        );
                         emission.rateOverTime = new ParticleSystem.MinMaxCurve(bokehRateMenu);
                         break;
                     case GamePhase.Playing:
                         main.maxParticles = Mathf.RoundToInt(baseBokehMaxParticles * 0.6f);
-                        main.startSize = new ParticleSystem.MinMaxCurve(bokehMinSize, bokehMaxSizeGame);
+                        main.startSize = new ParticleSystem.MinMaxCurve(
+                            bokehMinSize,
+                            bokehMaxSizeGame
+                        );
                         emission.rateOverTime = new ParticleSystem.MinMaxCurve(bokehRateGame);
                         break;
                     case GamePhase.Result:
                         main.maxParticles = Mathf.RoundToInt(baseBokehMaxParticles * 0.8f);
-                        main.startSize = new ParticleSystem.MinMaxCurve(bokehMinSize, bokehMaxSizeMenu * 0.8f);
-                        emission.rateOverTime = new ParticleSystem.MinMaxCurve(Mathf.RoundToInt(bokehRateMenu * 0.6f));
+                        main.startSize = new ParticleSystem.MinMaxCurve(
+                            bokehMinSize,
+                            bokehMaxSizeMenu * 0.8f
+                        );
+                        emission.rateOverTime = new ParticleSystem.MinMaxCurve(
+                            Mathf.RoundToInt(bokehRateMenu * 0.6f)
+                        );
                         break;
                 }
             }
@@ -608,15 +725,21 @@ namespace OsuVR
                 {
                     case GamePhase.Menu:
                         main.maxParticles = ringParticleCount;
-                        emission.rateOverTime = new ParticleSystem.MinMaxCurve(Mathf.RoundToInt(ringParticleCount / 8f));
+                        emission.rateOverTime = new ParticleSystem.MinMaxCurve(
+                            Mathf.RoundToInt(ringParticleCount / 8f)
+                        );
                         break;
                     case GamePhase.Playing:
                         main.maxParticles = Mathf.RoundToInt(ringParticleCount * 0.1f);
-                        emission.rateOverTime = new ParticleSystem.MinMaxCurve(Mathf.RoundToInt(ringParticleCount / 40f));
+                        emission.rateOverTime = new ParticleSystem.MinMaxCurve(
+                            Mathf.RoundToInt(ringParticleCount / 40f)
+                        );
                         break;
                     case GamePhase.Result:
                         main.maxParticles = Mathf.RoundToInt(ringParticleCount * 0.5f);
-                        emission.rateOverTime = new ParticleSystem.MinMaxCurve(Mathf.RoundToInt(ringParticleCount / 16f));
+                        emission.rateOverTime = new ParticleSystem.MinMaxCurve(
+                            Mathf.RoundToInt(ringParticleCount / 16f)
+                        );
                         break;
                 }
             }
@@ -690,14 +813,14 @@ namespace OsuVR
             cachedStardustColorKeys = new GradientColorKey[]
             {
                 new GradientColorKey(Color.white, 0f),
-                new GradientColorKey(Color.white, 1f)
+                new GradientColorKey(Color.white, 1f),
             };
             cachedStardustAlphaKeys = new GradientAlphaKey[]
             {
                 new GradientAlphaKey(0f, 0f),
                 new GradientAlphaKey(stardustAlpha, 0.15f),
                 new GradientAlphaKey(stardustAlpha * 0.8f, 0.85f),
-                new GradientAlphaKey(0f, 1f)
+                new GradientAlphaKey(0f, 1f),
             };
             cachedStardustGrad = new Gradient();
             cachedStardustGrad.SetKeys(cachedStardustColorKeys, cachedStardustAlphaKeys);
@@ -732,13 +855,13 @@ namespace OsuVR
                 {
                     new GradientColorKey(a, 0f),
                     new GradientColorKey(b, 0.5f),
-                    new GradientColorKey(c, 1f)
+                    new GradientColorKey(c, 1f),
                 },
                 new GradientAlphaKey[]
                 {
                     new GradientAlphaKey(alpha, 0f),
                     new GradientAlphaKey(alpha * 1.2f, 0.5f),
-                    new GradientAlphaKey(alpha, 1f)
+                    new GradientAlphaKey(alpha, 1f),
                 }
             );
             return g;
@@ -771,10 +894,16 @@ namespace OsuVR
                     float glow = Mathf.Pow(1f - nd, 2.2f) * 0.35f;
                     float alpha = Mathf.Clamp01(core + glow);
                     float coreRatio = core / (alpha + 0.001f);
-                    glowTexture.SetPixel(x, y, new Color(
-                        Mathf.Lerp(0.7f, 1f, coreRatio),
-                        Mathf.Lerp(0.8f, 1f, coreRatio),
-                        1f, alpha));
+                    glowTexture.SetPixel(
+                        x,
+                        y,
+                        new Color(
+                            Mathf.Lerp(0.7f, 1f, coreRatio),
+                            Mathf.Lerp(0.8f, 1f, coreRatio),
+                            1f,
+                            alpha
+                        )
+                    );
                 }
             }
             glowTexture.Apply();
@@ -783,7 +912,12 @@ namespace OsuVR
             // 使用非正方形贴图：宽度窄，高度大
             int spectrumWidth = 64;
             int spectrumHeight = 256;
-            spectrumTexture = new Texture2D(spectrumWidth, spectrumHeight, TextureFormat.RGBA32, false);
+            spectrumTexture = new Texture2D(
+                spectrumWidth,
+                spectrumHeight,
+                TextureFormat.RGBA32,
+                false
+            );
             spectrumTexture.filterMode = FilterMode.Bilinear;
             float halfWidth = spectrumWidth * 0.5f;
 
@@ -810,15 +944,20 @@ namespace OsuVR
                     // RGB发光：中心偏白，边缘偏暖色/冷色（立体感）
                     // 水平位置影响色温：中心白色，左边缘偏暖橙，右边缘偏冷青
                     float hueShift = (x - halfWidth) / halfWidth; // -1到1
-                    float r = Mathf.Lerp(0.8f, 1f, coreRatio) + hueShift * 0.15f;  // 右侧偏青（r减少）
+                    float r = Mathf.Lerp(0.8f, 1f, coreRatio) + hueShift * 0.15f; // 右侧偏青（r减少）
                     float g = Mathf.Lerp(0.9f, 1f, coreRatio) - Mathf.Abs(hueShift) * 0.1f;
-                    float b = 1f - hueShift * 0.15f;  // 左侧偏橙（b减少）
+                    float b = 1f - hueShift * 0.15f; // 左侧偏橙（b减少）
 
-                    spectrumTexture.SetPixel(x, y, new Color(
-                        Mathf.Clamp01(r),
-                        Mathf.Clamp01(g),
-                        Mathf.Clamp01(b),
-                        Mathf.Clamp01(alpha * (0.6f + verticalBrightness * 0.4f))));
+                    spectrumTexture.SetPixel(
+                        x,
+                        y,
+                        new Color(
+                            Mathf.Clamp01(r),
+                            Mathf.Clamp01(g),
+                            Mathf.Clamp01(b),
+                            Mathf.Clamp01(alpha * (0.6f + verticalBrightness * 0.4f))
+                        )
+                    );
                 }
             }
             spectrumTexture.Apply();
@@ -855,7 +994,8 @@ namespace OsuVR
             }
             nebulaTexture.Apply();
 
-            Shader additiveShader = Shader.Find("Mobile/Particles/Additive")
+            Shader additiveShader =
+                Shader.Find("Mobile/Particles/Additive")
                 ?? Shader.Find("Legacy Shaders/Particles/Additive")
                 ?? Shader.Find("Particles/Standard Unlit");
 
@@ -865,31 +1005,67 @@ namespace OsuVR
                 return;
             }
 
-            nebulaMaterial = new Material(additiveShader) { enableInstancing = true, renderQueue = 1999 };
+            nebulaMaterial = new Material(additiveShader)
+            {
+                enableInstancing = true,
+                renderQueue = 1999,
+            };
             nebulaMaterial.SetTexture("_MainTex", nebulaTexture);
 
-            particleMaterial = new Material(additiveShader) { enableInstancing = true, renderQueue = 2000 };
+            particleMaterial = new Material(additiveShader)
+            {
+                enableInstancing = true,
+                renderQueue = 2000,
+            };
             particleMaterial.SetTexture("_MainTex", glowTexture);
 
-            fallingStarMaterial = new Material(additiveShader) { enableInstancing = true, renderQueue = 2000 };
+            fallingStarMaterial = new Material(additiveShader)
+            {
+                enableInstancing = true,
+                renderQueue = 2000,
+            };
             fallingStarMaterial.SetTexture("_MainTex", glowTexture);
 
-            bokehMaterial = new Material(additiveShader) { enableInstancing = true, renderQueue = 2001 };
+            bokehMaterial = new Material(additiveShader)
+            {
+                enableInstancing = true,
+                renderQueue = 2001,
+            };
             bokehMaterial.SetTexture("_MainTex", bokehTexture);
 
-            crystalMaterial = new Material(additiveShader) { enableInstancing = true, renderQueue = 2002 };
+            crystalMaterial = new Material(additiveShader)
+            {
+                enableInstancing = true,
+                renderQueue = 2002,
+            };
             crystalMaterial.SetTexture("_MainTex", glowTexture);
 
-            ringMaterial = new Material(additiveShader) { enableInstancing = true, renderQueue = 2003 };
+            ringMaterial = new Material(additiveShader)
+            {
+                enableInstancing = true,
+                renderQueue = 2003,
+            };
             ringMaterial.SetTexture("_MainTex", glowTexture);
 
-            auroraMaterial = new Material(additiveShader) { enableInstancing = true, renderQueue = 1998 };
+            auroraMaterial = new Material(additiveShader)
+            {
+                enableInstancing = true,
+                renderQueue = 1998,
+            };
             auroraMaterial.SetTexture("_MainTex", nebulaTexture);
 
-            pulseMaterial = new Material(additiveShader) { enableInstancing = true, renderQueue = 2004 };
+            pulseMaterial = new Material(additiveShader)
+            {
+                enableInstancing = true,
+                renderQueue = 2004,
+            };
             pulseMaterial.SetTexture("_MainTex", glowTexture);
 
-            bubbleMaterial = new Material(additiveShader) { enableInstancing = true, renderQueue = 2001 };
+            bubbleMaterial = new Material(additiveShader)
+            {
+                enableInstancing = true,
+                renderQueue = 2001,
+            };
             bubbleMaterial.SetTexture("_MainTex", glowTexture);
 
             // 镜面地板材质（URP Lit — 深邃空灵镜面）
@@ -898,15 +1074,24 @@ namespace OsuVR
             {
                 mirrorFloorMaterial = new Material(mirrorShader);
                 // 透明模式
-                mirrorFloorMaterial.SetFloat("_Surface", 1.0f); // Transparent
-                mirrorFloorMaterial.SetFloat("_Blend", 0.0f);    // Alpha
-                mirrorFloorMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                mirrorFloorMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                mirrorFloorMaterial.SetFloat("_Surface", 1.0f); // 透明模式（Transparent）
+                mirrorFloorMaterial.SetFloat("_Blend", 0.0f); // Alpha 混合模式
+                mirrorFloorMaterial.SetInt(
+                    "_SrcBlend",
+                    (int)UnityEngine.Rendering.BlendMode.SrcAlpha
+                );
+                mirrorFloorMaterial.SetInt(
+                    "_DstBlend",
+                    (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha
+                );
                 mirrorFloorMaterial.SetInt("_ZWrite", 0);
                 mirrorFloorMaterial.renderQueue = 3000;
 
                 // 深邃空灵镜面效果
-                mirrorFloorMaterial.SetColor("_BaseColor", new Color(0.02f, 0.02f, 0.03f, mirrorFloorAlpha));
+                mirrorFloorMaterial.SetColor(
+                    "_BaseColor",
+                    new Color(0.02f, 0.02f, 0.03f, mirrorFloorAlpha)
+                );
                 mirrorFloorMaterial.SetFloat("_Metallic", 0.8f);
                 mirrorFloorMaterial.SetFloat("_Smoothness", 0.95f);
 
@@ -935,7 +1120,7 @@ namespace OsuVR
                 new Vector3(-halfSize, 0, -halfSize),
                 new Vector3(halfSize, 0, -halfSize),
                 new Vector3(halfSize, 0, halfSize),
-                new Vector3(-halfSize, 0, halfSize)
+                new Vector3(-halfSize, 0, halfSize),
             };
             int[] triangles = new int[] { 0, 2, 1, 0, 3, 2 };
             Vector2[] uv = new Vector2[]
@@ -943,7 +1128,7 @@ namespace OsuVR
                 new Vector2(0, 0),
                 new Vector2(1, 0),
                 new Vector2(1, 1),
-                new Vector2(0, 1)
+                new Vector2(0, 1),
             };
 
             mesh.vertices = vertices;
@@ -1011,13 +1196,17 @@ namespace OsuVR
             colorOL.enabled = true;
             Gradient g = new Gradient();
             g.SetKeys(
-                new GradientColorKey[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new GradientColorKey[]
+                {
+                    new GradientColorKey(Color.white, 0f),
+                    new GradientColorKey(Color.white, 1f),
+                },
                 new GradientAlphaKey[]
                 {
                     new GradientAlphaKey(0f, 0f),
                     new GradientAlphaKey(nebulaAlpha * 1.5f, 0.15f),
                     new GradientAlphaKey(nebulaAlpha * 1.2f, 0.85f),
-                    new GradientAlphaKey(0f, 1f)
+                    new GradientAlphaKey(0f, 1f),
                 }
             );
             colorOL.color = g;
@@ -1040,7 +1229,10 @@ namespace OsuVR
             stardustPS = go.AddComponent<ParticleSystem>();
             var main = stardustPS.main;
             main.maxParticles = stardustMaxParticles;
-            main.startLifetime = new ParticleSystem.MinMaxCurve(stardustMinLifetime, stardustMaxLifetime);
+            main.startLifetime = new ParticleSystem.MinMaxCurve(
+                stardustMinLifetime,
+                stardustMaxLifetime
+            );
             main.startSpeed = new ParticleSystem.MinMaxCurve(0.01f, 0.05f);
             main.startSize = stardustSize;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
@@ -1064,13 +1256,17 @@ namespace OsuVR
             colorOL.enabled = true;
             Gradient stardustGrad = new Gradient();
             stardustGrad.SetKeys(
-                new GradientColorKey[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new GradientColorKey[]
+                {
+                    new GradientColorKey(Color.white, 0f),
+                    new GradientColorKey(Color.white, 1f),
+                },
                 new GradientAlphaKey[]
                 {
                     new GradientAlphaKey(0f, 0f),
                     new GradientAlphaKey(stardustAlpha, 0.15f),
                     new GradientAlphaKey(stardustAlpha * 0.8f, 0.85f),
-                    new GradientAlphaKey(0f, 1f)
+                    new GradientAlphaKey(0f, 1f),
                 }
             );
             colorOL.color = stardustGrad;
@@ -1116,7 +1312,10 @@ namespace OsuVR
             // 向下飘落 + 微弱横向飘动
             var velocity = fallingStarPS.velocityOverLifetime;
             velocity.enabled = true;
-            velocity.y = new ParticleSystem.MinMaxCurve(-fallingStarFallSpeed * 0.7f, -fallingStarFallSpeed);
+            velocity.y = new ParticleSystem.MinMaxCurve(
+                -fallingStarFallSpeed * 0.7f,
+                -fallingStarFallSpeed
+            );
             velocity.x = new ParticleSystem.MinMaxCurve(-0.1f, 0.1f);
             velocity.z = new ParticleSystem.MinMaxCurve(-0.1f, 0.1f);
             velocity.space = ParticleSystemSimulationSpace.World;
@@ -1141,13 +1340,17 @@ namespace OsuVR
             colorOL.enabled = true;
             Gradient fallGrad = new Gradient();
             fallGrad.SetKeys(
-                new GradientColorKey[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new GradientColorKey[]
+                {
+                    new GradientColorKey(Color.white, 0f),
+                    new GradientColorKey(Color.white, 1f),
+                },
                 new GradientAlphaKey[]
                 {
                     new GradientAlphaKey(0f, 0f),
                     new GradientAlphaKey(fallingStarAlpha, 0.1f),
                     new GradientAlphaKey(fallingStarAlpha * 0.8f, 0.7f),
-                    new GradientAlphaKey(0f, 1f)
+                    new GradientAlphaKey(0f, 1f),
                 }
             );
             colorOL.color = fallGrad;
@@ -1211,13 +1414,17 @@ namespace OsuVR
             colorOL.enabled = true;
             Gradient alphaGrad = new Gradient();
             alphaGrad.SetKeys(
-                new GradientColorKey[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new GradientColorKey[]
+                {
+                    new GradientColorKey(Color.white, 0f),
+                    new GradientColorKey(Color.white, 1f),
+                },
                 new GradientAlphaKey[]
                 {
                     new GradientAlphaKey(0f, 0f),
                     new GradientAlphaKey(0.35f, 0.2f),
                     new GradientAlphaKey(0.3f, 0.6f),
-                    new GradientAlphaKey(0f, 1f)
+                    new GradientAlphaKey(0f, 1f),
                 }
             );
             colorOL.color = alphaGrad;
@@ -1250,7 +1457,10 @@ namespace OsuVR
             main.maxParticles = crystalsMaxParticles;
             main.startLifetime = 25f;
             main.startSpeed = new ParticleSystem.MinMaxCurve(0.02f, 0.05f);
-            main.startSize = new ParticleSystem.MinMaxCurve(crystalsSize * 0.8f, crystalsSize * 1.2f);
+            main.startSize = new ParticleSystem.MinMaxCurve(
+                crystalsSize * 0.8f,
+                crystalsSize * 1.2f
+            );
             main.startRotation3D = true;
 
             var shape = crystalsPS.shape;
@@ -1271,13 +1481,17 @@ namespace OsuVR
             colorOL.enabled = true;
             Gradient crystalGrad = new Gradient();
             crystalGrad.SetKeys(
-                new GradientColorKey[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new GradientColorKey[]
+                {
+                    new GradientColorKey(Color.white, 0f),
+                    new GradientColorKey(Color.white, 1f),
+                },
                 new GradientAlphaKey[]
                 {
                     new GradientAlphaKey(0f, 0f),
                     new GradientAlphaKey(0.25f, 0.15f),
                     new GradientAlphaKey(0.2f, 0.85f),
-                    new GradientAlphaKey(0f, 1f)
+                    new GradientAlphaKey(0f, 1f),
                 }
             );
             colorOL.color = crystalGrad;
@@ -1338,7 +1552,10 @@ namespace OsuVR
             velocity.y = new ParticleSystem.MinMaxCurve(0f, 0f);
             velocity.z = new ParticleSystem.MinMaxCurve(0f, 0f);
             velocity.orbitalX = new ParticleSystem.MinMaxCurve(0f, 0f);
-            velocity.orbitalY = new ParticleSystem.MinMaxCurve(ringRotSpeed * 0.9f, ringRotSpeed * 1.1f);
+            velocity.orbitalY = new ParticleSystem.MinMaxCurve(
+                ringRotSpeed * 0.9f,
+                ringRotSpeed * 1.1f
+            );
             velocity.orbitalZ = new ParticleSystem.MinMaxCurve(0f, 0f);
             velocity.space = ParticleSystemSimulationSpace.Local;
 
@@ -1355,13 +1572,17 @@ namespace OsuVR
             colorOL.enabled = true;
             Gradient ringGrad = new Gradient();
             ringGrad.SetKeys(
-                new GradientColorKey[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new GradientColorKey[]
+                {
+                    new GradientColorKey(Color.white, 0f),
+                    new GradientColorKey(Color.white, 1f),
+                },
                 new GradientAlphaKey[]
                 {
                     new GradientAlphaKey(0f, 0f),
                     new GradientAlphaKey(ringParticleAlpha, 0.15f),
                     new GradientAlphaKey(ringParticleAlpha * 0.7f, 0.85f),
-                    new GradientAlphaKey(0f, 1f)
+                    new GradientAlphaKey(0f, 1f),
                 }
             );
             colorOL.color = ringGrad;
@@ -1446,13 +1667,17 @@ namespace OsuVR
             colorOL.enabled = true;
             Gradient auroraGrad = new Gradient();
             auroraGrad.SetKeys(
-                new GradientColorKey[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new GradientColorKey[]
+                {
+                    new GradientColorKey(Color.white, 0f),
+                    new GradientColorKey(Color.white, 1f),
+                },
                 new GradientAlphaKey[]
                 {
                     new GradientAlphaKey(0f, 0f),
                     new GradientAlphaKey(auroraAlpha * 1.5f, 0.15f),
                     new GradientAlphaKey(auroraAlpha * 1.2f, 0.85f),
-                    new GradientAlphaKey(0f, 1f)
+                    new GradientAlphaKey(0f, 1f),
                 }
             );
             colorOL.color = auroraGrad;
@@ -1518,13 +1743,17 @@ namespace OsuVR
             colorOL.enabled = true;
             Gradient pulseGrad = new Gradient();
             pulseGrad.SetKeys(
-                new GradientColorKey[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new GradientColorKey[]
+                {
+                    new GradientColorKey(Color.white, 0f),
+                    new GradientColorKey(Color.white, 1f),
+                },
                 new GradientAlphaKey[]
                 {
                     new GradientAlphaKey(pulseRingAlpha, 0f),
                     new GradientAlphaKey(pulseRingAlpha * 0.5f, 0.3f),
                     new GradientAlphaKey(pulseRingAlpha * 0.15f, 0.7f),
-                    new GradientAlphaKey(0f, 1f)
+                    new GradientAlphaKey(0f, 1f),
                 }
             );
             colorOL.color = pulseGrad;
@@ -1567,7 +1796,10 @@ namespace OsuVR
             // 缓慢上升 + 微弱漂移（全部 RandomBetweenTwoConstants）
             var velocity = bubblePS.velocityOverLifetime;
             velocity.enabled = true;
-            velocity.y = new ParticleSystem.MinMaxCurve(bubbleRiseSpeed * 0.7f, bubbleRiseSpeed * 1.3f);
+            velocity.y = new ParticleSystem.MinMaxCurve(
+                bubbleRiseSpeed * 0.7f,
+                bubbleRiseSpeed * 1.3f
+            );
             velocity.x = new ParticleSystem.MinMaxCurve(-0.08f, 0.08f);
             velocity.z = new ParticleSystem.MinMaxCurve(-0.08f, 0.08f);
             velocity.space = ParticleSystemSimulationSpace.World;
@@ -1595,13 +1827,17 @@ namespace OsuVR
             colorOL.enabled = true;
             Gradient bubbleGrad = new Gradient();
             bubbleGrad.SetKeys(
-                new GradientColorKey[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new GradientColorKey[]
+                {
+                    new GradientColorKey(Color.white, 0f),
+                    new GradientColorKey(Color.white, 1f),
+                },
                 new GradientAlphaKey[]
                 {
                     new GradientAlphaKey(0f, 0f),
                     new GradientAlphaKey(bubbleAlpha, 0.15f),
                     new GradientAlphaKey(bubbleAlpha * 0.8f, 0.8f),
-                    new GradientAlphaKey(0f, 1f)
+                    new GradientAlphaKey(0f, 1f),
                 }
             );
             colorOL.color = bubbleGrad;
@@ -1616,13 +1852,18 @@ namespace OsuVR
         void CreateSpectrumBarsLayer()
         {
             // 创建频谱材质
-            Shader additiveShader = Shader.Find("Mobile/Particles/Additive")
+            Shader additiveShader =
+                Shader.Find("Mobile/Particles/Additive")
                 ?? Shader.Find("Legacy Shaders/Particles/Additive")
                 ?? Shader.Find("Particles/Standard Unlit");
 
             if (additiveShader != null)
             {
-                spectrumBarMaterial = new Material(additiveShader) { enableInstancing = true, renderQueue = 2005 };
+                spectrumBarMaterial = new Material(additiveShader)
+                {
+                    enableInstancing = true,
+                    renderQueue = 2005,
+                };
                 spectrumBarMaterial.SetTexture("_MainTex", spectrumTexture); // 使用高清频谱贴图
             }
 
@@ -1692,7 +1933,8 @@ namespace OsuVR
         // ---- 两侧频谱粒子更新 ----
         private void UpdateSpectrumBars()
         {
-            if (spectrumLeftPS == null || spectrumRightPS == null) return;
+            if (spectrumLeftPS == null || spectrumRightPS == null)
+                return;
 
             // 使用ParticleSystem.Particle数组更新位置、大小和颜色
             UpdateSpectrumParticles(spectrumLeftPS, true);
@@ -1705,7 +1947,8 @@ namespace OsuVR
         private void UpdateSpectrumParticles(ParticleSystem ps, bool isLeft)
         {
             int count = ps.particleCount;
-            if (count == 0) return;
+            if (count == 0)
+                return;
 
             EnsureSpectrumParticleBuffer(count);
             count = ps.GetParticles(spectrumParticleBuffer);
@@ -1749,7 +1992,8 @@ namespace OsuVR
                     color.g = Mathf.Min(1f, color.g * flashBoost);
                     color.b = Mathf.Min(1f, color.b * flashBoost);
                 }
-                color.a = spectrumBarAlpha * (0.7f + spectrumBarHeightsSmoothed[bar] * 0.3f) * flashBoost;
+                color.a =
+                    spectrumBarAlpha * (0.7f + spectrumBarHeightsSmoothed[bar] * 0.3f) * flashBoost;
                 spectrumParticleBuffer[bar].startColor = color;
 
                 modified = true;
@@ -1766,7 +2010,9 @@ namespace OsuVR
             if (spectrumParticleBuffer == null || spectrumParticleBufferCapacity < count)
             {
                 spectrumParticleBufferCapacity = Mathf.Max(count + 32, 256);
-                spectrumParticleBuffer = new ParticleSystem.Particle[spectrumParticleBufferCapacity];
+                spectrumParticleBuffer = new ParticleSystem.Particle[
+                    spectrumParticleBufferCapacity
+                ];
             }
         }
 
@@ -1877,10 +2123,12 @@ namespace OsuVR
 
         public void TriggerKickEvent()
         {
-            if (crystalsPS == null) return;
+            if (crystalsPS == null)
+                return;
 
             int count = crystalsPS.particleCount;
-            if (count == 0) return;
+            if (count == 0)
+                return;
 
             EnsureCrystalBuffer(count);
             count = crystalsPS.GetParticles(crystalBuffer);
@@ -1908,9 +2156,9 @@ namespace OsuVR
             UpdateKiaiState();
             UpdateBeatTiming();
             UpdateBeatPulseDecay();
-            UpdateSpectrumFromAudioLink();  // 频谱数据更新
-            UpdateSpectrumBars();           // 两侧频谱粒子更新
-            UpdateAudioResponse();          // 已包含晶体频谱响应
+            UpdateSpectrumFromAudioLink(); // 频谱数据更新
+            UpdateSpectrumBars(); // 两侧频谱粒子更新
+            UpdateAudioResponse(); // 已包含晶体频谱响应
             UpdateBackgroundColor();
 
             // 降低近距离粒子密度：每3帧执行一次（~26k粒子遍历开销大）
@@ -1928,8 +2176,17 @@ namespace OsuVR
         private int nearbyParticleBufferCapacity = 0;
 
         // 近头粒子原始尺寸/颜色记录（防止复利缩小：按原始值计算，离开范围恢复）
-        private struct NearbyParticleOriginal { public float Size; public Color Color; }
-        private readonly Dictionary<ParticleSystem, Dictionary<uint, NearbyParticleOriginal>> _nearbyOriginals = new Dictionary<ParticleSystem, Dictionary<uint, NearbyParticleOriginal>>();
+        private struct NearbyParticleOriginal
+        {
+            public float Size;
+            public Color Color;
+        }
+
+        private readonly Dictionary<
+            ParticleSystem,
+            Dictionary<uint, NearbyParticleOriginal>
+        > _nearbyOriginals =
+            new Dictionary<ParticleSystem, Dictionary<uint, NearbyParticleOriginal>>();
         private readonly HashSet<uint> _nearbySeenSeeds = new HashSet<uint>();
         private readonly List<uint> _nearbyStaleSeeds = new List<uint>();
 
@@ -1938,8 +2195,10 @@ namespace OsuVR
         /// </summary>
         private void ReduceNearbyParticles()
         {
-            if (_cachedCam == null) _cachedCam = Camera.main;
-            if (_cachedCam == null) return;
+            if (_cachedCam == null)
+                _cachedCam = Camera.main;
+            if (_cachedCam == null)
+                return;
 
             Vector3 playerPos = _cachedCam.transform.position;
             float nearbyRadius = 0.5f;
@@ -1958,12 +2217,19 @@ namespace OsuVR
             ReduceParticlesInRange(crystalsPS, playerPos, nearbyRadius, reduceFactor);
         }
 
-        private void ReduceParticlesInRange(ParticleSystem ps, Vector3 center, float radius, float reduceFactor)
+        private void ReduceParticlesInRange(
+            ParticleSystem ps,
+            Vector3 center,
+            float radius,
+            float reduceFactor
+        )
         {
-            if (ps == null) return;
+            if (ps == null)
+                return;
 
             int count = ps.particleCount;
-            if (count == 0) return;
+            if (count == 0)
+                return;
 
             if (!_nearbyOriginals.TryGetValue(ps, out var originals))
             {
@@ -1983,9 +2249,10 @@ namespace OsuVR
                 uint seed = nearbyParticleBuffer[i].randomSeed;
                 _nearbySeenSeeds.Add(seed);
 
-                Vector3 particlePos = ps.main.simulationSpace == ParticleSystemSimulationSpace.World
-                    ? nearbyParticleBuffer[i].position
-                    : ps.transform.TransformPoint(nearbyParticleBuffer[i].position);
+                Vector3 particlePos =
+                    ps.main.simulationSpace == ParticleSystemSimulationSpace.World
+                        ? nearbyParticleBuffer[i].position
+                        : ps.transform.TransformPoint(nearbyParticleBuffer[i].position);
 
                 float distSqr = (particlePos - center).sqrMagnitude;
 
@@ -2001,7 +2268,7 @@ namespace OsuVR
                         orig = new NearbyParticleOriginal
                         {
                             Size = nearbyParticleBuffer[i].startSize,
-                            Color = nearbyParticleBuffer[i].startColor
+                            Color = nearbyParticleBuffer[i].startColor,
                         };
                         originals[seed] = orig;
                     }
@@ -2027,7 +2294,8 @@ namespace OsuVR
             {
                 _nearbyStaleSeeds.Clear();
                 foreach (uint k in originals.Keys)
-                    if (!_nearbySeenSeeds.Contains(k)) _nearbyStaleSeeds.Add(k);
+                    if (!_nearbySeenSeeds.Contains(k))
+                        _nearbyStaleSeeds.Add(k);
                 for (int i = 0; i < _nearbyStaleSeeds.Count; i++)
                     originals.Remove(_nearbyStaleSeeds[i]);
             }
@@ -2098,7 +2366,11 @@ namespace OsuVR
             if (spectrumBarHeights != null)
                 System.Array.Clear(spectrumBarHeights, 0, spectrumBarHeights.Length);
             if (spectrumBarHeightsSmoothed != null)
-                System.Array.Clear(spectrumBarHeightsSmoothed, 0, spectrumBarHeightsSmoothed.Length);
+                System.Array.Clear(
+                    spectrumBarHeightsSmoothed,
+                    0,
+                    spectrumBarHeightsSmoothed.Length
+                );
 
             Shader.SetGlobalFloat("_Global_Audio_Bass", 0f);
             Shader.SetGlobalFloat("_Global_Audio_Mid", 0f);
@@ -2129,7 +2401,9 @@ namespace OsuVR
 
             float dt = Time.deltaTime;
             // 即时响应模式：使用更高的平滑因子（接近1），几乎无延迟
-            float smoothFactor = instantResponseMode ? instantSmoothFactor : (1f - Mathf.Exp(-spectrumSmoothSpeed * dt));
+            float smoothFactor = instantResponseMode
+                ? instantSmoothFactor
+                : (1f - Mathf.Exp(-spectrumSmoothSpeed * dt));
 
             if (audioLinkAvailable && audioLinkCachedInstance != null)
             {
@@ -2139,7 +2413,8 @@ namespace OsuVR
                     // 先检查数据是否可用（AudioDataIsAvailable）
                     if (audioLinkIsAvailableMethod != null)
                     {
-                        bool dataAvailable = (bool)audioLinkIsAvailableMethod.Invoke(audioLinkCachedInstance, null);
+                        bool dataAvailable = (bool)
+                            audioLinkIsAvailableMethod.Invoke(audioLinkCachedInstance, null);
                         if (!dataAvailable)
                         {
                             // 数据不可用：给 1 秒宽限（readback 启动延迟），超时降级到 AVM 三频段，
@@ -2149,7 +2424,9 @@ namespace OsuVR
                             {
                                 audioLinkAvailable = false;
                                 audioLinkCachedInstance = null;
-                                Debug.LogWarning("[EtherealEnvironment] AudioLink 数据持续不可用，降级到 AVM 三频段");
+                                Debug.LogWarning(
+                                    "[EtherealEnvironment] AudioLink 数据持续不可用，降级到 AVM 三频段"
+                                );
                             }
                             return;
                         }
@@ -2180,7 +2457,11 @@ namespace OsuVR
                             spectrumBandValues[band] = validCount > 0 ? sum / validCount : 0f;
                             // 应用增益和非线性放大
                             spectrumBandValues[band] = ApplySpectrumGain(spectrumBandValues[band]);
-                            spectrumBandSmoothed[band] = Mathf.Lerp(spectrumBandSmoothed[band], spectrumBandValues[band], smoothFactor);
+                            spectrumBandSmoothed[band] = Mathf.Lerp(
+                                spectrumBandSmoothed[band],
+                                spectrumBandValues[band],
+                                smoothFactor
+                            );
                         }
 
                         // 同时更新频谱高度（连续曲线映射，无区域断层）
@@ -2207,7 +2488,7 @@ namespace OsuVR
                                 // 中低频段：5%-17.5%粒子 → bin 16-35
                                 float t = (linearPosition - 0.05f) / 0.125f;
                                 // 使用三次曲线平滑过渡
-                                float curveT = t * t * (3f - 2f * t); // smoothstep
+                                float curveT = t * t * (3f - 2f * t); // 平滑插值（smoothstep）
                                 binFloat = 16f + 20f * curveT; // 结束时bin=36
                             }
                             else if (linearPosition < 0.425f)
@@ -2257,7 +2538,11 @@ namespace OsuVR
                                 rawValue = Mathf.Lerp(valueCenter, valueLeft, t);
                                 // 加入平滑曲线修正
                                 float interpSmooth = 0.5f * (1f - Mathf.Cos(t * Mathf.PI));
-                                rawValue = Mathf.Lerp(Mathf.Lerp(valueCenter, valueLeft, t), rawValue, interpSmooth);
+                                rawValue = Mathf.Lerp(
+                                    Mathf.Lerp(valueCenter, valueLeft, t),
+                                    rawValue,
+                                    interpSmooth
+                                );
                             }
                             else
                             {
@@ -2265,11 +2550,22 @@ namespace OsuVR
                                 float t = interpT - 0.5f; // 0-0.5
                                 rawValue = Mathf.Lerp(valueCenter, valueRight, t * 2f);
                                 float interpSmooth = 0.5f * (1f - Mathf.Cos(t * 2f * Mathf.PI));
-                                rawValue = Mathf.Lerp(Mathf.Lerp(valueCenter, valueRight, t * 2f), rawValue, interpSmooth);
+                                rawValue = Mathf.Lerp(
+                                    Mathf.Lerp(valueCenter, valueRight, t * 2f),
+                                    rawValue,
+                                    interpSmooth
+                                );
                             }
 
-                            spectrumBarHeights[bar] = ApplySpectrumGainWithBassBoost(rawValue, bassPosition);
-                            spectrumBarHeightsSmoothed[bar] = Mathf.Lerp(spectrumBarHeightsSmoothed[bar], spectrumBarHeights[bar], smoothFactor);
+                            spectrumBarHeights[bar] = ApplySpectrumGainWithBassBoost(
+                                rawValue,
+                                bassPosition
+                            );
+                            spectrumBarHeightsSmoothed[bar] = Mathf.Lerp(
+                                spectrumBarHeightsSmoothed[bar],
+                                spectrumBarHeights[bar],
+                                smoothFactor
+                            );
                         }
                     }
                 }
@@ -2340,7 +2636,7 @@ namespace OsuVR
                 }
             }
         }
-        
+
         // =========================================================
         // AudioLink HSV to RGB 颜色映射 (简化版)
         // =========================================================
@@ -2360,17 +2656,43 @@ namespace OsuVR
             float x = c * (1 - Mathf.Abs((hue * 6) % 2 - 1));
             float m = value - c;
 
-            float r = 0, g = 0, b = 0;
+            float r = 0,
+                g = 0,
+                b = 0;
             int hIndex = Mathf.FloorToInt(hue * 6) % 6;
 
             switch (hIndex)
             {
-                case 0: r = c; g = x; b = 0; break;
-                case 1: r = x; g = c; b = 0; break;
-                case 2: r = 0; g = c; b = x; break;
-                case 3: r = 0; g = x; b = c; break;
-                case 4: r = x; g = 0; b = c; break;
-                case 5: r = c; g = 0; b = x; break;
+                case 0:
+                    r = c;
+                    g = x;
+                    b = 0;
+                    break;
+                case 1:
+                    r = x;
+                    g = c;
+                    b = 0;
+                    break;
+                case 2:
+                    r = 0;
+                    g = c;
+                    b = x;
+                    break;
+                case 3:
+                    r = 0;
+                    g = x;
+                    b = c;
+                    break;
+                case 4:
+                    r = x;
+                    g = 0;
+                    b = c;
+                    break;
+                case 5:
+                    r = c;
+                    g = 0;
+                    b = x;
+                    break;
             }
 
             return new Color(r + m, g + m, b + m, spectrumBarAlpha * intensity);
@@ -2395,17 +2717,43 @@ namespace OsuVR
             float x = c * (1 - Mathf.Abs((hue * 6) % 2 - 1));
             float m = value - c;
 
-            float r = 0, g = 0, b = 0;
+            float r = 0,
+                g = 0,
+                b = 0;
             int hIndex = Mathf.FloorToInt(hue * 6) % 6;
 
             switch (hIndex)
             {
-                case 0: r = c; g = x; b = 0; break;
-                case 1: r = x; g = c; b = 0; break;
-                case 2: r = 0; g = c; b = x; break;
-                case 3: r = 0; g = x; b = c; break;
-                case 4: r = x; g = 0; b = c; break;
-                case 5: r = c; g = 0; b = x; break;
+                case 0:
+                    r = c;
+                    g = x;
+                    b = 0;
+                    break;
+                case 1:
+                    r = x;
+                    g = c;
+                    b = 0;
+                    break;
+                case 2:
+                    r = 0;
+                    g = c;
+                    b = x;
+                    break;
+                case 3:
+                    r = 0;
+                    g = x;
+                    b = c;
+                    break;
+                case 4:
+                    r = x;
+                    g = 0;
+                    b = c;
+                    break;
+                case 5:
+                    r = c;
+                    g = 0;
+                    b = x;
+                    break;
             }
 
             // 添加RGB发光层：高强度时整体亮度提升
@@ -2429,7 +2777,11 @@ namespace OsuVR
             double currentTimeMs = rhythmGameManager.currentMusicTimeMs;
             Beatmap beatmap = rhythmGameManager.GetCurrentBeatmap();
 
-            if (beatmap == null || beatmap.ControlPoints == null || beatmap.ControlPoints.Timing.Count == 0)
+            if (
+                beatmap == null
+                || beatmap.ControlPoints == null
+                || beatmap.ControlPoints.Timing.Count == 0
+            )
                 return;
 
             // 谱面引用变化时重置
@@ -2471,22 +2823,31 @@ namespace OsuVR
                 {
                     // burst 数量在 Playing 时由 maxParticles 限制
                     int burstCount = isKiaiActive ? pulseBurstCountMenu : pulseBurstCountGame;
-                    if (currentPhase == GamePhase.Menu) burstCount = pulseBurstCountMenu;
-                    else if (currentPhase == GamePhase.Result) burstCount = pulseBurstCountResult;
+                    if (currentPhase == GamePhase.Menu)
+                        burstCount = pulseBurstCountMenu;
+                    else if (currentPhase == GamePhase.Result)
+                        burstCount = pulseBurstCountResult;
                     pulseRingPS.Emit(burstCount);
                 }
 
                 nextBeatTimeMs += currentMsPerBeat;
-                if (tpIndex + 1 < timingPoints.Count && nextBeatTimeMs >= timingPoints[tpIndex + 1].Time)
+                if (
+                    tpIndex + 1 < timingPoints.Count
+                    && nextBeatTimeMs >= timingPoints[tpIndex + 1].Time
+                )
                 {
                     currentTimingPointIndex = -1;
                 }
             }
         }
 
-        private static int FindTimingPointIndex(System.Collections.Generic.List<TimingPoint> timingPoints, double time)
+        private static int FindTimingPointIndex(
+            System.Collections.Generic.List<TimingPoint> timingPoints,
+            double time
+        )
         {
-            int lo = 0, hi = timingPoints.Count - 1;
+            int lo = 0,
+                hi = timingPoints.Count - 1;
             int result = 0;
             while (lo <= hi)
             {
@@ -2544,30 +2905,40 @@ namespace OsuVR
         /// </summary>
         private void UpdateBackgroundColor()
         {
-            if (_cachedCam == null) _cachedCam = Camera.main;
-            if (_cachedCam == null) return;
+            if (_cachedCam == null)
+                _cachedCam = Camera.main;
+            if (_cachedCam == null)
+                return;
 
             Color current = _cachedCam.backgroundColor;
             if (current != currentBackgroundColor)
             {
-                _cachedCam.backgroundColor = Color.Lerp(current, currentBackgroundColor, Time.deltaTime * 3f);
+                _cachedCam.backgroundColor = Color.Lerp(
+                    current,
+                    currentBackgroundColor,
+                    Time.deltaTime * 3f
+                );
             }
         }
 
         private void UpdateAudioResponse()
         {
             var audioManager = AudioVisualizationManager.Instance;
-            if (audioManager == null) return;
+            if (audioManager == null)
+                return;
 
             float dt = Time.deltaTime;
             float lerpFactor = 1f - Mathf.Exp(-audioResponseSmooth * dt);
 
             // 使用8频段数据（如果可用）或三频段数据；数组长度按序列化 spectrumBands 分配，需防越界
-            float Band(int i) => (spectrumBandSmoothed != null && i < spectrumBandSmoothed.Length) ? spectrumBandSmoothed[i] : 0f;
-            float bass = Band(0) + Band(1); // Band 0-1: Bass
-            float lowMid = Band(2) + Band(3); // Band 2-3: LowMid
-            float highMid = Band(4) + Band(5); // Band 4-5: HighMid
-            float treble = Band(6) + Band(7); // Band 6-7: Treble
+            float Band(int i) =>
+                (spectrumBandSmoothed != null && i < spectrumBandSmoothed.Length)
+                    ? spectrumBandSmoothed[i]
+                    : 0f;
+            float bass = Band(0) + Band(1); // 频段 0-1：低频（Bass）
+            float lowMid = Band(2) + Band(3); // 频段 2-3：中低频（LowMid）
+            float highMid = Band(4) + Band(5); // 频段 4-5：中高频（HighMid）
+            float treble = Band(6) + Band(7); // 频段 6-7：高频（Treble）
 
             // 如果AudioLink不可用，使用AudioVisualizationManager的数据
             if (!audioLinkAvailable)
@@ -2599,14 +2970,19 @@ namespace OsuVR
             // Bass + LowMid → 光斑加速
             float targetSpeed = 1f + (bass + lowMid * 0.3f) * 0.5f * kiaiMult;
             targetSpeed += beatBrightnessPulse * 0.3f;
-            currentBokehSpeedModifier = Mathf.Lerp(currentBokehSpeedModifier, targetSpeed, lerpFactor);
+            currentBokehSpeedModifier = Mathf.Lerp(
+                currentBokehSpeedModifier,
+                targetSpeed,
+                lerpFactor
+            );
             var bokehVel = bokehPS.velocityOverLifetime;
             bokehVel.speedModifier = new ParticleSystem.MinMaxCurve(currentBokehSpeedModifier);
 
             // Treble → 色相偏移（更精细：使用各频段相位不同）
             // Bass频段偏移慢，Treble频段偏移快
             currentHueOffset += (treble * 0.4f + highMid * 0.2f) * trebleHueShift * dt * kiaiMult;
-            if (currentHueOffset > 1f) currentHueOffset -= 1f;
+            if (currentHueOffset > 1f)
+                currentHueOffset -= 1f;
 
             // Mid → 星尘 noise 增强
             var stardustNoise = stardustPS.noise;
@@ -2620,7 +2996,11 @@ namespace OsuVR
             if (fallingStarPS != null)
             {
                 float fallSpeedBoost = 1f + bass * 0.8f * kiaiMult;
-                currentFallingStarSpeedMod = Mathf.Lerp(currentFallingStarSpeedMod, fallSpeedBoost, lerpFactor);
+                currentFallingStarSpeedMod = Mathf.Lerp(
+                    currentFallingStarSpeedMod,
+                    fallSpeedBoost,
+                    lerpFactor
+                );
                 var fallVel = fallingStarPS.velocityOverLifetime;
                 fallVel.speedModifier = new ParticleSystem.MinMaxCurve(currentFallingStarSpeedMod);
             }
@@ -2632,10 +3012,12 @@ namespace OsuVR
         // 晶体频谱响应：不同频段的晶体在不同节拍闪烁
         private void UpdateCrystalSpectrumResponse()
         {
-            if (crystalsPS == null) return;
+            if (crystalsPS == null)
+                return;
 
             int count = crystalsPS.particleCount;
-            if (count == 0) return;
+            if (count == 0)
+                return;
 
             EnsureCrystalBuffer(count);
             count = crystalsPS.GetParticles(crystalBuffer);
@@ -2675,12 +3057,16 @@ namespace OsuVR
                 float size = crystalBuffer[i].startSize;
                 if (size > crystalsSize * 1.05f)
                 {
-                    crystalBuffer[i].startSize = Mathf.Max(crystalsSize, size - Time.deltaTime * 0.4f);
+                    crystalBuffer[i].startSize = Mathf.Max(
+                        crystalsSize,
+                        size - Time.deltaTime * 0.4f
+                    );
                     modified = true;
                 }
             }
 
-            if (modified) crystalsPS.SetParticles(crystalBuffer, count);
+            if (modified)
+                crystalsPS.SetParticles(crystalBuffer, count);
         }
 
         public void SetParticleDensity(float density)
@@ -2690,7 +3076,9 @@ namespace OsuVR
             if (stardustPS != null)
             {
                 var main = stardustPS.main;
-                main.maxParticles = Mathf.RoundToInt(baseStardustMaxParticles * currentParticleDensity);
+                main.maxParticles = Mathf.RoundToInt(
+                    baseStardustMaxParticles * currentParticleDensity
+                );
                 var emission = stardustPS.emission;
                 emission.rateOverTime = new ParticleSystem.MinMaxCurve(
                     Mathf.RoundToInt(baseStardustRate * currentParticleDensity)
@@ -2700,13 +3088,17 @@ namespace OsuVR
             if (bokehPS != null)
             {
                 var main = bokehPS.main;
-                main.maxParticles = Mathf.RoundToInt(baseBokehMaxParticles * currentParticleDensity);
+                main.maxParticles = Mathf.RoundToInt(
+                    baseBokehMaxParticles * currentParticleDensity
+                );
             }
 
             if (crystalsPS != null)
             {
                 var main = crystalsPS.main;
-                main.maxParticles = Mathf.RoundToInt(baseCrystalsMaxParticles * currentParticleDensity);
+                main.maxParticles = Mathf.RoundToInt(
+                    baseCrystalsMaxParticles * currentParticleDensity
+                );
             }
         }
 

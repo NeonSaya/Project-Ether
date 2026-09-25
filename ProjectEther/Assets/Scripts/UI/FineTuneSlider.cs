@@ -4,9 +4,9 @@
 // 保留用于 GitHub 学习交流与结构参照（配套 VRSettingsMenu.prefab）。
 // 不要在新功能中引用本类。
 // =====================================================================
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 
 namespace OsuVR
 {
@@ -27,7 +27,7 @@ namespace OsuVR
         {
             SetupButtons();
             UpdateValueText();
-            
+
             if (targetSlider != null)
             {
                 targetSlider.onValueChanged.AddListener(OnSliderValueChanged);
@@ -41,17 +41,23 @@ namespace OsuVR
 
         private void SetupButtons()
         {
-            if (fineTuneButtons != null && fineTuneButtons.Length > 0) return;
-            
+            if (fineTuneButtons != null && fineTuneButtons.Length > 0)
+                return;
+
             fineTuneButtons = GetComponentsInChildren<Button>();
-            
+
             foreach (var btn in fineTuneButtons)
             {
-                if (btn == null) continue;
-                
+                if (btn == null)
+                    continue;
+
                 string btnName = btn.name.ToLower();
-                
-                if (btnName.Contains("decreasebtn") && !btnName.Contains("1") && !btnName.Contains("5"))
+
+                if (
+                    btnName.Contains("decreasebtn")
+                    && !btnName.Contains("1")
+                    && !btnName.Contains("5")
+                )
                 {
                     btn.onClick.AddListener(() => AdjustValue(-10));
                 }
@@ -71,7 +77,11 @@ namespace OsuVR
                 {
                     btn.onClick.AddListener(() => AdjustValue(5));
                 }
-                else if (btnName.Contains("increasebtn") && !btnName.Contains("1") && !btnName.Contains("5"))
+                else if (
+                    btnName.Contains("increasebtn")
+                    && !btnName.Contains("1")
+                    && !btnName.Contains("5")
+                )
                 {
                     btn.onClick.AddListener(() => AdjustValue(10));
                 }
@@ -80,8 +90,9 @@ namespace OsuVR
 
         public void AdjustValue(float delta)
         {
-            if (targetSlider == null) return;
-            
+            if (targetSlider == null)
+                return;
+
             float newValue = Mathf.Clamp(targetSlider.value + delta, minValue, maxValue);
             targetSlider.value = newValue;
             UpdateValueText();
@@ -94,8 +105,9 @@ namespace OsuVR
 
         private void UpdateValueText()
         {
-            if (valueText == null || targetSlider == null) return;
-            
+            if (valueText == null || targetSlider == null)
+                return;
+
             string displayValue = FormatValue(targetSlider.value);
             valueText.text = displayValue;
         }

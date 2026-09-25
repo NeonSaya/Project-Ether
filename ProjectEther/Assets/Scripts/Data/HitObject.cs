@@ -140,7 +140,6 @@ namespace OsuVR
         /// </summary>
         public string AudioFilename { get; set; }
 
-
         /// <summary>
         /// 击打时播放的音效列表
         /// </summary>
@@ -170,6 +169,7 @@ namespace OsuVR
         /// 堆叠顺序标记
         /// </summary>
         public int StackOrder { get; set; }
+
         /// <summary>
         /// 堆叠偏移乘数
         /// </summary>
@@ -300,7 +300,9 @@ namespace OsuVR
             {
                 if (!_screenSpaceGameplayStackedPositionCache.HasValue)
                 {
-                    _screenSpaceGameplayStackedPositionCache = ConvertPositionToRealCoordinates(GameplayStackedPosition);
+                    _screenSpaceGameplayStackedPositionCache = ConvertPositionToRealCoordinates(
+                        GameplayStackedPosition
+                    );
                 }
                 return _screenSpaceGameplayStackedPositionCache.Value;
             }
@@ -309,10 +311,17 @@ namespace OsuVR
         /// <summary>
         /// 屏幕空间中的游戏玩法堆叠结束位置（虚拟属性，子类需要重写）
         /// </summary>
-        public virtual Vector2 ScreenSpaceGameplayStackedEndPosition => ScreenSpaceGameplayStackedPosition;
+        public virtual Vector2 ScreenSpaceGameplayStackedEndPosition =>
+            ScreenSpaceGameplayStackedPosition;
 
         // 构造函数
-        protected HitObject(double startTime, Vector2 position, HitObjectType type, bool isNewCombo, int comboOffset)
+        protected HitObject(
+            double startTime,
+            Vector2 position,
+            HitObjectType type,
+            bool isNewCombo,
+            int comboOffset
+        )
         {
             StartTime = startTime;
             _position = position;
@@ -406,7 +415,7 @@ namespace OsuVR
             {
                 GameMode.Droid => -4f,
                 GameMode.Standard => -6.4f,
-                _ => -6.4f
+                _ => -6.4f,
             };
         }
 
@@ -443,16 +452,13 @@ namespace OsuVR
         protected Vector2 ConvertPositionToRealCoordinates(Vector2 position)
         {
             // 将位置缩放到屏幕上的实际游玩区域大小
-            float scaleX = 640f / 512f;  // 假设实际宽度640，原始宽度512
-            float scaleY = 480f / 384f;  // 假设实际高度480，原始高度384
+            float scaleX = 640f / 512f; // 假设实际宽度640，原始宽度512
+            float scaleY = 480f / 384f; // 假设实际高度480，原始高度384
 
-            Vector2 scaledPosition = new Vector2(
-                position.x * scaleX,
-                position.y * scaleY
-            );
+            Vector2 scaledPosition = new Vector2(position.x * scaleX, position.y * scaleY);
 
             // 将位置居中到屏幕
-            float screenWidth = 1920f;  // 假设屏幕宽度1920
+            float screenWidth = 1920f; // 假设屏幕宽度1920
             float screenHeight = 1080f; // 假设屏幕高度1080
 
             Vector2 centeredPosition = new Vector2(
@@ -514,8 +520,15 @@ namespace OsuVR
         public int CustomSampleBank { get; set; }
         public new int Volume { get; set; }
         public bool IsLayered { get; set; }
+
         // 注意最后参数 isLayered = false 是默认值，这样也可以兼容 4 个参数的调用
-        public BankHitSampleInfo(string name, SampleBank bank, int customBank, int volume, bool isLayered = false)
+        public BankHitSampleInfo(
+            string name,
+            SampleBank bank,
+            int customBank,
+            int volume,
+            bool isLayered = false
+        )
         {
             Name = name;
             Bank = bank;
@@ -524,6 +537,7 @@ namespace OsuVR
             IsLayered = isLayered;
         }
     }
+
     /// <summary>
     /// 序列音效信息
     /// </summary>

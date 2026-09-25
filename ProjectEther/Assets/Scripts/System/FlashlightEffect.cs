@@ -1,5 +1,5 @@
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace OsuVR
 {
@@ -37,15 +37,21 @@ namespace OsuVR
             rhythmGameManager = manager;
 
             // 如果没开启 FL，则不需要初始化
-            if (manager == null || manager.GetModEffects() == null || !manager.GetModEffects().IsFlashlight)
+            if (
+                manager == null
+                || manager.GetModEffects() == null
+                || !manager.GetModEffects().IsFlashlight
+            )
             {
                 this.enabled = false;
                 return;
             }
 
             Shader shader = Shader.Find("OsuVR/FlashlightMask");
-            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (shader == null) shader = Shader.Find("Standard");
+            if (shader == null)
+                shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null)
+                shader = Shader.Find("Standard");
             if (shader == null)
             {
                 Debug.LogError("[FlashlightEffect] 所有 Shader 均不可用!");
@@ -54,7 +60,7 @@ namespace OsuVR
             }
 
             flashlightMat = new Material(shader);
-            
+
             // 调整遮罩颜色，避免纯黑死黑
             // osu! 原版在较低 combo 时会有环境微光
             // 这里用 0.99 的 alpha 使得背景不会完全黑死，隐约能感觉到一点空间
@@ -62,7 +68,7 @@ namespace OsuVR
 
             // 设置手电筒的半径和边缘羽化
             // 稍微调大一点点让体验在 VR 里不至于太挣扎
-            flashlightMat.SetFloat("_Radius", BaseRadius); 
+            flashlightMat.SetFloat("_Radius", BaseRadius);
             flashlightMat.SetFloat("_Feather", BaseFeather);
             flashlightMat.SetFloat("_PlaneZ", DefaultPlaneZ);
 
@@ -79,28 +85,36 @@ namespace OsuVR
             var scoreManager = FindFirstObjectByType<ScoreManager>();
             if (scoreManager != null && scoreManager.boardController != null)
             {
-                var texts = scoreManager.boardController.GetComponentsInChildren<TMPro.TextMeshProUGUI>(true);
+                var texts =
+                    scoreManager.boardController.GetComponentsInChildren<TMPro.TextMeshProUGUI>(
+                        true
+                    );
                 foreach (var t in texts)
                 {
-                    t.color = new Color(t.color.r * 2.5f, t.color.g * 2.5f, t.color.b * 2.5f, t.color.a);
+                    t.color = new Color(
+                        t.color.r * 2.5f,
+                        t.color.g * 2.5f,
+                        t.color.b * 2.5f,
+                        t.color.a
+                    );
                 }
             }
 
             // 创建遮罩 Quad
             maskQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
             maskQuad.name = "FlashlightMask";
-            
+
             // 移除不需要的碰撞体
             Destroy(maskQuad.GetComponent<Collider>());
-            
+
             // 将其附着在摄像机上
             maskQuad.transform.SetParent(mainCam.transform);
-            
+
             // 放置在摄像机正前方非常近的位置 (0.1米)，并缩放以覆盖整个视野
             maskQuad.transform.localPosition = new Vector3(0, 0, 0.1f);
             maskQuad.transform.localRotation = Quaternion.identity;
             maskQuad.transform.localScale = new Vector3(10f, 10f, 1f); // 足够大以覆盖周边视野
-            
+
             // 应用材质
             MeshRenderer renderer = maskQuad.GetComponent<MeshRenderer>();
             renderer.material = flashlightMat;
@@ -118,14 +132,17 @@ namespace OsuVR
             var rays = FindObjectsOfType<RayController>();
             foreach (var r in rays)
             {
-                if (r.isRightHand) rightRay = r;
-                else leftRay = r;
+                if (r.isRightHand)
+                    rightRay = r;
+                else
+                    leftRay = r;
             }
         }
 
         void Update()
         {
-            if (flashlightMat == null) return;
+            if (flashlightMat == null)
+                return;
 
             UpdateBreakState();
 
@@ -151,7 +168,7 @@ namespace OsuVR
             else
             {
                 // 如果没有找到左手，将其方向设为后方，这样就不会在屏幕上画出光圈
-                flashlightMat.SetVector("_LeftRayDir", Vector3.back); 
+                flashlightMat.SetVector("_LeftRayDir", Vector3.back);
             }
 
             // 传递右手射线信息
@@ -169,7 +186,8 @@ namespace OsuVR
 
         private void UpdateBreakState()
         {
-            if (rhythmGameManager == null) return;
+            if (rhythmGameManager == null)
+                return;
 
             // 歌曲结束时，与休息模式一样放大视野
             if (rhythmGameManager.isGameEnded)
@@ -185,7 +203,8 @@ namespace OsuVR
 
             double currentTimeMs = rhythmGameManager.currentMusicTimeMs;
             var beatmap = rhythmGameManager.GetCurrentBeatmap();
-            if (beatmap == null || beatmap.Events == null || beatmap.Events.Breaks == null) return;
+            if (beatmap == null || beatmap.Events == null || beatmap.Events.Breaks == null)
+                return;
 
             bool foundBreak = false;
             foreach (var breakPeriod in beatmap.Events.Breaks)
@@ -215,7 +234,8 @@ namespace OsuVR
 
         private void UpdateRadiusAnimation()
         {
-            if (transitionProgress >= 1.0f) return;
+            if (transitionProgress >= 1.0f)
+                return;
 
             transitionProgress += Time.deltaTime / BreakTransitionDuration;
             transitionProgress = Mathf.Clamp01(transitionProgress);
@@ -223,7 +243,11 @@ namespace OsuVR
             float smoothProgress = Mathf.SmoothStep(0f, 1f, transitionProgress);
 
             float startMultiplier = isInBreak ? 1.0f : BreakRadiusMultiplier;
-            currentRadiusMultiplier = Mathf.Lerp(startMultiplier, targetRadiusMultiplier, smoothProgress);
+            currentRadiusMultiplier = Mathf.Lerp(
+                startMultiplier,
+                targetRadiusMultiplier,
+                smoothProgress
+            );
 
             float newRadius = BaseRadius * currentRadiusMultiplier;
             flashlightMat.SetFloat("_Radius", newRadius);

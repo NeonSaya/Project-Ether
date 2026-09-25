@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.Pool;
+using UnityEngine.UI;
 
 namespace OsuVR
 {
@@ -67,7 +67,8 @@ namespace OsuVR
 
         // RPM 计算
         private float rotationDeltaAccumulator = 0f;
-        // Bonus
+
+        // Bonus (奖励)
         private int bonusCount = 0;
         private float bonusThreshold = 0f;
 
@@ -77,7 +78,8 @@ namespace OsuVR
         private Queue<Transform> ringPool = new Queue<Transform>();
 
         // 记录: <手柄, (上一帧角度, 上次时间, 虚拟圆心位置)>
-        private Dictionary<RayController, HandState> handStates = new Dictionary<RayController, HandState>();
+        private Dictionary<RayController, HandState> handStates =
+            new Dictionary<RayController, HandState>();
 
         // 定义一个结构体来存状态，比Tuple清晰
         private class HandState
@@ -89,13 +91,20 @@ namespace OsuVR
             public Transform ringInstance;
             public TrailRenderer trail; // 是否刚进入
         }
+
         // 记录最大允许旋转角度（分数上限）
         private float maxPossibleRotation = 0f;
+
         // 下一次获得 Bonus 的阈值
         private float nextBonusThreshold = 0f;
 
-
-        public void Initialize(SpinnerObject data, RhythmGameManager manager, IObjectPool<GameObject> pool, Vector3 fixPosition, float od)
+        public void Initialize(
+            SpinnerObject data,
+            RhythmGameManager manager,
+            IObjectPool<GameObject> pool,
+            Vector3 fixPosition,
+            float od
+        )
         {
             BoxCollider boxCol = GetComponent<BoxCollider>();
             this.spinnerData = data;
@@ -103,11 +112,10 @@ namespace OsuVR
             this.myPool = pool;
 
             transform.position = fixPosition;
-            transform.rotation = Quaternion.LookRotation(transform.position - Camera.main.transform.position);
+            transform.rotation = Quaternion.LookRotation(
+                transform.position - Camera.main.transform.position
+            );
             transform.localScale = Vector3.one * scaleSize;
-
-
-
 
             // -------------------------------------------------------------
             // 🔥 [核心修改] Lazer 转盘算法
@@ -160,7 +168,8 @@ namespace OsuVR
             {
                 // 销毁旧的 (如 SphereCollider)
                 Collider oldCol = GetComponent<Collider>();
-                if (oldCol != null) Destroy(oldCol);
+                if (oldCol != null)
+                    Destroy(oldCol);
 
                 // 添加新的 BoxCollider
                 boxCol = gameObject.AddComponent<BoxCollider>();
@@ -170,14 +179,25 @@ namespace OsuVR
             PhysicsUtil.EnsureKinematicRigidbody(gameObject); // 移动碰撞体补 kinematic RB
 
             // UI 重置
-            if (meterImage) { meterImage.fillAmount = 0f; meterImage.color = Color.white; }
-            if (warningObject) warningObject.SetActive(true);
-            if (bonusText) { bonusText.gameObject.SetActive(false); bonusText.text = ""; }
-            if (approachCircle) approachCircle.localScale = Vector3.one * 4f;
+            if (meterImage)
+            {
+                meterImage.fillAmount = 0f;
+                meterImage.color = Color.white;
+            }
+            if (warningObject)
+                warningObject.SetActive(true);
+            if (bonusText)
+            {
+                bonusText.gameObject.SetActive(false);
+                bonusText.text = "";
+            }
+            if (approachCircle)
+                approachCircle.localScale = Vector3.one * 4f;
             if (trackerRing)
             {
                 // 尝试获取组件 (如果还没获取过)
-                if (ringTrail == null) ringTrail = trackerRing.GetComponent<TrailRenderer>();
+                if (ringTrail == null)
+                    ringTrail = trackerRing.GetComponent<TrailRenderer>();
 
                 // 确保初始状态是关闭且干净的
                 if (ringTrail != null)
@@ -196,21 +216,24 @@ namespace OsuVR
             if (bgDiscRenderer == null)
             {
                 Transform t = transform.Find("Visual_Container/Disc_Background");
-                if (t) bgDiscRenderer = t.GetComponent<Renderer>();
+                if (t)
+                    bgDiscRenderer = t.GetComponent<Renderer>();
             }
 
             // 查找旋转盘 (Visual_Container/Disc_Rotating)
             if (rotDiscRenderer == null)
             {
                 Transform t = transform.Find("Visual_Container/Disc_Rotating");
-                if (t) rotDiscRenderer = t.GetComponent<Renderer>();
+                if (t)
+                    rotDiscRenderer = t.GetComponent<Renderer>();
             }
 
             // 查找缩圈 (ApproachCircle)
             if (approachRingRenderer == null)
             {
                 Transform t = transform.Find("ApproachCircle");
-                if (t) approachRingRenderer = t.GetComponent<Renderer>();
+                if (t)
+                    approachRingRenderer = t.GetComponent<Renderer>();
             }
 
             // -------------------------------------------------------
@@ -229,7 +252,8 @@ namespace OsuVR
                 1.0f
             );
 
-            if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
+            if (_propBlock == null)
+                _propBlock = new MaterialPropertyBlock();
 
             // -------------------------------------------------------
             // 3. 应用颜色到盘子
@@ -273,22 +297,29 @@ namespace OsuVR
                 var scaler = approachRingRenderer.GetComponent<ApproachCircleScaler>();
                 if (scaler != null)
                 {
-                    scaler.Initialize(spinnerData.StartTime, spinnerData.EndTime - spinnerData.StartTime, gameManager);
+                    scaler.Initialize(
+                        spinnerData.StartTime,
+                        spinnerData.EndTime - spinnerData.StartTime,
+                        gameManager
+                    );
                 }
             }
 
             // -------------------------------------------------------
             // 5. 设置渲染队列，确保在 SB Overlay (3001) 之上
             // -------------------------------------------------------
-            if (bgDiscRenderer != null) bgDiscRenderer.material.renderQueue = 3050;
-            if (rotDiscRenderer != null) rotDiscRenderer.material.renderQueue = 3051;
-            if (approachRingRenderer != null) approachRingRenderer.material.renderQueue = 3052;
-
+            if (bgDiscRenderer != null)
+                bgDiscRenderer.material.renderQueue = 3050;
+            if (rotDiscRenderer != null)
+                rotDiscRenderer.material.renderQueue = 3051;
+            if (approachRingRenderer != null)
+                approachRingRenderer.material.renderQueue = 3052;
         }
 
         void Update()
         {
-            if (!IsActive || gameManager == null) return;
+            if (!IsActive || gameManager == null)
+                return;
 
             double currentTime = gameManager.GetCurrentMusicTimeMs();
 
@@ -302,13 +333,18 @@ namespace OsuVR
             {
                 double duration = spinnerData.EndTime - spinnerData.StartTime;
                 double timeLeft = spinnerData.EndTime - currentTime;
-                approachCircle.localScale = Vector3.one * Mathf.Clamp01((float)(timeLeft / duration)) * 4f;
+                approachCircle.localScale =
+                    Vector3.one * Mathf.Clamp01((float)(timeLeft / duration)) * 4f;
             }
 
             CleanUpInactiveHands();
 
             // 视觉平滑
-            currentVisualRotation = Mathf.Lerp(currentVisualRotation, targetVisualRotation, Time.deltaTime * visualSmoothing);
+            currentVisualRotation = Mathf.Lerp(
+                currentVisualRotation,
+                targetVisualRotation,
+                Time.deltaTime * visualSmoothing
+            );
             if (discRotating)
             {
                 discRotating.localEulerAngles = new Vector3(0, 0, -currentVisualRotation);
@@ -323,7 +359,8 @@ namespace OsuVR
             {
                 Progress = totalRotationAngle / angleRequirement;
                 meterImage.fillAmount = Mathf.Clamp01(Progress);
-                if (Progress >= 1f) meterImage.color = Color.cyan;
+                if (Progress >= 1f)
+                    meterImage.color = Color.cyan;
             }
 
             // 反馈音效和震动
@@ -360,7 +397,11 @@ namespace OsuVR
 
             if (bonusText && bonusText.gameObject.activeSelf)
             {
-                bonusText.transform.localScale = Vector3.Lerp(bonusText.transform.localScale, Vector3.one, Time.deltaTime * 5f);
+                bonusText.transform.localScale = Vector3.Lerp(
+                    bonusText.transform.localScale,
+                    Vector3.one,
+                    Time.deltaTime * 5f
+                );
             }
         }
 
@@ -398,11 +439,11 @@ namespace OsuVR
                     newTrail = newRing.GetComponent<TrailRenderer>();
                     if (newTrail != null)
                     {
-                        newTrail.Clear();       // 清除旧数据
+                        newTrail.Clear(); // 清除旧数据
                         newTrail.emitting = true; // 开始发射
                         newTrail.startWidth = 0.015f; // 起始宽度 (非常细，约1.5厘米)
-                        newTrail.endWidth = 0f;       // 结束宽度 (尖尾)
-                        newTrail.time = 0.2f;        // 持续时间 (0.2秒消失)
+                        newTrail.endWidth = 0f; // 结束宽度 (尖尾)
+                        newTrail.time = 0.2f; // 持续时间 (0.2秒消失)
                     }
                 }
 
@@ -414,7 +455,7 @@ namespace OsuVR
                     virtualCenter = currentPos, // 刚进来时，圆心就是当前点
                     isInitialized = false,
                     ringInstance = newRing, // 绑定视觉
-                    trail = newTrail
+                    trail = newTrail,
                 };
             }
 
@@ -425,7 +466,11 @@ namespace OsuVR
             // 圆心会缓慢跟随手柄当前位置。
             // 如果你画圈，currentPos 始终围着 virtualCenter 转。
             // 如果你平移，virtualCenter 会跟过去。
-            state.virtualCenter = Vector2.Lerp(state.virtualCenter, currentPos, Time.deltaTime * centerFollowSpeed);
+            state.virtualCenter = Vector2.Lerp(
+                state.virtualCenter,
+                currentPos,
+                Time.deltaTime * centerFollowSpeed
+            );
 
             // 4. 计算相对于 "虚拟圆心" 的角度
             // 这样无论你在转盘的哪个角落画圈，只要你在绕着你的虚拟圆心转，就算数
@@ -454,8 +499,10 @@ namespace OsuVR
                 float delta = currentAngle - state.lastAngle;
 
                 // 处理 ±180 度跨越突变
-                if (delta > 180f) delta -= 360f;
-                if (delta < -180f) delta += 360f;
+                if (delta > 180f)
+                    delta -= 360f;
+                if (delta < -180f)
+                    delta += 360f;
 
                 // [限制] 物理过滤：防止追踪丢帧导致的瞬间180度跳变
                 if (Mathf.Abs(delta) < 120f && Mathf.Abs(delta) > 0.01f)
@@ -468,7 +515,8 @@ namespace OsuVR
                     rotationDeltaAccumulator += validRotation; // 喂给 RPM 计速器
 
                     // 如果有警告提示，转动起来后隐藏它
-                    if (warningObject && warningObject.activeSelf) warningObject.SetActive(false);
+                    if (warningObject && warningObject.activeSelf)
+                        warningObject.SetActive(false);
                 }
             }
             else
@@ -491,7 +539,8 @@ namespace OsuVR
                 // 超时判断
                 if (currentTime - kvp.Value.lastTime > 0.1f)
                 {
-                    if (toRemove == null) toRemove = new List<RayController>();
+                    if (toRemove == null)
+                        toRemove = new List<RayController>();
                     toRemove.Add(kvp.Key);
                 }
             }
@@ -518,7 +567,6 @@ namespace OsuVR
 
             if (handStates.Count == 0 && trackerRing && trackerRing.gameObject.activeSelf)
             {
-
                 if (ringTrail != null)
                 {
                     ringTrail.emitting = false;
@@ -531,8 +579,9 @@ namespace OsuVR
         // 计算 RPM 的辅助函数
         float CalculateMaxRPM(float od)
         {
-            if (od < 5) return 250f + (od * 26f); // (380-250)/5 = 26
-            return 380f + ((od - 5f) * 10f);      // (430-380)/5 = 10
+            if (od < 5)
+                return 250f + (od * 26f); // (380-250)/5 = 26
+            return 380f + ((od - 5f) * 10f); // (430-380)/5 = 10
         }
 
         private void AddBonus()
@@ -589,7 +638,8 @@ namespace OsuVR
             else
                 Progress = 1.0f;
 
-            if (AudioManager.Instance != null) AudioManager.Instance.UpdateSpinnerLoop(false, 0);
+            if (AudioManager.Instance != null)
+                AudioManager.Instance.UpdateSpinnerLoop(false, 0);
             if (HapticManager.Instance != null)
             {
                 HapticManager.Instance.PlayContinuous(true, 0f);
@@ -614,12 +664,17 @@ namespace OsuVR
 
                 gameManager.OnNoteHit(spinnerData, 1.0f);
             }
-            else if (Progress > 0.8f) gameManager.OnNoteHit(spinnerData, 0.7f);
-            else if (Progress > 0.5f) gameManager.OnNoteHit(spinnerData, 0.3f);
-            else gameManager.OnNoteMiss(spinnerData);
+            else if (Progress > 0.8f)
+                gameManager.OnNoteHit(spinnerData, 0.7f);
+            else if (Progress > 0.5f)
+                gameManager.OnNoteHit(spinnerData, 0.3f);
+            else
+                gameManager.OnNoteMiss(spinnerData);
 
-            if (myPool != null) myPool.Release(gameObject);
-            else Destroy(gameObject);
+            if (myPool != null)
+                myPool.Release(gameObject);
+            else
+                Destroy(gameObject);
         }
     }
 }

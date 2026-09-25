@@ -1,6 +1,6 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 
 namespace OsuVR
 {
@@ -68,7 +68,8 @@ namespace OsuVR
             if (shortNameText == null)
             {
                 Transform t = transform.Find("ShortName");
-                if (t != null) shortNameText = t.GetComponent<TextMeshProUGUI>();
+                if (t != null)
+                    shortNameText = t.GetComponent<TextMeshProUGUI>();
             }
             if (shortNameText != null)
                 shortNameText.text = info.shortName;
@@ -79,30 +80,37 @@ namespace OsuVR
 
         private void UpdateLocalizedText()
         {
-            if (modInfo.type == ModType.None) return;
+            if (modInfo.type == ModType.None)
+                return;
 
             if (fullNameText == null)
             {
                 Transform t = transform.Find("FullName");
-                if (t != null) fullNameText = t.GetComponent<TextMeshProUGUI>();
+                if (t != null)
+                    fullNameText = t.GetComponent<TextMeshProUGUI>();
             }
             if (fullNameText != null)
             {
                 string nameKey = $"mod_{modInfo.type.ToString().ToLower()}_name";
                 string localizedName = LocalizationManager.GetText(nameKey);
-                fullNameText.text = LocalizationManager.HasKey(nameKey) ? localizedName : modInfo.fullName;
+                fullNameText.text = LocalizationManager.HasKey(nameKey)
+                    ? localizedName
+                    : modInfo.fullName;
             }
 
             if (descriptionText == null)
             {
                 Transform t = transform.Find("Description");
-                if (t != null) descriptionText = t.GetComponent<TextMeshProUGUI>();
+                if (t != null)
+                    descriptionText = t.GetComponent<TextMeshProUGUI>();
             }
             if (descriptionText != null)
             {
                 string descKey = $"mod_{modInfo.type.ToString().ToLower()}_desc";
                 string localizedDesc = LocalizationManager.GetText(descKey);
-                descriptionText.text = LocalizationManager.HasKey(descKey) ? localizedDesc : modInfo.description;
+                descriptionText.text = LocalizationManager.HasKey(descKey)
+                    ? localizedDesc
+                    : modInfo.description;
             }
         }
 
@@ -123,10 +131,11 @@ namespace OsuVR
             {
                 backgroundImage = GetComponent<Image>();
             }
-            
+
             if (backgroundImage != null)
             {
-                backgroundImage.color = isSelected && modInfo != null ? modInfo.displayColor : normalColor;
+                backgroundImage.color =
+                    isSelected && modInfo != null ? modInfo.displayColor : normalColor;
             }
 
             if (shortNameText != null)
@@ -141,7 +150,9 @@ namespace OsuVR
 
             if (descriptionText != null)
             {
-                descriptionText.color = isSelected ? new Color(0.8f, 0.8f, 0.8f) : new Color(0.5f, 0.5f, 0.5f);
+                descriptionText.color = isSelected
+                    ? new Color(0.8f, 0.8f, 0.8f)
+                    : new Color(0.5f, 0.5f, 0.5f);
             }
         }
     }

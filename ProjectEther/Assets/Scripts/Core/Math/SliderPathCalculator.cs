@@ -49,14 +49,27 @@ namespace OsuVR
                 {
                     // 如果当前操作的控制点足够"平坦"，我们使用
                     // De Casteljau 算法的扩展来获得由我们的控制点表示的贝塞尔曲线的分段线性逼近
-                    BezierApproximate(parent, output, subdivisionBuffer1, subdivisionBuffer2, count + 1);
+                    BezierApproximate(
+                        parent,
+                        output,
+                        subdivisionBuffer1,
+                        subdivisionBuffer2,
+                        count + 1
+                    );
                     freeBuffers.Push(parent);
                     continue;
                 }
 
                 // 如果我们还没有足够"平坦"（换句话说，详细）的逼近，我们继续细分当前操作的曲线
-                Vector2[] rightChild = freeBuffers.Count > 0 ? freeBuffers.Pop() : new Vector2[count + 1];
-                BezierSubdivide(parent, subdivisionBuffer2, rightChild, subdivisionBuffer1, count + 1);
+                Vector2[] rightChild =
+                    freeBuffers.Count > 0 ? freeBuffers.Pop() : new Vector2[count + 1];
+                BezierSubdivide(
+                    parent,
+                    subdivisionBuffer2,
+                    rightChild,
+                    subdivisionBuffer1,
+                    count + 1
+                );
 
                 // 我们为其中一个子节点重用父节点的缓冲区，这样每次迭代可以节省一次分配
                 for (int i = 0; i <= count; i++)
@@ -169,8 +182,13 @@ namespace OsuVR
             }
             else
             {
-                amountPoints = Mathf.Max(2,
-                    (int)Math.Ceiling(thetaRange / (2 * Math.Acos(1 - CIRCULAR_ARC_TOLERANCE / radius))));
+                amountPoints = Mathf.Max(
+                    2,
+                    (int)
+                        Math.Ceiling(
+                            thetaRange / (2 * Math.Acos(1 - CIRCULAR_ARC_TOLERANCE / radius))
+                        )
+                );
             }
 
             List<Vector2> output = new List<Vector2>();
@@ -203,7 +221,10 @@ namespace OsuVR
         /// <param name="curveType">曲线类型</param>
         /// <param name="controlPoints">控制点</param>
         /// <returns>逼近的点集</returns>
-        public static List<Vector2> CalculatePoints(CurveType curveType, List<Vector2> controlPoints)
+        public static List<Vector2> CalculatePoints(
+            CurveType curveType,
+            List<Vector2> controlPoints
+        )
         {
             switch (curveType)
             {
@@ -260,11 +281,20 @@ namespace OsuVR
         /// <param name="subdivisionBuffer2">包含当前细分状态的第二缓冲区</param>
         /// <param name="count">原始数组中的控制点数量</param>
         private static void BezierApproximate(
-            Vector2[] controlPoints, List<Vector2> output,
-            Vector2[] subdivisionBuffer1, Vector2[] subdivisionBuffer2,
-            int count)
+            Vector2[] controlPoints,
+            List<Vector2> output,
+            Vector2[] subdivisionBuffer1,
+            Vector2[] subdivisionBuffer2,
+            int count
+        )
         {
-            BezierSubdivide(controlPoints, subdivisionBuffer2, subdivisionBuffer1, subdivisionBuffer1, count);
+            BezierSubdivide(
+                controlPoints,
+                subdivisionBuffer2,
+                subdivisionBuffer1,
+                subdivisionBuffer1,
+                count
+            );
 
             for (int i = 0; i < count - 1; i++)
             {
@@ -276,7 +306,12 @@ namespace OsuVR
             for (int i = 1; i < count - 1; i++)
             {
                 int index = 2 * i;
-                Vector2 p = (subdivisionBuffer2[index - 1] + subdivisionBuffer2[index] * 2 + subdivisionBuffer2[index + 1]) * 0.25f;
+                Vector2 p =
+                    (
+                        subdivisionBuffer2[index - 1]
+                        + subdivisionBuffer2[index] * 2
+                        + subdivisionBuffer2[index + 1]
+                    ) * 0.25f;
                 output.Add(p);
             }
         }
@@ -290,8 +325,12 @@ namespace OsuVR
         /// <param name="subdivisionBuffer">用于逼近的滑条部分</param>
         /// <param name="count">滑条中的锚点数量</param>
         private static void BezierSubdivide(
-            Vector2[] controlPoints, Vector2[] l, Vector2[] r,
-            Vector2[] subdivisionBuffer, int count)
+            Vector2[] controlPoints,
+            Vector2[] l,
+            Vector2[] r,
+            Vector2[] subdivisionBuffer,
+            int count
+        )
         {
             // 将控制点复制到细分缓冲区
             for (int i = 0; i < count; i++)
@@ -321,23 +360,33 @@ namespace OsuVR
         /// <param name="vec4">第四个点</param>
         /// <param name="t">在样条上找到点的参数，范围 [0, 1]</param>
         private static Vector2 CatmullFindPoint(
-            Vector2 vec1, Vector2 vec2,
-            Vector2 vec3, Vector2 vec4, float t)
+            Vector2 vec1,
+            Vector2 vec2,
+            Vector2 vec3,
+            Vector2 vec4,
+            float t
+        )
         {
             float t2 = t * t;
             float t3 = t2 * t;
 
-            float x = 0.5f *
-                (2 * vec2.x +
-                (-vec1.x + vec3.x) * t +
-                (2 * vec1.x - 5 * vec2.x + 4 * vec3.x - vec4.x) * t2 +
-                (-vec1.x + 3 * vec2.x - 3 * vec3.x + vec4.x) * t3);
+            float x =
+                0.5f
+                * (
+                    2 * vec2.x
+                    + (-vec1.x + vec3.x) * t
+                    + (2 * vec1.x - 5 * vec2.x + 4 * vec3.x - vec4.x) * t2
+                    + (-vec1.x + 3 * vec2.x - 3 * vec3.x + vec4.x) * t3
+                );
 
-            float y = 0.5f *
-                (2 * vec2.y +
-                (-vec1.y + vec3.y) * t +
-                (2 * vec1.y - 5 * vec2.y + 4 * vec3.y - vec4.y) * t2 +
-                (-vec1.y + 3 * vec2.y - 3 * vec3.y + vec4.y) * t3);
+            float y =
+                0.5f
+                * (
+                    2 * vec2.y
+                    + (-vec1.y + vec3.y) * t
+                    + (2 * vec1.y - 5 * vec2.y + 4 * vec3.y - vec4.y) * t2
+                    + (-vec1.y + 3 * vec2.y - 3 * vec3.y + vec4.y) * t3
+                );
 
             return new Vector2(x, y);
         }
@@ -424,7 +473,10 @@ namespace OsuVR
             }
 
             // 计算路径点
-            List<Vector2> pathPoints = SliderPathCalculator.CalculatePoints(slider.CurveType, controlPoints);
+            List<Vector2> pathPoints = SliderPathCalculator.CalculatePoints(
+                slider.CurveType,
+                controlPoints
+            );
 
             // 如果有指定的像素长度，调整路径
             float targetLength = pixelLength > 0 ? pixelLength : (float)slider.PixelLength;
@@ -455,7 +507,10 @@ namespace OsuVR
         /// <param name="originalPath">原始路径</param>
         /// <param name="targetLength">目标长度</param>
         /// <returns>重新采样后的路径</returns>
-        private static List<Vector2> ResamplePathToLength(List<Vector2> originalPath, float targetLength)
+        private static List<Vector2> ResamplePathToLength(
+            List<Vector2> originalPath,
+            float targetLength
+        )
         {
             float currentLength = SliderPathCalculator.CalculatePathLength(originalPath);
 
@@ -472,7 +527,10 @@ namespace OsuVR
             {
                 float progress = i / (float)(numPoints - 1);
                 float fractionOnOriginalCurve = progress * (targetLength / currentLength);
-                Vector2 point = SliderPathCalculator.FindPointOnPath(originalPath, fractionOnOriginalCurve);
+                Vector2 point = SliderPathCalculator.FindPointOnPath(
+                    originalPath,
+                    fractionOnOriginalCurve
+                );
                 resampled.Add(point);
             }
 

@@ -1,7 +1,7 @@
-using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.InputSystem;
 using TMPro;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 namespace OsuVR
 {
@@ -11,7 +11,7 @@ namespace OsuVR
         [Header("Input Settings")]
         [Tooltip("右手摇杆动作 (用于滚动下拉菜单)")]
         public InputActionProperty scrollAction;
-        
+
         [Header("Scroll Settings")]
         public float scrollSpeed = 0.5f;
         public float deadzone = 0.3f;
@@ -53,7 +53,7 @@ namespace OsuVR
         void Update()
         {
             CheckDropdownState();
-            
+
             if (isDropdownOpen && scrollRect != null)
             {
                 HandleScrollInput();
@@ -62,24 +62,27 @@ namespace OsuVR
 
         private void CheckDropdownState()
         {
-            if (dropdown == null || dropdown.template == null) return;
-            
+            if (dropdown == null || dropdown.template == null)
+                return;
+
             bool wasOpen = isDropdownOpen;
             isDropdownOpen = dropdown.IsActive() && dropdown.template.gameObject.activeInHierarchy;
-            
+
             if (isDropdownOpen && !wasOpen)
             {
                 if (scrollRect == null)
                 {
                     scrollRect = dropdown.template.GetComponentInChildren<ScrollRect>();
                 }
-                targetScrollPosition = scrollRect != null ? scrollRect.verticalNormalizedPosition : 1f;
+                targetScrollPosition =
+                    scrollRect != null ? scrollRect.verticalNormalizedPosition : 1f;
             }
         }
 
         private void HandleScrollInput()
         {
-            if (scrollRect == null || scrollRect.content == null) return;
+            if (scrollRect == null || scrollRect.content == null)
+                return;
 
             float scrollValue = 0f;
 
@@ -105,14 +108,16 @@ namespace OsuVR
             {
                 float contentHeight = scrollRect.content.rect.height;
                 float viewportHeight = scrollRect.viewport.rect.height;
-                
+
                 if (contentHeight > viewportHeight)
                 {
                     float scrollAmount = scrollValue * scrollSpeed * Time.deltaTime;
                     float normalizedScrollAmount = scrollAmount / (contentHeight - viewportHeight);
-                    
-                    targetScrollPosition = Mathf.Clamp01(targetScrollPosition + normalizedScrollAmount);
-                    
+
+                    targetScrollPosition = Mathf.Clamp01(
+                        targetScrollPosition + normalizedScrollAmount
+                    );
+
                     scrollRect.verticalNormalizedPosition = Mathf.Lerp(
                         scrollRect.verticalNormalizedPosition,
                         targetScrollPosition,

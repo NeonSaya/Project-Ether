@@ -1,7 +1,7 @@
 using System.Collections.Generic;
+using OsuVR.Storyboard.Data;
 using Unity.Collections;
 using UnityEngine;
-using OsuVR.Storyboard.Data;
 
 namespace OsuVR.Storyboard.Engine
 {
@@ -15,6 +15,7 @@ namespace OsuVR.Storyboard.Engine
         public NativeArray<SBSpriteFlatData> Sprites;
         public NativeArray<SBCommandFlatData> Commands;
         public NativeArray<SBLoopFlatData> Loops;
+
         /// <summary>动画帧映射: 每个动画 sprite 的声明帧→纹理切片索引 (-1=该帧文件缺失, 不绘制). 按 sprite.AnimFrameMapOffset 寻址</summary>
         public NativeArray<int> FrameMap;
         public NativeArray<SBTriggeredCommand> TriggerCommands;
@@ -23,11 +24,16 @@ namespace OsuVR.Storyboard.Engine
 
         public void Dispose()
         {
-            if (Sprites.IsCreated) Sprites.Dispose();
-            if (Commands.IsCreated) Commands.Dispose();
-            if (Loops.IsCreated) Loops.Dispose();
-            if (FrameMap.IsCreated) FrameMap.Dispose();
-            if (TriggerCommands.IsCreated) TriggerCommands.Dispose();
+            if (Sprites.IsCreated)
+                Sprites.Dispose();
+            if (Commands.IsCreated)
+                Commands.Dispose();
+            if (Loops.IsCreated)
+                Loops.Dispose();
+            if (FrameMap.IsCreated)
+                FrameMap.Dispose();
+            if (TriggerCommands.IsCreated)
+                TriggerCommands.Dispose();
         }
     }
 
@@ -42,7 +48,8 @@ namespace OsuVR.Storyboard.Engine
         public static SBFlatTimelineData Flatten(
             SBStoryboard storyboard,
             Dictionary<string, int> textureIndexMap,
-            Vector2Int[] textureDimensions)
+            Vector2Int[] textureDimensions
+        )
         {
             var flatSprites = new List<SBSpriteFlatData>();
             var flatCommands = new List<SBCommandFlatData>();
@@ -59,37 +66,55 @@ namespace OsuVR.Storyboard.Engine
                     Loops = new NativeArray<SBLoopFlatData>(0, Allocator.Persistent),
                     FrameMap = new NativeArray<int>(0, Allocator.Persistent),
                     TriggerCommands = new NativeArray<SBTriggeredCommand>(0, Allocator.Persistent),
-                    SpriteCount = 0
+                    SpriteCount = 0,
                 };
             }
 
             // 按层遍历所有元素 (Background → Overlay)
             for (int layer = 0; layer < 5; layer++)
             {
-                if (layer == (int)SBLayer.Fail && !storyboard.IsFailState) continue;
-                if (layer == (int)SBLayer.Pass && storyboard.IsFailState) continue;
+                if (layer == (int)SBLayer.Fail && !storyboard.IsFailState)
+                    continue;
+                if (layer == (int)SBLayer.Pass && storyboard.IsFailState)
+                    continue;
                 var elements = storyboard.Layers[layer];
-                if (elements == null) continue;
+                if (elements == null)
+                    continue;
 
                 for (int ei = 0; ei < elements.Count; ei++)
                 {
                     var element = elements[ei];
-                    FlattenElement(element, textureIndexMap, textureDimensions,
-                        flatSprites, flatCommands, flatLoops, frameMap);
+                    FlattenElement(
+                        element,
+                        textureIndexMap,
+                        textureDimensions,
+                        flatSprites,
+                        flatCommands,
+                        flatLoops,
+                        frameMap
+                    );
                 }
             }
 
-            SBDebugLog.Log($"[Flattener] {flatSprites.Count} sprites, {flatCommands.Count} commands, {flatLoops.Count} loops, {frameMap.Count} anim frames");
+            SBDebugLog.Log(
+                $"[Flattener] {flatSprites.Count} sprites, {flatCommands.Count} commands, {flatLoops.Count} loops, {frameMap.Count} anim frames"
+            );
 
             // 转为 NativeArray
             var result = new SBFlatTimelineData
             {
                 TriggerCommands = new NativeArray<SBTriggeredCommand>(0, Allocator.Persistent),
                 SpriteCount = flatSprites.Count,
-                Sprites = new NativeArray<SBSpriteFlatData>(flatSprites.Count, Allocator.Persistent),
-                Commands = new NativeArray<SBCommandFlatData>(flatCommands.Count, Allocator.Persistent),
+                Sprites = new NativeArray<SBSpriteFlatData>(
+                    flatSprites.Count,
+                    Allocator.Persistent
+                ),
+                Commands = new NativeArray<SBCommandFlatData>(
+                    flatCommands.Count,
+                    Allocator.Persistent
+                ),
                 Loops = new NativeArray<SBLoopFlatData>(flatLoops.Count, Allocator.Persistent),
-                FrameMap = new NativeArray<int>(frameMap.Count, Allocator.Persistent)
+                FrameMap = new NativeArray<int>(frameMap.Count, Allocator.Persistent),
             };
 
             if (flatSprites.Count > 0)
@@ -109,33 +134,51 @@ namespace OsuVR.Storyboard.Engine
             var parameters = new List<(SBBoolCommand command, double offset)>();
             foreach (var command in group.Commands)
             {
-                if (command is SBBoolCommand parameter) parameters.Add((parameter, 0));
+                if (command is SBBoolCommand parameter)
+                    parameters.Add((parameter, 0));
                 if (command is SBLoopCommand loop)
                     foreach (var inner in loop.InnerGroup.Commands)
-                        if (inner is SBBoolCommand p) parameters.Add((p, loop.StartTime));
+                        if (inner is SBBoolCommand p)
+                            parameters.Add((p, loop.StartTime));
             }
-            parameters.Sort((a,b) =>
-            {
-                int order = (a.command.StartTime+a.offset).CompareTo(b.command.StartTime+b.offset);
-                if (order != 0) return order;
-                order = (a.command.EndTime+a.offset).CompareTo(b.command.EndTime+b.offset);
-                return order != 0 ? order : a.command.Sequence.CompareTo(b.command.Sequence);
-            });
-            // Framework AddTransform removes future transforms for the same property.
-            // Adding P's start inside a previous P window removes its queued reset;
-            // aborting that sequence also removes its as-yet unapplied loop starts.
-            // Keep the source times intact because sprite lifetime is still declarative.
-            for (int i = 0; i < parameters.Count; i++)
-                for (int j = 0; j < i; j++)
+            parameters.Sort(
+                (a, b) =>
                 {
-                    var earlier = parameters[j];
-                    var later = parameters[i];
-                    if (earlier.command.Target != later.command.Target || earlier.command.Suppressed ||
-                        earlier.command.ResetSuppressed || earlier.command.StartTime == earlier.command.EndTime) continue;
-                    if (earlier.command.EndTime + earlier.offset <= later.command.StartTime + later.offset) continue;
-                    if (earlier.command.StartTime + earlier.offset > 0) earlier.command.Suppressed = true;
-                    else earlier.command.ResetSuppressed = true;
+                    int order = (a.command.StartTime + a.offset).CompareTo(
+                        b.command.StartTime + b.offset
+                    );
+                    if (order != 0)
+                        return order;
+                    order = (a.command.EndTime + a.offset).CompareTo(b.command.EndTime + b.offset);
+                    return order != 0 ? order : a.command.Sequence.CompareTo(b.command.Sequence);
                 }
+            );
+            // Framework 的 AddTransform 会移除同一属性上尚未生效的 transform。
+            // 在前一个 P 窗口内加入新 P 的起点，会移除它排队中的重置；
+            // 中止该序列同样会移除它尚未应用的循环起点。
+            // 保持源时间不变，因为 sprite 的生命周期仍由声明决定。
+            for (int i = 0; i < parameters.Count; i++)
+            for (int j = 0; j < i; j++)
+            {
+                var earlier = parameters[j];
+                var later = parameters[i];
+                if (
+                    earlier.command.Target != later.command.Target
+                    || earlier.command.Suppressed
+                    || earlier.command.ResetSuppressed
+                    || earlier.command.StartTime == earlier.command.EndTime
+                )
+                    continue;
+                if (
+                    earlier.command.EndTime + earlier.offset
+                    <= later.command.StartTime + later.offset
+                )
+                    continue;
+                if (earlier.command.StartTime + earlier.offset > 0)
+                    earlier.command.Suppressed = true;
+                else
+                    earlier.command.ResetSuppressed = true;
+            }
         }
 
         static void FlattenElement(
@@ -145,7 +188,8 @@ namespace OsuVR.Storyboard.Engine
             List<SBSpriteFlatData> outSprites,
             List<SBCommandFlatData> outCommands,
             List<SBLoopFlatData> outLoops,
-            List<int> frameMap)
+            List<int> frameMap
+        )
         {
             // 1. 使用现有 SBCommandGroupBuilder 展开命令 (M→X+Y, S→SX+SY, etc.)
             var group = SBCommandGroupBuilder.Build(element);
@@ -174,10 +218,12 @@ namespace OsuVR.Storyboard.Engine
             int cmdOffset = outCommands.Count;
 
             // 3. 直接命令按 StartTime 排序后写入 flat array
-            directCmds.Sort((a, b) =>
-            {
-                return CompareCommands(a, b);
-            });
+            directCmds.Sort(
+                (a, b) =>
+                {
+                    return CompareCommands(a, b);
+                }
+            );
 
             for (int i = 0; i < directCmds.Count; i++)
                 outCommands.Add(ConvertCommand(directCmds[i]));
@@ -187,7 +233,8 @@ namespace OsuVR.Storyboard.Engine
 
             // 4. 纹理索引
             int texIndex = -1;
-            int texWidth = 0, texHeight = 0;
+            int texWidth = 0,
+                texHeight = 0;
             int animFrameCount = 0;
             double animFrameDelay = 0;
             int animLoopType = 0;
@@ -208,10 +255,17 @@ namespace OsuVR.Storyboard.Engine
                 {
                     string framePath = anim.BuildFramePath(f).Replace('\\', '/').ToLowerInvariant();
                     int slice = -1;
-                    if (textureIndexMap != null && textureIndexMap.TryGetValue(framePath, out int idx))
+                    if (
+                        textureIndexMap != null
+                        && textureIndexMap.TryGetValue(framePath, out int idx)
+                    )
                     {
                         slice = idx;
-                        if (!dimsResolved && textureDimensions != null && idx < textureDimensions.Length)
+                        if (
+                            !dimsResolved
+                            && textureDimensions != null
+                            && idx < textureDimensions.Length
+                        )
                         {
                             texWidth = textureDimensions[idx].x;
                             texHeight = textureDimensions[idx].y;
@@ -241,16 +295,21 @@ namespace OsuVR.Storyboard.Engine
             double startTime = double.MaxValue;
             foreach (var command in group.Commands)
             {
-                double first = command is SBLoopCommand loop && loop.InnerGroup.Commands.Count > 0
-                    ? loop.StartTime + loop.InnerGroup.StartTime() : command.StartTime;
+                double first =
+                    command is SBLoopCommand loop && loop.InnerGroup.Commands.Count > 0
+                        ? loop.StartTime + loop.InnerGroup.StartTime()
+                        : command.StartTime;
                 startTime = System.Math.Min(startTime, first);
             }
             double endTime = group.EndTime();
-            if (startTime >= double.MaxValue) startTime = 0;
-            if (endTime <= double.MinValue) endTime = startTime;
+            if (startTime >= double.MaxValue)
+                startTime = 0;
+            if (endTime <= double.MinValue)
+                endTime = startTime;
 
             int originIdx = (int)element.Origin;
-            if ((uint)originIdx > 9) originIdx = 1; // fallback to Centre
+            if ((uint)originIdx > 9)
+                originIdx = 1; // 回退到 Centre
 
             var sprite = new SBSpriteFlatData
             {
@@ -287,7 +346,7 @@ namespace OsuVR.Storyboard.Engine
                 AnimFrameCount = animFrameCount,
                 AnimFrameDelay = animFrameDelay,
                 AnimLoopType = animLoopType,
-                AnimFrameMapOffset = animFrameMapOffset
+                AnimFrameMapOffset = animFrameMapOffset,
             };
 
             // 应用初始值 (从最早的直接命令中提取)
@@ -305,7 +364,8 @@ namespace OsuVR.Storyboard.Engine
         static void FlattenLoopInner(
             SBLoopCommand loopCmd,
             List<SBCommandFlatData> outCommands,
-            List<SBLoopFlatData> outLoops)
+            List<SBLoopFlatData> outLoops
+        )
         {
             int innerOffset = outCommands.Count;
 
@@ -324,10 +384,12 @@ namespace OsuVR.Storyboard.Engine
                 innerCmds.Add(cmd);
             }
 
-            innerCmds.Sort((a, b) =>
-            {
-                return CompareCommands(a, b);
-            });
+            innerCmds.Sort(
+                (a, b) =>
+                {
+                    return CompareCommands(a, b);
+                }
+            );
 
             for (int i = 0; i < innerCmds.Count; i++)
                 outCommands.Add(ConvertCommand(innerCmds[i]));
@@ -336,20 +398,23 @@ namespace OsuVR.Storyboard.Engine
 
             double loopDuration = loopCmd.LoopDuration;
 
-            outLoops.Add(new SBLoopFlatData
-            {
-                StartTime = loopCmd.StartTime,
-                LoopDuration = loopDuration,
-                LoopCount = loopCmd.LoopCount,
-                InnerCmdOffset = innerOffset,
-                InnerCmdCount = innerCount
-            });
+            outLoops.Add(
+                new SBLoopFlatData
+                {
+                    StartTime = loopCmd.StartTime,
+                    LoopDuration = loopDuration,
+                    LoopCount = loopCmd.LoopCount,
+                    InnerCmdOffset = innerOffset,
+                    InnerCmdCount = innerCount,
+                }
+            );
         }
 
         static int CompareCommands(SBSpriteCommand a, SBSpriteCommand b)
         {
             int order = a.StartTime.CompareTo(b.StartTime);
-            if (order != 0) return order;
+            if (order != 0)
+                return order;
             order = a.EndTime.CompareTo(b.EndTime);
             return order != 0 ? order : a.Sequence.CompareTo(b.Sequence);
         }
@@ -362,7 +427,7 @@ namespace OsuVR.Storyboard.Engine
                 StartTime = cmd.StartTime,
                 EndTime = cmd.EndTime,
                 Easing = (int)cmd.Easing,
-                Target = (int)cmd.Target
+                Target = (int)cmd.Target,
             };
 
             switch (cmd)
@@ -382,8 +447,10 @@ namespace OsuVR.Storyboard.Engine
                     break;
 
                 case SBBoolCommand bc:
-                    if (bc.Suppressed) flat.Target = -1;
-                    if (bc.ResetSuppressed) flat.EndTime = flat.StartTime;
+                    if (bc.Suppressed)
+                        flat.Target = -1;
+                    if (bc.ResetSuppressed)
+                        flat.EndTime = flat.StartTime;
                     flat.BoolStart = bc.StartValue ? (byte)1 : (byte)0;
                     flat.BoolEnd = bc.EndValue || bc.ResetSuppressed ? (byte)1 : (byte)0;
                     break;
@@ -401,9 +468,11 @@ namespace OsuVR.Storyboard.Engine
             for (int i = 0; i < cmds.Count; i++)
             {
                 var cmd = cmds[i];
-                if (cmd is SBBoolCommand suppressed && suppressed.Suppressed) continue;
+                if (cmd is SBBoolCommand suppressed && suppressed.Suppressed)
+                    continue;
                 int target = (int)cmd.Target;
-                if (found.Contains(target)) continue;
+                if (found.Contains(target))
+                    continue;
                 found.Add(target);
 
                 switch (cmd)
@@ -411,15 +480,33 @@ namespace OsuVR.Storyboard.Engine
                     case SBFloatCommand fc:
                         switch (fc.Target)
                         {
-                            case SBCommandTarget.Alpha: sprite.InitAlpha = fc.StartValue; break;
-                            case SBCommandTarget.X: sprite.InitX = fc.StartValue; break;
-                            case SBCommandTarget.Y: sprite.InitY = fc.StartValue; break;
-                            case SBCommandTarget.ScaleX: sprite.InitScaleX = fc.StartValue; break;
-                            case SBCommandTarget.ScaleY: sprite.InitScaleY = fc.StartValue; break;
-                            case SBCommandTarget.Rotation: sprite.InitRotation = fc.StartValue; break;
-                            case SBCommandTarget.UniformScale: sprite.InitUniformScale = fc.StartValue; break;
-                            case SBCommandTarget.VectorScaleX: sprite.InitVectorScaleX = fc.StartValue; break;
-                            case SBCommandTarget.VectorScaleY: sprite.InitVectorScaleY = fc.StartValue; break;
+                            case SBCommandTarget.Alpha:
+                                sprite.InitAlpha = fc.StartValue;
+                                break;
+                            case SBCommandTarget.X:
+                                sprite.InitX = fc.StartValue;
+                                break;
+                            case SBCommandTarget.Y:
+                                sprite.InitY = fc.StartValue;
+                                break;
+                            case SBCommandTarget.ScaleX:
+                                sprite.InitScaleX = fc.StartValue;
+                                break;
+                            case SBCommandTarget.ScaleY:
+                                sprite.InitScaleY = fc.StartValue;
+                                break;
+                            case SBCommandTarget.Rotation:
+                                sprite.InitRotation = fc.StartValue;
+                                break;
+                            case SBCommandTarget.UniformScale:
+                                sprite.InitUniformScale = fc.StartValue;
+                                break;
+                            case SBCommandTarget.VectorScaleX:
+                                sprite.InitVectorScaleX = fc.StartValue;
+                                break;
+                            case SBCommandTarget.VectorScaleY:
+                                sprite.InitVectorScaleY = fc.StartValue;
+                                break;
                         }
                         break;
 
@@ -430,13 +517,16 @@ namespace OsuVR.Storyboard.Engine
                         break;
 
                     case SBBoolCommand bc:
-                        // A zero-duration parameter is a permanent initial value in lazer.
+                        // 在 lazer 中，零时长的参数命令是一个永久性的初始值。
                         if (bc.UseInitialValue)
                         {
                             byte value = bc.StartValue ? (byte)1 : (byte)0;
-                            if (bc.Target == SBCommandTarget.FlipH) sprite.InitFlipH = value;
-                            if (bc.Target == SBCommandTarget.FlipV) sprite.InitFlipV = value;
-                            if (bc.Target == SBCommandTarget.BlendingMode) sprite.InitAdditive = value;
+                            if (bc.Target == SBCommandTarget.FlipH)
+                                sprite.InitFlipH = value;
+                            if (bc.Target == SBCommandTarget.FlipV)
+                                sprite.InitFlipV = value;
+                            if (bc.Target == SBCommandTarget.BlendingMode)
+                                sprite.InitAdditive = value;
                         }
                         break;
                 }

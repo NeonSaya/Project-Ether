@@ -12,8 +12,8 @@ namespace OsuVR
         private const float OSURegionHeight = 384f;
 
         // 目标3D平面的尺寸（VR中适合挥手范围）
-        private const float TargetWidth = 1.5f;    // 1.5米宽
-        private const float TargetHeight = 1.1f;   // 1.1米高
+        private const float TargetWidth = 1.5f; // 1.5米宽
+        private const float TargetHeight = 1.1f; // 1.1米高
 
         // 目标平面在玩家前方的位置（Z轴距离）
         private const float TargetDistance = 2.0f;

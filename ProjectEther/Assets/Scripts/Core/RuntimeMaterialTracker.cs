@@ -19,14 +19,16 @@ namespace OsuVR
         /// <summary>登记一个由工厂创建、归本对象所有的材质实例</summary>
         public void Track(Material mat)
         {
-            if (mat != null) _materials.Add(mat);
+            if (mat != null)
+                _materials.Add(mat);
         }
 
         /// <summary>获取或添加追踪器组件</summary>
         public static RuntimeMaterialTracker GetOrAdd(GameObject go)
         {
             var tracker = go.GetComponent<RuntimeMaterialTracker>();
-            if (tracker == null) tracker = go.AddComponent<RuntimeMaterialTracker>();
+            if (tracker == null)
+                tracker = go.AddComponent<RuntimeMaterialTracker>();
             return tracker;
         }
 
@@ -34,7 +36,8 @@ namespace OsuVR
         {
             for (int i = 0; i < _materials.Count; i++)
             {
-                if (_materials[i] != null) Destroy(_materials[i]);
+                if (_materials[i] != null)
+                    Destroy(_materials[i]);
             }
             _materials.Clear();
         }

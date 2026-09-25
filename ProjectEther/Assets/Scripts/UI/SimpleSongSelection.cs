@@ -1,8 +1,8 @@
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using TMPro;
 using UnityEngine.XR;
 
 namespace OsuVR
@@ -51,11 +51,13 @@ namespace OsuVR
         private List<BeatmapSet> beatmapSets = new List<BeatmapSet>();
         private BeatmapSet selectedSet;
         private Texture2D _runtimeBgTexture; // 运行时加载的背景纹理（负责销毁）
-        private readonly System.Collections.Generic.List<UnityEngine.XR.InputDevice> _rightHandDevices = new System.Collections.Generic.List<UnityEngine.XR.InputDevice>(2);
+        private readonly System.Collections.Generic.List<UnityEngine.XR.InputDevice> _rightHandDevices =
+            new System.Collections.Generic.List<UnityEngine.XR.InputDevice>(2);
         private BeatmapMetadata selectedDifficulty;
-        
+
         private bool isModPanelActive = false;
-        private readonly Dictionary<ModType, Image> generatedModImages = new Dictionary<ModType, Image>();
+        private readonly Dictionary<ModType, Image> generatedModImages =
+            new Dictionary<ModType, Image>();
 
         private TextMeshProUGUI toggleModsButtonText;
         private ScrollRect cachedScrollRect;
@@ -76,20 +78,22 @@ namespace OsuVR
             // 内部会触发解压；随后 ImportNewOszFiles 再扫一遍剩余 .osz
             BeatmapImporter.PullPendingImports();
             BeatmapImporter.ImportNewOszFiles();
-            
+
             if (listContent != null)
             {
                 cachedScrollRect = listContent.GetComponentInParent<ScrollRect>();
             }
-            
+
             RefreshSongList();
             GenerateModButtons();
 
             SetupButtonReferences();
             SetupButtonListeners();
 
-            if (modPanel != null) modPanel.SetActive(false);
-            if (infoPanel != null) infoPanel.SetActive(true);
+            if (modPanel != null)
+                modPanel.SetActive(false);
+            if (infoPanel != null)
+                infoPanel.SetActive(true);
             isModPanelActive = false;
 
             UpdateToggleModsButtonText();
@@ -130,7 +134,7 @@ namespace OsuVR
                 { "HP", "ui_hp" },
                 { "Length", "ui_length" },
                 { "Select a Beatmap", "ui_select_beatmap" },
-                { "CONFIRM MODS", "ui_confirm_mods" }
+                { "CONFIRM MODS", "ui_confirm_mods" },
             };
 
             foreach (var text in allTexts)
@@ -158,13 +162,13 @@ namespace OsuVR
             {
                 GenerateDifficultyButtons(selectedSet);
             }
-            
-            // Also update the list of songs if their titles/artists need updating
+
+            // 若歌名/艺术家文本需要更新，也一并刷新歌曲列表
             foreach (var view in songItemViews)
             {
                 if (view != null)
                 {
-                    // Force a UI refresh in the views
+                    // 强制刷新各列表项的 UI 显示
                     view.RefreshDisplay();
                 }
             }
@@ -175,17 +179,20 @@ namespace OsuVR
             if (openModButton == null)
             {
                 GameObject btnObj = GameObject.Find("Btn_ToggleMods");
-                if (btnObj != null) openModButton = btnObj.GetComponent<Button>();
+                if (btnObj != null)
+                    openModButton = btnObj.GetComponent<Button>();
             }
             if (backMenuButton == null)
             {
                 GameObject btnObj = GameObject.Find("Btn_Back");
-                if (btnObj != null) backMenuButton = btnObj.GetComponent<Button>();
+                if (btnObj != null)
+                    backMenuButton = btnObj.GetComponent<Button>();
             }
             if (playButton == null)
             {
                 GameObject btnObj = GameObject.Find("Btn_Play");
-                if (btnObj != null) playButton = btnObj.GetComponent<Button>();
+                if (btnObj != null)
+                    playButton = btnObj.GetComponent<Button>();
             }
 
             if (openModButton != null)
@@ -225,16 +232,22 @@ namespace OsuVR
 
         public void ScrollUp()
         {
-            if (cachedScrollRect == null) return;
+            if (cachedScrollRect == null)
+                return;
             cachedScrollRect.verticalNormalizedPosition += scrollAmount / 1000f;
-            cachedScrollRect.verticalNormalizedPosition = Mathf.Clamp01(cachedScrollRect.verticalNormalizedPosition);
+            cachedScrollRect.verticalNormalizedPosition = Mathf.Clamp01(
+                cachedScrollRect.verticalNormalizedPosition
+            );
         }
 
         public void ScrollDown()
         {
-            if (cachedScrollRect == null) return;
+            if (cachedScrollRect == null)
+                return;
             cachedScrollRect.verticalNormalizedPosition -= scrollAmount / 1000f;
-            cachedScrollRect.verticalNormalizedPosition = Mathf.Clamp01(cachedScrollRect.verticalNormalizedPosition);
+            cachedScrollRect.verticalNormalizedPosition = Mathf.Clamp01(
+                cachedScrollRect.verticalNormalizedPosition
+            );
         }
 
         void Update()
@@ -244,22 +257,30 @@ namespace OsuVR
 
         void HandleVRStickScroll()
         {
-            if (cachedScrollRect == null) return;
+            if (cachedScrollRect == null)
+                return;
 
             _rightHandDevices.Clear();
             InputDevices.GetDevicesWithCharacteristics(
-                InputDeviceCharacteristics.Right | InputDeviceCharacteristics.Controller, 
-                _rightHandDevices);
+                InputDeviceCharacteristics.Right | InputDeviceCharacteristics.Controller,
+                _rightHandDevices
+            );
             var rightHandDevices = _rightHandDevices;
 
             if (rightHandDevices.Count > 0)
             {
-                if (rightHandDevices[0].TryGetFeatureValue(CommonUsages.primary2DAxis, out Vector2 stick))
+                if (
+                    rightHandDevices[0]
+                        .TryGetFeatureValue(CommonUsages.primary2DAxis, out Vector2 stick)
+                )
                 {
                     if (Mathf.Abs(stick.y) > 0.1f)
                     {
-                        cachedScrollRect.verticalNormalizedPosition += stick.y * Time.deltaTime * 1.5f;
-                        cachedScrollRect.verticalNormalizedPosition = Mathf.Clamp01(cachedScrollRect.verticalNormalizedPosition);
+                        cachedScrollRect.verticalNormalizedPosition +=
+                            stick.y * Time.deltaTime * 1.5f;
+                        cachedScrollRect.verticalNormalizedPosition = Mathf.Clamp01(
+                            cachedScrollRect.verticalNormalizedPosition
+                        );
                     }
                 }
             }
@@ -317,7 +338,11 @@ namespace OsuVR
                 if (view != null)
                 {
                     BeatmapMetadata defaultDiff = set.GetDefaultDifficulty();
-                    view.Setup(defaultDiff, set.Difficulties.Count, (meta) => OnBeatmapSetSelected(set));
+                    view.Setup(
+                        defaultDiff,
+                        set.Difficulties.Count,
+                        (meta) => OnBeatmapSetSelected(set)
+                    );
                     songItemViews.Add(view);
                 }
                 else
@@ -334,7 +359,9 @@ namespace OsuVR
 
             UpdateSelectionHighlight(set);
 
-            Debug.Log($"[SimpleSongSelection] 选中 BeatmapSet: {set.Title} ({set.Difficulties.Count} 个难度)");
+            Debug.Log(
+                $"[SimpleSongSelection] 选中 BeatmapSet: {set.Title} ({set.Difficulties.Count} 个难度)"
+            );
 
             if (sfxSource != null && selectSound != null)
                 sfxSource.PlayOneShot(selectSound);
@@ -358,7 +385,11 @@ namespace OsuVR
 
             foreach (var view in songItemViews)
             {
-                if (view.Metadata != null && view.Metadata.Title == set.Title && view.Metadata.Artist == set.Artist)
+                if (
+                    view.Metadata != null
+                    && view.Metadata.Title == set.Title
+                    && view.Metadata.Artist == set.Artist
+                )
                 {
                     view.SetSelected(true);
                     currentSelectedView = view;
@@ -369,7 +400,8 @@ namespace OsuVR
 
         void LoadBackgroundImage(string backgroundPath)
         {
-            if (backgroundImage == null) return;
+            if (backgroundImage == null)
+                return;
 
             // 释放上一张运行时背景纹理，防止浏览谱面时显存无限泄漏（一体机 OOM）
             if (_runtimeBgTexture != null)
@@ -394,11 +426,13 @@ namespace OsuVR
 
         void GenerateDifficultyButtons(BeatmapSet set)
         {
-            if (difficultyDropdownContainer == null) return;
+            if (difficultyDropdownContainer == null)
+                return;
 
             foreach (var btn in difficultyButtons)
             {
-                if (btn != null) Destroy(btn);
+                if (btn != null)
+                    Destroy(btn);
             }
             difficultyButtons.Clear();
 
@@ -414,7 +448,7 @@ namespace OsuVR
                 img.color = GetDifficultyColor(diff.OverallDifficulty);
 
                 Button btn = btnObj.AddComponent<Button>();
-                
+
                 GameObject textObj = new GameObject("Text");
                 textObj.transform.SetParent(btnObj.transform, false);
                 RectTransform textRt = textObj.AddComponent<RectTransform>();
@@ -424,7 +458,9 @@ namespace OsuVR
                 textRt.offsetMin = new Vector2(4, 2);
                 textRt.offsetMax = new Vector2(-4, -2);
                 TextMeshProUGUI tmp = textObj.AddComponent<TextMeshProUGUI>();
-                tmp.text = string.IsNullOrEmpty(diff.Version) ? LocalizationManager.GetText("ui_normal") : diff.Version;
+                tmp.text = string.IsNullOrEmpty(diff.Version)
+                    ? LocalizationManager.GetText("ui_normal")
+                    : diff.Version;
                 tmp.fontSize = 12;
                 tmp.alignment = TextAlignmentOptions.Center;
                 tmp.color = Color.white;
@@ -435,7 +471,9 @@ namespace OsuVR
                 difficultyButtons.Add(btnObj);
             }
 
-            LayoutRebuilder.ForceRebuildLayoutImmediate(difficultyDropdownContainer as RectTransform);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(
+                difficultyDropdownContainer as RectTransform
+            );
         }
 
         void OnDifficultySelected(BeatmapMetadata diff)
@@ -451,10 +489,14 @@ namespace OsuVR
 
         Color GetDifficultyColor(float od)
         {
-            if (od < 3) return new Color(0.4f, 0.8f, 0.4f);
-            if (od < 5) return new Color(0.6f, 0.8f, 0.3f);
-            if (od < 6.5f) return new Color(0.9f, 0.7f, 0.2f);
-            if (od < 8) return new Color(1f, 0.5f, 0.3f);
+            if (od < 3)
+                return new Color(0.4f, 0.8f, 0.4f);
+            if (od < 5)
+                return new Color(0.6f, 0.8f, 0.3f);
+            if (od < 6.5f)
+                return new Color(0.9f, 0.7f, 0.2f);
+            if (od < 8)
+                return new Color(1f, 0.5f, 0.3f);
             return new Color(1f, 0.3f, 0.4f);
         }
 
@@ -469,7 +511,9 @@ namespace OsuVR
             if (titleText != null)
             {
                 string displayTitle = mapData.GetDisplayTitle(useOriginalLanguage);
-                titleText.text = string.IsNullOrEmpty(displayTitle) ? LocalizationManager.GetText("ui_unknown_title") : displayTitle;
+                titleText.text = string.IsNullOrEmpty(displayTitle)
+                    ? LocalizationManager.GetText("ui_unknown_title")
+                    : displayTitle;
             }
 
             if (artistText != null)
@@ -482,12 +526,18 @@ namespace OsuVR
             {
                 if (csText != null)
                 {
-                    csText.text = mapData.CircleSize.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+                    csText.text = mapData.CircleSize.ToString(
+                        "F1",
+                        System.Globalization.CultureInfo.InvariantCulture
+                    );
                 }
 
                 if (arText != null)
                 {
-                    arText.text = mapData.ApproachRate.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+                    arText.text = mapData.ApproachRate.ToString(
+                        "F1",
+                        System.Globalization.CultureInfo.InvariantCulture
+                    );
                 }
 
                 if (odText != null)
@@ -507,25 +557,33 @@ namespace OsuVR
 
                 if (difficultyText != null)
                 {
-                    string diffName = string.IsNullOrEmpty(mapData.Version) ? LocalizationManager.GetText("ui_normal") : mapData.Version;
+                    string diffName = string.IsNullOrEmpty(mapData.Version)
+                        ? LocalizationManager.GetText("ui_normal")
+                        : mapData.Version;
                     difficultyText.text = $"{diffName} ▼";
                 }
             }
             catch (System.Exception e)
             {
                 Debug.LogWarning($"[SimpleSongSelection] 更新四维数据失败: {e.Message}");
-                
-                if (csText != null) csText.text = "-";
-                if (arText != null) arText.text = "-";
-                if (odText != null) odText.text = "-";
-                if (hpText != null) hpText.text = "-";
-                if (lengthText != null) lengthText.text = "-";
+
+                if (csText != null)
+                    csText.text = "-";
+                if (arText != null)
+                    arText.text = "-";
+                if (odText != null)
+                    odText.text = "-";
+                if (hpText != null)
+                    hpText.text = "-";
+                if (lengthText != null)
+                    lengthText.text = "-";
             }
         }
 
         void UpdateStatsWithMods()
         {
-            if (selectedDifficulty == null) return;
+            if (selectedDifficulty == null)
+                return;
 
             EnsureGameContext();
             var mods = GameContext.Instance.SelectedMods;
@@ -593,20 +651,21 @@ namespace OsuVR
 
         void GenerateModButtons()
         {
-            if (modButtonContainer == null || modButtonPrefab == null) return;
+            if (modButtonContainer == null || modButtonPrefab == null)
+                return;
 
             foreach (Transform child in modButtonContainer)
             {
                 Destroy(child.gameObject);
             }
-            
+
             generatedModImages.Clear();
 
             var allMods = ModDatabase.GetAllMods();
             foreach (var modInfo in allMods)
             {
                 GameObject btnObj = Instantiate(modButtonPrefab, modButtonContainer);
-                
+
                 RectTransform rt = btnObj.GetComponent<RectTransform>();
                 if (rt != null)
                 {
@@ -632,7 +691,8 @@ namespace OsuVR
                 controller.OnModClicked += ToggleMod;
 
                 var img = btnObj.GetComponent<Image>();
-                if (img != null) generatedModImages[modInfo.type] = img;
+                if (img != null)
+                    generatedModImages[modInfo.type] = img;
             }
 
             UpdateModDisplay();
@@ -655,13 +715,16 @@ namespace OsuVR
             {
                 float mult = mods.GetTotalScoreMultiplier();
                 multiplierText.text = $"{mult:F2}x";
-                multiplierText.color = mult >= 1f ? new Color(0.4f, 1f, 0.6f) : new Color(1f, 0.5f, 0.4f);
+                multiplierText.color =
+                    mult >= 1f ? new Color(0.4f, 1f, 0.6f) : new Color(1f, 0.5f, 0.4f);
             }
 
             if (activeModsText != null)
             {
                 string modStr = mods.GetModString();
-                activeModsText.text = string.IsNullOrEmpty(modStr) ? LocalizationManager.GetText("ui_no_mod") : modStr;
+                activeModsText.text = string.IsNullOrEmpty(modStr)
+                    ? LocalizationManager.GetText("ui_no_mod")
+                    : modStr;
             }
 
             string statusModStr = mods.GetModString();
@@ -706,7 +769,8 @@ namespace OsuVR
 
         public void ToggleModPanel()
         {
-            if (infoPanel == null || modPanel == null) return;
+            if (infoPanel == null || modPanel == null)
+                return;
 
             isModPanelActive = !isModPanelActive;
 
@@ -714,15 +778,17 @@ namespace OsuVR
             {
                 infoPanel.SetActive(false);
                 modPanel.SetActive(true);
-                
-                if (backMenuButton != null) backMenuButton.gameObject.SetActive(false);
+
+                if (backMenuButton != null)
+                    backMenuButton.gameObject.SetActive(false);
             }
             else
             {
                 modPanel.SetActive(false);
                 infoPanel.SetActive(true);
-                
-                if (backMenuButton != null) backMenuButton.gameObject.SetActive(true);
+
+                if (backMenuButton != null)
+                    backMenuButton.gameObject.SetActive(true);
             }
 
             UpdateToggleModsButtonText();
@@ -753,10 +819,12 @@ namespace OsuVR
                 return;
             }
 
-            Debug.Log($"[SimpleSongSelection] 开始游玩: {selectedDifficulty.Title} [{selectedDifficulty.Version}]");
+            Debug.Log(
+                $"[SimpleSongSelection] 开始游玩: {selectedDifficulty.Title} [{selectedDifficulty.Version}]"
+            );
 
             EnsureGameContext();
-            
+
             GameContext.Instance.SelectedBeatmapPath = selectedDifficulty.OsuFilePath;
             GameContext.Instance.CurrentBeatmapPath = selectedDifficulty.OsuFilePath;
 
@@ -766,7 +834,9 @@ namespace OsuVR
             }
             else
             {
-                Debug.LogError($"[SimpleSongSelection] 无法加载场景！请确保 '{gameSceneName}' 已添加到 Build Settings！");
+                Debug.LogError(
+                    $"[SimpleSongSelection] 无法加载场景！请确保 '{gameSceneName}' 已添加到 Build Settings！"
+                );
             }
         }
 
@@ -819,7 +889,8 @@ namespace OsuVR
             text.color = new Color(1f, 0.85f, 0.3f, 1f);
             _toastObj.SetActive(true);
 
-            if (_toastCoroutine != null) StopCoroutine(_toastCoroutine);
+            if (_toastCoroutine != null)
+                StopCoroutine(_toastCoroutine);
             _toastCoroutine = StartCoroutine(ToastFadeOut(text, 2.5f));
         }
 

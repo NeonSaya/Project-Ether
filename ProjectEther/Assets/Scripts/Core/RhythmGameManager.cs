@@ -1,16 +1,16 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using UnityEngine;
-using UnityEngine.InputSystem;
-using UnityEngine.UI;
-using UnityEngine.EventSystems;
-using UnityEngine.Networking;
-using UnityEngine.SceneManagement;
-using Unity.Collections;
 using OsuVR;
 using OsuVR.Storyboard;
 using OsuVR.Storyboard.Data;
+using Unity.Collections;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
+using UnityEngine.Networking;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 namespace OsuVR
 {
@@ -19,7 +19,6 @@ namespace OsuVR
     /// </summary>
     public class RhythmGameManager : MonoBehaviour
     {
-
         [Header("全局材质补丁")]
         [Tooltip("拖入你做好的 Mat_Note_Glow，所有 Note 都会强制换成这个")]
         public Material globalGlowMaterial;
@@ -56,7 +55,6 @@ namespace OsuVR
         public float noteLifetime = 3.0f;
 
         [Header("游戏设置")]
-
         [Header("AutoPlay 设置")]
         [Tooltip("开启后，游戏将由 AI 自动游玩")]
         public bool useAutoPlay = false;
@@ -77,14 +75,14 @@ namespace OsuVR
         [Header("暂停菜单设置")]
         [Tooltip("VR暂停菜单Prefab（推荐使用）")]
         public GameObject pauseMenuPrefab;
-        
+
         [Tooltip("如果不想用Prefab，可以拖入场景中的VRPauseMenu实例")]
         public VRPauseMenu pauseMenuInstance;
 
         // 内部引用
         private InputAction cancelInputAction;
         private VRPauseMenu currentPauseMenu; // 当前激活的暂停菜单实例
-        private bool isUsingPrefab = false;   // 是否使用Prefab模式
+        private bool isUsingPrefab = false; // 是否使用Prefab模式
 
         [Header("游戏状态")]
         [Tooltip("当前音乐时间（毫秒）")]
@@ -134,14 +132,17 @@ namespace OsuVR
         private int nextNoteIndex = 0;
         private Beatmap currentBeatmap;
         private string currentBeatmapPath;
-        private Dictionary<HitObject, GameObject> activeNoteObjects = new Dictionary<HitObject, GameObject>();
+        private Dictionary<HitObject, GameObject> activeNoteObjects =
+            new Dictionary<HitObject, GameObject>();
 
         /// <summary>音符列表只读视图（供 AutoPlayManager 等外部系统访问，替代反射私有字段）</summary>
         public IReadOnlyList<HitObject> HitObjects => hitObjects;
+
         /// <summary>当前活跃音符对象的只读视图（供 AutoPlayManager 使用，替代反射）</summary>
         public IReadOnlyDictionary<HitObject, GameObject> ActiveNoteObjects => activeNoteObjects;
 
         private double bufferStartDspTime = 0;
+
         /// <summary>是否处于缓冲期（音乐尚未开始但已启动游戏）</summary>
         public bool isBufferPhase => !isPlaying && bufferStartDspTime > 0;
         private int currentRenderBaseline = 0;
@@ -154,9 +155,9 @@ namespace OsuVR
         // =========================================================
 
         // 音符核心数据 (SoA 设计, Allocator.Persistent)
-        NativeArray<double> _noteSpawnTimes;      // 每个音符的 spawn 时间
-        NativeArray<int> _noteTypes;               // 0=Circle, 1=Slider, 2=Spinner
-        NativeArray<double> _noteStartTimes;       // 每个音符的 StartTime
+        NativeArray<double> _noteSpawnTimes; // 每个音符的 spawn 时间
+        NativeArray<int> _noteTypes; // 0=Circle (圆圈), 1=Slider (滑条), 2=Spinner (转盘)
+        NativeArray<double> _noteStartTimes; // 每个音符的 StartTime
         bool _noteDataInitialized = false;
 
         // 静态计算公式
@@ -167,12 +168,12 @@ namespace OsuVR
 
             if (ar < 5)
             {
-                // AR 0 = 1800ms, AR 5 = 1200ms
+                // AR 0 时为 1800ms，AR 5 时为 1200ms
                 return 1200 + 120 * (5 - ar);
             }
             else
             {
-                // AR 5 = 1200ms, AR 10 = 450ms
+                // AR 5 时为 1200ms，AR 10 时为 450ms
                 return 1200 - 150 * (ar - 5);
             }
         }
@@ -228,7 +229,9 @@ namespace OsuVR
             }
             else
             {
-                Debug.LogWarning("[Context] GameContext 为空！(你是直接运行的 GameScene 吗？请从 MenuScene 开始)");
+                Debug.LogWarning(
+                    "[Context] GameContext 为空！(你是直接运行的 GameScene 吗？请从 MenuScene 开始)"
+                );
             }
 
             // 根据选歌数据加载谱面
@@ -241,12 +244,13 @@ namespace OsuVR
             {
                 Debug.Log("[RhythmGameManager] 无选歌数据，加载默认/测试谱面...");
                 LoadBeatmap(); // 加载 Inspector 里的 osuFileName
-                if (autoStart) Invoke("StartGame", 1.0f);
+                if (autoStart)
+                    Invoke("StartGame", 1.0f);
             }
 
             // 初始化暂停菜单
             InitializePauseMenu();
-            
+
             // 初始化暂停菜单输入
             InitializePauseInput();
         }
@@ -321,8 +325,10 @@ namespace OsuVR
         /// </summary>
         private void CheckGameEnd()
         {
-            if (isGameEnded) return;
-            if (!isPlaying) return; // 缓冲期内不检查游戏结束
+            if (isGameEnded)
+                return;
+            if (!isPlaying)
+                return; // 缓冲期内不检查游戏结束
 
             // 所有音符已生成且已判定 = 游戏结束
             // 不需要等歌曲播放完毕，打完最后一个note就结算
@@ -341,7 +347,8 @@ namespace OsuVR
         /// </summary>
         private IEnumerator EndGameCoroutine()
         {
-            if (isGameEnded) yield break;
+            if (isGameEnded)
+                yield break;
 
             isGameEnded = true;
             // 隐藏全息幕布并释放 Storyboard + Video 渲染资源
@@ -386,19 +393,25 @@ namespace OsuVR
                     // 跳转到结算场景
                     if (VRSceneTransitionManager.Instance != null)
                     {
-                        VRSceneTransitionManager.Instance.TransitionToScene(GameContext.Instance.ResultSceneName);
+                        VRSceneTransitionManager.Instance.TransitionToScene(
+                            GameContext.Instance.ResultSceneName
+                        );
                     }
                     else
                     {
                         // 过渡管理器缺失时直接切场景，避免卡死在游戏场景
-                        Debug.LogWarning("[RhythmGame] VRSceneTransitionManager 未找到，直接加载结算场景");
+                        Debug.LogWarning(
+                            "[RhythmGame] VRSceneTransitionManager 未找到，直接加载结算场景"
+                        );
                         SceneManager.LoadScene(GameContext.Instance.ResultSceneName);
                     }
                 }
                 else
                 {
                     Debug.LogWarning("[RhythmGame] GameContext 未找到，无法跳转到结算场景");
-                    Debug.Log($"[Result] 分数: {result.finalScore}, 准确率: {result.accuracy * 100:F2}%, 最大连击: {result.maxCombo}, 评级: {result.rank}");
+                    Debug.Log(
+                        $"[Result] 分数: {result.finalScore}, 准确率: {result.accuracy * 100:F2}%, 最大连击: {result.maxCombo}, 评级: {result.rank}"
+                    );
                 }
             }
         }
@@ -421,12 +434,17 @@ namespace OsuVR
                     double elapsedBufferTime = currentDspTime - bufferStartDspTime;
 
                     // 倒计时 = 缓冲总时长(2倍准备时间 + spawnOffset) - 已过时间
-                    double bufferDuration = System.Math.Max(preparationTime * 2.0, 1.0) + ((spawnOffsetMs / 1000.0) / speedMultiplier);
+                    double bufferDuration =
+                        System.Math.Max(preparationTime * 2.0, 1.0)
+                        + ((spawnOffsetMs / 1000.0) / speedMultiplier);
                     countdownTime = bufferDuration - elapsedBufferTime;
 
                     // 修复: 乘上 speedMultiplier 让游戏时间与加速的音乐匹配
                     // 同时应用固有延迟补偿和用户偏移
-                    currentMusicTimeMs = (((currentDspTime - dspStartTime) * 1000.0) * speedMultiplier) - universalOffsetMs - INHERENT_AUDIO_LATENCY_MS;
+                    currentMusicTimeMs =
+                        (((currentDspTime - dspStartTime) * 1000.0) * speedMultiplier)
+                        - universalOffsetMs
+                        - INHERENT_AUDIO_LATENCY_MS;
                 }
                 else
                 {
@@ -443,7 +461,10 @@ namespace OsuVR
 
                     // 修复: 乘上 speedMultiplier 让游戏时间与加速的音乐匹配
                     // 同时应用固有延迟补偿和用户偏移
-                    currentMusicTimeMs = (((currentDspTime - dspStartTime) * 1000.0) * speedMultiplier) - universalOffsetMs - INHERENT_AUDIO_LATENCY_MS;
+                    currentMusicTimeMs =
+                        (((currentDspTime - dspStartTime) * 1000.0) * speedMultiplier)
+                        - universalOffsetMs
+                        - INHERENT_AUDIO_LATENCY_MS;
 
                     // 检查音乐是否应该开始但还未开始
                     if (!isMusicPlaying && currentMusicTimeMs >= 0)
@@ -534,12 +555,14 @@ namespace OsuVR
             gameStartDspTime = dspStartTime - (spawnOffsetMs / 1000.0);
 
             // 设置缓冲期状态（还未正式开始游戏）
-            isPlaying = false;  // 注意：这里先设置为false，等缓冲期结束再设为true
+            isPlaying = false; // 注意：这里先设置为false，等缓冲期结束再设为true
             isMusicPlaying = false;
 
             Debug.Log($"游戏计划设置完成:");
             Debug.Log($"当前DSP时间: {currentDspTime:F3}s");
-            Debug.Log($"音乐开始时间: {dspStartTime:F3}s (当前时间 + {preparationTime + spawnOffsetMs / 1000.0:F3}s)");
+            Debug.Log(
+                $"音乐开始时间: {dspStartTime:F3}s (当前时间 + {preparationTime + spawnOffsetMs / 1000.0:F3}s)"
+            );
             Debug.Log($"游戏开始时间: {gameStartDspTime:F3}s (音乐开始前 {spawnOffsetMs}ms)");
             Debug.Log($"准备时间: {preparationTime}s, 音符提前时间: {spawnOffsetMs}ms");
 
@@ -568,7 +591,8 @@ namespace OsuVR
             if (isPlaying)
             {
                 isPlaying = false;
-                if (musicSource != null && musicSource.isPlaying) musicSource.Stop();
+                if (musicSource != null && musicSource.isPlaying)
+                    musicSource.Stop();
                 ClearAllNotes();
             }
 
@@ -592,19 +616,25 @@ namespace OsuVR
 
                 if (currentBeatmap.ComboColors == null || currentBeatmap.ComboColors.Count == 0)
                 {
-                    currentBeatmap.ComboColors = new List<Color> {
-                        new Color(1f, 0.4f, 0.4f), new Color(0.4f, 0.6f, 1f),
-                        new Color(0.4f, 1f, 0.4f), new Color(1f, 0.8f, 0.4f)
-                     };
+                    currentBeatmap.ComboColors = new List<Color>
+                    {
+                        new Color(1f, 0.4f, 0.4f),
+                        new Color(0.4f, 0.6f, 1f),
+                        new Color(0.4f, 1f, 0.4f),
+                        new Color(1f, 0.8f, 0.4f),
+                    };
                 }
 
                 if (currentBeatmap != null && currentBeatmap.Difficulty != null)
                 {
-                    float effectiveAR = modEffects != null
-                        ? modEffects.GetModifiedAR(currentBeatmap.Difficulty.ApproachRate)
-                        : currentBeatmap.Difficulty.ApproachRate;
+                    float effectiveAR =
+                        modEffects != null
+                            ? modEffects.GetModifiedAR(currentBeatmap.Difficulty.ApproachRate)
+                            : currentBeatmap.Difficulty.ApproachRate;
                     spawnOffsetMs = (float)CalculateTimePreempt(effectiveAR);
-                    Debug.Log($"[AR System] Loaded AR: {currentBeatmap.Difficulty.ApproachRate}, Modified AR: {effectiveAR}, TimePreempt: {spawnOffsetMs}ms");
+                    Debug.Log(
+                        $"[AR System] Loaded AR: {currentBeatmap.Difficulty.ApproachRate}, Modified AR: {effectiveAR}, TimePreempt: {spawnOffsetMs}ms"
+                    );
                 }
 
                 foreach (var obj in hitObjects)
@@ -625,13 +655,18 @@ namespace OsuVR
                 var mediaScan = MediaAssetScanner.Scan(currentBeatmap, absoluteOsuFilePath);
                 string beatmapFolder = Path.GetDirectoryName(absoluteOsuFilePath);
 
-                if (mediaScan.HasVideo || mediaScan.HasStoryboard || !string.IsNullOrEmpty(mediaScan.BackgroundPath))
+                if (
+                    mediaScan.HasVideo
+                    || mediaScan.HasStoryboard
+                    || !string.IsNullOrEmpty(mediaScan.BackgroundPath)
+                )
                 {
                     // 1. 搭建幕布 (始终加载背景图)
                     HolographicScreenManager.Instance?.Setup(mediaScan, beatmapFolder);
 
                     // 2. 故事板播放开关：开启时才解析和渲染 SB/视频
-                    bool sbPlaybackEnabled = SettingsManager.Instance == null
+                    bool sbPlaybackEnabled =
+                        SettingsManager.Instance == null
                         || SettingsManager.Instance.Settings == null
                         || SettingsManager.Instance.Settings.enableStoryboardPlayback;
 
@@ -648,13 +683,16 @@ namespace OsuVR
                         if (hasOsbFile)
                         {
                             osbData = StoryboardParser.ParseFile(mediaScan.OsbPath);
-                            SBDebugLog.Log($"[RhythmGame] .osb 解析完成: {osbData?.TotalElementCount ?? 0} 元素, inline SB 行数={currentBeatmap.Events.StoryboardLines.Count}");
+                            SBDebugLog.Log(
+                                $"[RhythmGame] .osb 解析完成: {osbData?.TotalElementCount ?? 0} 元素, inline SB 行数={currentBeatmap.Events.StoryboardLines.Count}"
+                            );
                         }
 
                         if (hasInlineSB)
                             inlineData = StoryboardParser.Parse(
                                 currentBeatmap.Events.StoryboardLines,
-                                currentBeatmap.Events.Variables);
+                                currentBeatmap.Events.Variables
+                            );
 
                         // 合并: .osb 为共享素材，.osu 为难度专属
                         if (osbData != null && inlineData != null)
@@ -665,7 +703,9 @@ namespace OsuVR
                                 foreach (var elem in osbData.Layers[i])
                                     sbData.Layers[i].Add(elem);
                             }
-                            SBDebugLog.Log($"[RhythmGame] 合并后: {sbData.TotalElementCount} 元素 (.osb={osbData.TotalElementCount}, inline={inlineData.TotalElementCount})");
+                            SBDebugLog.Log(
+                                $"[RhythmGame] 合并后: {sbData.TotalElementCount} 元素 (.osb={osbData.TotalElementCount}, inline={inlineData.TotalElementCount})"
+                            );
                         }
                         else
                         {
@@ -681,7 +721,8 @@ namespace OsuVR
                     {
                         bool hasValidSB = sbData != null && sbData.TotalElementCount > 0;
                         // 故事板播放开关同时门控 SB 与视频（与本开关注释意图一致：开启时才解析和渲染 SB/视频）
-                        string videoPath = (sbPlaybackEnabled && mediaScan.HasVideo) ? mediaScan.VideoPath : null;
+                        string videoPath =
+                            (sbPlaybackEnabled && mediaScan.HasVideo) ? mediaScan.VideoPath : null;
 
                         if (!sbPlaybackEnabled)
                         {
@@ -691,19 +732,32 @@ namespace OsuVR
                         else if (hasValidSB && !string.IsNullOrEmpty(videoPath))
                         {
                             // 复合模式: Video + Storyboard
-                            renderer.LoadVideoAndStoryboard(videoPath, mediaScan.VideoOffset, sbData, beatmapFolder, widescreen, currentBeatmap.Events.BackgroundFilename);
+                            renderer.LoadVideoAndStoryboard(
+                                videoPath,
+                                mediaScan.VideoOffset,
+                                sbData,
+                                beatmapFolder,
+                                widescreen,
+                                currentBeatmap.Events.BackgroundFilename
+                            );
                         }
                         else if (hasValidSB)
                         {
                             // 纯 Storyboard
-                            renderer.LoadStoryboard(sbData, beatmapFolder, widescreen, currentBeatmap.Events.BackgroundFilename);
+                            renderer.LoadStoryboard(
+                                sbData,
+                                beatmapFolder,
+                                widescreen,
+                                currentBeatmap.Events.BackgroundFilename
+                            );
                         }
                         else if (!string.IsNullOrEmpty(videoPath))
                         {
                             renderer.UnloadAll();
                             renderer.LoadVideo(videoPath, mediaScan.VideoOffset);
                         }
-                        else renderer.UnloadAll();
+                        else
+                            renderer.UnloadAll();
 
                         // 4. 光纤对接：视频 RT 和 SB RT 分别注入幕布
                         var videoRT = renderer.GetVideoRenderTexture();
@@ -749,7 +803,8 @@ namespace OsuVR
         private void ReturnToMenuWithToast(string localizationKey)
         {
             VRToast.Show(LocalizationManager.GetText(localizationKey), Color.red, 5f);
-            string menuScene = GameContext.Instance != null ? GameContext.Instance.MenuSceneName : "MainMenuScene";
+            string menuScene =
+                GameContext.Instance != null ? GameContext.Instance.MenuSceneName : "MainMenuScene";
             if (VRSceneTransitionManager.Instance != null)
                 VRSceneTransitionManager.Instance.TransitionToScene(menuScene);
             else
@@ -767,11 +822,16 @@ namespace OsuVR
 
             Debug.Log($"开始加载音频: {url}");
 
-            using (UnityWebRequest www = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.UNKNOWN))
+            using (
+                UnityWebRequest www = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.UNKNOWN)
+            )
             {
                 yield return www.SendWebRequest();
 
-                if (www.result == UnityWebRequest.Result.ConnectionError || www.result == UnityWebRequest.Result.ProtocolError)
+                if (
+                    www.result == UnityWebRequest.Result.ConnectionError
+                    || www.result == UnityWebRequest.Result.ProtocolError
+                )
                 {
                     Debug.LogError($"音频加载错误: {www.error}");
                     Debug.LogError($"[Audio] 尝试加载的路径是: {audioPath}");
@@ -853,7 +913,9 @@ namespace OsuVR
                 }
 
                 Debug.Log($"[Mod] 已应用 Mod 效果: {modEffects.GetModString()}");
-                Debug.Log($"[Mod] 速度倍率: {speedMultiplier}x, 分数倍率: {modEffects.ScoreMultiplier}x");
+                Debug.Log(
+                    $"[Mod] 速度倍率: {speedMultiplier}x, 分数倍率: {modEffects.ScoreMultiplier}x"
+                );
                 Debug.Log($"[Mod] AutoPlay: {useAutoPlay}");
             }
             else
@@ -882,7 +944,8 @@ namespace OsuVR
         /// </summary>
         private void ApplyHardRockMirror()
         {
-            if (hitObjects == null) return;
+            if (hitObjects == null)
+                return;
 
             const float OSU_HEIGHT = 384f;
             const float CENTER_Y = OSU_HEIGHT / 2f;
@@ -900,17 +963,19 @@ namespace OsuVR
                     for (int i = 0; i < slider.ControlPoints.Count; i++)
                     {
                         Vector2 cp = slider.ControlPoints[i];
-                        
+
                         // 【核心修复】：因为控制点是相对坐标（偏移量）
                         // 往下偏移变成往上偏移，只需要对 Y 取反，不需要减去 384
                         cp.y = -cp.y;
-                        
+
                         slider.ControlPoints[i] = cp;
                     }
                 }
             }
 
-            Debug.Log($"[Mod] HR Y轴镜像翻转完成，共处理 {hitObjects.Count} 个物件，已修复滑条相对坐标翻转");
+            Debug.Log(
+                $"[Mod] HR Y轴镜像翻转完成，共处理 {hitObjects.Count} 个物件，已修复滑条相对坐标翻转"
+            );
         }
 
         /// <summary>
@@ -938,16 +1003,18 @@ namespace OsuVR
         /// <summary>
         /// 当前谱面的判定窗口（随 OD 变化）；未加载谱面时回退 250ms（与历史固定窗口行为一致）。
         /// </summary>
-        public double JudgementWindowMs => (currentBeatmap != null && currentBeatmap.Difficulty != null)
-            ? GetJudgementWindowMs(currentBeatmap.Difficulty.OverallDifficulty)
-            : 250.0;
+        public double JudgementWindowMs =>
+            (currentBeatmap != null && currentBeatmap.Difficulty != null)
+                ? GetJudgementWindowMs(currentBeatmap.Difficulty.OverallDifficulty)
+                : 250.0;
 
         /// <summary>
         /// 缓冲期结束，正式开始游戏
         /// </summary>
         private void StartGamePlay()
         {
-            if (isPlaying) return; // 防止重复调用
+            if (isPlaying)
+                return; // 防止重复调用
 
             Debug.Log("缓冲期结束，正式开始游戏！");
 
@@ -979,7 +1046,9 @@ namespace OsuVR
             pauseStartDspTime = 0;
 
             // 倒计时 = 缓冲总时长(2倍准备时间 + spawnOffset)
-            countdownTime = System.Math.Max(preparationTime * 2.0, 1.0) + ((spawnOffsetMs / 1000.0) / speedMultiplier);
+            countdownTime =
+                System.Math.Max(preparationTime * 2.0, 1.0)
+                + ((spawnOffsetMs / 1000.0) / speedMultiplier);
 
             spawnedNotes = 0;
             activeNotes = 0;
@@ -994,7 +1063,8 @@ namespace OsuVR
             // 先释放旧数据
             DisposeNoteData();
 
-            if (hitObjects == null || hitObjects.Count == 0) return;
+            if (hitObjects == null || hitObjects.Count == 0)
+                return;
 
             int count = hitObjects.Count;
 
@@ -1010,9 +1080,12 @@ namespace OsuVR
                 _noteSpawnTimes[i] = obj.StartTime - obj.TimePreempt;
                 _noteStartTimes[i] = obj.StartTime;
 
-                if (obj is SpinnerObject) _noteTypes[i] = 2;
-                else if (obj is SliderObject) _noteTypes[i] = 1;
-                else _noteTypes[i] = 0;
+                if (obj is SpinnerObject)
+                    _noteTypes[i] = 2;
+                else if (obj is SliderObject)
+                    _noteTypes[i] = 1;
+                else
+                    _noteTypes[i] = 0;
             }
 
             _noteDataInitialized = true;
@@ -1021,9 +1094,12 @@ namespace OsuVR
 
         void DisposeNoteData()
         {
-            if (_noteSpawnTimes.IsCreated) _noteSpawnTimes.Dispose();
-            if (_noteTypes.IsCreated) _noteTypes.Dispose();
-            if (_noteStartTimes.IsCreated) _noteStartTimes.Dispose();
+            if (_noteSpawnTimes.IsCreated)
+                _noteSpawnTimes.Dispose();
+            if (_noteTypes.IsCreated)
+                _noteTypes.Dispose();
+            if (_noteStartTimes.IsCreated)
+                _noteStartTimes.Dispose();
             _noteDataInitialized = false;
         }
 
@@ -1032,7 +1108,8 @@ namespace OsuVR
         /// </summary>
         public void PauseGame()
         {
-            if (!isPlaying) return;
+            if (!isPlaying)
+                return;
 
             isPlaying = false;
             pauseStartDspTime = AudioSettings.dspTime;
@@ -1050,12 +1127,14 @@ namespace OsuVR
 
             Debug.Log("游戏已暂停");
         }
+
         /// <summary>
         /// 恢复游戏
         /// </summary>
         public void ResumeGame()
         {
-            if (isPlaying) return;
+            if (isPlaying)
+                return;
 
             // 偏移 dspStartTime，扣除暂停时长，防止时间跳转
             if (pauseStartDspTime > 0)
@@ -1131,10 +1210,10 @@ namespace OsuVR
                 return;
             }
 
-            Debug.LogWarning("[RhythmGameManager] 未设置暂停菜单Prefab或实例，暂停功能将降级为基本暂停/恢复");
+            Debug.LogWarning(
+                "[RhythmGameManager] 未设置暂停菜单Prefab或实例，暂停功能将降级为基本暂停/恢复"
+            );
         }
-
-
 
         /// <summary>
         /// 初始化暂停菜单输入
@@ -1283,28 +1362,35 @@ namespace OsuVR
                 // 如果谱面没有定义 ComboColors，则使用默认颜色
                 if (currentBeatmap.ComboColors == null || currentBeatmap.ComboColors.Count == 0)
                 {
-                    currentBeatmap.ComboColors = new List<Color> {
+                    currentBeatmap.ComboColors = new List<Color>
+                    {
                         new Color(1f, 0.4f, 0.4f), // 红
                         new Color(0.4f, 0.6f, 1f), // 蓝
                         new Color(0.4f, 1f, 0.4f), // 绿
-                        new Color(1f, 0.8f, 0.4f)  // 黄
-                     };
+                        new Color(1f, 0.8f, 0.4f), // 黄
+                    };
                 }
                 // 统计音符类型
                 foreach (var obj in hitObjects)
                 {
-                    if (obj is HitCircle) hitCircleCount++;
-                    else if (obj is SliderObject) sliderCount++;
-                    else if (obj is SpinnerObject) spinnerCount++;
+                    if (obj is HitCircle)
+                        hitCircleCount++;
+                    else if (obj is SliderObject)
+                        sliderCount++;
+                    else if (obj is SpinnerObject)
+                        spinnerCount++;
                 }
                 // 根据谱面中的AR设置计算spawnOffsetMs
                 if (currentBeatmap != null && currentBeatmap.Difficulty != null)
                 {
                     float baseAR = currentBeatmap.Difficulty.ApproachRate;
-                    float modifiedAR = modEffects != null ? modEffects.GetModifiedAR(baseAR) : baseAR;
+                    float modifiedAR =
+                        modEffects != null ? modEffects.GetModifiedAR(baseAR) : baseAR;
                     spawnOffsetMs = (float)CalculateTimePreempt(modifiedAR);
 
-                    Debug.Log($"[AR System] Base AR: {baseAR}, Modified AR: {modifiedAR}, TimePreempt: {spawnOffsetMs}ms");
+                    Debug.Log(
+                        $"[AR System] Base AR: {baseAR}, Modified AR: {modifiedAR}, TimePreempt: {spawnOffsetMs}ms"
+                    );
                 }
                 // [新增/核心修复] 2. 立即将 AR 时间应用到所有音符
                 // 这样 SpawnNotes 里的 (StartTime - TimePreempt) 才能算出正确的生成时间
@@ -1320,10 +1406,16 @@ namespace OsuVR
                     ApplyHardRockMirror();
                 }
 
-                Debug.Log($"[RhythmGameManager] 谱面加载完成: {currentBeatmap.Metadata.Title} - {currentBeatmap.Metadata.Version}");
+                Debug.Log(
+                    $"[RhythmGameManager] 谱面加载完成: {currentBeatmap.Metadata.Title} - {currentBeatmap.Metadata.Version}"
+                );
                 Debug.Log($"  Audio: {currentBeatmap.General.AudioFilename}");
-                Debug.Log($"  CS:{currentBeatmap.Difficulty.CircleSize} AR:{currentBeatmap.Difficulty.ApproachRate}");
-                Debug.Log($"  总音符: {totalNotes} (圈:{hitCircleCount}, 滑:{sliderCount}, 转:{spinnerCount})");
+                Debug.Log(
+                    $"  CS:{currentBeatmap.Difficulty.CircleSize} AR:{currentBeatmap.Difficulty.ApproachRate}"
+                );
+                Debug.Log(
+                    $"  总音符: {totalNotes} (圈:{hitCircleCount}, 滑:{sliderCount}, 转:{spinnerCount})"
+                );
 
                 // Phase 3: SoA 扁平化 + Burst 预计算
                 InitializeNoteData();
@@ -1357,16 +1449,18 @@ namespace OsuVR
             // 创建滑条（简单直线）
             List<Vector2> sliderPoints = new List<Vector2> { Vector2.zero, new Vector2(256, 192) };
 
-            beatmap.HitObjects.Add(new SliderObject(
-                startTime: 4000,
-                position: new Vector2(128, 96),
-                curveType: CurveType.Linear,    // 补上缺失的曲线类型
-                controlPoints: sliderPoints,    // 必须是 List<Vector2>
-                repeatCount: 1,
-                pixelLength: 100,
-                isNewCombo: true,               // bool
-                comboOffset: 0              // int
-            ));
+            beatmap.HitObjects.Add(
+                new SliderObject(
+                    startTime: 4000,
+                    position: new Vector2(128, 96),
+                    curveType: CurveType.Linear, // 补上缺失的曲线类型
+                    controlPoints: sliderPoints, // 必须是 List<Vector2>
+                    repeatCount: 1,
+                    pixelLength: 100,
+                    isNewCombo: true, // bool (布尔)
+                    comboOffset: 0 // int (整型)
+                )
+            );
 
             // 创建转盘
             beatmap.HitObjects.Add(new SpinnerObject(7000, 10000, true));
@@ -1389,7 +1483,11 @@ namespace OsuVR
         {
             bool isBufferPhase = !isPlaying && bufferStartDspTime > 0;
 
-            if ((!isPlaying && !isBufferPhase) || hitObjects == null || nextNoteIndex >= hitObjects.Count)
+            if (
+                (!isPlaying && !isBufferPhase)
+                || hitObjects == null
+                || nextNoteIndex >= hitObjects.Count
+            )
                 return;
 
             // 机制1: 全局基准线与防下穿机制
@@ -1410,32 +1508,43 @@ namespace OsuVR
             double currentTime = currentMusicTimeMs;
 
             // 防御: SoA 数组必须与 hitObjects 严格等长才可信，长度不符时回退到 OOP 数据
-            bool useSoA = _noteDataInitialized && _noteSpawnTimes.IsCreated && _noteSpawnTimes.Length == hitObjects.Count;
+            bool useSoA =
+                _noteDataInitialized
+                && _noteSpawnTimes.IsCreated
+                && _noteSpawnTimes.Length == hitObjects.Count;
 
             // 1. 过期音符处理 (从 cursor 线性扫描, 实际极少触发)
             while (nextNoteIndex < hitObjects.Count)
             {
-                double startTime = useSoA ? _noteStartTimes[nextNoteIndex] : hitObjects[nextNoteIndex].StartTime;
+                double startTime = useSoA
+                    ? _noteStartTimes[nextNoteIndex]
+                    : hitObjects[nextNoteIndex].StartTime;
                 if (currentTime > startTime + JudgementWindowMs)
                 {
 #if UNITY_EDITOR
-                    Debug.LogWarning($"[Manager] 丢弃过期音符: {startTime}ms (当前: {currentTime:F0})");
+                    Debug.LogWarning(
+                        $"[Manager] 丢弃过期音符: {startTime}ms (当前: {currentTime:F0})"
+                    );
 #endif
-                    if (scoreManager != null) scoreManager.RegisterMiss(300);
+                    if (scoreManager != null)
+                        scoreManager.RegisterMiss(300);
                     nextNoteIndex++;
                     spawnedNotes++;
                 }
-                else break;
+                else
+                    break;
             }
 
-            if (nextNoteIndex >= hitObjects.Count) return;
+            if (nextNoteIndex >= hitObjects.Count)
+                return;
 
             // 2. Binary Search: 在 _noteSpawnTimes 中 O(log N) 定位上界
             int upperBound;
             if (useSoA)
             {
                 // 手动二分搜索: 找到第一个 spawnTime > currentTime 的索引
-                int lo = nextNoteIndex, hi = hitObjects.Count;
+                int lo = nextNoteIndex,
+                    hi = hitObjects.Count;
                 while (lo < hi)
                 {
                     int mid = (lo + hi) >> 1;
@@ -1452,8 +1561,10 @@ namespace OsuVR
                 upperBound = nextNoteIndex;
                 while (upperBound < hitObjects.Count)
                 {
-                    double st = hitObjects[upperBound].StartTime - hitObjects[upperBound].TimePreempt;
-                    if (currentTime < st) break;
+                    double st =
+                        hitObjects[upperBound].StartTime - hitObjects[upperBound].TimePreempt;
+                    if (currentTime < st)
+                        break;
                     upperBound++;
                 }
             }
@@ -1484,15 +1595,25 @@ namespace OsuVR
         {
             // 1. 获取对象池管理器
             var poolMgr = NotePoolManager.Instance;
-            if (poolMgr == null) { Debug.LogError("PoolManager 没挂载！"); return; }
+            if (poolMgr == null)
+            {
+                Debug.LogError("PoolManager 没挂载！");
+                return;
+            }
 
             GameObject noteObject = null;
 
             // 2. 颜色计算
             Color comboColor = Color.white;
-            if (currentBeatmap != null && currentBeatmap.ComboColors != null && currentBeatmap.ComboColors.Count > 0)
+            if (
+                currentBeatmap != null
+                && currentBeatmap.ComboColors != null
+                && currentBeatmap.ComboColors.Count > 0
+            )
             {
-                comboColor = currentBeatmap.ComboColors[hitObject.ComboIndex % currentBeatmap.ComboColors.Count];
+                comboColor = currentBeatmap.ComboColors[
+                    hitObject.ComboIndex % currentBeatmap.ComboColors.Count
+                ];
             }
 
             // 3. CS 计算
@@ -1511,26 +1632,40 @@ namespace OsuVR
             {
                 noteObject = poolMgr.CirclePool.Get();
                 // 🛑 【核心修复】如果池子给了个已销毁的坏对象，手动生成一个新的
-                if (noteObject == null) noteObject = Instantiate(poolMgr.hitCirclePrefab);
+                if (noteObject == null)
+                    noteObject = Instantiate(poolMgr.hitCirclePrefab);
 
                 // 确保它是激活的
-                if (!noteObject.activeSelf) noteObject.SetActive(true);
+                if (!noteObject.activeSelf)
+                    noteObject.SetActive(true);
 
                 PatchNoteVisuals(noteObject);
                 var controller = noteObject.GetComponent<NoteController>();
                 if (controller != null)
                 {
                     Vector3 targetPosition = CoordinateMapper.MapToWorld(hitObject.Position);
-                    controller.Initialize(hitObject, targetPosition, noteSpeed, currentCS, comboColor, this, poolMgr.CirclePool, renderIndex, nextNoteWorldPos);
+                    controller.Initialize(
+                        hitObject,
+                        targetPosition,
+                        noteSpeed,
+                        currentCS,
+                        comboColor,
+                        this,
+                        poolMgr.CirclePool,
+                        renderIndex,
+                        nextNoteWorldPos
+                    );
                 }
             }
             else if (hitObject is SliderObject)
             {
                 noteObject = poolMgr.SliderPool.Get();
                 // 🛑 【核心修复】
-                if (noteObject == null) noteObject = Instantiate(poolMgr.sliderPrefab);
+                if (noteObject == null)
+                    noteObject = Instantiate(poolMgr.sliderPrefab);
 
-                if (!noteObject.activeSelf) noteObject.SetActive(true);
+                if (!noteObject.activeSelf)
+                    noteObject.SetActive(true);
                 var controller = noteObject.GetComponent<SliderController>();
 
                 // 修复: 原代码在 null 检查之前就访问 controller.sharedMaterial，
@@ -1545,25 +1680,45 @@ namespace OsuVR
                         PatchMaterial(noteObject);
                     }
 
-                    controller.Initialize((SliderObject)hitObject, currentCS, comboColor, this, poolMgr.SliderPool, poolMgr.TickPool, renderIndex, nextNoteWorldPos);
+                    controller.Initialize(
+                        (SliderObject)hitObject,
+                        currentCS,
+                        comboColor,
+                        this,
+                        poolMgr.SliderPool,
+                        poolMgr.TickPool,
+                        renderIndex,
+                        nextNoteWorldPos
+                    );
                 }
             }
             else if (hitObject is SpinnerObject)
             {
                 noteObject = poolMgr.SpinnerPool.Get();
                 // 🛑 【核心修复】
-                if (noteObject == null) noteObject = Instantiate(poolMgr.spinnerPrefab);
+                if (noteObject == null)
+                    noteObject = Instantiate(poolMgr.spinnerPrefab);
 
-                if (!noteObject.activeSelf) noteObject.SetActive(true);
+                if (!noteObject.activeSelf)
+                    noteObject.SetActive(true);
 
                 Vector3 worldCenter = CoordinateMapper.MapToWorld(new Vector2(256, 192));
 
                 noteObject.transform.position = worldCenter;
-                float od = (currentBeatmap != null && currentBeatmap.Difficulty != null) ? currentBeatmap.Difficulty.OverallDifficulty: 5f;
+                float od =
+                    (currentBeatmap != null && currentBeatmap.Difficulty != null)
+                        ? currentBeatmap.Difficulty.OverallDifficulty
+                        : 5f;
                 var controller = noteObject.GetComponent<SpinnerController>();
                 if (controller != null)
                 {
-                    controller.Initialize((SpinnerObject)hitObject, this, poolMgr.SpinnerPool, worldCenter,od);
+                    controller.Initialize(
+                        (SpinnerObject)hitObject,
+                        this,
+                        poolMgr.SpinnerPool,
+                        worldCenter,
+                        od
+                    );
                 }
             }
             else
@@ -1647,7 +1802,8 @@ namespace OsuVR
         /// </summary>
         public float GetProgress()
         {
-            if (hitObjects == null || hitObjects.Count == 0) return 0f;
+            if (hitObjects == null || hitObjects.Count == 0)
+                return 0f;
 
             return (float)nextNoteIndex / hitObjects.Count;
         }
@@ -1666,10 +1822,16 @@ namespace OsuVR
                 // 1. 确定判定位置 (使用物体位置)
                 Vector3 hitPos = noteObject != null ? noteObject.transform.position : Vector3.zero;
                 // 2. 确定颜色
-                Color comboColor = (currentBeatmap != null && currentBeatmap.ComboColors != null && currentBeatmap.ComboColors.Count > 0)
-                    ? currentBeatmap.ComboColors[hitObject.ComboIndex % currentBeatmap.ComboColors.Count]
-                    : Color.white;
-
+                Color comboColor =
+                    (
+                        currentBeatmap != null
+                        && currentBeatmap.ComboColors != null
+                        && currentBeatmap.ComboColors.Count > 0
+                    )
+                        ? currentBeatmap.ComboColors[
+                            hitObject.ComboIndex % currentBeatmap.ComboColors.Count
+                        ]
+                        : Color.white;
 
                 if (scoreManager != null)
                 {
@@ -1692,7 +1854,11 @@ namespace OsuVR
 
                     // 现在传入的是正确的 0~1 值，可以正确计分了
                     int scoreValue = CalculateScoreFromAccuracy(accuracy01);
-                    if (scoreValue > 0) StoryboardRenderer.Instance?.NotifyTrigger("HitObjectHit", currentMusicTimeMs);
+                    if (scoreValue > 0)
+                        StoryboardRenderer.Instance?.NotifyTrigger(
+                            "HitObjectHit",
+                            currentMusicTimeMs
+                        );
                     if (scoreManager != null)
                     {
                         scoreManager.RegisterHit(scoreValue);
@@ -1700,17 +1866,20 @@ namespace OsuVR
 
                     if (JudgementVisualizer.Instance != null && !(hitObject is SliderObject))
                     {
-                        if (currentBeatmap != null && currentBeatmap.ComboColors != null && currentBeatmap.ComboColors.Count > 0)
+                        if (
+                            currentBeatmap != null
+                            && currentBeatmap.ComboColors != null
+                            && currentBeatmap.ComboColors.Count > 0
+                        )
                         {
-                            comboColor = currentBeatmap.ComboColors[hitObject.ComboIndex % currentBeatmap.ComboColors.Count];
+                            comboColor = currentBeatmap.ComboColors[
+                                hitObject.ComboIndex % currentBeatmap.ComboColors.Count
+                            ];
                         }
 
                         // 显示判定！
                         JudgementVisualizer.Instance.ShowJudgement(hitPos, scoreValue, comboColor);
                     }
-
-
-
                 }
 #if UNITY_EDITOR
                 Debug.Log($"击打音符: 误差={timeDiff:F1}ms, 转换后Acc={timeDiff:F2}");
@@ -1729,7 +1898,6 @@ namespace OsuVR
                 activeNoteObjects.Remove(hitObject);
                 activeNotes = activeNoteObjects.Count;
                 Vector3 missPos = obj != null ? obj.transform.position : Vector3.zero;
-
 
                 // 2. 只有在这里才通知 ScoreManager 记 Miss
                 if (scoreManager != null && !(hitObject is SliderObject))
@@ -1754,7 +1922,8 @@ namespace OsuVR
         /// accuracy01 (1.0=完美重合, 0.0=判定边缘) → 分数档位 300/100/50/0。
         /// 实现见 JudgementConfig.ScoreFromAccuracy（独立程序集，带单元测试）。
         /// </summary>
-        public static int CalculateScoreFromAccuracy(double accuracy01) => JudgementConfig.ScoreFromAccuracy(accuracy01);
+        public static int CalculateScoreFromAccuracy(double accuracy01) =>
+            JudgementConfig.ScoreFromAccuracy(accuracy01);
 
         /// <summary>
         /// 获取格式化时间字符串
@@ -1794,7 +1963,8 @@ namespace OsuVR
         /// </summary>
         void OnGUI()
         {
-            if (!Application.isPlaying) return;
+            if (!Application.isPlaying)
+                return;
 
             GUILayout.BeginArea(new Rect(10, 10, 350, 500));
 
@@ -1806,13 +1976,21 @@ namespace OsuVR
                 GUILayout.Space(5);
                 GUILayout.Label($"曲名: {currentBeatmap.Metadata.Title}");
                 GUILayout.Label($"艺术家: {currentBeatmap.Metadata.Artist}");
-                GUILayout.Label($"难度: {currentBeatmap.Metadata.Version} (by {currentBeatmap.Metadata.Creator})");
-                GUILayout.Label($"参数: CS:{currentBeatmap.Difficulty.CircleSize} AR:{currentBeatmap.Difficulty.ApproachRate} OD:{currentBeatmap.Difficulty.OverallDifficulty} HP:{currentBeatmap.Difficulty.HPDrainRate}");
-                GUILayout.Label($"BPM点: {currentBeatmap.ControlPoints?.Timing?.Count ?? 0} | 滑条倍率: {currentBeatmap.Difficulty.SliderMultiplier}");
+                GUILayout.Label(
+                    $"难度: {currentBeatmap.Metadata.Version} (by {currentBeatmap.Metadata.Creator})"
+                );
+                GUILayout.Label(
+                    $"参数: CS:{currentBeatmap.Difficulty.CircleSize} AR:{currentBeatmap.Difficulty.ApproachRate} OD:{currentBeatmap.Difficulty.OverallDifficulty} HP:{currentBeatmap.Difficulty.HPDrainRate}"
+                );
+                GUILayout.Label(
+                    $"BPM点: {currentBeatmap.ControlPoints?.Timing?.Count ?? 0} | 滑条倍率: {currentBeatmap.Difficulty.SliderMultiplier}"
+                );
                 GUILayout.Space(5);
             }
 
-            GUILayout.Label($"游戏状态: {(isPlaying ? "进行中" : (bufferStartDspTime > 0 ? "准备中" : "未开始"))}");
+            GUILayout.Label(
+                $"游戏状态: {(isPlaying ? "进行中" : (bufferStartDspTime > 0 ? "准备中" : "未开始"))}"
+            );
             GUILayout.Label($"音乐状态: {(isMusicPlaying ? "播放中" : "未播放")}");
             GUILayout.Label($"当前时间: {GetFormattedTime()}");
             GUILayout.Label($"DSP开始时间: {dspStartTime:F3}s");
@@ -1935,7 +2113,9 @@ namespace OsuVR
             if (dspStartTime > 0)
             {
                 double currentDspTime = AudioSettings.dspTime;
-                return (((currentDspTime - dspStartTime) * 1000.0) * speedMultiplier) - universalOffsetMs - INHERENT_AUDIO_LATENCY_MS;
+                return (((currentDspTime - dspStartTime) * 1000.0) * speedMultiplier)
+                    - universalOffsetMs
+                    - INHERENT_AUDIO_LATENCY_MS;
             }
 
             return 0;
@@ -1965,7 +2145,8 @@ namespace OsuVR
         /// </summary>
         private void PatchMaterial(GameObject obj)
         {
-            if (globalGlowMaterial == null || obj == null) return;
+            if (globalGlowMaterial == null || obj == null)
+                return;
 
             // 1. 尝试获取 MeshRenderer (替换滑条本体)
             MeshRenderer mr = obj.GetComponent<MeshRenderer>();
@@ -1980,7 +2161,8 @@ namespace OsuVR
             if (border != null)
             {
                 Renderer borderRenderer = border.GetComponent<Renderer>();
-                if (borderRenderer != null) borderRenderer.sharedMaterial = globalGlowMaterial;
+                if (borderRenderer != null)
+                    borderRenderer.sharedMaterial = globalGlowMaterial;
             }
         }
 
@@ -1989,21 +2171,24 @@ namespace OsuVR
         /// </summary>
         private void PatchNoteVisuals(GameObject noteRoot)
         {
-            if (globalGlowMaterial == null || noteRoot == null) return;
+            if (globalGlowMaterial == null || noteRoot == null)
+                return;
 
             // 1. 尝试查找名为 "Body" 的子物体
             Transform bodyTrans = noteRoot.transform.Find("Body");
             if (bodyTrans != null)
             {
                 MeshRenderer mr = bodyTrans.GetComponent<MeshRenderer>();
-                if (mr != null) mr.sharedMaterial = globalGlowMaterial;
+                if (mr != null)
+                    mr.sharedMaterial = globalGlowMaterial;
             }
             else
             {
                 // 如果找不到 "Body" 子物体，可能根物体本身就是 Body
                 // 检查根物体是否有 Renderer，且不是 Slider (Slider是动态生成的)
                 MeshRenderer rootMr = noteRoot.GetComponent<MeshRenderer>();
-                if (rootMr != null) rootMr.sharedMaterial = globalGlowMaterial;
+                if (rootMr != null)
+                    rootMr.sharedMaterial = globalGlowMaterial;
             }
 
             // 2. 尝试查找名为 "Overlay" 的子物体
@@ -2011,12 +2196,12 @@ namespace OsuVR
             if (overlayTrans != null)
             {
                 MeshRenderer mr = overlayTrans.GetComponent<MeshRenderer>();
-                if (mr != null) mr.sharedMaterial = globalGlowMaterial;
+                if (mr != null)
+                    mr.sharedMaterial = globalGlowMaterial;
             }
 
-            // 3. 缩圈 (ApproachCircle) 和 文字 (Text) 
+            // 3. 缩圈 (ApproachCircle) 和 文字 (Text)
             // 因为我们没去查找它们，所以它们会保持原样！安全！
         }
-
     }
 }

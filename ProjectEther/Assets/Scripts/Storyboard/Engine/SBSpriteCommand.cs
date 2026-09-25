@@ -1,5 +1,5 @@
-using UnityEngine;
 using OsuVR.Storyboard.Data;
+using UnityEngine;
 
 namespace OsuVR.Storyboard.Engine
 {
@@ -15,7 +15,12 @@ namespace OsuVR.Storyboard.Engine
         public SBEasing Easing;
         public SBCommandTarget Target;
 
-        protected SBSpriteCommand(SBCommandTarget target, SBEasing easing, double startTime, double endTime)
+        protected SBSpriteCommand(
+            SBCommandTarget target,
+            SBEasing easing,
+            double startTime,
+            double endTime
+        )
         {
             Target = target;
             Easing = easing;
@@ -30,9 +35,14 @@ namespace OsuVR.Storyboard.Engine
         {
             if (StartTime == EndTime)
                 return time < StartTime ? 0f : 1f;
-            if (time < StartTime) return 0f;
-            if (time > EndTime) return 1f;
-            return EasingMath.Interpolate(Easing, (float)((time - StartTime) / (EndTime - StartTime)));
+            if (time < StartTime)
+                return 0f;
+            if (time > EndTime)
+                return 1f;
+            return EasingMath.Interpolate(
+                Easing,
+                (float)((time - StartTime) / (EndTime - StartTime))
+            );
         }
 
         /// <summary>
@@ -55,8 +65,14 @@ namespace OsuVR.Storyboard.Engine
         public float StartValue;
         public float EndValue;
 
-        public SBFloatCommand(SBCommandTarget target, SBEasing easing, double startTime, double endTime,
-            float startValue, float endValue)
+        public SBFloatCommand(
+            SBCommandTarget target,
+            SBEasing easing,
+            double startTime,
+            double endTime,
+            float startValue,
+            float endValue
+        )
             : base(target, easing, startTime, endTime)
         {
             StartValue = startValue;
@@ -65,12 +81,29 @@ namespace OsuVR.Storyboard.Engine
 
         public override SBSpriteCommand CreateOffsetCommand(double offset)
         {
-            return new SBFloatCommand(Target, Easing, StartTime + offset, EndTime + offset, StartValue, EndValue) { Sequence = Sequence };
+            return new SBFloatCommand(
+                Target,
+                Easing,
+                StartTime + offset,
+                EndTime + offset,
+                StartValue,
+                EndValue
+            )
+            {
+                Sequence = Sequence,
+            };
         }
 
         public override SBSpriteCommand CreateHoldCommand(double holdStart, double holdEnd)
         {
-            return new SBFloatCommand(Target, SBEasing.Linear, holdStart, holdEnd, EndValue, EndValue);
+            return new SBFloatCommand(
+                Target,
+                SBEasing.Linear,
+                holdStart,
+                holdEnd,
+                EndValue,
+                EndValue
+            );
         }
     }
 
@@ -82,8 +115,14 @@ namespace OsuVR.Storyboard.Engine
         public Color StartValue;
         public Color EndValue;
 
-        public SBColorCommand(SBCommandTarget target, SBEasing easing, double startTime, double endTime,
-            Color startValue, Color endValue)
+        public SBColorCommand(
+            SBCommandTarget target,
+            SBEasing easing,
+            double startTime,
+            double endTime,
+            Color startValue,
+            Color endValue
+        )
             : base(target, easing, startTime, endTime)
         {
             StartValue = startValue;
@@ -92,12 +131,29 @@ namespace OsuVR.Storyboard.Engine
 
         public override SBSpriteCommand CreateOffsetCommand(double offset)
         {
-            return new SBColorCommand(Target, Easing, StartTime + offset, EndTime + offset, StartValue, EndValue) { Sequence = Sequence };
+            return new SBColorCommand(
+                Target,
+                Easing,
+                StartTime + offset,
+                EndTime + offset,
+                StartValue,
+                EndValue
+            )
+            {
+                Sequence = Sequence,
+            };
         }
 
         public override SBSpriteCommand CreateHoldCommand(double holdStart, double holdEnd)
         {
-            return new SBColorCommand(Target, SBEasing.Linear, holdStart, holdEnd, EndValue, EndValue);
+            return new SBColorCommand(
+                Target,
+                SBEasing.Linear,
+                holdStart,
+                holdEnd,
+                EndValue,
+                EndValue
+            );
         }
     }
 
@@ -107,12 +163,19 @@ namespace OsuVR.Storyboard.Engine
     public class SBBoolCommand : SBSpriteCommand
     {
         public bool UseInitialValue;
-        public bool Suppressed, ResetSuppressed;
+        public bool Suppressed,
+            ResetSuppressed;
         public bool StartValue;
         public bool EndValue;
 
-        public SBBoolCommand(SBCommandTarget target, SBEasing easing, double startTime, double endTime,
-            bool startValue, bool endValue)
+        public SBBoolCommand(
+            SBCommandTarget target,
+            SBEasing easing,
+            double startTime,
+            double endTime,
+            bool startValue,
+            bool endValue
+        )
             : base(target, easing, startTime, endTime)
         {
             UseInitialValue = startTime == endTime;
@@ -122,12 +185,32 @@ namespace OsuVR.Storyboard.Engine
 
         public override SBSpriteCommand CreateOffsetCommand(double offset)
         {
-            return new SBBoolCommand(Target, Easing, StartTime + offset, EndTime + offset, StartValue, EndValue) { Sequence = Sequence, UseInitialValue = UseInitialValue, Suppressed = Suppressed, ResetSuppressed = ResetSuppressed };
+            return new SBBoolCommand(
+                Target,
+                Easing,
+                StartTime + offset,
+                EndTime + offset,
+                StartValue,
+                EndValue
+            )
+            {
+                Sequence = Sequence,
+                UseInitialValue = UseInitialValue,
+                Suppressed = Suppressed,
+                ResetSuppressed = ResetSuppressed,
+            };
         }
 
         public override SBSpriteCommand CreateHoldCommand(double holdStart, double holdEnd)
         {
-            return new SBBoolCommand(Target, SBEasing.Linear, holdStart, holdEnd, EndValue, EndValue);
+            return new SBBoolCommand(
+                Target,
+                SBEasing.Linear,
+                holdStart,
+                holdEnd,
+                EndValue,
+                EndValue
+            );
         }
     }
 
@@ -144,12 +227,15 @@ namespace OsuVR.Storyboard.Engine
         public SBLoopCommand(double startTime, int loopCount, SBCommandGroup innerGroup)
             : base(SBCommandTarget.Alpha, SBEasing.Linear, startTime, 0)
         {
-            // The parser stores total iterations (the file repeat count). A zero
-            // repeat count is normalized by lazer to one playback.
+            // 解析器保存的是总迭代次数（文件中的重复次数）。重复次数为 0 时，
+            // lazer 会把它归一化为播放一次。
             LoopCount = loopCount <= 0 ? 1 : loopCount;
             InnerGroup = innerGroup;
             double first = innerGroup.Commands.Count == 0 ? 0 : innerGroup.StartTime();
-            LoopDuration = innerGroup.Commands.Count == 0 ? 0 : System.Math.Max(0, innerGroup.EndTime() - first);
+            LoopDuration =
+                innerGroup.Commands.Count == 0
+                    ? 0
+                    : System.Math.Max(0, innerGroup.EndTime() - first);
             EndTime = StartTime + first + LoopCount * LoopDuration;
         }
 
@@ -160,7 +246,7 @@ namespace OsuVR.Storyboard.Engine
 
         public override SBSpriteCommand CreateHoldCommand(double holdStart, double holdEnd)
         {
-            return null; // Loop commands don't need hold
+            return null; // Loop 命令无需 hold
         }
     }
 }

@@ -33,12 +33,12 @@ namespace OsuVR
         /// <summary>
         /// 连击颜色偏移（高4位）
         /// </summary>
-        ComboColorOffset = 112,// 二进制: 01110000
+        ComboColorOffset = 112, // 二进制: 01110000
 
-            /// <summary>
-            /// Mania 长按 (兼容性保留)
-            /// </summary>
-        Hold = 128
+        /// <summary>
+        /// Mania 长按 (兼容性保留)
+        /// </summary>
+        Hold = 128,
     }
 
     /// <summary>
@@ -65,7 +65,7 @@ namespace OsuVR
         /// <summary>
         /// 卡特姆曲线
         /// </summary>
-        Catmull = 'C'
+        Catmull = 'C',
     }
 
     /// <summary>
@@ -82,7 +82,7 @@ namespace OsuVR
         /// <summary>
         /// osu!standard 模式
         /// </summary>
-        Standard
+        Standard,
     }
 
     /// <summary>
@@ -94,10 +94,8 @@ namespace OsuVR
         None,
         Normal,
         Soft,
-        Drum
+        Drum,
     }
-
-
 
     /// <summary>
     /// 音效采样集类型 (决定是用柔和音还是鼓点音)
@@ -123,7 +121,7 @@ namespace OsuVR
         /// <summary>
         /// 鼓点音 (Drum)
         /// </summary>
-        Drum = 3
+        Drum = 3,
     }
 
     /// <summary>
@@ -156,6 +154,6 @@ namespace OsuVR
         /// <summary>
         /// 掌声 (Clap)
         /// </summary>
-        Clap = 8
+        Clap = 8,
     }
 }

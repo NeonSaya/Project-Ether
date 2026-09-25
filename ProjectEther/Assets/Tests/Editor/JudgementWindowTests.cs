@@ -13,8 +13,12 @@ namespace OsuVR.Tests
         [Test]
         public void OD8_MatchesLegacyFixedWindow()
         {
-            Assert.AreEqual(250.0, JudgementConfig.GetWindowMs(8f), 1e-9,
-                "OD8 必须精确等于历史固定窗口 250ms（行为不变锚点）");
+            Assert.AreEqual(
+                250.0,
+                JudgementConfig.GetWindowMs(8f),
+                1e-9,
+                "OD8 必须精确等于历史固定窗口 250ms（行为不变锚点）"
+            );
         }
 
         [Test]
@@ -32,10 +36,18 @@ namespace OsuVR.Tests
         [Test]
         public void OutOfRangeOD_IsClamped()
         {
-            Assert.AreEqual(350.0, JudgementConfig.GetWindowMs(-3f), 1e-9,
-                "OD < 0 应钳制到 0（最宽 350ms）");
-            Assert.AreEqual(225.0, JudgementConfig.GetWindowMs(11.5f), 1e-9,
-                "OD > 10 应钳制到 10（最窄 225ms）");
+            Assert.AreEqual(
+                350.0,
+                JudgementConfig.GetWindowMs(-3f),
+                1e-9,
+                "OD < 0 应钳制到 0（最宽 350ms）"
+            );
+            Assert.AreEqual(
+                225.0,
+                JudgementConfig.GetWindowMs(11.5f),
+                1e-9,
+                "OD > 10 应钳制到 10（最窄 225ms）"
+            );
         }
 
         [Test]

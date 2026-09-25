@@ -234,9 +234,15 @@ namespace OsuVR.Storyboard.Data
                 {
                     switch (cmd.Parameter)
                     {
-                        case "H": FlipH = true; break;
-                        case "V": FlipV = true; break;
-                        case "A": BlendMode = SBBlendMode.Additive; break;
+                        case "H":
+                            FlipH = true;
+                            break;
+                        case "V":
+                            FlipV = true;
+                            break;
+                        case "A":
+                            BlendMode = SBBlendMode.Additive;
+                            break;
                     }
                 }
             }
@@ -248,7 +254,12 @@ namespace OsuVR.Storyboard.Data
     /// </summary>
     public class SBStoryboardSprite : SBElement
     {
-        public SBStoryboardSprite(SBLayer layer, SBOrigin origin, string imagePath, Vector2 position)
+        public SBStoryboardSprite(
+            SBLayer layer,
+            SBOrigin origin,
+            string imagePath,
+            Vector2 position
+        )
             : base(layer, origin, imagePath, position) { }
     }
 
@@ -261,8 +272,15 @@ namespace OsuVR.Storyboard.Data
         public double FrameDelay;
         public SBAnimationLoopType LoopType;
 
-        public SBStoryboardAnimation(SBLayer layer, SBOrigin origin, string imagePath,
-            Vector2 position, int frameCount, double frameDelay, SBAnimationLoopType loopType)
+        public SBStoryboardAnimation(
+            SBLayer layer,
+            SBOrigin origin,
+            string imagePath,
+            Vector2 position,
+            int frameCount,
+            double frameDelay,
+            SBAnimationLoopType loopType
+        )
             : base(layer, origin, imagePath, position)
         {
             FrameCount = frameCount;
@@ -275,7 +293,8 @@ namespace OsuVR.Storyboard.Data
         /// </summary>
         public int GetCurrentFrame(double currentTime, double elementStartTime)
         {
-            if (FrameCount <= 0 || FrameDelay <= 0) return 0;
+            if (FrameCount <= 0 || FrameDelay <= 0)
+                return 0;
             double elapsed = currentTime - elementStartTime;
             int frame = (int)(elapsed / FrameDelay);
             if (LoopType == SBAnimationLoopType.LoopForever)
@@ -289,7 +308,8 @@ namespace OsuVR.Storyboard.Data
         public string BuildFramePath(int frameIndex)
         {
             int dotIdx = ImagePath.LastIndexOf('.');
-            if (dotIdx < 0) return ImagePath + frameIndex;
+            if (dotIdx < 0)
+                return ImagePath + frameIndex;
             return ImagePath.Substring(0, dotIdx) + frameIndex + ImagePath.Substring(dotIdx);
         }
     }
@@ -335,12 +355,14 @@ namespace OsuVR.Storyboard.Data
             get
             {
                 double max = 0;
-                void CheckMax<T>(List<T> cmds) where T : SBCommand
+                void CheckMax<T>(List<T> cmds)
+                    where T : SBCommand
                 {
                     foreach (var c in cmds)
                     {
                         // 命令 StartTime/EndTime 已是相对于 Loop StartTime 的偏移，直接使用
-                        if (c.EndTime > max) max = c.EndTime;
+                        if (c.EndTime > max)
+                            max = c.EndTime;
                     }
                 }
                 CheckMax(FadeCommands);
@@ -358,13 +380,16 @@ namespace OsuVR.Storyboard.Data
 
         public void Evaluate(double currentTime, SBElement element)
         {
-            if (currentTime < StartTime) return;
+            if (currentTime < StartTime)
+                return;
             double elapsed = currentTime - StartTime;
             double loopDur = Duration;
-            if (loopDur <= 0) return;
+            if (loopDur <= 0)
+                return;
 
             int loopIndex = (int)(elapsed / loopDur);
-            if (LoopCount > 0 && loopIndex >= LoopCount) return;
+            if (LoopCount > 0 && loopIndex >= LoopCount)
+                return;
 
             double loopTime = StartTime + (elapsed % loopDur);
 
@@ -419,7 +444,10 @@ namespace OsuVR.Storyboard.Data
                 var cmd = MoveXCommands[i];
                 if (loopTime >= cmd.StartTime && loopTime <= cmd.EndTime)
                 {
-                    element.CurrentPosition = new Vector2(cmd.Evaluate(loopTime), element.CurrentPosition.y);
+                    element.CurrentPosition = new Vector2(
+                        cmd.Evaluate(loopTime),
+                        element.CurrentPosition.y
+                    );
                     break;
                 }
             }
@@ -428,7 +456,10 @@ namespace OsuVR.Storyboard.Data
                 var cmd = MoveYCommands[i];
                 if (loopTime >= cmd.StartTime && loopTime <= cmd.EndTime)
                 {
-                    element.CurrentPosition = new Vector2(element.CurrentPosition.x, cmd.Evaluate(loopTime));
+                    element.CurrentPosition = new Vector2(
+                        element.CurrentPosition.x,
+                        cmd.Evaluate(loopTime)
+                    );
                     break;
                 }
             }
@@ -451,9 +482,15 @@ namespace OsuVR.Storyboard.Data
                 {
                     switch (cmd.Parameter)
                     {
-                        case "H": element.FlipH = true; break;
-                        case "V": element.FlipV = true; break;
-                        case "A": element.BlendMode = SBBlendMode.Additive; break;
+                        case "H":
+                            element.FlipH = true;
+                            break;
+                        case "V":
+                            element.FlipV = true;
+                            break;
+                        case "A":
+                            element.BlendMode = SBBlendMode.Additive;
+                            break;
                     }
                     break;
                 }

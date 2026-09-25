@@ -1,9 +1,9 @@
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Rendering;
 using UnityEngine;
 using UnityEngine.Rendering;
-using System.Collections.Generic;
 
 /// <summary>
 /// 防止 Unity 构建时剔除通过 Shader.Find() 动态加载的 Shader。
@@ -22,7 +22,6 @@ public class ShaderStripGuard : IPreprocessShaders
         "OsuVR/SBVideoOverlay",
         "Osu/ApproachCircle_SmartDepth",
         "Osu/SliderVR_Flat_Stencil_VR_Fixed",
-
         // === 运行时动态加载的 Unity 内置 Shader ===
         "Mobile/Particles/Additive",
         "Legacy Shaders/Particles/Additive",
@@ -40,7 +39,11 @@ public class ShaderStripGuard : IPreprocessShaders
 
     public int callbackOrder => 0;
 
-    public void OnProcessShader(Shader shader, ShaderSnippetData snippet, IList<ShaderCompilerData> data)
+    public void OnProcessShader(
+        Shader shader,
+        ShaderSnippetData snippet,
+        IList<ShaderCompilerData> data
+    )
     {
         // 不做任何剔除，仅保留此接口的存在以确保脚本被加载
         // 实际的防剔除通过 AlwaysIncludedShaders 列表实现
@@ -52,7 +55,9 @@ public class ShaderStripGuard : IPreprocessShaders
     [MenuItem("Tools/Project Ether/Force Include Critical Shaders")]
     static void ForceIncludeShaders()
     {
-        var graphicsSettings = AssetDatabase.LoadAssetAtPath<GraphicsSettings>("ProjectSettings/GraphicsSettings.asset");
+        var graphicsSettings = AssetDatabase.LoadAssetAtPath<GraphicsSettings>(
+            "ProjectSettings/GraphicsSettings.asset"
+        );
         var serializedObject = new SerializedObject(graphicsSettings);
         var alwaysIncludedShaders = serializedObject.FindProperty("m_AlwaysIncludedShaders");
 
@@ -82,7 +87,9 @@ public class ShaderStripGuard : IPreprocessShaders
             if (!alreadyIncluded)
             {
                 alwaysIncludedShaders.InsertArrayElementAtIndex(alwaysIncludedShaders.arraySize);
-                var newElement = alwaysIncludedShaders.GetArrayElementAtIndex(alwaysIncludedShaders.arraySize - 1);
+                var newElement = alwaysIncludedShaders.GetArrayElementAtIndex(
+                    alwaysIncludedShaders.arraySize - 1
+                );
                 newElement.objectReferenceValue = shader;
                 addedCount++;
                 Debug.Log($"[ShaderStripGuard] 已添加: {shaderName}");

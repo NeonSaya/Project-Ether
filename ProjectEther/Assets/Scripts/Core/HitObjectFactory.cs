@@ -4,17 +4,17 @@ namespace OsuVR
 {
     /// <summary>
     /// HitObject 工厂类：纯代码生成 Note、滑条头、Tick、跟随球等游戏对象
-    /// 
+    ///
     /// 核心设计原则：
     /// 1. 零 Prefab 依赖 - 所有对象通过代码动态构建
     /// 2. 静态缓存 - Mesh、Material、Texture 只创建一次，全游戏复用
     /// 3. 内存安全 - 避免运行时材质泄漏，支持 Cleanup 清理
-    /// 
+    ///
     /// 生成的对象结构：
     /// - HitCircle: Sphere(根) + Body + SolidBody + ApproachCircle + Halo + NoteController
     /// - SliderHead: Sphere(根) + Body + ApproachCircle + Halo + ApproachCircleScaler
-    /// - SliderTick: Quad + Material
-    /// - FollowBall: Sphere + SphereCollider
+    /// - SliderTick: Quad(面片) + Material(材质)
+    /// - FollowBall: Sphere(球体) + SphereCollider(球形碰撞体)
     /// </summary>
     public static class HitObjectFactory
     {
@@ -42,7 +42,6 @@ namespace OsuVR
         private static Texture2D cachedBodyTexture; // 实心圆形贴图
 
         private static Texture2D cachedSolidTexture; // 【新增】实心圆贴图
-
         #endregion
 
         #region 初始化
@@ -59,13 +58,16 @@ namespace OsuVR
             Material bodyMaterial = null,
             Material overlayMaterial = null,
             Material approachMaterial = null,
-            Material glowMaterial = null)
+            Material glowMaterial = null
+        )
         {
-            if (isInitialized) return;
+            if (isInitialized)
+                return;
 
             try
             {
-                if (cachedSolidTexture == null) cachedSolidTexture = CreateSolidCircleTexture();
+                if (cachedSolidTexture == null)
+                    cachedSolidTexture = CreateSolidCircleTexture();
 
                 cachedBodyMaterial = bodyMaterial;
                 cachedApproachMaterial = approachMaterial;
@@ -137,10 +139,17 @@ namespace OsuVR
             if (cachedHaloMaterial == null)
             {
                 Shader shader = Shader.Find("Mobile/Particles/Additive");
-                if (shader == null) shader = Shader.Find("Legacy Shaders/Particles/Additive");
-                if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
-                if (shader == null) shader = Shader.Find("Standard");
-                if (shader == null) { Debug.LogError("[HitObjectFactory] 所有 Halo Shader 均不可用!"); return; }
+                if (shader == null)
+                    shader = Shader.Find("Legacy Shaders/Particles/Additive");
+                if (shader == null)
+                    shader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (shader == null)
+                    shader = Shader.Find("Standard");
+                if (shader == null)
+                {
+                    Debug.LogError("[HitObjectFactory] 所有 Halo Shader 均不可用!");
+                    return;
+                }
 
                 cachedHaloMaterial = new Material(shader);
                 cachedHaloMaterial.mainTexture = cachedGlowTexture;
@@ -159,7 +168,7 @@ namespace OsuVR
         /// <summary>
         /// 创建缩圈材质（全局唯一）
         /// 使用 Osu/ApproachCircle_SmartDepth Shader，确保缩圈始终置顶显示
-        /// 
+        ///
         /// Shader 特性：
         /// - Queue = Transparent+10：比普通透明物体更晚渲染
         /// - Offset -1, -1：解决 Z-Fighting，确保在滑条之上
@@ -171,10 +180,17 @@ namespace OsuVR
             {
                 // 使用专用的置顶 Shader
                 Shader shader = Shader.Find("Osu/ApproachCircle_SmartDepth");
-                if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
-                if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
-                if (shader == null) shader = Shader.Find("Standard");
-                if (shader == null) { Debug.LogError("[HitObjectFactory] 所有 ApproachCircle Shader 均不可用!"); return; }
+                if (shader == null)
+                    shader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (shader == null)
+                    shader = Shader.Find("Universal Render Pipeline/Lit");
+                if (shader == null)
+                    shader = Shader.Find("Standard");
+                if (shader == null)
+                {
+                    Debug.LogError("[HitObjectFactory] 所有 ApproachCircle Shader 均不可用!");
+                    return;
+                }
 
                 cachedApproachCircleMaterial = new Material(shader);
                 cachedApproachCircleMaterial.mainTexture = cachedApproachTexture;
@@ -191,12 +207,12 @@ namespace OsuVR
 
         /// <summary>
         /// 生成空心光环纹理（用于 Note 和滑条头的光晕效果）
-        /// 
+        ///
         /// 数学原理：
         /// - 内部 (r < 0.72): 完全透明，避免遮挡 Note 主体
         /// - 过渡区 (0.72 ~ 0.80): SmoothStep 平滑淡入
         /// - 外部 (0.80 ~ 1.0): 三次方衰减，模拟真实光照散落
-        /// 
+        ///
         /// 这种三次方衰减让光晕紧贴边缘很亮，远处很柔，不会像"边框"
         /// </summary>
         private static Texture2D CreateGlowTexture()
@@ -208,9 +224,9 @@ namespace OsuVR
             float maxRadius = size / 2f;
 
             // 光环参数：控制发光的形状和范围
-            float startRadius = 0.72f;  // 内边界：Note 边缘稍内
-            float peakRadius = 0.80f;   // 峰值位置：Note 物理边缘（最亮）
-            float endRadius = 1.0f;     // 外边界：光晕扩散范围
+            float startRadius = 0.72f; // 内边界：Note 边缘稍内
+            float peakRadius = 0.80f; // 峰值位置：Note 物理边缘（最亮）
+            float endRadius = 1.0f; // 外边界：光晕扩散范围
 
             for (int y = 0; y < size; y++)
             {
@@ -249,6 +265,7 @@ namespace OsuVR
             tex.Apply();
             return tex;
         }
+
         /// <summary>
         /// 【新增】生成绝对实心的圆形纹理
         /// 拒绝柔和，拒绝中心透明，就要一个大实心圆饼
@@ -260,9 +277,9 @@ namespace OsuVR
             Color[] colors = new Color[size * size];
             Vector2 center = new Vector2(size / 2f, size / 2f);
             float maxRadius = size / 2f;
-            
+
             // 半径控制：留一点边距防止贴图采样越界
-            float circleRadius = 0.90f; 
+            float circleRadius = 0.90f;
 
             for (int y = 0; y < size; y++)
             {
@@ -277,7 +294,7 @@ namespace OsuVR
                     {
                         // 内部完全不透明 (Alpha = 1)
                         alpha = 1f;
-                        
+
                         // 边缘稍微做一点点平滑 (0.05的宽度)，避免锯齿太难看，但整体还是硬的
                         float edgeWidth = 0.05f;
                         if (r > circleRadius - edgeWidth)
@@ -286,7 +303,7 @@ namespace OsuVR
                             alpha = 1f - t;
                         }
                     }
-                    
+
                     // 颜色设为白色，Alpha 根据上面计算
                     colors[y * size + x] = new Color(1f, 1f, 1f, alpha);
                 }
@@ -299,7 +316,7 @@ namespace OsuVR
 
         /// <summary>
         /// 生成缩圈纹理（Approach Circle）
-        /// 
+        ///
         /// 缩圈是一个从外向内收缩的圆环，用于指示打击时机
         /// 纹理设计：内边缘清晰，外边缘柔和淡出，带发光效果
         /// </summary>
@@ -312,9 +329,9 @@ namespace OsuVR
             float maxRadius = size / 2f;
 
             // 圆环参数
-            float innerRadius = 0.82f;  // 内边界：圆环内侧
-            float peakRadius = 0.88f;   // 峰值位置（最亮）
-            float outerRadius = 1.0f;   // 外边界：圆环外侧
+            float innerRadius = 0.82f; // 内边界：圆环内侧
+            float peakRadius = 0.88f; // 峰值位置（最亮）
+            float outerRadius = 1.0f; // 外边界：圆环外侧
 
             for (int y = 0; y < size; y++)
             {
@@ -330,7 +347,7 @@ namespace OsuVR
                         {
                             // 内侧：平滑淡入
                             float t = (r - innerRadius) / (peakRadius - innerRadius);
-                            alpha = t * t * (3f - 2f * t); // SmoothStep
+                            alpha = t * t * (3f - 2f * t); // SmoothStep (平滑插值)
                         }
                         else
                         {
@@ -352,7 +369,7 @@ namespace OsuVR
 
         /// <summary>
         /// 生成实心圆形纹理（用于 Note 主体）
-        /// 
+        ///
         /// 纹理设计：中心实心，边缘柔和淡出
         /// </summary>
         private static Texture2D CreateBodyTexture()
@@ -364,9 +381,9 @@ namespace OsuVR
             float maxRadius = size / 2f;
 
             // 圆形参数
-            float solidRadius = 0.75f;   // 实心区域
-            float fadeStart = 0.75f;     // 淡出开始
-            float fadeEnd = 0.92f;       // 淡出结束
+            float solidRadius = 0.75f; // 实心区域
+            float fadeStart = 0.75f; // 淡出开始
+            float fadeEnd = 0.92f; // 淡出结束
 
             for (int y = 0; y < size; y++)
             {
@@ -404,11 +421,11 @@ namespace OsuVR
 
         /// <summary>
         /// 创建完整的 HitCircle 对象
-        /// 
+        ///
         /// 结构层次：
         /// HitCircle_Procedural (根)
         /// ├── Sphere Mesh (主球体碰撞)
-        /// ├── NoteController + SphereCollider
+        /// ├── NoteController(音符控制器) + SphereCollider(球形碰撞体)
         /// ├── Body (Quad) - 主贴图层
         /// ├── SolidBody (Quad) - 实心层
         /// ├── ApproachCircle (Quad) - 缩圈
@@ -421,22 +438,22 @@ namespace OsuVR
             GameObject root = new GameObject("HitCircle_Procedural");
 
             // 构建层次结构
-            CreateSphereBody(root); 
-            
+            CreateSphereBody(root);
+
             // 【核心修改】
             // 1. (可选) 保留原有的 Body 作为底部的光晕/辉光
-            CreateBodyLayer(root); 
-            
+            CreateBodyLayer(root);
+
             // 2. 【新增】叠加一个绝对实心的圆层！
             // 这就是你要的"再加一个圆形的贴图贴上去"
-            CreateSolidLayer(root); 
+            CreateSolidLayer(root);
 
-            CreateApproachCircle(root);     
-            CreateHalo(root);               
-            AddNoteController(root);        
-            AddCollider(root);              
+            CreateApproachCircle(root);
+            CreateHalo(root);
+            AddNoteController(root);
+            AddCollider(root);
 
-            root.layer = 6; 
+            root.layer = 6;
 
             return root;
         }
@@ -455,30 +472,42 @@ namespace OsuVR
             var mr = solidObj.AddComponent<MeshRenderer>();
 
             // ▼▼▼▼▼ 核心：材质设置 ▼▼▼▼▼
-            
+
             Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (!shader) shader = Shader.Find("Unlit/Transparent");
-            if (!shader) shader = Shader.Find("Universal Render Pipeline/Lit");
-            if (!shader) shader = Shader.Find("Standard");
-            if (!shader) { Debug.LogError("[HitObjectFactory] SolidLayer Shader 不可用!"); return; }
+            if (!shader)
+                shader = Shader.Find("Unlit/Transparent");
+            if (!shader)
+                shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (!shader)
+                shader = Shader.Find("Standard");
+            if (!shader)
+            {
+                Debug.LogError("[HitObjectFactory] SolidLayer Shader 不可用!");
+                return;
+            }
 
             Material mat = new Material(shader);
             RuntimeMaterialTracker.GetOrAdd(parent).Track(mat); // 登记销毁，防显存泄漏
 
             // 2. 赋予刚才生成的"大实心圆"贴图
-            if (cachedSolidTexture == null) cachedSolidTexture = CreateSolidCircleTexture();
+            if (cachedSolidTexture == null)
+                cachedSolidTexture = CreateSolidCircleTexture();
             mat.mainTexture = cachedSolidTexture;
-            if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", cachedSolidTexture);
+            if (mat.HasProperty("_BaseMap"))
+                mat.SetTexture("_BaseMap", cachedSolidTexture);
             mat.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
-
 
             // 3. 强制设置为 Alpha 混合模式 (实心遮挡)
             // 针对 URP/Unlit 的设置
-            if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1.0f); // Transparent
-            if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 0.0f);     // Alpha (不是 Additive!)
-            if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            
+            if (mat.HasProperty("_Surface"))
+                mat.SetFloat("_Surface", 1.0f); // Transparent (透明模式)
+            if (mat.HasProperty("_Blend"))
+                mat.SetFloat("_Blend", 0.0f); // Alpha (不是 Additive!)
+            if (mat.HasProperty("_SrcBlend"))
+                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            if (mat.HasProperty("_DstBlend"))
+                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+
             // 关闭深度写入，防止遮挡问题
             mat.SetInt("_ZWrite", 0);
 
@@ -489,13 +518,13 @@ namespace OsuVR
                 mat.color = Color.white;
 
             mr.material = mat;
-    
+
             solidObj.layer = 6;
         }
 
         /// <summary>
         /// 创建滑条头对象
-        /// 
+        ///
         /// 与 HitCircle 的区别：
         /// - 无 Overlay 层
         /// - 使用 ApproachCircleScaler 而非 NoteController
@@ -749,13 +778,20 @@ namespace OsuVR
         private static Material CreateDefaultBodyMaterial()
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
-            if (shader == null) shader = Shader.Find("Mobile/Particles/Alpha Blended");
-            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (shader == null) shader = Shader.Find("Standard");
-            if (shader == null) { Debug.LogError("[HitObjectFactory] Body Shader 不可用!"); return null; }
+            if (shader == null)
+                shader = Shader.Find("Mobile/Particles/Alpha Blended");
+            if (shader == null)
+                shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null)
+                shader = Shader.Find("Standard");
+            if (shader == null)
+            {
+                Debug.LogError("[HitObjectFactory] Body Shader 不可用!");
+                return null;
+            }
 
             var mat = new Material(shader);
-            
+
             // 设置贴图（兼容不同 Shader 的属性名）
             if (mat.HasProperty("_BaseMap"))
                 mat.SetTexture("_BaseMap", cachedBodyTexture);
@@ -771,8 +807,8 @@ namespace OsuVR
             // 如果是 URP/Unlit，需要设置透明模式
             if (mat.HasProperty("_Surface"))
             {
-                mat.SetInt("_Surface", 1); // 1 = Transparent
-                mat.SetInt("_Blend", 0);   // 0 = Alpha
+                mat.SetInt("_Surface", 1); // 1 = Transparent (透明模式)
+                mat.SetInt("_Blend", 0); // 0 = Alpha 混合
             }
             if (mat.HasProperty("_SrcBlend"))
             {
@@ -780,17 +816,24 @@ namespace OsuVR
                 mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
                 mat.SetInt("_ZWrite", 0);
             }
-            
+
             return mat;
         }
 
         private static Material CreateDefaultApproachMaterial()
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
-            if (shader == null) shader = Shader.Find("Mobile/Particles/Alpha Blended");
-            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (shader == null) shader = Shader.Find("Standard");
-            if (shader == null) { Debug.LogError("[HitObjectFactory] Approach Shader 不可用!"); return null; }
+            if (shader == null)
+                shader = Shader.Find("Mobile/Particles/Alpha Blended");
+            if (shader == null)
+                shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null)
+                shader = Shader.Find("Standard");
+            if (shader == null)
+            {
+                Debug.LogError("[HitObjectFactory] Approach Shader 不可用!");
+                return null;
+            }
 
             var mat = new Material(shader);
             mat.mainTexture = cachedApproachTexture;
@@ -802,8 +845,8 @@ namespace OsuVR
             // 如果是 URP/Unlit，需要设置透明模式
             if (mat.HasProperty("_Surface"))
             {
-                mat.SetInt("_Surface", 1); // 1 = Transparent
-                mat.SetInt("_Blend", 0);   // 0 = Alpha
+                mat.SetInt("_Surface", 1); // 1 = Transparent (透明模式)
+                mat.SetInt("_Blend", 0); // 0 = Alpha 混合
             }
             if (mat.HasProperty("_SrcBlend"))
             {
@@ -811,16 +854,22 @@ namespace OsuVR
                 mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
                 mat.SetInt("_ZWrite", 0);
             }
-            
+
             return mat;
         }
 
         private static Material CreateDefaultTickMaterial()
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
-            if (shader == null) shader = Shader.Find("Standard");
-            if (shader == null) { Debug.LogError("[HitObjectFactory] Tick Shader 不可用!"); return null; }
+            if (shader == null)
+                shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null)
+                shader = Shader.Find("Standard");
+            if (shader == null)
+            {
+                Debug.LogError("[HitObjectFactory] Tick Shader 不可用!");
+                return null;
+            }
 
             var mat = new Material(shader);
             if (mat.HasProperty("_BaseColor"))
@@ -833,11 +882,19 @@ namespace OsuVR
         private static Material CreateFollowBallMaterial()
         {
             Shader shader = Shader.Find("Mobile/Particles/Additive");
-            if (shader == null) shader = Shader.Find("Legacy Shaders/Particles/Additive");
-            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
-            if (shader == null) shader = Shader.Find("Standard");
-            if (shader == null) { Debug.LogError("[HitObjectFactory] FollowBall Shader 不可用!"); return null; }
+            if (shader == null)
+                shader = Shader.Find("Legacy Shaders/Particles/Additive");
+            if (shader == null)
+                shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null)
+                shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null)
+                shader = Shader.Find("Standard");
+            if (shader == null)
+            {
+                Debug.LogError("[HitObjectFactory] FollowBall Shader 不可用!");
+                return null;
+            }
 
             var mat = new Material(shader);
 
@@ -849,7 +906,7 @@ namespace OsuVR
                 mat.SetColor("_BaseColor", whiteGlow);
             else
                 mat.SetColor("_Color", whiteGlow);
-            
+
             return mat;
         }
 
@@ -910,12 +967,14 @@ namespace OsuVR
                 Object.Destroy(cachedApproachCircleMaterial);
                 cachedApproachCircleMaterial = null;
             }
-            if (cachedSolidTexture != null) {
+            if (cachedSolidTexture != null)
+            {
                 Object.Destroy(cachedSolidTexture);
                 cachedSolidTexture = null;
             }
 
-            if (cachedBodyTexture != null) {
+            if (cachedBodyTexture != null)
+            {
                 Object.Destroy(cachedBodyTexture);
                 cachedBodyTexture = null;
             }

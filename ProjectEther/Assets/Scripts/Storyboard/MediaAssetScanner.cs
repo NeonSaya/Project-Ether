@@ -34,7 +34,10 @@ namespace OsuVR.Storyboard
             if (!string.IsNullOrEmpty(beatmap.Events.VideoFilename))
             {
                 // Android 反斜杠非分隔符：归一化谱面里的 Windows 风格路径
-                string path = StoryboardRenderer.ResolveStoryboardAssetPath(folder, beatmap.Events.VideoFilename);
+                string path = StoryboardRenderer.ResolveStoryboardAssetPath(
+                    folder,
+                    beatmap.Events.VideoFilename
+                );
                 if (File.Exists(path))
                 {
                     string ext = Path.GetExtension(path).ToLowerInvariant();
@@ -49,7 +52,9 @@ namespace OsuVR.Storyboard
                     {
                         // 此前直接把 .avi/.mkv/.flv 交给 VideoPlayer，必然解码失败
                         // 现在显式跳过并回退背景图，日志告知原因
-                        Debug.LogWarning($"[MediaScanner] 视频格式 VideoPlayer 无法解码 ({ext})，回退到背景图: {beatmap.Events.VideoFilename}");
+                        Debug.LogWarning(
+                            $"[MediaScanner] 视频格式 VideoPlayer 无法解码 ({ext})，回退到背景图: {beatmap.Events.VideoFilename}"
+                        );
                     }
                 }
                 else
@@ -63,7 +68,11 @@ namespace OsuVR.Storyboard
             {
                 var files = new System.Collections.Generic.List<string>();
                 foreach (string file in Directory.GetFiles(folder))
-                    if (Path.GetExtension(file).Equals(".osb", System.StringComparison.OrdinalIgnoreCase)) files.Add(file);
+                    if (
+                        Path.GetExtension(file)
+                            .Equals(".osb", System.StringComparison.OrdinalIgnoreCase)
+                    )
+                        files.Add(file);
                 files.Sort(System.StringComparer.OrdinalIgnoreCase);
                 string[] osbFiles = files.ToArray();
                 if (osbFiles.Length > 0)
@@ -83,13 +92,18 @@ namespace OsuVR.Storyboard
             {
                 result.HasStoryboard = true;
                 result.StoryboardCommandCount = beatmap.Events.StoryboardLines.Count;
-                Debug.Log($"[MediaScanner] 检测到内联故事板命令: {result.StoryboardCommandCount} 行");
+                Debug.Log(
+                    $"[MediaScanner] 检测到内联故事板命令: {result.StoryboardCommandCount} 行"
+                );
             }
 
             // 4. 查找静态背景图
             if (!string.IsNullOrEmpty(beatmap.Events.BackgroundFilename))
             {
-                string bgPath = StoryboardRenderer.ResolveStoryboardAssetPath(folder, beatmap.Events.BackgroundFilename);
+                string bgPath = StoryboardRenderer.ResolveStoryboardAssetPath(
+                    folder,
+                    beatmap.Events.BackgroundFilename
+                );
                 if (File.Exists(bgPath))
                 {
                     result.BackgroundPath = bgPath;

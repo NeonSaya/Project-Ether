@@ -1,7 +1,7 @@
 using System;
-using UnityEngine;
-using TMPro;
 using System.Collections;
+using TMPro;
+using UnityEngine;
 
 namespace OsuVR
 {
@@ -14,10 +14,10 @@ namespace OsuVR
         // UI 引用
         // =========================================================
         [Header("UI 引用")]
-        public TextMeshProUGUI textScore;       // 分数文本
-        public TextMeshProUGUI textCombo;       // 连击文本
-        public TextMeshProUGUI textAcc;         // 准确率文本
-        public GameObject comboGroup;           // 连击组 (包含数字和标签，用于整体显隐)
+        public TextMeshProUGUI textScore; // 分数文本
+        public TextMeshProUGUI textCombo; // 连击文本
+        public TextMeshProUGUI textAcc; // 准确率文本
+        public GameObject comboGroup; // 连击组 (包含数字和标签，用于整体显隐)
 
         // =========================================================
         // 动画配置
@@ -25,23 +25,25 @@ namespace OsuVR
         [Header("动画配置")]
         [Tooltip("分数滚动速度")]
         public float scoreScrollSpeed = 5.0f;
+
         [Tooltip("连击弹出放大倍数")]
         public float punchScale = 1.15f;
+
         [Tooltip("断连颜色")]
         public Color comboBreakColor = Color.red;
 
         // =========================================================
         // 内部状态
         // =========================================================
-        private float displayScore = 0;         // 当前显示的分数 (用于动画)
-        private double displayAcc = 1.0;        // 当前显示的准确率 (用于动画)
+        private float displayScore = 0; // 当前显示的分数 (用于动画)
+        private double displayAcc = 1.0; // 当前显示的准确率 (用于动画)
 
-        private long targetScore = 0;           // 目标分数
-        private double targetAcc = 1.0;         // 目标准确率
-        private int currentCombo = 0;           // 当前连击数
+        private long targetScore = 0; // 目标分数
+        private double targetAcc = 1.0; // 目标准确率
+        private int currentCombo = 0; // 当前连击数
 
-        private Vector3 comboOriginalScale;     // 连击文本原始缩放
-        private Color comboOriginalColor;       // 连击文本原始颜色
+        private Vector3 comboOriginalScale; // 连击文本原始缩放
+        private Color comboOriginalColor; // 连击文本原始颜色
 
         // 零 GC 文本缓存（动画期每帧刷新，避免 ToString 分配）
         private long _lastScoreShown = -1;
@@ -62,8 +64,10 @@ namespace OsuVR
             }
 
             // 初始状态隐藏 Combo
-            if (comboGroup) comboGroup.SetActive(false);
-            else if (textCombo) textCombo.gameObject.SetActive(false);
+            if (comboGroup)
+                comboGroup.SetActive(false);
+            else if (textCombo)
+                textCombo.gameObject.SetActive(false);
         }
 
         void Update()
@@ -71,7 +75,11 @@ namespace OsuVR
             // 1. 分数滚动动画 (Lerp 插值)
             if (Mathf.Abs(displayScore - targetScore) > 1f)
             {
-                displayScore = Mathf.Lerp(displayScore, targetScore, Time.deltaTime * scoreScrollSpeed);
+                displayScore = Mathf.Lerp(
+                    displayScore,
+                    targetScore,
+                    Time.deltaTime * scoreScrollSpeed
+                );
                 SetScoreText((long)displayScore);
             }
             else if ((long)displayScore != targetScore)
@@ -119,8 +127,10 @@ namespace OsuVR
                 PunchCombo();
 
                 // 确保显示
-                if (comboGroup) comboGroup.SetActive(true);
-                else if (textCombo) textCombo.gameObject.SetActive(true);
+                if (comboGroup)
+                    comboGroup.SetActive(true);
+                else if (textCombo)
+                    textCombo.gameObject.SetActive(true);
             }
             else if (combo == 0 && currentCombo > 0)
             {
@@ -144,15 +154,22 @@ namespace OsuVR
         /// </summary>
         private void SetScoreText(long value)
         {
-            if (textScore == null || value == _lastScoreShown) return;
+            if (textScore == null || value == _lastScoreShown)
+                return;
             _lastScoreShown = value;
-            if (value < 0) value = 0;
+            if (value < 0)
+                value = 0;
 
             int i = _scoreBuf.Length;
             long v = value;
-            do { _scoreBuf[--i] = (char)('0' + (int)(v % 10)); v /= 10; } while (v > 0);
+            do
+            {
+                _scoreBuf[--i] = (char)('0' + (int)(v % 10));
+                v /= 10;
+            } while (v > 0);
             // 不足 6 位补前导零（D6 语义）
-            while (_scoreBuf.Length - i < 6 && i > 0) _scoreBuf[--i] = '0';
+            while (_scoreBuf.Length - i < 6 && i > 0)
+                _scoreBuf[--i] = '0';
             textScore.SetCharArray(_scoreBuf, i, _scoreBuf.Length - i);
         }
 
@@ -161,13 +178,17 @@ namespace OsuVR
         /// </summary>
         private void SetAccText(double acc)
         {
-            if (textAcc == null) return;
+            if (textAcc == null)
+                return;
             double pct = acc * 100.0;
-            if (pct < 0.0) pct = 0.0;
-            if (pct > 100.0) pct = 100.0;
+            if (pct < 0.0)
+                pct = 0.0;
+            if (pct > 100.0)
+                pct = 100.0;
             // 与 "F2" 一致的四舍五入（正数 away-from-zero）
             int centi = (int)Math.Floor(pct * 100.0 + 0.5);
-            if (centi == _lastAccCenti) return;
+            if (centi == _lastAccCenti)
+                return;
             _lastAccCenti = centi;
 
             int whole = centi / 100;
@@ -200,7 +221,8 @@ namespace OsuVR
         /// </summary>
         private void UpdateComboText()
         {
-            if (textCombo) textCombo.text = $"{currentCombo}";
+            if (textCombo)
+                textCombo.text = $"{currentCombo}";
         }
 
         /// <summary>
@@ -208,7 +230,8 @@ namespace OsuVR
         /// </summary>
         private void PunchCombo()
         {
-            if (!textCombo) return;
+            if (!textCombo)
+                return;
             StopCoroutine("AnimatePunch");
             StartCoroutine("AnimatePunch");
         }
@@ -234,7 +257,8 @@ namespace OsuVR
         /// </summary>
         private IEnumerator ComboBreakEffect()
         {
-            if (!textCombo) yield break;
+            if (!textCombo)
+                yield break;
 
             textCombo.color = comboBreakColor;
 
@@ -252,8 +276,10 @@ namespace OsuVR
             }
 
             // 动画结束：隐藏并重置状态
-            if (comboGroup) comboGroup.SetActive(false);
-            else textCombo.gameObject.SetActive(false);
+            if (comboGroup)
+                comboGroup.SetActive(false);
+            else
+                textCombo.gameObject.SetActive(false);
 
             textCombo.color = comboOriginalColor;
             textCombo.alpha = 1f;

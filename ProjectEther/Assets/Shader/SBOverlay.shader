@@ -1,7 +1,7 @@
 Shader "OsuVR/SBOverlay"
 {
     // Overlay shader: 将 SB RenderTexture (预乘 alpha) 合成到屏幕
-    // RT is the complete encoded-RGB frame; alpha is 1 while loaded, 0 when cleared.
+    // RT 是完整的编码 RGB 画面; 加载完成后 alpha 为 1, 清空后为 0。
     // 输出: rgb = sb.rgb × scale, a = sb.a × scale (亮度跟随透明度)
     // Blend One OneMinusSrcAlpha: dst = src.rgb + dst.rgb × (1 - src.a)
 
@@ -80,9 +80,9 @@ Shader "OsuVR/SBOverlay"
                 #endif
                 half4 fade = SAMPLE_TEXTURE2D(_EdgeFadeTex, sampler_EdgeFadeTex, input.uv);
 
-                // Match the existing video screen opacity curve, applied once to the
-                // completed 2D frame. All loaded-frame pixels share the same opacity;
-                // internal sprite fades and additive blending are already resolved.
+                // 与现有视频幕布的不透明度曲线一致, 一次性作用于
+                // 合成完毕的 2D 画面。所有已加载画面的像素共享同一不透明度;
+                // 精灵内部的淡入淡出与叠加混合已在合成时结算完毕。
                 float opacity = _ScreenAlpha * _ScreenAlpha * fade.a * sb.a;
                 return half4(sb.rgb * opacity, opacity);
             }

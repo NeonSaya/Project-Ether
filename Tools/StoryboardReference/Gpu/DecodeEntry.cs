@@ -13,16 +13,21 @@ internal static class DecodeEntry
     {
         var constructor = typeof(TextureUpload).GetConstructor(new[] { typeof(Stream) })!;
         Console.WriteLine(constructor);
-        foreach (var call in MethodCalls(constructor)) Console.WriteLine(call);
-        var load = typeof(TextureUpload).GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static).Single(m => m.Name == "LoadFromStream");
+        foreach (var call in MethodCalls(constructor))
+            Console.WriteLine(call);
+        var load = typeof(TextureUpload)
+            .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+            .Single(m => m.Name == "LoadFromStream");
         Console.WriteLine("LOAD " + load);
-        foreach (var call in MethodCalls(load)) Console.WriteLine(call);
+        foreach (var call in MethodCalls(load))
+            Console.WriteLine(call);
         return 0;
     }
 
     public static int Export(string[] args)
     {
-        if (args.Length != 3) throw new ArgumentException("Usage: --decode INPUT_IMAGE OUTPUT_PNG");
+        if (args.Length != 3)
+            throw new ArgumentException("Usage: --decode INPUT_IMAGE OUTPUT_PNG");
         var input = Path.GetFullPath(args[1]);
         var output = Path.GetFullPath(args[2]);
         using var source = File.OpenRead(input);
@@ -33,17 +38,25 @@ internal static class DecodeEntry
         using var roundTripStream = File.OpenRead(output);
         using var roundTrip = new TextureUpload(roundTripStream);
         bool bytesIdentical = upload.Data.SequenceEqual(roundTrip.Data);
-        if (!bytesIdentical) throw new InvalidOperationException("Framework PNG roundtrip changed decoded RGBA bytes.");
+        if (!bytesIdentical)
+            throw new InvalidOperationException(
+                "Framework PNG roundtrip changed decoded RGBA bytes."
+            );
         using var imageSharpDecoded = Image.Load<Rgba32>(input);
         var imageSharpPixels = new Rgba32[imageSharpDecoded.Width * imageSharpDecoded.Height];
         imageSharpDecoded.CopyPixelDataTo(imageSharpPixels);
-        int differingPixels = 0, maxRgbDifference = 0;
+        int differingPixels = 0,
+            maxRgbDifference = 0;
         long rgbDifferenceSum = 0;
         for (int i = 0; i < rgba.Length; i++)
         {
-            var a = rgba[i]; var b = imageSharpPixels[i];
-            int dr = Math.Abs(a.R - b.R), dg = Math.Abs(a.G - b.G), db = Math.Abs(a.B - b.B);
-            if (dr != 0 || dg != 0 || db != 0) differingPixels++;
+            var a = rgba[i];
+            var b = imageSharpPixels[i];
+            int dr = Math.Abs(a.R - b.R),
+                dg = Math.Abs(a.G - b.G),
+                db = Math.Abs(a.B - b.B);
+            if (dr != 0 || dg != 0 || db != 0)
+                differingPixels++;
             maxRgbDifference = Math.Max(maxRgbDifference, Math.Max(dr, Math.Max(dg, db)));
             rgbDifferenceSum += dr + dg + db;
         }
@@ -58,14 +71,24 @@ internal static class DecodeEntry
             height = upload.Height,
             rgbaByteCount = rgba.Length * 4,
             sourceSha256 = HashFile(input),
-            decodedRgbaSha256 = Convert.ToHexString(SHA256.HashData(MemoryMarshal.AsBytes(rgba.AsSpan()))).ToLowerInvariant(),
+            decodedRgbaSha256 = Convert
+                .ToHexString(SHA256.HashData(MemoryMarshal.AsBytes(rgba.AsSpan())))
+                .ToLowerInvariant(),
             pngSha256 = HashFile(output),
             frameworkPngRoundtripBytesIdentical = bytesIdentical,
-            comparisonAgainstImageSharpLoad = new { differingRgbPixels = differingPixels, maxRgbByteDifference = maxRgbDifference, meanAbsoluteRgbByteDifference = (double)rgbDifferenceSum / (rgba.Length * 3) },
+            comparisonAgainstImageSharpLoad = new
+            {
+                differingRgbPixels = differingPixels,
+                maxRgbByteDifference = maxRgbDifference,
+                meanAbsoluteRgbByteDifference = (double)rgbDifferenceSum / (rgba.Length * 3),
+            },
             rowOrder = "TextureUpload.Data order, directly copied to ImageSharp rows; no flip or colour conversion",
-            constructorCalls = MethodCalls(constructor).ToArray()
+            constructorCalls = MethodCalls(constructor).ToArray(),
         };
-        File.WriteAllText(Path.ChangeExtension(output, ".json"), JsonSerializer.Serialize(metadata, new JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(
+            Path.ChangeExtension(output, ".json"),
+            JsonSerializer.Serialize(metadata, new JsonSerializerOptions { WriteIndented = true })
+        );
         Console.WriteLine(JsonSerializer.Serialize(metadata));
         return 0;
     }
@@ -78,27 +101,37 @@ internal static class DecodeEntry
 
     private static IEnumerable<string> MethodCalls(MethodBase method)
     {
-        var opcodes = typeof(OpCodes).GetFields(BindingFlags.Public | BindingFlags.Static)
-            .Where(f => f.FieldType == typeof(OpCode)).Select(f => (OpCode)f.GetValue(null)!).ToDictionary(o => unchecked((ushort)o.Value));
+        var opcodes = typeof(OpCodes)
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(f => f.FieldType == typeof(OpCode))
+            .Select(f => (OpCode)f.GetValue(null)!)
+            .ToDictionary(o => unchecked((ushort)o.Value));
         var il = method.GetMethodBody()!.GetILAsByteArray()!;
-        for (int i = 0; i < il.Length;)
+        for (int i = 0; i < il.Length; )
         {
             ushort value = il[i++];
-            if (value == 0xfe) value = (ushort)(0xfe00 | il[i++]);
+            if (value == 0xfe)
+                value = (ushort)(0xfe00 | il[i++]);
             var code = opcodes[value];
             if (code.OperandType == OperandType.InlineMethod)
             {
-                var called = method.Module.ResolveMethod(BitConverter.ToInt32(il, i), method.DeclaringType!.GetGenericArguments(), method.IsGenericMethod ? method.GetGenericArguments() : null);
+                var called = method.Module.ResolveMethod(
+                    BitConverter.ToInt32(il, i),
+                    method.DeclaringType!.GetGenericArguments(),
+                    method.IsGenericMethod ? method.GetGenericArguments() : null
+                );
                 yield return called!.DeclaringType!.FullName + "." + called;
             }
             i += code.OperandType switch
             {
                 OperandType.InlineNone => 0,
-                OperandType.ShortInlineBrTarget or OperandType.ShortInlineI or OperandType.ShortInlineVar => 1,
+                OperandType.ShortInlineBrTarget
+                or OperandType.ShortInlineI
+                or OperandType.ShortInlineVar => 1,
                 OperandType.InlineVar => 2,
                 OperandType.InlineI8 or OperandType.InlineR => 8,
                 OperandType.InlineSwitch => 4 + 4 * BitConverter.ToInt32(il, i),
-                _ => 4
+                _ => 4,
             };
         }
     }

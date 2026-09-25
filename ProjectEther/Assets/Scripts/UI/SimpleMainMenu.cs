@@ -1,8 +1,8 @@
 using System.Collections;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using TMPro;
 
 namespace OsuVR
 {
@@ -34,6 +34,7 @@ namespace OsuVR
         [Header("版本信息")]
         public string gameTitle = "Project Ether";
         public string subtitle = "\u4EE5\u592A\u8BA1\u5212"; // 以太计划
+
         // 版本号自动同步项目设置中的 bundleVersion（Application.version），无需手动硬编码
         private static string version => $"v{Application.version}";
 
@@ -110,7 +111,7 @@ namespace OsuVR
             rootCanvas.transform.localPosition = new Vector3(0f, 0f, CanvasLocalZ);
             rootCanvas.transform.localScale = Vector3.one * CanvasScale;
 
-            // 复刻：anchoredPosition=(0,2.5), sizeDelta=(600,450), pivot=center
+            // 复刻：anchoredPosition=(0,2.5), sizeDelta=(600,450), pivot=居中
             var canvasRt = rootCanvas.GetComponent<RectTransform>();
             canvasRt.anchorMin = new Vector2(0.5f, 0.5f);
             canvasRt.anchorMax = new Vector2(0.5f, 0.5f);
@@ -125,25 +126,31 @@ namespace OsuVR
             scaler.dynamicPixelsPerUnit = 10f;
 
             // ---- Title ----
-            var titleTmp = UILayoutHelper.CreateText(rootCanvas.transform,
+            var titleTmp = UILayoutHelper.CreateText(
+                rootCanvas.transform,
                 $"{gameTitle}\n<size=60%>{subtitle}</size>",
                 fontSize: TitleFontSize,
                 color: Color.white,
-                alignment: TextAlignmentOptions.Center);
-            SetRectTransform(titleTmp.rectTransform,
+                alignment: TextAlignmentOptions.Center
+            );
+            SetRectTransform(
+                titleTmp.rectTransform,
                 anchor: new Vector2(0.5f, 0.5f),
                 anchoredPos: new Vector2(0f, TitleAnchoredY),
-                sizeDelta: new Vector2(TitleWidth, TitleHeight));
+                sizeDelta: new Vector2(TitleWidth, TitleHeight)
+            );
 
             // ---- Buttons 容器（VerticalLayoutGroup） ----
             var buttonsGo = new GameObject("Buttons");
             buttonsGo.transform.SetParent(rootCanvas.transform, false);
             var buttonsRt = buttonsGo.AddComponent<RectTransform>();
-            SetRectTransform(buttonsRt,
+            SetRectTransform(
+                buttonsRt,
                 anchor: new Vector2(0.5f, 0.5f),
                 pivot: new Vector2(0.5f, 1f),
                 anchoredPos: new Vector2(0f, ButtonsAnchoredY),
-                sizeDelta: new Vector2(ButtonsWidth, 0f));
+                sizeDelta: new Vector2(ButtonsWidth, 0f)
+            );
 
             var vlg = buttonsGo.AddComponent<VerticalLayoutGroup>();
             vlg.spacing = ButtonSpacing;
@@ -159,24 +166,49 @@ namespace OsuVR
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             // ---- 按钮 ----
-            CreateMenuButton(buttonsGo.transform, "Play", "ui_play_button", OnPlayClicked,
-                new Color(0.2f, 0.6f, 1f, 1f));
-            CreateMenuButton(buttonsGo.transform, "Settings", "ui_settings", OnSettingsClicked,
-                new Color(0.5f, 0.5f, 0.5f, 1f));
-            CreateMenuButton(buttonsGo.transform, "Credits", "ui_credits", OnCreditsClicked,
-                new Color(0.4f, 0.5f, 0.6f, 1f));
-            CreateMenuButton(buttonsGo.transform, "Quit", "ui_quit", OnQuitClicked,
-                new Color(0.8f, 0.3f, 0.3f, 1f));
+            CreateMenuButton(
+                buttonsGo.transform,
+                "Play",
+                "ui_play_button",
+                OnPlayClicked,
+                new Color(0.2f, 0.6f, 1f, 1f)
+            );
+            CreateMenuButton(
+                buttonsGo.transform,
+                "Settings",
+                "ui_settings",
+                OnSettingsClicked,
+                new Color(0.5f, 0.5f, 0.5f, 1f)
+            );
+            CreateMenuButton(
+                buttonsGo.transform,
+                "Credits",
+                "ui_credits",
+                OnCreditsClicked,
+                new Color(0.4f, 0.5f, 0.6f, 1f)
+            );
+            CreateMenuButton(
+                buttonsGo.transform,
+                "Quit",
+                "ui_quit",
+                OnQuitClicked,
+                new Color(0.8f, 0.3f, 0.3f, 1f)
+            );
 
             // ---- Version ----
-            var versionTmp = UILayoutHelper.CreateText(rootCanvas.transform, version,
+            var versionTmp = UILayoutHelper.CreateText(
+                rootCanvas.transform,
+                version,
                 fontSize: VersionFontSize,
                 color: Color.white,
-                alignment: TextAlignmentOptions.Center);
-            SetRectTransform(versionTmp.rectTransform,
+                alignment: TextAlignmentOptions.Center
+            );
+            SetRectTransform(
+                versionTmp.rectTransform,
                 anchor: new Vector2(0.5f, 0.5f),
                 anchoredPos: new Vector2(0f, VersionAnchoredY),
-                sizeDelta: new Vector2(VersionWidth, VersionHeight));
+                sizeDelta: new Vector2(VersionWidth, VersionHeight)
+            );
 
             // ---- 通知 RayController（延迟一帧，确保 Canvas 完全初始化） ----
             StartCoroutine(NotifyRayControllerNextFrame());
@@ -185,10 +217,15 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 创建菜单按钮（复刻原 Prefab：sizeDelta=0x50, fontSize=20, stretch text）
+        /// 创建菜单按钮（复刻原 Prefab：sizeDelta=0x50, fontSize=20，文本拉伸填充）
         /// </summary>
-        private void CreateMenuButton(Transform parent, string defaultText, string locKey,
-            System.Action onClick, Color imageColor)
+        private void CreateMenuButton(
+            Transform parent,
+            string defaultText,
+            string locKey,
+            System.Action onClick,
+            Color imageColor
+        )
         {
             // 按钮根物体
             var btnGo = new GameObject($"Btn_{defaultText}");
@@ -241,8 +278,12 @@ namespace OsuVR
             }
 
             // 悬停变色
-            UILayoutHelper.AddColorHoverEffect(btnGo, btnImg,
-                imageColor, UILayoutHelper.ButtonHoverColor);
+            UILayoutHelper.AddColorHoverEffect(
+                btnGo,
+                btnImg,
+                imageColor,
+                UILayoutHelper.ButtonHoverColor
+            );
 
             // 悬停音效
             UILayoutHelper.AddHoverSoundEffect(btnGo, audioSource, hoverSound, 0.5f);
@@ -258,17 +299,25 @@ namespace OsuVR
         /// <summary>
         /// 设置 RectTransform 参数
         /// </summary>
-        private static void SetRectTransform(RectTransform rt, Vector2? anchor = null,
-            Vector2? pivot = null, Vector2? anchoredPos = null, Vector2? sizeDelta = null)
+        private static void SetRectTransform(
+            RectTransform rt,
+            Vector2? anchor = null,
+            Vector2? pivot = null,
+            Vector2? anchoredPos = null,
+            Vector2? sizeDelta = null
+        )
         {
             if (anchor.HasValue)
             {
                 rt.anchorMin = anchor.Value;
                 rt.anchorMax = anchor.Value;
             }
-            if (pivot.HasValue) rt.pivot = pivot.Value;
-            if (anchoredPos.HasValue) rt.anchoredPosition = anchoredPos.Value;
-            if (sizeDelta.HasValue) rt.sizeDelta = sizeDelta.Value;
+            if (pivot.HasValue)
+                rt.pivot = pivot.Value;
+            if (anchoredPos.HasValue)
+                rt.anchoredPosition = anchoredPos.Value;
+            if (sizeDelta.HasValue)
+                rt.sizeDelta = sizeDelta.Value;
         }
 
         // ============================================================

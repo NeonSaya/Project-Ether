@@ -96,7 +96,8 @@ namespace OsuVR
                     bool wasPlaying = audioSource.isPlaying;
                     audioSource.Stop(); // 旧源停用，组件随 GameScene 卸载一并销毁
 
-                    if (wasPlaying) newSource.Play();
+                    if (wasPlaying)
+                        newSource.Play();
 
                     audioSource = newSource;
 

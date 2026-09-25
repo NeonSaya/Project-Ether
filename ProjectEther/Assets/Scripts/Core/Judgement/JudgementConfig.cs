@@ -15,8 +15,10 @@ namespace OsuVR
     {
         /// <summary>历史基准窗口：OD8 = 250ms</summary>
         public const double WindowAtOD8 = 250.0;
+
         /// <summary>最窄窗口：OD10 = 225ms</summary>
         public const double WindowMin = 225.0;
+
         /// <summary>最宽窗口：OD0 = 350ms</summary>
         public const double WindowMax = 350.0;
 
@@ -39,9 +41,12 @@ namespace OsuVR
         /// </summary>
         public static int ScoreFromAccuracy(double accuracy01)
         {
-            if (accuracy01 >= 0.8) return 300;
-            if (accuracy01 >= 0.6) return 100;
-            if (accuracy01 >= 0.01) return 50;
+            if (accuracy01 >= 0.8)
+                return 300;
+            if (accuracy01 >= 0.6)
+                return 100;
+            if (accuracy01 >= 0.01)
+                return 50;
             return 0;
         }
     }
