@@ -1,0 +1,41 @@
+[General]
+WidescreenStoryboard: 1
+[Events]
+// Fractional edge positions avoid exact half-pixel tie rows.
+Sprite,Foreground,Centre,"grey.png",120.13,120.27
+ S,0,0,1000,83.7,121.3
+ F,0,0,1000,1
+Sprite,Foreground,Centre,"white.png",319.83,119.61
+ S,0,0,1000,92.6,106.9
+ F,0,0,1000,0.2,0.86
+Sprite,Foreground,Centre,"red.png",515.29,116.73
+ V,0,0,1000,95.4,68.3,120.7,117.9
+ R,0,0,1000,-0.33,0.41
+ F,0,0,1000,0.25,0.78
+ P,0,0,1000,A
+Sprite,Foreground,Centre,"blue.png",537.17,139.91
+ V,0,0,1000,101.3,115.7,87.9,69.1
+ R,0,0,1000,0.19,-0.26
+ F,0,0,1000,0.72,0.31
+Sprite,Foreground,Centre,"white.png",118.77,337.39
+ V,0,0,1000,105.1,80.3,86.7,110.9
+ F,0,0,1000,0.87
+ C,0,0,1000,17,43,91,231,187,147
+Sprite,Foreground,TopLeft,"pair.png",310.37,306.61
+ V,0,0,1000,-43.7,61.3,-72.9,92.1
+ R,0,0,1000,0.13,0.49
+ F,0,0,1000,0.83
+Sprite,Foreground,BottomRight,"pair.png",595.23,399.17
+ V,0,0,1000,-65.3,78.9,-47.1,53.7
+ R,0,0,1000,-0.29,0.17
+ F,0,0,1000,0.67
+ P,0,0,1000,H
+Sprite,Foreground,Centre,"white.png",385.11,244.23
+ V,0,0,1000,31.7,27.3
+ R,0,0,1000,0.27
+ F,0,0,1000,0.43
+ C,0,0,1000,72,131,209
+Sprite,Foreground,Centre,"red.png",380.41,251.79
+ V,0,0,1000,28.3,33.1
+ F,0,0,1000,0.28
+ P,0,0,1000,A

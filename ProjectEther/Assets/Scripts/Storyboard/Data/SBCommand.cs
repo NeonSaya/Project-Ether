@@ -22,6 +22,7 @@ namespace OsuVR.Storyboard.Data
     /// </summary>
     public class SBCommand
     {
+        public int Sequence; // declaration order for equal-time commands
         public SBCommandType Type;
         public SBEasing Easing;
         public double StartTime;
@@ -190,23 +191,19 @@ namespace OsuVR.Storyboard.Data
     /// </summary>
     public class SBColorCommand : SBCommand
     {
-        public Color32 StartColor;
-        public Color32 EndColor;
+        public Color StartColor;
+        public Color EndColor;
 
-        public SBColorCommand(SBEasing easing, double start, double end, Color32 startColor, Color32 endColor)
+        public SBColorCommand(SBEasing easing, double start, double end, Color startColor, Color endColor)
             : base(SBCommandType.C, easing, start, end)
         {
             StartColor = startColor;
             EndColor = endColor;
         }
 
-        public Color32 Evaluate(double time)
+        public Color Evaluate(double time)
         {
-            float p = GetEasedProgress(time);
-            byte r = (byte)Mathf.Lerp(StartColor.r, EndColor.r, p);
-            byte g = (byte)Mathf.Lerp(StartColor.g, EndColor.g, p);
-            byte b = (byte)Mathf.Lerp(StartColor.b, EndColor.b, p);
-            return new Color32(r, g, b, 255);
+            return Color.Lerp(StartColor.linear, EndColor.linear, GetEasedProgress(time)).gamma;
         }
     }
 

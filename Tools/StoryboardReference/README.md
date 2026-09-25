@@ -1,0 +1,62 @@
+# Storyboard reference validation
+
+These tools use installed osu!lazer assemblies as the reference. They do not launch the user's osu! application or change its settings. Unity probes use the production parser, Burst timeline, GPU submission, and screen material.
+
+## Unity checks
+
+Exit Play Mode, then use:
+
+- **Tools > Storyboard > Run lazer timeline conformance**: 1,198 live samples / 14,376 properties against pinned lazer output, followed by parser and trigger checks.
+- **Tools > Storyboard > Run GPU conformance**: checks source colour, sprite alpha, additive order/saturation, origins, flips, viewport clipping, capacity beyond 8,192 sprites, backdrop composition, and unloading.
+
+Additional Editor entry points:
+
+- StoryboardDisplayConformance.RunOpacity(): renders the original 12×8 curved screen against a white scene. Checks whole-frame transparency using the existing video slider response.
+- StoryboardCorpusConformance.Run(songsDirectory): loads every local .osb, renders five times, unloads, and reports missing assets or runtime errors.
+- StoryboardRenderConformance.CaptureAndCompare(osb, assetRoot, timeMs, referencePng, outputPrefix): exports the production frame, an 8× difference image, and RGB error metrics.
+- StoryboardBuildValidation.BuildAndroidShaders(): compiles storyboard/display shaders for configured Android Vulkan/OpenGLES3 backends and checks actual compiler errors.
+
+Outputs go to ProjectEther/Temp/StoryboardValidation. Large screenshots and user beatmap assets stay outside version control.
+
+## Transform references
+
+Requires .NET 8 and installed Windows lazer. The default is %LOCALAPPDATA%/osulazer/current; use --lazer DIRECTORY or LAZER_DIRECTORY for another installation.
+
+From the repository root:
+
+~~~~powershell
+dotnet run --project Tools/StoryboardReference/StoryboardLazerOracle.csproj -- --input Tools/StoryboardReference/fixtures/parity.osb --output ProjectEther/Temp/parity.json
+dotnet run --project Tools/StoryboardReference/StoryboardLazerOracle.csproj -- --input Tools/StoryboardReference/fixtures/easing.osb --times '0,1,100,250,500,750,900,999,1000,1001' --output ProjectEther/Temp/easing.json
+~~~~
+
+The program invokes actual LegacyStoryboardDecoder, StoryboardSprite.ApplyTransforms, DrawableStoryboardSprite.ApplyTransformsAt, and the alpha overflow update. It retains completed transforms and uses a manual clock; timestamps may be sampled in any order. JSON records assembly versions/hashes and source hash. Committed snapshots use osu.Game 2026.804.2.0 / osu.Framework 2026.731.0.0.
+
+The mixed-timelines fixture is deterministic (seed 17076). It includes overlapping direct/loop commands and parameter resets. Loop occurrences coinciding with direct transforms must retain original insertion order; overlapping P windows can cancel future reset transforms while lazer schedules them.
+
+## GPU references
+
+First run the Unity GPU menu to create its small textures, then:
+
+~~~~powershell
+dotnet run --project Tools/StoryboardReference/Gpu/Gpu.csproj -- --input Tools/StoryboardReference/fixtures/reference.osb --assets ProjectEther/Temp/StoryboardValidation --output ProjectEther/Temp/reference.png --storage ProjectEther/Temp/lazer-gpu-storage --time 500 --hidden true
+~~~~
+
+For another installation, set LAZER_DIRECTORY and build with -p:LazerDirectory=PATH. The helper uses the actual framework Sprite renderer, image upload/mips, shader and blend operations, plus the attributed storyboard scale/origin adapter in CaptureGame.cs. The MIT notice is preserved in Gpu/MIT-ppy.txt.
+
+The native host has isolated storage, silent audio, a frozen clock, and a hidden window after load. A brief initial window can appear. Captures are 1920×1080, wide viewport, Pass state, black backing, no gameplay UI or client dimming. The helper rejects active triggers and does not select animation frames or play video. It is a renderer reference, not a full gameplay recording. Installed game dependencies can cause BCL version warnings when building the helper; exercised captures completed successfully.
+
+## Windows player
+
+A Development Build accepts this opt-in command. Ordinary startup is unaffected; capture code is absent from non-development players.
+
+~~~~text
+ProjectEther.exe -batchmode -force-d3d11 --storyboard-capture "map.osb" 60000 "output.png"
+~~~~
+
+The player runs the production decoder/jobs/GPU renderer, writes PNG and status, then exits. Use absolute paths when launching outside the project directory.
+
+## Interpretation
+
+Transform tolerances are explicit: 0.002 coordinates/degrees, 0.0002 scale, 0.00002 alpha/colour, exact booleans. Image reports give differing RGB pixels, maximum channel difference, and mean channel difference. Zero is required before calling a capture pixel-identical. Raster/filter rounding on other drivers remains measurable; this suite does not claim universal zero-byte equality.
+
+The screen retains its original curve, size, distance, feather and video opacity response. Background/video and SB compose first; the finished frame receives one shared screen opacity, including black/empty areas. Unloading clears alpha to zero so it does not leave a stale black plane.

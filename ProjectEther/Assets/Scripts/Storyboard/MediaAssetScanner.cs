@@ -34,7 +34,7 @@ namespace OsuVR.Storyboard
             if (!string.IsNullOrEmpty(beatmap.Events.VideoFilename))
             {
                 // Android 反斜杠非分隔符：归一化谱面里的 Windows 风格路径
-                string path = Path.Combine(folder, beatmap.Events.VideoFilename.Replace('\\', '/'));
+                string path = StoryboardRenderer.ResolveStoryboardAssetPath(folder, beatmap.Events.VideoFilename);
                 if (File.Exists(path))
                 {
                     string ext = Path.GetExtension(path).ToLowerInvariant();
@@ -61,7 +61,11 @@ namespace OsuVR.Storyboard
             // 2. 扫描目录中的 .osb 文件
             try
             {
-                string[] osbFiles = Directory.GetFiles(folder, "*.osb");
+                var files = new System.Collections.Generic.List<string>();
+                foreach (string file in Directory.GetFiles(folder))
+                    if (Path.GetExtension(file).Equals(".osb", System.StringComparison.OrdinalIgnoreCase)) files.Add(file);
+                files.Sort(System.StringComparer.OrdinalIgnoreCase);
+                string[] osbFiles = files.ToArray();
                 if (osbFiles.Length > 0)
                 {
                     result.HasStoryboard = true;
@@ -85,7 +89,7 @@ namespace OsuVR.Storyboard
             // 4. 查找静态背景图
             if (!string.IsNullOrEmpty(beatmap.Events.BackgroundFilename))
             {
-                string bgPath = Path.Combine(folder, beatmap.Events.BackgroundFilename.Replace('\\', '/'));
+                string bgPath = StoryboardRenderer.ResolveStoryboardAssetPath(folder, beatmap.Events.BackgroundFilename);
                 if (File.Exists(bgPath))
                 {
                     result.BackgroundPath = bgPath;

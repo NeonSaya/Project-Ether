@@ -2,17 +2,10 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
-using OsuVR.Storyboard.Data;
 
 namespace OsuVR.Storyboard.Engine
 {
-    /// <summary>
-    /// Burst-compiled 时间轴求值 Job
-    /// 替代整个 SBOsbPlayer → SBPlayingLayer → SBPlayingSprite 主线程求值管线
-    ///
-    /// 每个 sprite 独立求值: alive 判断 → 直接命令位掩码扫描 → Loop 动态求值 → 动画帧解析
-    /// 输出 SpriteInputData 供 BuildInstanceJob 消费
-    /// </summary>
+    /// <summary>Evaluate the last started transform on each independent lazer property.</summary>
     [BurstCompile]
     public struct SBEvaluateTimelineJob : IJobParallelFor
     {
@@ -20,346 +13,199 @@ namespace OsuVR.Storyboard.Engine
         [ReadOnly] public NativeArray<SBCommandFlatData> Commands;
         [ReadOnly] public NativeArray<SBLoopFlatData> Loops;
         [ReadOnly] public NativeArray<int> FrameMap;
+        [ReadOnly] public NativeArray<SBTriggeredCommand> TriggerCommands;
         [WriteOnly] public NativeArray<SpriteInputData> Output;
-
         public double CurrentTime;
         public int SpriteCount;
-        /// <summary>宽屏 SB 的 X 坐标偏移（widescreen=854×480 空间 → 本引擎 640 空间，-107；普通=0）</summary>
-        public float XOffset;
+        public float XOffset; // always zero for both normal and widescreen storyboards
+
+        struct Candidate
+        {
+            public int Index;
+            public bool Triggered;
+            public double Start, End, Offset, OrderStart, OrderEnd;
+        }
+
+        struct CandidateSet
+        {
+            Candidate c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12;
+            public int Length => 13;
+            public Candidate this[int index]
+            {
+                get
+                {
+                    switch (index)
+                    {
+                        case 0: return c0;
+                        case 1: return c1;
+                        case 2: return c2;
+                        case 3: return c3;
+                        case 4: return c4;
+                        case 5: return c5;
+                        case 6: return c6;
+                        case 7: return c7;
+                        case 8: return c8;
+                        case 9: return c9;
+                        case 10: return c10;
+                        case 11: return c11;
+                        case 12: return c12;
+                        default: return default;
+                    }
+                }
+                set
+                {
+                    switch (index)
+                    {
+                        case 0: c0 = value; break;
+                        case 1: c1 = value; break;
+                        case 2: c2 = value; break;
+                        case 3: c3 = value; break;
+                        case 4: c4 = value; break;
+                        case 5: c5 = value; break;
+                        case 6: c6 = value; break;
+                        case 7: c7 = value; break;
+                        case 8: c8 = value; break;
+                        case 9: c9 = value; break;
+                        case 10: c10 = value; break;
+                        case 11: c11 = value; break;
+                        case 12: c12 = value; break;
+                    }
+                }
+            }
+        }
 
         public void Execute(int i)
         {
-            if (i >= SpriteCount)
-            {
-                Output[i] = default;
-                return;
-            }
-
+            if (i >= SpriteCount) { Output[i] = default; return; }
             var sprite = Sprites[i];
-
-            // ---- 1. Alive 判断: 不可见直接输出零数据 (被 GPU 剔除) ----
-            if (CurrentTime < sprite.StartTime || CurrentTime > sprite.EndTime)
+            if (CurrentTime < sprite.StartTime || CurrentTime >= sprite.EndTime)
             {
                 Output[i] = default;
                 return;
             }
-
-            // ---- 2. 初始化为 sprite 的默认值 ----
-            float alpha = sprite.InitAlpha;
-            float x = sprite.InitX;
-            float y = sprite.InitY;
-            float scaleX = sprite.InitScaleX;
-            float scaleY = sprite.InitScaleY;
-            float rotation = sprite.InitRotation;
-            float r = sprite.InitR;
-            float g = sprite.InitG;
-            float b = sprite.InitB;
-            byte flipH = sprite.InitFlipH;
-            byte flipV = sprite.InitFlipV;
-            byte additive = sprite.InitAdditive;
-
-            // ---- 3. 评估 Loop 命令 (先评估 = 更高优先级, 与 osu!/SBPlayingSprite 一致) ----
-            int mask = 0;
-            int found = 0;
-
-            for (int li = sprite.LoopOffset + sprite.LoopCount - 1;
-                 li >= sprite.LoopOffset && found < 10; li--)
+            var state = new SpriteInputData
             {
-                EvalLoop(Loops[li], sprite, CurrentTime, ref mask, ref found,
-                    ref alpha, ref x, ref y, ref scaleX, ref scaleY, ref rotation,
-                    ref r, ref g, ref b, ref flipH, ref flipV, ref additive);
-            }
-
-            // ---- 4. 评估直接命令 (填充 Loop 未覆盖的属性) ----
-            for (int ci = sprite.CmdOffset + sprite.CmdCount - 1;
-                 ci >= sprite.CmdOffset && found < 10; ci--)
+                X = sprite.InitX, Y = sprite.InitY,
+                ScaleX = sprite.InitScaleX, ScaleY = sprite.InitScaleY,
+                VectorScaleX = sprite.InitVectorScaleX, VectorScaleY = sprite.InitVectorScaleY,
+                Alpha = sprite.InitAlpha, Rotation = sprite.InitRotation,
+                R = sprite.InitR, G = sprite.InitG, B = sprite.InitB,
+                FlipH = sprite.InitFlipH, FlipV = sprite.InitFlipV, Additive = sprite.InitAdditive,
+                TexIndex = sprite.TexIndex, OriginIndex = sprite.OriginIndex,
+                TexWidth = sprite.TexWidth, TexHeight = sprite.TexHeight
+            };
+            float uniformScale = sprite.InitUniformScale;
+            var selected = new CandidateSet();
+            for (int t = 0; t < selected.Length; t++) selected[t] = new Candidate { Index = -1 };
+            for (int c = sprite.CmdOffset; c < sprite.CmdOffset + sprite.CmdCount; c++)
+                Select(ref selected, c, 0);
+            for (int l = sprite.LoopOffset; l < sprite.LoopOffset + sprite.LoopCount; l++)
             {
-                var cmd = Commands[ci];
-                if (cmd.StartTime > CurrentTime) continue;
-
-                int bit = 1 << cmd.Target;
-                if ((mask & bit) != 0) continue;
-
-                mask |= bit;
-                found++;
-                ApplyCommand(cmd, CurrentTime,
-                    ref alpha, ref x, ref y, ref scaleX, ref scaleY, ref rotation,
-                    ref r, ref g, ref b, ref flipH, ref flipV, ref additive);
+                var loop = Loops[l];
+                for (int c = loop.InnerCmdOffset; c < loop.InnerCmdOffset + loop.InnerCmdCount; c++)
+                {
+                    double first = loop.StartTime + Commands[c].StartTime;
+                    if (CurrentTime < first) continue;
+                    double iteration = loop.LoopDuration > 0
+                        ? math.min(math.floor((CurrentTime - first) / loop.LoopDuration), math.max(1, loop.LoopCount) - 1)
+                        : 0;
+                    Select(ref selected, c, loop.StartTime + iteration * loop.LoopDuration, false, loop.StartTime);
+                }
             }
-
-            // ---- 5. 动画帧纹理索引解析 ----
-            int texIdx = sprite.TexIndex;
+            for (int c = sprite.TriggerHead; c >= 0 && c < TriggerCommands.Length; c = TriggerCommands[c].Next)
+                Select(ref selected, c, 0, true);
+            for (int t = 0; t < selected.Length; t++)
+            {
+                var candidate = selected[t];
+                if (candidate.Index >= 0)
+                    Apply(candidate.Triggered ? TriggerCommands[candidate.Index].Command : Commands[candidate.Index],
+                        CurrentTime - candidate.Offset, ref state, ref uniformScale);
+            }
+            state.X += XOffset;
+            state.ScaleX *= uniformScale * state.VectorScaleX;
+            state.ScaleY *= uniformScale * state.VectorScaleY;
             if (sprite.AnimFrameCount > 0)
             {
-                texIdx = ResolveAnimFrame(sprite, FrameMap, CurrentTime);
+                double elapsed = math.max(0, CurrentTime - sprite.StartTime);
+                int frame = sprite.AnimFrameDelay > 0 ? (int)(elapsed / sprite.AnimFrameDelay) : 0;
+                if (sprite.AnimLoopType == 0) frame %= sprite.AnimFrameCount;
+                frame = math.clamp(frame, 0, sprite.AnimFrameCount - 1);
+                int index = sprite.AnimFrameMapOffset + frame;
+                state.TexIndex = (uint)index < (uint)FrameMap.Length ? FrameMap[index] : -1;
             }
-
-            // ---- 6. 写入输出 ----
-            Output[i] = new SpriteInputData
-            {
-                X = x + XOffset,
-                Y = y,
-                ScaleX = scaleX,
-                ScaleY = scaleY,
-                Rotation = rotation,
-                Alpha = alpha,
-                R = r,
-                G = g,
-                B = b,
-                FlipH = flipH,
-                FlipV = flipV,
-                Additive = additive,
-                TexIndex = texIdx,
-                OriginIndex = sprite.OriginIndex,
-                TexWidth = sprite.TexWidth,
-                TexHeight = sprite.TexHeight
-            };
+            Output[i] = state;
         }
 
-        // =========================================================
-        //  命令应用
-        // =========================================================
-
-        void ApplyCommand(SBCommandFlatData cmd, double time,
-            ref float alpha, ref float x, ref float y,
-            ref float scaleX, ref float scaleY, ref float rotation,
-            ref float r, ref float g, ref float b,
-            ref byte flipH, ref byte flipV, ref byte additive)
+        void Select(ref CandidateSet selected, int index, double offset, bool triggered = false, double orderOffset = 0)
         {
-            int target = cmd.Target;
+            var command = triggered ? TriggerCommands[index].Command : Commands[index];
+            if ((uint)command.Target >= (uint)selected.Length) return;
+            double start = command.StartTime + offset;
+            if (start > CurrentTime) return;
+            double end = command.EndTime + offset;
+            // P schedules two independent instantaneous changes in lazer. An older
+            // window ending now can reset a newer overlapping parameter window.
+            if (command.Target >= 7 && command.Target <= 9 && CurrentTime >= end) start = end;
+            var previous = selected[command.Target];
+            double orderStart = command.StartTime + orderOffset;
+            double orderEnd = command.EndTime + orderOffset;
+            if (previous.Index >= 0 && (start < previous.Start || (start == previous.Start &&
+                (orderStart < previous.OrderStart || (orderStart == previous.OrderStart && orderEnd < previous.OrderEnd))))) return;
+            if (previous.Index >= 0 && previous.Triggered && triggered && start == previous.Start && end == previous.End && index < previous.Index) return;
+            selected[command.Target] = new Candidate { Index = index, Start = start, End = end, Offset = offset, Triggered = triggered, OrderStart = orderStart, OrderEnd = orderEnd };
+        }
 
-            // Bool 命令 (FlipH=8, FlipV=9, BlendingMode=7)
-            if (target >= 7)
+        static void Apply(SBCommandFlatData command, double time, ref SpriteInputData state, ref float uniformScale)
+        {
+            int target = command.Target;
+            if (target >= 7 && target <= 9)
             {
-                byte val = (time >= cmd.EndTime) ? cmd.BoolEnd : cmd.BoolStart;
-                switch (target)
-                {
-                    case 7: additive = val; break; // BlendingMode
-                    case 8: flipH = val; break;    // FlipH
-                    case 9: flipV = val; break;    // FlipV
-                }
+                byte value = time >= command.EndTime ? command.BoolEnd : command.BoolStart;
+                if (target == 7) state.Additive = value;
+                if (target == 8) state.FlipH = value;
+                if (target == 9) state.FlipV = value;
                 return;
             }
-
-            // Color 命令 (Color=6)
+            float progress = GetEasedProgress(command, time);
             if (target == 6)
             {
-                if (time >= cmd.EndTime)
-                {
-                    r = cmd.ColorEndR;
-                    g = cmd.ColorEndG;
-                    b = cmd.ColorEndB;
-                }
-                else
-                {
-                    float p = GetEasedProgress(cmd, time);
-                    r = cmd.ColorStartR + (cmd.ColorEndR - cmd.ColorStartR) * p;
-                    g = cmd.ColorStartG + (cmd.ColorEndG - cmd.ColorStartG) * p;
-                    b = cmd.ColorStartB + (cmd.ColorEndB - cmd.ColorStartB) * p;
-                }
+                // osu-framework interpolates colour commands in linear light, then
+                // emits encoded colour to its UNORM sprite shader.
+                progress = math.saturate(progress);
+                state.R = InterpolateColour(command.ColorStartR, command.ColorEndR, progress);
+                state.G = InterpolateColour(command.ColorStartG, command.ColorEndG, progress);
+                state.B = InterpolateColour(command.ColorStartB, command.ColorEndB, progress);
                 return;
             }
-
-            // Float 命令 (Alpha=0, X=1, Y=2, ScaleX=3, ScaleY=4, Rotation=5)
-            float fVal;
-            if (time >= cmd.EndTime)
-            {
-                fVal = cmd.FloatEnd;
-            }
-            else
-            {
-                float p = GetEasedProgress(cmd, time);
-                fVal = cmd.FloatStart + (cmd.FloatEnd - cmd.FloatStart) * p;
-            }
-
+            float valueFloat = math.lerp(command.FloatStart, command.FloatEnd, progress);
             switch (target)
             {
-                case 0: alpha = fVal; break;
-                case 1: x = fVal; break;
-                case 2: y = fVal; break;
-                case 3: scaleX = fVal; break;
-                case 4: scaleY = fVal; break;
-                case 5: rotation = fVal; break;
+                case 0: state.Alpha = valueFloat; break;
+                case 1: state.X = valueFloat; break;
+                case 2: state.Y = valueFloat; break;
+                case 3: state.ScaleX = valueFloat; break;
+                case 4: state.ScaleY = valueFloat; break;
+                case 5: state.Rotation = valueFloat; break;
+                case 10: uniformScale = valueFloat; break;
+                case 11: state.VectorScaleX = valueFloat; break;
+                case 12: state.VectorScaleY = valueFloat; break;
             }
         }
 
-        // =========================================================
-        //  Loop 动态求值 (不预展开, 运行时计算迭代)
-        // =========================================================
-
-        /// <summary>
-        /// 检查指定属性是否存在「Loop 结束后才开始、且当前已生效」的直接命令。
-        /// 直接命令按 StartTime 升序存储，从尾往前找该属性最新一条已生效命令即可。
-        /// </summary>
-        bool HasEffectiveDirectCommandAfter(in SBSpriteFlatData sprite, int target, double loopEndTime, double time)
+        static float ToLinear(float v) => v <= 0.04045f ? v / 12.92f : math.pow((v + 0.055f) / 1.055f, 2.4f);
+        static float InterpolateColour(float a, float b, float t)
         {
-            for (int ci = sprite.CmdOffset + sprite.CmdCount - 1; ci >= sprite.CmdOffset; ci--)
-            {
-                var d = Commands[ci];
-                if (d.StartTime > time) continue;
-                if (d.Target == target)
-                    return d.StartTime > loopEndTime;
-            }
-            return false;
+            if (t <= 0) return a;
+            if (t >= 1) return b;
+            float v = math.lerp(ToLinear(a), ToLinear(b), t);
+            return v <= 0.0031308f ? v * 12.92f : 1.055f * math.pow(v, 1f / 2.4f) - 0.055f;
         }
 
-        void EvalLoop(SBLoopFlatData loop, in SBSpriteFlatData sprite, double time, ref int mask, ref int found,
-            ref float alpha, ref float x, ref float y,
-            ref float scaleX, ref float scaleY, ref float rotation,
-            ref float r, ref float g, ref float b,
-            ref byte flipH, ref byte flipV, ref byte additive)
+        static float GetEasedProgress(SBCommandFlatData command, double time)
         {
-            if (time < loop.StartTime) return;
-            if (loop.LoopDuration <= 0) return;
-            if (loop.InnerCmdCount == 0) return;
-
-            double loopTime = time - loop.StartTime;
-
-            // 1. Past loop end: hold last command's EndValue (storybrew: Commands[^1] at final iteration)
-            if (loop.LoopCount > 0 && loopTime >= loop.LoopCount * loop.LoopDuration)
-            {
-                double loopEndTime = loop.StartTime + loop.LoopCount * loop.LoopDuration;
-                for (int ci = loop.InnerCmdOffset + loop.InnerCmdCount - 1;
-                     ci >= loop.InnerCmdOffset && found < 10; ci--)
-                {
-                    var cmd = Commands[ci];
-                    int bit = 1 << cmd.Target;
-                    if ((mask & bit) != 0) continue;
-                    // [修复] 该属性若存在 Loop 结束后才开始且当前已生效的直接命令，
-                    // 让位给直接命令（时间序合并，与 osu!/lazer 一致），不再永久卡在 Loop 末值
-                    if (HasEffectiveDirectCommandAfter(sprite, cmd.Target, loopEndTime, time)) continue;
-                    mask |= bit;
-                    found++;
-                    ApplyEndValue(cmd,
-                        ref alpha, ref x, ref y, ref scaleX, ref scaleY, ref rotation,
-                        ref r, ref g, ref b, ref flipH, ref flipV, ref additive);
-                }
-                return;
-            }
-
-            // Normalize to current iteration's local time
-            int loopNumber = (int)(loopTime / loop.LoopDuration);
-            loopTime -= loopNumber * loop.LoopDuration;
-
-            // 2. Between iterations (gap before first command): hold last command's EndValue
-            //    from the PREVIOUS iteration (storybrew: Commands[^1].AsResult with previous offset)
-            if (loopTime < Commands[loop.InnerCmdOffset].StartTime)
-            {
-                for (int ci = loop.InnerCmdOffset + loop.InnerCmdCount - 1;
-                     ci >= loop.InnerCmdOffset && found < 10; ci--)
-                {
-                    var cmd = Commands[ci];
-                    int bit = 1 << cmd.Target;
-                    if ((mask & bit) != 0) continue;
-                    mask |= bit;
-                    found++;
-                    ApplyEndValue(cmd,
-                        ref alpha, ref x, ref y, ref scaleX, ref scaleY, ref rotation,
-                        ref r, ref g, ref b, ref flipH, ref flipV, ref additive);
-                }
-                return;
-            }
-
-            // 3. Within iteration: evaluate commands at loopTime
-            for (int ci = loop.InnerCmdOffset + loop.InnerCmdCount - 1;
-                 ci >= loop.InnerCmdOffset && found < 10; ci--)
-            {
-                var cmd = Commands[ci];
-                if (cmd.StartTime > loopTime) continue;
-
-                int bit = 1 << cmd.Target;
-                if ((mask & bit) != 0) continue;
-
-                mask |= bit;
-                found++;
-
-                if (loopTime <= cmd.EndTime)
-                {
-                    ApplyCommand(cmd, loopTime,
-                        ref alpha, ref x, ref y, ref scaleX, ref scaleY, ref rotation,
-                        ref r, ref g, ref b, ref flipH, ref flipV, ref additive);
-                }
-                else
-                {
-                    ApplyEndValue(cmd,
-                        ref alpha, ref x, ref y, ref scaleX, ref scaleY, ref rotation,
-                        ref r, ref g, ref b, ref flipH, ref flipV, ref additive);
-                }
-            }
-        }
-
-        void ApplyEndValue(SBCommandFlatData cmd,
-            ref float alpha, ref float x, ref float y,
-            ref float scaleX, ref float scaleY, ref float rotation,
-            ref float r, ref float g, ref float b,
-            ref byte flipH, ref byte flipV, ref byte additive)
-        {
-            int target = cmd.Target;
-            if (target >= 7)
-            {
-                switch (target)
-                {
-                    case 7: additive = cmd.BoolEnd; break;
-                    case 8: flipH = cmd.BoolEnd; break;
-                    case 9: flipV = cmd.BoolEnd; break;
-                }
-            }
-            else if (target == 6)
-            {
-                r = cmd.ColorEndR;
-                g = cmd.ColorEndG;
-                b = cmd.ColorEndB;
-            }
-            else
-            {
-                switch (target)
-                {
-                    case 0: alpha = cmd.FloatEnd; break;
-                    case 1: x = cmd.FloatEnd; break;
-                    case 2: y = cmd.FloatEnd; break;
-                    case 3: scaleX = cmd.FloatEnd; break;
-                    case 4: scaleY = cmd.FloatEnd; break;
-                    case 5: rotation = cmd.FloatEnd; break;
-                }
-            }
-        }
-
-        // =========================================================
-        //  动画帧解析
-        // =========================================================
-
-        static int ResolveAnimFrame(SBSpriteFlatData sprite, NativeArray<int> frameMap, double currentTime)
-        {
-            if (sprite.AnimFrameCount <= 0 || sprite.AnimFrameDelay <= 0)
-                return -1;
-
-            double elapsed = currentTime - sprite.StartTime;
-            int frame = (int)(elapsed / sprite.AnimFrameDelay);
-
-            if (sprite.AnimLoopType == 0) // LoopForever
-            {
-                frame %= sprite.AnimFrameCount;
-                if (frame < 0) frame += sprite.AnimFrameCount;
-            }
-            frame = math.clamp(frame, 0, sprite.AnimFrameCount - 1);
-
-            // 经帧映射取纹理切片: 缺失帧 (-1) → 该帧不绘制 (与 storybrew/osu! 一致)
-            int mapIdx = sprite.AnimFrameMapOffset + frame;
-            if ((uint)mapIdx >= (uint)frameMap.Length)
-                return -1;
-            return frameMap[mapIdx];
-        }
-
-        // =========================================================
-        //  缓动函数 (Burst 兼容, 完整移植 EasingMath.Interpolate)
-        // =========================================================
-
-        static float GetEasedProgress(SBCommandFlatData cmd, double time)
-        {
-            double duration = cmd.EndTime - cmd.StartTime;
-            if (duration <= 0) return time < cmd.StartTime ? 0f : 1f;
-            float t = (float)((time - cmd.StartTime) / duration);
-            return EaseFloat(cmd.Easing, math.clamp(t, 0f, 1f));
+            if (time >= command.EndTime) return 1;
+            if (time <= command.StartTime) return 0;
+            return EaseFloat(command.Easing, (float)((time - command.StartTime) / (command.EndTime - command.StartTime)));
         }
 
         static float EaseFloat(int easing, float t)
@@ -384,12 +230,12 @@ namespace OsuVR.Storyboard.Engine
                 case 15: return 1f - math.cos(t * math.PI * 0.5f);             // InSine
                 case 16: return math.sin(t * math.PI * 0.5f);                  // OutSine
                 case 17: return 0.5f - 0.5f * math.cos(math.PI * t);           // InOutSine
-                case 18: return math.pow(2f, 10f * (t - 1f));                  // InExpo
-                case 19: return -math.pow(2f, -10f * t) + 1f;                  // OutExpo
+                case 18: return math.pow(2f, 10f * (t - 1f)) + (t - 1f) / 1024f;                  // InExpo
+                case 19: return -math.pow(2f, -10f * t) + 1f + t / 1024f;                  // OutExpo
                 case 20: // InOutExpo
                     return t < 0.5f
-                        ? 0.5f * math.pow(2f, 20f * t - 10f)
-                        : 1f - 0.5f * math.pow(2f, -20f * t + 10f);
+                        ? 0.5f * (math.pow(2f, 20f * t - 10f) + (2f * t - 1f) / 1024f)
+                        : 1f - 0.5f * (math.pow(2f, -20f * t + 10f) + (-2f * t + 1f) / 1024f);
                 case 21: return 1f - math.sqrt(1f - t * t);                    // InCirc
                 case 22: { float n = t - 1f; return math.sqrt(1f - n * n); }   // OutCirc
                 case 23: // InOutCirc
@@ -401,25 +247,27 @@ namespace OsuVR.Storyboard.Engine
                     }
                 case 24: // InElastic
                     return -math.pow(2f, -10f + 10f * t)
-                           * math.sin((1f - 0.075f - t) * (2f * math.PI) / 0.3f);
+                           * math.sin((1f - 0.075f - t) * (2f * math.PI) / 0.3f) + (1f - t) / 2048f;
                 case 25: // OutElastic
                     return math.pow(2f, -10f * t)
-                           * math.sin((t - 0.075f) * (2f * math.PI) / 0.3f) + 1f;
+                           * math.sin((t - 0.075f) * (2f * math.PI) / 0.3f) + 1f - t / 2048f;
                 case 26: // OutElasticHalf
                     return math.pow(2f, -10f * t)
-                           * math.sin((0.5f * t - 0.075f) * (2f * math.PI) / 0.3f) + 1f;
+                           * math.sin((0.5f * t - 0.075f) * (2f * math.PI) / 0.3f) + 1f
+                           - t / 1024f * math.sin((0.5f - 0.075f) * (2f * math.PI) / 0.3f);
                 case 27: // OutElasticQuarter
                     return math.pow(2f, -10f * t)
-                           * math.sin((0.25f * t - 0.075f) * (2f * math.PI) / 0.3f) + 1f;
-                case 28: // InOutElastic (与 storybrew 一致: ToInOut(ElasticIn), 原始常量)
+                           * math.sin((0.25f * t - 0.075f) * (2f * math.PI) / 0.3f) + 1f
+                           - t / 1024f * math.sin((0.25f - 0.075f) * (2f * math.PI) / 0.3f);
+                case 28: // lazer uses a 0.45 period for InOutElastic, with endpoint correction.
                     {
                         float n = t * 2f;
+                        float frequency = 2f * math.PI / 0.45f;
+                        float offset = math.sin((1f - 0.1125f) * frequency) / 1024f;
                         if (n < 1f)
-                            return -0.5f * math.pow(2f, -10f + 10f * n)
-                                   * math.sin((1f - 0.075f - n) * (2f * math.PI) / 0.3f);
+                            return -0.5f * (math.pow(2f, -10f + 10f * n) * math.sin((1f - 0.1125f - n) * frequency) - offset * (1f - n));
                         n -= 1f;
-                        return 0.5f * math.pow(2f, -10f * n)
-                               * math.sin((n - 0.075f) * (2f * math.PI) / 0.3f) + 1f;
+                        return 0.5f * (math.pow(2f, -10f * n) * math.sin((n - 0.1125f) * frequency) - offset * n) + 1f;
                     }
                 case 29: return t * t * ((1.70158f + 1f) * t - 1.70158f);      // InBack
                 case 30: { float n = t - 1f; return n * n * ((1.70158f + 1f) * n + 1.70158f) + 1f; } // OutBack

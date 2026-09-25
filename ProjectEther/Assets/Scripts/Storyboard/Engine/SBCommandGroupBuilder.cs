@@ -1,270 +1,101 @@
-using UnityEngine;
+using System.Collections.Generic;
 using OsuVR.Storyboard.Data;
+using UnityEngine;
 
 namespace OsuVR.Storyboard.Engine
 {
-    /// <summary>
-    /// 转换层: SBElement (解析器输出) → SBCommandGroup (引擎输入)
-    /// 处理 M→X+Y, S→ScaleX+ScaleY, P→Bool, Loop→SBLoopCommand
-    /// </summary>
+    /// <summary>Legacy commands mapped to independent lazer transform properties.</summary>
     public static class SBCommandGroupBuilder
     {
-        /// <summary>
-        /// 将 SBElement 的所有命令转换为一个扁平化、排序后的 SBCommandGroup
-        /// </summary>
         public static SBCommandGroup Build(SBElement element)
         {
-            // 估算容量: 每个命令最多展开为 2 个 (M, S)
-            int estimate = element.FadeCommands.Count
-                + element.MoveCommands.Count * 2
-                + element.MoveXCommands.Count
-                + element.MoveYCommands.Count
-                + element.ScaleCommands.Count * 2
-                + element.ScaleVectorCommands.Count * 2
-                + element.RotateCommands.Count
-                + element.ColorCommands.Count
-                + element.ParameterCommands.Count
-                + element.Loops.Count;
-
-            var group = new SBCommandGroup(estimate);
-
-            // Fade → Alpha
-            for (int i = 0; i < element.FadeCommands.Count; i++)
-            {
-                var cmd = element.FadeCommands[i];
-                group.Commands.Add(new SBFloatCommand(
-                    SBCommandTarget.Alpha, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartValue, cmd.EndValue));
-            }
-
-            // Move → X + Y (storybrew: Move 完全覆盖 MoveX/MoveY, 互斥)
-            bool hasMove = element.MoveCommands.Count > 0;
-            bool hasScaleVec = element.ScaleVectorCommands.Count > 0;
-
-            for (int i = 0; i < element.MoveCommands.Count; i++)
-            {
-                var cmd = element.MoveCommands[i];
-                group.Commands.Add(new SBFloatCommand(
-                    SBCommandTarget.X, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartPos.x, cmd.EndPos.x));
-                group.Commands.Add(new SBFloatCommand(
-                    SBCommandTarget.Y, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartPos.y, cmd.EndPos.y));
-            }
-
-            // MoveX → X (仅在无 Move 命令时生效, storybrew 互斥规则)
-            if (!hasMove)
-            {
-                for (int i = 0; i < element.MoveXCommands.Count; i++)
-                {
-                    var cmd = element.MoveXCommands[i];
-                    group.Commands.Add(new SBFloatCommand(
-                        SBCommandTarget.X, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                        cmd.StartValue, cmd.EndValue));
-                }
-            }
-
-            // MoveY → Y (仅在无 Move 命令时生效, storybrew 互斥规则)
-            if (!hasMove)
-            {
-                for (int i = 0; i < element.MoveYCommands.Count; i++)
-                {
-                    var cmd = element.MoveYCommands[i];
-                    group.Commands.Add(new SBFloatCommand(
-                        SBCommandTarget.Y, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                        cmd.StartValue, cmd.EndValue));
-                }
-            }
-
-            // Scale → ScaleX + ScaleY (仅在无 ScaleVec 命令时生效, storybrew 互斥规则)
-            if (!hasScaleVec)
-            {
-                for (int i = 0; i < element.ScaleCommands.Count; i++)
-                {
-                    var cmd = element.ScaleCommands[i];
-                    group.Commands.Add(new SBFloatCommand(
-                        SBCommandTarget.ScaleX, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                        cmd.StartValue, cmd.EndValue));
-                    group.Commands.Add(new SBFloatCommand(
-                        SBCommandTarget.ScaleY, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                        cmd.StartValue, cmd.EndValue));
-                }
-            }
-
-            // Vector Scale → ScaleX + ScaleY (非均匀缩放)
-            for (int i = 0; i < element.ScaleVectorCommands.Count; i++)
-            {
-                var cmd = element.ScaleVectorCommands[i];
-                group.Commands.Add(new SBFloatCommand(
-                    SBCommandTarget.ScaleX, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartValueX, cmd.EndValueX));
-                group.Commands.Add(new SBFloatCommand(
-                    SBCommandTarget.ScaleY, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartValueY, cmd.EndValueY));
-            }
-
-            // Rotate → Rotation
-            for (int i = 0; i < element.RotateCommands.Count; i++)
-            {
-                var cmd = element.RotateCommands[i];
-                group.Commands.Add(new SBFloatCommand(
-                    SBCommandTarget.Rotation, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartValue, cmd.EndValue));
-            }
-
-            // Color → Color
-            for (int i = 0; i < element.ColorCommands.Count; i++)
-            {
-                var cmd = element.ColorCommands[i];
-                group.Commands.Add(new SBColorCommand(
-                    SBCommandTarget.Color, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartColor, cmd.EndColor));
-            }
-
-            // Parameter → Bool (P,H → FlipH; P,V → FlipV; P,A → BlendingMode)
-            for (int i = 0; i < element.ParameterCommands.Count; i++)
-            {
-                var cmd = element.ParameterCommands[i];
-                SBCommandTarget target;
-                switch (cmd.Parameter)
-                {
-                    case "H": target = SBCommandTarget.FlipH; break;
-                    case "V": target = SBCommandTarget.FlipV; break;
-                    case "A": target = SBCommandTarget.BlendingMode; break;
-                    default: continue;
-                }
-                group.Commands.Add(new SBBoolCommand(
-                    target, cmd.Easing, cmd.StartTime, cmd.EndTime, true, false));
-            }
-
-            // Loops → SBLoopCommand
-            for (int i = 0; i < element.Loops.Count; i++)
-            {
-                var loop = element.Loops[i];
-                var innerGroup = BuildLoopInnerGroup(loop);
-                group.Commands.Add(new SBLoopCommand(loop.StartTime, loop.LoopCount, innerGroup));
-            }
-
-            // 展开 Loop + 排序
-            group.ToFlatGroup();
+            var group = new SBCommandGroup();
+            AddCommands(group, element.FadeCommands, element.MoveCommands,
+                element.MoveXCommands, element.MoveYCommands, element.ScaleCommands,
+                element.ScaleVectorCommands, element.RotateCommands, element.ColorCommands, element.ParameterCommands);
+            foreach (var loop in element.Loops)
+                group.Commands.Add(new SBLoopCommand(loop.StartTime, loop.LoopCount, BuildLoopInnerGroup(loop)));
             group.Sort();
-
             return group;
         }
 
-        static SBCommandGroup BuildLoopInnerGroup(SBLoop loop)
+        public static SBCommandGroup BuildLoopInnerGroup(SBLoop loop)
         {
-            int estimate = loop.FadeCommands.Count
-                + loop.MoveCommands.Count * 2
-                + loop.MoveXCommands.Count
-                + loop.MoveYCommands.Count
-                + loop.ScaleCommands.Count * 2
-                + loop.ScaleVectorCommands.Count * 2
-                + loop.RotateCommands.Count
-                + loop.ColorCommands.Count;
-
-            var group = new SBCommandGroup(estimate);
-
-            for (int i = 0; i < loop.FadeCommands.Count; i++)
-            {
-                var cmd = loop.FadeCommands[i];
-                group.Commands.Add(new SBFloatCommand(
-                    SBCommandTarget.Alpha, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartValue, cmd.EndValue));
-            }
-
-            // Move/MoveX/MoveY 互斥 (storybrew 规则: Move 完全覆盖 MoveX/MoveY)
-            bool hasMove = loop.MoveCommands.Count > 0;
-            bool hasScaleVec = loop.ScaleVectorCommands.Count > 0;
-
-            for (int i = 0; i < loop.MoveCommands.Count; i++)
-            {
-                var cmd = loop.MoveCommands[i];
-                group.Commands.Add(new SBFloatCommand(
-                    SBCommandTarget.X, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartPos.x, cmd.EndPos.x));
-                group.Commands.Add(new SBFloatCommand(
-                    SBCommandTarget.Y, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartPos.y, cmd.EndPos.y));
-            }
-
-            if (!hasMove)
-            {
-                for (int i = 0; i < loop.MoveXCommands.Count; i++)
-                {
-                    var cmd = loop.MoveXCommands[i];
-                    group.Commands.Add(new SBFloatCommand(
-                        SBCommandTarget.X, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                        cmd.StartValue, cmd.EndValue));
-                }
-                for (int i = 0; i < loop.MoveYCommands.Count; i++)
-                {
-                    var cmd = loop.MoveYCommands[i];
-                    group.Commands.Add(new SBFloatCommand(
-                        SBCommandTarget.Y, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                        cmd.StartValue, cmd.EndValue));
-                }
-            }
-
-            // Scale/ScaleVec 互斥 (storybrew 规则: ScaleVec 完全覆盖 Scale)
-            if (!hasScaleVec)
-            {
-                for (int i = 0; i < loop.ScaleCommands.Count; i++)
-                {
-                    var cmd = loop.ScaleCommands[i];
-                    group.Commands.Add(new SBFloatCommand(
-                        SBCommandTarget.ScaleX, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                        cmd.StartValue, cmd.EndValue));
-                    group.Commands.Add(new SBFloatCommand(
-                        SBCommandTarget.ScaleY, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                        cmd.StartValue, cmd.EndValue));
-                }
-            }
-
-            for (int i = 0; i < loop.ScaleVectorCommands.Count; i++)
-            {
-                var cmd = loop.ScaleVectorCommands[i];
-                group.Commands.Add(new SBFloatCommand(
-                    SBCommandTarget.ScaleX, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartValueX, cmd.EndValueX));
-                group.Commands.Add(new SBFloatCommand(
-                    SBCommandTarget.ScaleY, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartValueY, cmd.EndValueY));
-            }
-
-            for (int i = 0; i < loop.RotateCommands.Count; i++)
-            {
-                var cmd = loop.RotateCommands[i];
-                group.Commands.Add(new SBFloatCommand(
-                    SBCommandTarget.Rotation, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartValue, cmd.EndValue));
-            }
-
-            for (int i = 0; i < loop.ColorCommands.Count; i++)
-            {
-                var cmd = loop.ColorCommands[i];
-                group.Commands.Add(new SBColorCommand(
-                    SBCommandTarget.Color, cmd.Easing, cmd.StartTime, cmd.EndTime,
-                    cmd.StartColor, cmd.EndColor));
-            }
-
-            // Parameter → Bool (P,H → FlipH; P,V → FlipV; P,A → BlendingMode)
-            for (int i = 0; i < loop.ParameterCommands.Count; i++)
-            {
-                var cmd = loop.ParameterCommands[i];
-                SBCommandTarget target;
-                switch (cmd.Parameter)
-                {
-                    case "H": target = SBCommandTarget.FlipH; break;
-                    case "V": target = SBCommandTarget.FlipV; break;
-                    case "A": target = SBCommandTarget.BlendingMode; break;
-                    default: continue;
-                }
-                group.Commands.Add(new SBBoolCommand(
-                    target, cmd.Easing, cmd.StartTime, cmd.EndTime, true, false));
-            }
-
+            var group = new SBCommandGroup();
+            AddCommands(group, loop.FadeCommands, loop.MoveCommands,
+                loop.MoveXCommands, loop.MoveYCommands, loop.ScaleCommands,
+                loop.ScaleVectorCommands, loop.RotateCommands, loop.ColorCommands, loop.ParameterCommands);
+            group.Sort();
             return group;
+        }
+
+        public static SBCommandGroup BuildTriggerGroup(SBTrigger trigger)
+        {
+            var group = new SBCommandGroup(trigger.Commands.Count * 2);
+            foreach (var command in trigger.Commands) AddCommand(group, command);
+            group.Sort();
+            return group;
+        }
+
+        static void AddCommands(SBCommandGroup group,
+            List<SBFadeCommand> fade, List<SBMoveCommand> move,
+            List<SBMoveAxisCommand> moveX, List<SBMoveAxisCommand> moveY,
+            List<SBScaleCommand> scale, List<SBScaleVectorCommand> vectorScale,
+            List<SBRotateCommand> rotate, List<Data.SBColorCommand> color,
+            List<SBParameterCommand> parameters)
+        {
+            foreach (var c in fade) AddCommand(group, c);
+            foreach (var c in move) AddCommand(group, c);
+            foreach (var c in moveX) AddCommand(group, c);
+            foreach (var c in moveY) AddCommand(group, c);
+            foreach (var c in scale) AddCommand(group, c);
+            foreach (var c in vectorScale) AddCommand(group, c);
+            foreach (var c in rotate) AddCommand(group, c);
+            foreach (var c in color) AddCommand(group, c);
+            foreach (var c in parameters) AddCommand(group, c);
+        }
+
+        static void AddFloat(SBCommandGroup group, SBCommand c, SBCommandTarget target, float start, float end)
+        {
+            group.Commands.Add(new SBFloatCommand(target, c.Easing, c.StartTime, c.EndTime, start, end)
+                { Sequence = c.Sequence });
+        }
+
+        static void AddCommand(SBCommandGroup group, SBCommand command)
+        {
+            switch (command)
+            {
+                case SBFadeCommand c: AddFloat(group, c, SBCommandTarget.Alpha, c.StartValue, c.EndValue); break;
+                case SBMoveCommand c:
+                    AddFloat(group, c, SBCommandTarget.X, c.StartPos.x, c.EndPos.x);
+                    AddFloat(group, c, SBCommandTarget.Y, c.StartPos.y, c.EndPos.y);
+                    break;
+                case SBMoveAxisCommand c:
+                    AddFloat(group, c, c.Type == SBCommandType.MX ? SBCommandTarget.X : SBCommandTarget.Y, c.StartValue, c.EndValue);
+                    break;
+                case SBScaleCommand c: AddFloat(group, c, SBCommandTarget.UniformScale, c.StartValue, c.EndValue); break;
+                case SBScaleVectorCommand c:
+                    AddFloat(group, c, SBCommandTarget.VectorScaleX, c.StartValueX, c.EndValueX);
+                    AddFloat(group, c, SBCommandTarget.VectorScaleY, c.StartValueY, c.EndValueY);
+                    break;
+                case SBRotateCommand c: AddFloat(group, c, SBCommandTarget.Rotation, c.StartValue, c.EndValue); break;
+                case Data.SBColorCommand c:
+                    group.Commands.Add(new SBColorCommand(SBCommandTarget.Color, c.Easing, c.StartTime, c.EndTime, c.StartColor, c.EndColor)
+                        { Sequence = c.Sequence });
+                    break;
+                case SBParameterCommand c:
+                    SBCommandTarget target;
+                    switch (c.Parameter)
+                    {
+                        case "A": target = SBCommandTarget.BlendingMode; break;
+                        case "H": target = SBCommandTarget.FlipH; break;
+                        case "V": target = SBCommandTarget.FlipV; break;
+                        default: return;
+                    }
+                    group.Commands.Add(new SBBoolCommand(target, c.Easing, c.StartTime, c.EndTime, true, c.StartTime == c.EndTime)
+                        { Sequence = c.Sequence });
+                    break;
+            }
         }
     }
 }

@@ -17,6 +17,8 @@ namespace OsuVR.Storyboard.Engine
         public NativeArray<SBLoopFlatData> Loops;
         /// <summary>动画帧映射: 每个动画 sprite 的声明帧→纹理切片索引 (-1=该帧文件缺失, 不绘制). 按 sprite.AnimFrameMapOffset 寻址</summary>
         public NativeArray<int> FrameMap;
+        public NativeArray<SBTriggeredCommand> TriggerCommands;
+        public int TriggerCommandCount;
         public int SpriteCount;
 
         public void Dispose()
@@ -25,6 +27,7 @@ namespace OsuVR.Storyboard.Engine
             if (Commands.IsCreated) Commands.Dispose();
             if (Loops.IsCreated) Loops.Dispose();
             if (FrameMap.IsCreated) FrameMap.Dispose();
+            if (TriggerCommands.IsCreated) TriggerCommands.Dispose();
         }
     }
 
@@ -55,6 +58,7 @@ namespace OsuVR.Storyboard.Engine
                     Commands = new NativeArray<SBCommandFlatData>(0, Allocator.Persistent),
                     Loops = new NativeArray<SBLoopFlatData>(0, Allocator.Persistent),
                     FrameMap = new NativeArray<int>(0, Allocator.Persistent),
+                    TriggerCommands = new NativeArray<SBTriggeredCommand>(0, Allocator.Persistent),
                     SpriteCount = 0
                 };
             }
@@ -62,6 +66,8 @@ namespace OsuVR.Storyboard.Engine
             // 按层遍历所有元素 (Background → Overlay)
             for (int layer = 0; layer < 5; layer++)
             {
+                if (layer == (int)SBLayer.Fail && !storyboard.IsFailState) continue;
+                if (layer == (int)SBLayer.Pass && storyboard.IsFailState) continue;
                 var elements = storyboard.Layers[layer];
                 if (elements == null) continue;
 
@@ -78,6 +84,7 @@ namespace OsuVR.Storyboard.Engine
             // 转为 NativeArray
             var result = new SBFlatTimelineData
             {
+                TriggerCommands = new NativeArray<SBTriggeredCommand>(0, Allocator.Persistent),
                 SpriteCount = flatSprites.Count,
                 Sprites = new NativeArray<SBSpriteFlatData>(flatSprites.Count, Allocator.Persistent),
                 Commands = new NativeArray<SBCommandFlatData>(flatCommands.Count, Allocator.Persistent),
@@ -97,6 +104,40 @@ namespace OsuVR.Storyboard.Engine
             return result;
         }
 
+        static void RemoveAbortedParameterWindows(SBCommandGroup group)
+        {
+            var parameters = new List<(SBBoolCommand command, double offset)>();
+            foreach (var command in group.Commands)
+            {
+                if (command is SBBoolCommand parameter) parameters.Add((parameter, 0));
+                if (command is SBLoopCommand loop)
+                    foreach (var inner in loop.InnerGroup.Commands)
+                        if (inner is SBBoolCommand p) parameters.Add((p, loop.StartTime));
+            }
+            parameters.Sort((a,b) =>
+            {
+                int order = (a.command.StartTime+a.offset).CompareTo(b.command.StartTime+b.offset);
+                if (order != 0) return order;
+                order = (a.command.EndTime+a.offset).CompareTo(b.command.EndTime+b.offset);
+                return order != 0 ? order : a.command.Sequence.CompareTo(b.command.Sequence);
+            });
+            // Framework AddTransform removes future transforms for the same property.
+            // Adding P's start inside a previous P window removes its queued reset;
+            // aborting that sequence also removes its as-yet unapplied loop starts.
+            // Keep the source times intact because sprite lifetime is still declarative.
+            for (int i = 0; i < parameters.Count; i++)
+                for (int j = 0; j < i; j++)
+                {
+                    var earlier = parameters[j];
+                    var later = parameters[i];
+                    if (earlier.command.Target != later.command.Target || earlier.command.Suppressed ||
+                        earlier.command.ResetSuppressed || earlier.command.StartTime == earlier.command.EndTime) continue;
+                    if (earlier.command.EndTime + earlier.offset <= later.command.StartTime + later.offset) continue;
+                    if (earlier.command.StartTime + earlier.offset > 0) earlier.command.Suppressed = true;
+                    else earlier.command.ResetSuppressed = true;
+                }
+        }
+
         static void FlattenElement(
             SBElement element,
             Dictionary<string, int> textureIndexMap,
@@ -108,6 +149,7 @@ namespace OsuVR.Storyboard.Engine
         {
             // 1. 使用现有 SBCommandGroupBuilder 展开命令 (M→X+Y, S→SX+SY, etc.)
             var group = SBCommandGroupBuilder.Build(element);
+            RemoveAbortedParameterWindows(group);
 
             int loopOffset = outLoops.Count;
 
@@ -134,8 +176,7 @@ namespace OsuVR.Storyboard.Engine
             // 3. 直接命令按 StartTime 排序后写入 flat array
             directCmds.Sort((a, b) =>
             {
-                int cmp = a.StartTime.CompareTo(b.StartTime);
-                return cmp != 0 ? cmp : a.EndTime.CompareTo(b.EndTime);
+                return CompareCommands(a, b);
             });
 
             for (int i = 0; i < directCmds.Count; i++)
@@ -197,7 +238,13 @@ namespace OsuVR.Storyboard.Engine
             }
 
             // 5. 构建 SpriteFlatData
-            double startTime = group.StartTime();
+            double startTime = double.MaxValue;
+            foreach (var command in group.Commands)
+            {
+                double first = command is SBLoopCommand loop && loop.InnerGroup.Commands.Count > 0
+                    ? loop.StartTime + loop.InnerGroup.StartTime() : command.StartTime;
+                startTime = System.Math.Min(startTime, first);
+            }
             double endTime = group.EndTime();
             if (startTime >= double.MaxValue) startTime = 0;
             if (endTime <= double.MinValue) endTime = startTime;
@@ -212,6 +259,9 @@ namespace OsuVR.Storyboard.Engine
                 InitAlpha = 1f,
                 InitScaleX = 1f,
                 InitScaleY = 1f,
+                InitUniformScale = 1f,
+                InitVectorScaleX = 1f,
+                InitVectorScaleY = 1f,
                 InitRotation = 0f,
                 InitR = 1f,
                 InitG = 1f,
@@ -220,6 +270,7 @@ namespace OsuVR.Storyboard.Engine
                 InitFlipV = 0,
                 InitAdditive = 0,
 
+                TriggerHead = -1,
                 CmdOffset = cmdOffset,
                 CmdCount = cmdCount,
                 LoopOffset = loopOffset,
@@ -240,7 +291,13 @@ namespace OsuVR.Storyboard.Engine
             };
 
             // 应用初始值 (从最早的直接命令中提取)
-            ApplyInitialValues(directCmds, ref sprite);
+            var initialCommands = new List<SBSpriteCommand>(directCmds);
+            foreach (var command in group.Commands)
+                if (command is SBLoopCommand loop)
+                    foreach (var inner in loop.InnerGroup.Commands)
+                        initialCommands.Add(inner.CreateOffsetCommand(loop.StartTime));
+            initialCommands.Sort(CompareCommands);
+            ApplyInitialValues(initialCommands, ref sprite);
 
             outSprites.Add(sprite);
         }
@@ -269,8 +326,7 @@ namespace OsuVR.Storyboard.Engine
 
             innerCmds.Sort((a, b) =>
             {
-                int cmp = a.StartTime.CompareTo(b.StartTime);
-                return cmp != 0 ? cmp : a.EndTime.CompareTo(b.EndTime);
+                return CompareCommands(a, b);
             });
 
             for (int i = 0; i < innerCmds.Count; i++)
@@ -278,14 +334,7 @@ namespace OsuVR.Storyboard.Engine
 
             int innerCount = outCommands.Count - innerOffset;
 
-            // 计算 LoopDuration (内层命令的最大 EndTime)
-            double loopDuration = 0;
-            for (int i = 0; i < innerCmds.Count; i++)
-            {
-                if (innerCmds[i].EndTime > loopDuration)
-                    loopDuration = innerCmds[i].EndTime;
-            }
-            if (loopDuration <= 0) loopDuration = 1;
+            double loopDuration = loopCmd.LoopDuration;
 
             outLoops.Add(new SBLoopFlatData
             {
@@ -297,10 +346,19 @@ namespace OsuVR.Storyboard.Engine
             });
         }
 
-        static SBCommandFlatData ConvertCommand(SBSpriteCommand cmd)
+        static int CompareCommands(SBSpriteCommand a, SBSpriteCommand b)
+        {
+            int order = a.StartTime.CompareTo(b.StartTime);
+            if (order != 0) return order;
+            order = a.EndTime.CompareTo(b.EndTime);
+            return order != 0 ? order : a.Sequence.CompareTo(b.Sequence);
+        }
+
+        internal static SBCommandFlatData ConvertCommand(SBSpriteCommand cmd)
         {
             var flat = new SBCommandFlatData
             {
+                Sequence = cmd.Sequence,
                 StartTime = cmd.StartTime,
                 EndTime = cmd.EndTime,
                 Easing = (int)cmd.Easing,
@@ -315,17 +373,19 @@ namespace OsuVR.Storyboard.Engine
                     break;
 
                 case SBColorCommand cc:
-                    flat.ColorStartR = cc.StartValue.r / 255f;
-                    flat.ColorStartG = cc.StartValue.g / 255f;
-                    flat.ColorStartB = cc.StartValue.b / 255f;
-                    flat.ColorEndR = cc.EndValue.r / 255f;
-                    flat.ColorEndG = cc.EndValue.g / 255f;
-                    flat.ColorEndB = cc.EndValue.b / 255f;
+                    flat.ColorStartR = cc.StartValue.r;
+                    flat.ColorStartG = cc.StartValue.g;
+                    flat.ColorStartB = cc.StartValue.b;
+                    flat.ColorEndR = cc.EndValue.r;
+                    flat.ColorEndG = cc.EndValue.g;
+                    flat.ColorEndB = cc.EndValue.b;
                     break;
 
                 case SBBoolCommand bc:
+                    if (bc.Suppressed) flat.Target = -1;
+                    if (bc.ResetSuppressed) flat.EndTime = flat.StartTime;
                     flat.BoolStart = bc.StartValue ? (byte)1 : (byte)0;
-                    flat.BoolEnd = bc.EndValue ? (byte)1 : (byte)0;
+                    flat.BoolEnd = bc.EndValue || bc.ResetSuppressed ? (byte)1 : (byte)0;
                     break;
             }
 
@@ -338,9 +398,10 @@ namespace OsuVR.Storyboard.Engine
         static void ApplyInitialValues(List<SBSpriteCommand> cmds, ref SBSpriteFlatData sprite)
         {
             var found = new HashSet<int>();
-            for (int i = 0; i < cmds.Count && found.Count < 10; i++)
+            for (int i = 0; i < cmds.Count; i++)
             {
                 var cmd = cmds[i];
+                if (cmd is SBBoolCommand suppressed && suppressed.Suppressed) continue;
                 int target = (int)cmd.Target;
                 if (found.Contains(target)) continue;
                 found.Add(target);
@@ -356,18 +417,27 @@ namespace OsuVR.Storyboard.Engine
                             case SBCommandTarget.ScaleX: sprite.InitScaleX = fc.StartValue; break;
                             case SBCommandTarget.ScaleY: sprite.InitScaleY = fc.StartValue; break;
                             case SBCommandTarget.Rotation: sprite.InitRotation = fc.StartValue; break;
+                            case SBCommandTarget.UniformScale: sprite.InitUniformScale = fc.StartValue; break;
+                            case SBCommandTarget.VectorScaleX: sprite.InitVectorScaleX = fc.StartValue; break;
+                            case SBCommandTarget.VectorScaleY: sprite.InitVectorScaleY = fc.StartValue; break;
                         }
                         break;
 
                     case SBColorCommand cc:
-                        sprite.InitR = cc.StartValue.r / 255f;
-                        sprite.InitG = cc.StartValue.g / 255f;
-                        sprite.InitB = cc.StartValue.b / 255f;
+                        sprite.InitR = cc.StartValue.r;
+                        sprite.InitG = cc.StartValue.g;
+                        sprite.InitB = cc.StartValue.b;
                         break;
 
                     case SBBoolCommand bc:
-                        // P 命令（翻转/加法混合）仅在激活窗口内有效，不作为初始值
-                        // （osu! wiki：P 仅在命令生效期间应用，窗口前应为默认值 false）
+                        // A zero-duration parameter is a permanent initial value in lazer.
+                        if (bc.UseInitialValue)
+                        {
+                            byte value = bc.StartValue ? (byte)1 : (byte)0;
+                            if (bc.Target == SBCommandTarget.FlipH) sprite.InitFlipH = value;
+                            if (bc.Target == SBCommandTarget.FlipV) sprite.InitFlipV = value;
+                            if (bc.Target == SBCommandTarget.BlendingMode) sprite.InitAdditive = value;
+                        }
                         break;
                 }
             }

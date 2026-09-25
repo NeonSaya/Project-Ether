@@ -13,6 +13,7 @@ namespace OsuVR.Storyboard
 
         public static void Begin()
         {
+            End();
             try
             {
                 _logPath = Path.Combine(Application.persistentDataPath, "sb_debug.log");

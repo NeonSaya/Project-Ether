@@ -26,6 +26,7 @@ Shader "OsuVR/HolographicScreen"
             #pragma fragment frag
             #pragma multi_compile_instancing
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
             struct Attributes
             {
@@ -69,6 +70,9 @@ Shader "OsuVR/HolographicScreen"
                 float edgeFade = UNITY_ACCESS_INSTANCED_PROP(UnityPerMaterial, _EdgeFade);
 
                 half4 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
+                #ifndef UNITY_COLORSPACE_GAMMA
+                tex.rgb = SRGBToLinear(tex.rgb);
+                #endif
 
                 // 边缘羽化：UV 距离中心越远，alpha 越低
                 float2 centered = i.uv - 0.5;   // [-0.5, 0.5]

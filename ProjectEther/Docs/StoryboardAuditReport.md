@@ -1,5 +1,7 @@
 # Storyboard 模块代码审计报告（22 个文件全部完整通读）
 
+> 历史审计记录。当前实现和实测结论见 [StoryboardParityReport.md](StoryboardParityReport.md)。本报告 M6 的“宽屏坐标应偏移 107”结论已被真实谱面与 lazer 源码验证否定；不要据此重新引入 X 偏移。
+
 审计范围：Assets/Scripts/Storyboard 全部（Engine 14 + Data 4 + Parser/Renderer/HolographicScreenManager/MediaAssetScanner/SBDebugLog）。
 方法：逐行阅读 + 两个可疑点在 Unity 编辑器内用真实管线实测复现（SBEvaluateTimelineJob 直接 Execute），并用反射+实证测试否决了一个疑似 Texture2DArray.SetPixels 参数顺序问题（实测签名为 (colors, element, mip)，项目调用正确，未列入）。osu! 语义以官方 wiki（Objects/Commands/Compound_Commands/General_Rules）与 osu!lazer 源码核对。
 

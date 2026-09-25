@@ -176,6 +176,8 @@ namespace OsuVR
 
             int customIndex = hitObject.CustomIndex;
 
+            OsuVR.Storyboard.StoryboardRenderer.Instance?.NotifyHitSound(set, additionSet, soundType, customIndex);
+
             // 始终播放 Normal (底鼓)
             PlaySpecificSample(set, HitSoundType.Normal, customIndex, finalVolume);
 
@@ -231,6 +233,7 @@ namespace OsuVR
                 // 回退：使用滑条默认音效
                 HitSoundType soundType = slider.HitSound;
                 if (soundType == HitSoundType.None) soundType = HitSoundType.Normal;
+                OsuVR.Storyboard.StoryboardRenderer.Instance?.NotifyHitSound(sampleSet, additionSet, soundType, customIndex);
 
                 PlaySpecificSample(sampleSet, HitSoundType.Normal, customIndex, volume);
 
@@ -248,6 +251,7 @@ namespace OsuVR
         /// </summary>
         private void PlayNodeSamples(List<HitSampleInfo> samples, float volume)
         {
+            OsuVR.Storyboard.StoryboardRenderer.Instance?.NotifyHitSamples(samples);
             foreach (var sample in samples)
             {
                 if (sample is BankHitSampleInfo bankSample)
