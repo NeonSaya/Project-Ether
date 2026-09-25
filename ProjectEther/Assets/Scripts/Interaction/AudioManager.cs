@@ -489,6 +489,8 @@ namespace OsuVR
             return key;
         }
 
+        private bool _poolOverflowLogged;
+
         private void PlayOneShot(AudioClip clip, float vol)
         {
             // 找一个空闲的 AudioSource（for 循环替代 Lambda，消除 GC 分配）
@@ -510,9 +512,14 @@ namespace OsuVR
                 src.playOnAwake = false;
                 src.spatialBlend = 0;
                 oneShotPool.Add(src);
-                Debug.LogWarning(
-                    $"[Audio] 音效池已满，动态创建新的 AudioSource，当前池大小: {oneShotPool.Count}"
-                );
+                // 命中热路径只警告一次，避免每帧日志 I/O 造成额外卡顿
+                if (!_poolOverflowLogged)
+                {
+                    _poolOverflowLogged = true;
+                    Debug.LogWarning(
+                        $"[Audio] 音效池已满，已动态扩容至 {oneShotPool.Count}，后续不再重复警告"
+                    );
+                }
             }
             src.volume = vol;
             src.PlayOneShot(clip);
