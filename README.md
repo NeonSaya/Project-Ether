@@ -150,6 +150,8 @@ Assets/
 
 ---
 
+Android 本地构建默认使用开发签名。正式发布请在 Player Settings → Publishing Settings 中选择自己的 keystore 和别名；更新已安装的正式版必须沿用原签名。签名文件、密码、本机路径、个人笔记和验证输出不应提交到仓库。
+
 ## 🕹️ 核心操作与玩法指南 (How to Play)
 
 为了保证游戏数据的完整流动与初始化，**请务必永远从主菜单 (MainMenuScene) 开始你的旅程**，否则会引发不可预知的空引用报错。

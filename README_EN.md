@@ -151,6 +151,8 @@ Understanding the data flow is absolutely key to understanding this project's ar
 
 ---
 
+Local Android builds use the development signing key by default. For releases, select your own keystore and alias in Player Settings → Publishing Settings; updates to an installed release must use its original signing key. Keep signing files, passwords, machine-specific paths, personal notes, and validation outputs out of version control.
+
 ## 🕹️ How to Play
 
 To ensure complete data flow and initialization, **you must always start your journey from the MainMenuScene**, otherwise unpredictable null reference errors will occur.
