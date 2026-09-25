@@ -58,6 +58,7 @@ This project is built with the latest Unity technology stack, laying a solid fou
 * **Complete Game System**: Integrates AutoPlay / HR / FL and other classic Mods, built-in automatic localization system (`LocalizationManager`) supporting multilingual Unicode rendering, sound effects and haptics use `TimingPoint × SampleVolume × Settings` complete multiplication chain, precisely controllable.
 * **Data-Driven Audiovisual Performance**: Integrates `AudioLink` and `Lasp` for an audio data closed loop, 128-bar spectrum rendering and 11-layer environment particles responding in real-time to BPM beats and Kiai sections; pure code particle engine (`CodeOnlyVFX`) provides smooth fallback for low-end devices.
 * **Cross-Platform Build**: Supports PC VR (Windows OpenXR) and Standalone VR (Android / Pico / Quest) dual platforms. Vulkan Graphics API + IL2CPP + ARM64, Dummy Material anti-culling mechanism ensures Shaders are not stripped. PC and standalone headsets each have four quality presets, standalone headsets run unlocked at the device's maximum refresh rate.
+* **Floor Performance Monitor**: Uses Graphy to provide FPS, memory, and audio monitoring with charts and an optional toggle.
 
 ---
 
@@ -276,9 +277,12 @@ This project's transformation from cocoon to butterfly would not be possible wit
 * **[AudioLink](https://github.com/llealloo/vrc-udon-audio-link)**: A revolutionary system from the VRChat geek community, bringing unprecedented possibilities to this project's "audio data-driven visuals" (Audio-Reactive Visuals).
 * **[X-PostProcessing-Library](https://github.com/QianMo/X-PostProcessing-Library) (by QianMo)**: Providing stunningly beautiful URP customizable post-processing cinematic filter libraries, greatly elevating the project's visual impact ceiling. Deep remembrance for the great QianMo.
 * **[Effekseer](https://effekseer.github.io/)**: An extremely powerful and cross-platform open-source particle effect editing tool, the core arsenal for building our anime-style dynamic interactive stage.
+* **[Graphy](https://github.com/Tayx94/graphy) (Tayx94 / Martín Pane) [MIT]**: FPS, Memory, and Audio stats and graphs for the floor performance monitor, using v4.0.0 pinned to commit [`1068f3de2bc9f1e4a905150abd59f31e6dead679`](https://github.com/Tayx94/graphy/commit/1068f3de2bc9f1e4a905150abd59f31e6dead679).
 * **[Unity](https://unity.com/)**: Thanks to the official **XR Interaction Toolkit**, **Universal Render Pipeline** and **VFX Graph**, enabling every ordinary indie developer to single-handedly create 3D immersive worlds with exceptional fluidity and visual fidelity.
 
 ---
 
 ## 📄 License
 This project always embraces the open-source spirit, released under the **GNU General Public License v3.0 (GPL-3.0)**. You are free to use, modify, and redistribute this project, but any derivative work must also be open-sourced under GPL-3.0, and closed-source commercial use is prohibited. For details, please refer to the [LICENSE](LICENSE) file in the repository root directory.
+
+Graphy is licensed under the **MIT License**, with the notice `Copyright (c) 2018 Martín Pane`. Its complete upstream license is preserved in [Resources/ThirdPartyLicenses/Graphy.txt](ProjectEther/Assets/Resources/ThirdPartyLicenses/Graphy.txt) and included in builds; the in-game Credits also display this copyright notice and the full MIT terms.

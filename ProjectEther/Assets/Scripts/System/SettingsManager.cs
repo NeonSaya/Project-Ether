@@ -24,6 +24,7 @@ namespace OsuVR
         private const string PREF_KEY_SFX_VOLUME = "Settings_SFXVolume";
         private const string PREF_KEY_QUALITY_LEVEL = "Settings_QualityLevel";
         private const string PREF_KEY_VSYNC = "Settings_VSync";
+        private const string PREF_KEY_SHOW_FPS = "Settings_ShowFps";
         private const string PREF_KEY_AA = "Settings_AA";
         private const string PREF_KEY_PARTICLE_DENSITY = "Settings_ParticleDensity";
         private const string PREF_KEY_RENDER_SCALE = "Settings_RenderScale";
@@ -142,6 +143,7 @@ namespace OsuVR
             settings.musicVolume = PlayerPrefs.GetFloat(PREF_KEY_MUSIC_VOLUME, 0.8f);
             settings.sfxVolume = PlayerPrefs.GetFloat(PREF_KEY_SFX_VOLUME, 1.0f);
             settings.enableVSync = PlayerPrefs.GetInt(PREF_KEY_VSYNC, 0) == 1;
+            settings.showFps = PlayerPrefs.GetInt(PREF_KEY_SHOW_FPS, 0) == 1;
 
             if (isFirstRun)
             {
@@ -194,6 +196,7 @@ namespace OsuVR
             PlayerPrefs.SetFloat(PREF_KEY_SFX_VOLUME, settings.sfxVolume);
             PlayerPrefs.SetInt(PREF_KEY_QUALITY_LEVEL, settings.qualityLevel);
             PlayerPrefs.SetInt(PREF_KEY_VSYNC, settings.enableVSync ? 1 : 0);
+            PlayerPrefs.SetInt(PREF_KEY_SHOW_FPS, settings.showFps ? 1 : 0);
             PlayerPrefs.SetInt(PREF_KEY_AA, settings.antiAliasing);
             PlayerPrefs.SetFloat(PREF_KEY_PARTICLE_DENSITY, settings.particleDensity);
             PlayerPrefs.SetFloat(PREF_KEY_RENDER_SCALE, settings.renderScale);
@@ -296,6 +299,7 @@ namespace OsuVR
             if (EtherealEnvironment.Instance != null)
             {
                 EtherealEnvironment.Instance.SetParticleDensity(settings.particleDensity);
+                EtherealEnvironment.Instance.SetFpsVisible(settings.showFps);
             }
 
             Debug.Log(
@@ -412,6 +416,13 @@ namespace OsuVR
             var presets = GetPlatformPresets();
             int idx = Mathf.Clamp(level, 0, presets.Length - 1);
             ApplyPreset(presets[idx]);
+        }
+
+        public void SetShowFps(bool visible)
+        {
+            settings.showFps = visible;
+            EtherealEnvironment.Instance?.SetFpsVisible(visible);
+            SaveSettings();
         }
 
         public void SetAntiAliasing(int aa)

@@ -156,6 +156,28 @@ namespace OsuVR
                     new[] { "Particle Density", "粒子密度", "パーティクル密度" }
                 },
                 { "ui_render_scale", new[] { "Render Scale", "渲染缩放", "レンダースケール" } },
+                {
+                    "ui_show_fps",
+                    new[] { "Performance Monitor", "性能监视器", "パフォーマンスモニター" }
+                },
+                {
+                    "fps_current",
+                    new[] { "Frame Rate (FPS)", "帧率 (FPS)", "フレームレート (FPS)" }
+                },
+                { "fps_average", new[] { "Average", "平均帧率", "平均FPS" } },
+                { "fps_one_percent_low", new[] { "1% Low", "1% 低帧率", "1%低FPS" } },
+                { "fps_point_one_percent_low", new[] { "0.1% Low", "0.1% 低帧率", "0.1%低FPS" } },
+                {
+                    "fps_frame_time",
+                    new[] { "Frame Time (ms)", "帧耗时 (ms)", "フレーム時間 (ms)" }
+                },
+                { "graphy_fps", new[] { "Frame Rate", "帧率", "フレームレート" } },
+                { "graphy_memory", new[] { "Memory (MB)", "内存 (MB)", "メモリ (MB)" } },
+                { "graphy_audio", new[] { "Audio", "音频", "オーディオ" } },
+                { "graphy_allocated", new[] { "Allocated", "已分配", "使用中" } },
+                { "graphy_reserved", new[] { "Reserved", "已预留", "予約済み" } },
+                { "graphy_managed", new[] { "Managed", "托管内存", "マネージド" } },
+                { "graphy_level", new[] { "Level (dB)", "电平 (dB)", "レベル (dB)" } },
                 { "ui_enable_haptics", new[] { "Enable Haptics", "启用手柄震动", "触覚を有効化" } },
                 { "ui_haptic_intensity", new[] { "Haptic Intensity", "震动强度", "触覚強度" } },
                 {

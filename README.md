@@ -57,6 +57,7 @@
 * **完整的游戏系统**: 集成 AutoPlay / HR / FL 等经典 Mod，内置自动本地化系统 (`LocalizationManager`) 支持多语言 Unicode 渲染，音效与震动采用 `TimingPoint × SampleVolume × 设置` 的完整乘法链路，精准可控。
 * **数据驱动的视听演出**: 接入 `AudioLink` 与 `Lasp` 建立音频数据闭环，128 柱频谱渲染与 11 层环境粒子实时响应 BPM 节拍与 Kiai 时段；纯代码粒子引擎 (`CodeOnlyVFX`) 为低配设备提供流畅兜底方案。
 * **跨平台构建**: 支持 PC VR (Windows OpenXR) 与 Standalone VR (Android / Pico / Quest) 双平台。Vulkan 图形 API + IL2CPP + ARM64，Dummy Material 反剔除机制确保 Shader 不被 Stripping。PC 与一体机各定制四档画质预设，一体机不锁帧跑满设备最高刷新率。
+* **地面性能监视器**: 使用 Graphy 提供 FPS、内存和音频监控，支持图表显示与开关控制。
 
 ---
 
@@ -274,9 +275,12 @@ A: 我们的 SB 引擎参考了 osu!lazer 和 storybrew 的开源实现，力求
 * **[AudioLink](https://github.com/llealloo/vrc-udon-audio-link)**: 源自 VRChat 极客社区的革命性系统，为本项目的“音频数据驱动视觉”（Audio-Reactive Visuals）带来了前所未有的无限可能。
 * **[X-PostProcessing-Library](https://github.com/QianMo/X-PostProcessing-Library) (by 浅墨)**: 提供了无比惊艳的 URP 定制化后期处理大片级滤镜库，极大拔高了项目的画面张力上限。在此深切缅怀 浅墨 大神。
 * **[Effekseer](https://effekseer.github.io/)**: 极其强大且跨平台的开源粒子特效编辑工具，是我们构建二次元风格动感交互舞台的核心武器库。
+* **[Graphy](https://github.com/Tayx94/graphy) (Tayx94 / Martín Pane) [MIT]**: 为地面性能监视器提供 FPS、内存和音频统计与图表，使用 v4.0.0，固定提交为 [`1068f3de2bc9f1e4a905150abd59f31e6dead679`](https://github.com/Tayx94/graphy/commit/1068f3de2bc9f1e4a905150abd59f31e6dead679)。
 * **[Unity](https://unity.com/)**: 感谢官方提供的 **XR Interaction Toolkit**、**Universal Render Pipeline** 与 **VFX Graph**，让每一位平凡的独立开发者，都能凭一己之力打造出拥有极高流畅度与画面表现力的 3D 沉浸式世界。
 
 ---
 
 ## 📄 开源协议 (License)
 本项目始终拥抱开源精神，基于 **GNU General Public License v3.0 (GPL-3.0)** 协议开源。你可以自由使用、修改、分发本项目，但任何衍生作品的源码也必须以 GPL-3.0 协议开放，禁止闭源商用。详情请参阅仓库根目录里的 [LICENSE](LICENSE) 文件。
+
+Graphy 采用 **MIT License**，版权声明为 `Copyright (c) 2018 Martín Pane`。上游完整许可保留在 [Resources/ThirdPartyLicenses/Graphy.txt](ProjectEther/Assets/Resources/ThirdPartyLicenses/Graphy.txt) 中，并随构建包含；游戏内制作人员页面也显示该版权声明与 MIT 许可全文。
