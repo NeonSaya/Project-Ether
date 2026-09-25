@@ -45,6 +45,17 @@ ProjectEther_CrashLog.txt
 /Logs/
 /Temp/
 
+# Local profiling captures and one-off investigation output (never part of the game)
+/per.data
+/*.data
+/*.nprof
+/*.raw
+/ProjectEther/Docs/Performance/
+
+# Local-only verification scaffolding kept out of the published project
+/ProjectEther/Assets/Tests/
+/ProjectEther/Assets/Tests.meta
+
 # OS metadata
 .DS_Store
 Thumbs.db
