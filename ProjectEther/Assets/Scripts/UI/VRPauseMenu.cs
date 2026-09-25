@@ -1,9 +1,9 @@
-using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
-using UnityEngine.EventSystems;
 using System.Collections;
+using System.Collections.Generic;
+using TMPro;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace OsuVR
 {
@@ -37,7 +37,7 @@ namespace OsuVR
         [Header("UI配置")]
         [Tooltip("暂停菜单固定位置")]
         public Vector3 fixedPosition = new Vector3(0f, 2.2f, 1.5f);
-        
+
         [Tooltip("暂停菜单的旋转角度")]
         public Vector3 menuRotation = new Vector3(0f, 0f, 0f);
 
@@ -97,7 +97,7 @@ namespace OsuVR
                 { "PAUSED", "ui_pause" },
                 { "Continue", "ui_resume" },
                 { "Retry", "ui_retry" },
-                { "Back to Menu", "ui_song_select" }
+                { "Back to Menu", "ui_song_select" },
             };
 
             foreach (var text in allTexts)
@@ -161,17 +161,11 @@ namespace OsuVR
         {
             var trigger = button.gameObject.AddComponent<EventTrigger>();
 
-            var enterEntry = new EventTrigger.Entry
-            {
-                eventID = EventTriggerType.PointerEnter
-            };
+            var enterEntry = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
             enterEntry.callback.AddListener((_) => PlayHoverSound());
             trigger.triggers.Add(enterEntry);
 
-            var exitEntry = new EventTrigger.Entry
-            {
-                eventID = EventTriggerType.PointerExit
-            };
+            var exitEntry = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
             exitEntry.callback.AddListener((_) => { });
             trigger.triggers.Add(exitEntry);
         }
@@ -197,10 +191,10 @@ namespace OsuVR
 
             isPaused = true;
             isCountingDown = false;
-            
+
             transform.position = fixedPosition;
             transform.rotation = Quaternion.Euler(menuRotation);
-            
+
             gameObject.SetActive(true);
             HideCountdown();
 
@@ -215,9 +209,9 @@ namespace OsuVR
             canvasGroup.interactable = true;
             canvasGroup.blocksRaycasts = true;
             canvasGroup.alpha = 1f;
-            
+
             UpdateButtonTexts();
-            
+
             Debug.Log($"[VRPauseMenu] 显示暂停菜单，位置: {transform.position}");
         }
 
@@ -235,7 +229,11 @@ namespace OsuVR
             PlayClickSound();
 
             // Auto 模式：按下继续时立即接管手柄并重置位置
-            if (gameManager != null && gameManager.useAutoPlay && gameManager.autoPlayManager != null)
+            if (
+                gameManager != null
+                && gameManager.useAutoPlay
+                && gameManager.autoPlayManager != null
+            )
             {
                 gameManager.autoPlayManager.OnGameResumed();
             }
@@ -249,8 +247,10 @@ namespace OsuVR
         /// </summary>
         public void RequestContinue()
         {
-            if (isCountingDown) return;
-            if (!isPaused) return;
+            if (isCountingDown)
+                return;
+            if (!isPaused)
+                return;
             OnContinueClicked();
         }
 
@@ -269,7 +269,9 @@ namespace OsuVR
             PlayClickSound();
             HidePauseMenu();
             if (GameContext.Instance != null)
-                VRSceneTransitionManager.Instance.TransitionToScene(GameContext.Instance.SongSelectSceneName);
+                VRSceneTransitionManager.Instance.TransitionToScene(
+                    GameContext.Instance.SongSelectSceneName
+                );
             else
                 VRSceneTransitionManager.Instance.TransitionToScene("SongSelectScene");
         }
@@ -308,9 +310,12 @@ namespace OsuVR
             {
                 countdownPanel.SetActive(true);
             }
-            if (continueButton != null) continueButton.gameObject.SetActive(false);
-            if (retryButton != null) retryButton.gameObject.SetActive(false);
-            if (backToMenuButton != null) backToMenuButton.gameObject.SetActive(false);
+            if (continueButton != null)
+                continueButton.gameObject.SetActive(false);
+            if (retryButton != null)
+                retryButton.gameObject.SetActive(false);
+            if (backToMenuButton != null)
+                backToMenuButton.gameObject.SetActive(false);
         }
 
         void HideCountdown()
@@ -319,9 +324,12 @@ namespace OsuVR
             {
                 countdownPanel.SetActive(false);
             }
-            if (continueButton != null) continueButton.gameObject.SetActive(true);
-            if (retryButton != null) retryButton.gameObject.SetActive(true);
-            if (backToMenuButton != null) backToMenuButton.gameObject.SetActive(true);
+            if (continueButton != null)
+                continueButton.gameObject.SetActive(true);
+            if (retryButton != null)
+                retryButton.gameObject.SetActive(true);
+            if (backToMenuButton != null)
+                backToMenuButton.gameObject.SetActive(true);
         }
 
         void FinishCountdown()

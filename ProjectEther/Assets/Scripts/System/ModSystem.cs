@@ -44,8 +44,16 @@ namespace OsuVR
         public ModCategory category;
         public Color displayColor;
 
-        public ModInfo(ModType type, string shortName, string fullName, string description,
-                       float scoreMultiplier, bool isRanked, ModCategory category, Color displayColor)
+        public ModInfo(
+            ModType type,
+            string shortName,
+            string fullName,
+            string description,
+            float scoreMultiplier,
+            bool isRanked,
+            ModCategory category,
+            Color displayColor
+        )
         {
             this.type = type;
             this.shortName = shortName;
@@ -67,7 +75,7 @@ namespace OsuVR
         Difficulty,
         Automation,
         Speed,
-        Visual
+        Visual,
     }
 
     /// <summary>
@@ -92,54 +100,97 @@ namespace OsuVR
         {
             modInfos = new Dictionary<ModType, ModInfo>
             {
-                { ModType.HardRock, new ModInfo(
-                    ModType.HardRock, "HR", "Hard Rock",
-                    "Everything becomes harder...",
-                    1.06f, true, ModCategory.Difficulty,
-                    new Color(1f, 0.3f, 0.3f)
-                )},
-
-                { ModType.Easy, new ModInfo(
-                    ModType.Easy, "EZ", "Easy",
-                    "Relax and take it easy...",
-                    0.5f, true, ModCategory.Difficulty,
-                    new Color(0.3f, 1f, 0.5f)
-                )},
-
-                { ModType.Auto, new ModInfo(
-                    ModType.Auto, "AT", "Auto",
-                    "Watch a perfect autoplay",
-                    0f, false, ModCategory.Automation,
-                    new Color(0.3f, 0.7f, 1f)
-                )},
-
-                { ModType.DoubleTime, new ModInfo(
-                    ModType.DoubleTime, "DT", "Double Time",
-                    "Speed up to 150%",
-                    1.12f, true, ModCategory.Speed,
-                    new Color(1f, 0.5f, 0.8f)
-                )},
-
-                { ModType.HalfTime, new ModInfo(
-                    ModType.HalfTime, "HT", "Half Time",
-                    "Slow down to 75%",
-                    0.3f, true, ModCategory.Speed,
-                    new Color(0.5f, 0.7f, 1f)
-                )},
-
-                { ModType.Hidden, new ModInfo(
-                    ModType.Hidden, "HD", "Hidden",
-                    "Notes fade out gradually",
-                    1.06f, true, ModCategory.Visual,
-                    new Color(0.6f, 0.6f, 0.6f)
-                )},
-
-                { ModType.Flashlight, new ModInfo(
-                    ModType.Flashlight, "FL", "Flashlight",
-                    "Restricted visibility area",
-                    1.12f, true, ModCategory.Visual,
-                    new Color(1f, 1f, 0.6f)
-                )},
+                {
+                    ModType.HardRock,
+                    new ModInfo(
+                        ModType.HardRock,
+                        "HR",
+                        "Hard Rock",
+                        "Everything becomes harder...",
+                        1.06f,
+                        true,
+                        ModCategory.Difficulty,
+                        new Color(1f, 0.3f, 0.3f)
+                    )
+                },
+                {
+                    ModType.Easy,
+                    new ModInfo(
+                        ModType.Easy,
+                        "EZ",
+                        "Easy",
+                        "Relax and take it easy...",
+                        0.5f,
+                        true,
+                        ModCategory.Difficulty,
+                        new Color(0.3f, 1f, 0.5f)
+                    )
+                },
+                {
+                    ModType.Auto,
+                    new ModInfo(
+                        ModType.Auto,
+                        "AT",
+                        "Auto",
+                        "Watch a perfect autoplay",
+                        0f,
+                        false,
+                        ModCategory.Automation,
+                        new Color(0.3f, 0.7f, 1f)
+                    )
+                },
+                {
+                    ModType.DoubleTime,
+                    new ModInfo(
+                        ModType.DoubleTime,
+                        "DT",
+                        "Double Time",
+                        "Speed up to 150%",
+                        1.12f,
+                        true,
+                        ModCategory.Speed,
+                        new Color(1f, 0.5f, 0.8f)
+                    )
+                },
+                {
+                    ModType.HalfTime,
+                    new ModInfo(
+                        ModType.HalfTime,
+                        "HT",
+                        "Half Time",
+                        "Slow down to 75%",
+                        0.3f,
+                        true,
+                        ModCategory.Speed,
+                        new Color(0.5f, 0.7f, 1f)
+                    )
+                },
+                {
+                    ModType.Hidden,
+                    new ModInfo(
+                        ModType.Hidden,
+                        "HD",
+                        "Hidden",
+                        "Notes fade out gradually",
+                        1.06f,
+                        true,
+                        ModCategory.Visual,
+                        new Color(0.6f, 0.6f, 0.6f)
+                    )
+                },
+                {
+                    ModType.Flashlight,
+                    new ModInfo(
+                        ModType.Flashlight,
+                        "FL",
+                        "Flashlight",
+                        "Restricted visibility area",
+                        1.12f,
+                        true,
+                        ModCategory.Visual,
+                        new Color(1f, 1f, 0.6f)
+                    )
+                },
             };
         }
 
@@ -251,14 +302,14 @@ namespace OsuVR
                         modsToRemove.Add(active);
                     }
                 }
-                
+
                 // 安全地移除互斥的 Mods
                 foreach (var modToRemove in modsToRemove)
                 {
                     activeMods.Remove(modToRemove);
                     OnModChanged?.Invoke(modToRemove, false);
                 }
-                
+
                 activeMods.Add(mod);
                 OnModChanged?.Invoke(mod, true);
                 return true;
@@ -288,14 +339,14 @@ namespace OsuVR
                             modsToRemove.Add(active);
                         }
                     }
-                    
+
                     // 安全地移除互斥的 Mods
                     foreach (var modToRemove in modsToRemove)
                     {
                         activeMods.Remove(modToRemove);
                         OnModChanged?.Invoke(modToRemove, false);
                     }
-                    
+
                     activeMods.Add(mod);
                     OnModChanged?.Invoke(mod, true);
                 }

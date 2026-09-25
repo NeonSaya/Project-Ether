@@ -12,7 +12,6 @@ namespace OsuVR
     /// </summary>
     [RequireComponent(typeof(MeshFilter))]
     [RequireComponent(typeof(MeshRenderer))]
-
     public class SliderController : MonoBehaviour
     {
         [Header("滑条数据")]
@@ -52,7 +51,7 @@ namespace OsuVR
         private ParticleSystem tailReversePS;
         private ParticleSystem.ColorOverLifetimeModule headColorOL;
         private ParticleSystem.ColorOverLifetimeModule tailColorOL;
-        private bool tailShowing = true;  // 尾部标记当前是否显示
+        private bool tailShowing = true; // 尾部标记当前是否显示
         private bool headShowing = false; // 头部标记当前是否显示
         private Gradient reverseGradient; // 缓存 Gradient，避免每帧 new
 
@@ -70,6 +69,7 @@ namespace OsuVR
             public SliderNestedObject data;
             public GameObject gameObject;
         }
+
         private List<TickVisualInfo> tickVisuals = new List<TickVisualInfo>();
 
         // 私有组件引用
@@ -84,8 +84,10 @@ namespace OsuVR
 
         // 记录球体的基础大小，防止吃Tick后变大回不去
         private float baseBallScale = 1.0f;
+
         // 管理协程，防止连续吃Tick时动画冲突
         private Coroutine pulseCoroutine;
+
         // 嵌套物件判定索引
         private int currentNestedIndex = 0;
         private int nextVisualIndex = 0;
@@ -100,12 +102,13 @@ namespace OsuVR
         private ObjectFadeIn fadeInComponent;
 
         // 状态变量
-      
+
         private bool isTrackingAudioPlaying = false; // 是否正在播放跟踪音效
 
-        private bool hasStarted = false;     // 滑条是否已经开始
-        private bool headHit = false;        // 滑条头是否被击中
-        private bool finished = false;       // 滑条是否结束
+        private bool hasStarted = false; // 滑条是否已经开始
+        private bool headHit = false; // 滑条头是否被击中
+        private bool finished = false; // 滑条是否结束
+
         // 上一次 TryHitHead 采样到的 (当前时间 - 打击时间)，用于帧量化修正
         private double lastHeadCheckDiff = double.NaN;
 
@@ -130,7 +133,6 @@ namespace OsuVR
         // 滑条结束前约2帧内离开判定范围，仍算接住尾巴
         private double lastEffectiveTrackTime = 0;
         private const double TAIL_GRACE_PERIOD_MS = 33.0; // 约2帧的容错时间
-
 
         // 避免每帧重复获取时间的缓存
         private double currentMusicTimeCache;
@@ -172,7 +174,6 @@ namespace OsuVR
         // 记录下一个 Tick 位置的缓存（优化）
         private Vector3? nextNotePosition;
 
-
         // 在 SliderController 类中添加这个列表，用来记录所有生成的子物体（Tick, 箭头等）
         private List<GameObject> garbageList = new List<GameObject>();
 
@@ -188,7 +189,8 @@ namespace OsuVR
         /// </summary>
         private Texture2D GetSoftDotTexture()
         {
-            if (cachedSoftDotTex != null) return cachedSoftDotTex;
+            if (cachedSoftDotTex != null)
+                return cachedSoftDotTex;
 
             int size = 128; // 与光晕贴图一致大小
             var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
@@ -221,7 +223,6 @@ namespace OsuVR
             cachedSoftDotTex = tex;
             return tex;
         }
-
 
         private ParticleSystem CreateReverseParticle(Vector3 pos, Quaternion rot, Color color)
         {
@@ -288,12 +289,17 @@ namespace OsuVR
             colOL.enabled = true;
             Gradient grad = new Gradient();
             grad.SetKeys(
-                new GradientColorKey[] { new GradientColorKey(Color.white, 0.0f), new GradientColorKey(Color.white, 1.0f) },
-                new GradientAlphaKey[] {
-                    new GradientAlphaKey(0f, 0f),    // 初始透明
-                    new GradientAlphaKey(1f, 0.2f),  // 迅速显现
-                    new GradientAlphaKey(1f, 0.6f),  // 保持可见
-                    new GradientAlphaKey(0f, 1.0f)   // 慢慢消失 (0透明度)
+                new GradientColorKey[]
+                {
+                    new GradientColorKey(Color.white, 0.0f),
+                    new GradientColorKey(Color.white, 1.0f),
+                },
+                new GradientAlphaKey[]
+                {
+                    new GradientAlphaKey(0f, 0f), // 初始透明
+                    new GradientAlphaKey(1f, 0.2f), // 迅速显现
+                    new GradientAlphaKey(1f, 0.6f), // 保持可见
+                    new GradientAlphaKey(0f, 1.0f), // 慢慢消失 (0透明度)
                 }
             );
             colOL.color = grad;
@@ -304,10 +310,16 @@ namespace OsuVR
             if (cachedReverseMat == null)
             {
                 Shader shader = Shader.Find("Mobile/Particles/Additive");
-                if (!shader) shader = Shader.Find("Legacy Shaders/Particles/Additive");
-                if (!shader) shader = Shader.Find("Universal Render Pipeline/Unlit");
-                if (!shader) shader = Shader.Find("Standard");
-                if (!shader) { Debug.LogError("[SliderController] 反转粒子 Shader 不可用!"); }
+                if (!shader)
+                    shader = Shader.Find("Legacy Shaders/Particles/Additive");
+                if (!shader)
+                    shader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (!shader)
+                    shader = Shader.Find("Standard");
+                if (!shader)
+                {
+                    Debug.LogError("[SliderController] 反转粒子 Shader 不可用!");
+                }
                 else
                 {
                     cachedReverseMat = new Material(shader);
@@ -315,9 +327,12 @@ namespace OsuVR
                     cachedReverseMat.mainTexture = GetSoftDotTexture();
 
                     Color matHdrColor = Color.white * 6.0f;
-                    if (cachedReverseMat.HasProperty("_TintColor")) cachedReverseMat.SetColor("_TintColor", matHdrColor);
-                    else if (cachedReverseMat.HasProperty("_BaseColor")) cachedReverseMat.SetColor("_BaseColor", matHdrColor);
-                    else cachedReverseMat.SetColor("_Color", matHdrColor);
+                    if (cachedReverseMat.HasProperty("_TintColor"))
+                        cachedReverseMat.SetColor("_TintColor", matHdrColor);
+                    else if (cachedReverseMat.HasProperty("_BaseColor"))
+                        cachedReverseMat.SetColor("_BaseColor", matHdrColor);
+                    else
+                        cachedReverseMat.SetColor("_Color", matHdrColor);
                 }
             }
 
@@ -355,12 +370,20 @@ namespace OsuVR
             headShowing = false;
         }
 
-
         /// <summary>
         /// 初始化滑条控制器 (对象池版)
         /// </summary>
         /// <param name="renderIndex">安全渲染索引 (safeRenderIndex)，由 RhythmGameManager 计算</param>
-        public void Initialize(SliderObject sliderData, float beatmapCS, Color comboColor, RhythmGameManager manager, IObjectPool<GameObject> pool, IObjectPool<GameObject> tPool, int renderIndex, Vector3? nextPos = null)
+        public void Initialize(
+            SliderObject sliderData,
+            float beatmapCS,
+            Color comboColor,
+            RhythmGameManager manager,
+            IObjectPool<GameObject> pool,
+            IObjectPool<GameObject> tPool,
+            int renderIndex,
+            Vector3? nextPos = null
+        )
         {
             CleanUpEverything();
 
@@ -385,9 +408,10 @@ namespace OsuVR
             {
                 // List 的写法比 Dictionary 简单得多，直接使用 RemoveAll 配合 Lambda 表达式
                 // 这行代码会移除所有对应的 GameObject 已经在 Unity 引擎底层被销毁的条目
-                tickVisuals.RemoveAll(info => info.gameObject == null || info.gameObject.Equals(null));
+                tickVisuals.RemoveAll(info =>
+                    info.gameObject == null || info.gameObject.Equals(null)
+                );
             }
-
 
             // 存下池子引用
             this.myPool = pool;
@@ -396,7 +420,8 @@ namespace OsuVR
             // 彻底重置状态 (清理上一条滑条的残留数据)
             ResetState();
 
-            if (sliderData == null || manager == null) return;
+            if (sliderData == null || manager == null)
+                return;
 
             this.sliderData = sliderData;
             this.gameManager = manager;
@@ -430,12 +455,11 @@ namespace OsuVR
             this.customBodyColor = new Color(0.05f, 0.05f, 0.05f, 0.7f);
             this.customBorderColor = new Color(0.5f, 0.5f, 0.5f, 0.9f);
 
-            
-
             // AR 时间修正
             if (this.sliderData.TimePreempt < 100)
             {
-                double defaultAR = (manager != null && manager.spawnOffsetMs > 100) ? manager.spawnOffsetMs : 1200;
+                double defaultAR =
+                    (manager != null && manager.spawnOffsetMs > 100) ? manager.spawnOffsetMs : 1200;
                 this.sliderData.TimePreempt = defaultAR;
             }
 
@@ -453,26 +477,33 @@ namespace OsuVR
                         nested.Time += this.sliderData.StartTime;
                         nested.IsTimeFixed = true; // 确保只加一次
                     }
-
                 }
             }
 
             // 初始化组件
-            if (!meshFilter) meshFilter = GetComponent<MeshFilter>();
-            if (!meshRenderer) meshRenderer = GetComponent<MeshRenderer>();
-            if (!meshCollider) meshCollider = GetComponent<MeshCollider>();
-            if (!meshCollider) meshCollider = gameObject.AddComponent<MeshCollider>();
+            if (!meshFilter)
+                meshFilter = GetComponent<MeshFilter>();
+            if (!meshRenderer)
+                meshRenderer = GetComponent<MeshRenderer>();
+            if (!meshCollider)
+                meshCollider = GetComponent<MeshCollider>();
+            if (!meshCollider)
+                meshCollider = gameObject.AddComponent<MeshCollider>();
             PhysicsUtil.EnsureKinematicRigidbody(gameObject); // 移动碰撞体补 kinematic RB（非凸 MeshCollider 仅允许 kinematic/静态，语义不变）
-            if (sharedMaterial != null) meshRenderer.sharedMaterial = sharedMaterial;
-            if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
+            if (sharedMaterial != null)
+                meshRenderer.sharedMaterial = sharedMaterial;
+            if (_propBlock == null)
+                _propBlock = new MaterialPropertyBlock();
 
             // 生成逻辑
             GenerateSliderPath();
             GenerateMeshes();
 
             // 设置 VR 尺寸
-            if (headInstance) headInstance.transform.localScale = new Vector3(finalSize, finalSize, 0.02f);
-            if (followBall) followBall.transform.localScale = Vector3.one * (finalSize * 1.1f);
+            if (headInstance)
+                headInstance.transform.localScale = new Vector3(finalSize, finalSize, 0.02f);
+            if (followBall)
+                followBall.transform.localScale = Vector3.one * (finalSize * 1.1f);
 
             CreateFollowBall();
             CreateVisuals(); // 内部会处理 Tick 的池化生成
@@ -485,7 +516,13 @@ namespace OsuVR
                     fadeInComponent = gameObject.AddComponent<ObjectFadeIn>();
             }
             // 使用 SliderBody 模式，这样本体会延迟渐隐
-            fadeInComponent.Initialize(sliderData.StartTime, sliderData.TimePreempt, manager, FadeMode.SliderBody, sliderData.EndTime);
+            fadeInComponent.Initialize(
+                sliderData.StartTime,
+                sliderData.TimePreempt,
+                manager,
+                FadeMode.SliderBody,
+                sliderData.EndTime
+            );
 
             // 重置计数器
             currentNestedIndex = 0;
@@ -498,11 +535,12 @@ namespace OsuVR
             finished = false;
             currentAlpha = 1f;
             UpdateMaterialAlpha();
-            if (combinedMesh != null) combinedMesh.RecalculateBounds();
+            if (combinedMesh != null)
+                combinedMesh.RecalculateBounds();
             // 更新视觉
 
             UpdateVisuals();
-            
+
             isInitialized = true;
             isActive = true;
         }
@@ -524,7 +562,8 @@ namespace OsuVR
             isFadingOut = false;
             isActive = true;
             currentAlpha = 1f;
-            if (_propBlock != null) _propBlock.Clear();
+            if (_propBlock != null)
+                _propBlock.Clear();
 
             headHit = false;
             lastHeadCheckDiff = double.NaN;
@@ -538,9 +577,12 @@ namespace OsuVR
             lastEffectiveTrackTime = 0;
 
             // 4. 处理子物体
-            if (headInstance) headInstance.SetActive(false);
-            if (arrowInstance) arrowInstance.SetActive(false);
-            if (followBall) followBall.SetActive(false);
+            if (headInstance)
+                headInstance.SetActive(false);
+            if (arrowInstance)
+                arrowInstance.SetActive(false);
+            if (followBall)
+                followBall.SetActive(false);
 
             // 5. 清理 Mesh
             if (combinedMesh != null)
@@ -558,7 +600,8 @@ namespace OsuVR
         /// </summary>
         private void RecycleAllTicks()
         {
-            if (tickVisuals == null) return;
+            if (tickVisuals == null)
+                return;
 
             for (int i = 0; i < tickVisuals.Count; i++)
             {
@@ -575,13 +618,11 @@ namespace OsuVR
             tickVisuals.Clear();
         }
 
-
         /// <summary>
         /// 生成滑条路径并计算累计长度（用于二分查找）
         /// </summary>
         private void GenerateSliderPath()
         {
-
             PopulateWorldPointsFromData();
 
             // 核心优化：预计算累计长度
@@ -633,12 +674,14 @@ namespace OsuVR
                 worldPathPoints.Add(Vector3.right * 1.0f);
             }
         }
+
         /// <summary>
         /// [完全重写] 使用 SliderMeshGenerator 生成单次绘制的完美滑条
         /// </summary>
         private void GenerateMeshes()
         {
-            if (worldPathPoints.Count < 2) return;
+            if (worldPathPoints.Count < 2)
+                return;
 
             // 0. 先清理旧的边框物体，防止重复
             CleanUpMeshes();
@@ -668,13 +711,22 @@ namespace OsuVR
             // - Tick = baseQueue + 3 (滑条小点)
             // - 头部圈圈 (Head) = baseQueue + 5 ~ +8
 
-            var (borderMesh, bodyMesh, borderMat, bodyMat) = SliderMeshGenerator.GeneratePhysicalSlider(
-                    worldPathPoints, radius, borderThickness, customBorderColor, customBodyColor, currentStencilId);
+            var (borderMesh, bodyMesh, borderMat, bodyMat) =
+                SliderMeshGenerator.GeneratePhysicalSlider(
+                    worldPathPoints,
+                    radius,
+                    borderThickness,
+                    customBorderColor,
+                    customBodyColor,
+                    currentStencilId
+                );
 
             // Shader 全缺或路径为空时生成器返回 null 元组，必须判空否则 NRE
             if (borderMesh == null || bodyMesh == null || borderMat == null || bodyMat == null)
             {
-                Debug.LogError("[SliderController] 滑条网格/材质生成失败（Shader 缺失或路径为空），跳过本滑条视觉");
+                Debug.LogError(
+                    "[SliderController] 滑条网格/材质生成失败（Shader 缺失或路径为空），跳过本滑条视觉"
+                );
                 return;
             }
 
@@ -688,7 +740,8 @@ namespace OsuVR
             // 3. 渲染主体网格
             // 滑条本体 = baseQueue + 1 (垫底)
             combinedMesh = bodyMesh;
-            if (meshFilter) meshFilter.mesh = combinedMesh;
+            if (meshFilter)
+                meshFilter.mesh = combinedMesh;
             if (meshRenderer)
             {
                 bodyMat.renderQueue = baseQueue + 1;
@@ -715,16 +768,19 @@ namespace OsuVR
 
             if (!isMeshValid)
             {
-                Debug.LogError($"❌ 滑条生成失败! Time: {sliderData.StartTime}ms, Points: {worldPathPoints.Count}");
+                Debug.LogError(
+                    $"❌ 滑条生成失败! Time: {sliderData.StartTime}ms, Points: {worldPathPoints.Count}"
+                );
             }
 
             // 3. 赋值
-            if (meshFilter) meshFilter.mesh = combinedMesh;
+            if (meshFilter)
+                meshFilter.mesh = combinedMesh;
 
             // 4. 更新碰撞体
-            if (meshCollider) meshCollider.sharedMesh = combinedMesh;
+            if (meshCollider)
+                meshCollider.sharedMesh = combinedMesh;
         }
-
 
         /// <summary>
         /// 创建滑条视觉元素：滑条头、Tick小点、折返箭头粒子
@@ -732,7 +788,8 @@ namespace OsuVR
         /// </summary>
         private void CreateVisuals()
         {
-            if (this == null || this.gameObject == null) return;
+            if (this == null || this.gameObject == null)
+                return;
 
             var poolMgr = NotePoolManager.Instance;
             bool usePool = poolMgr != null;
@@ -769,7 +826,7 @@ namespace OsuVR
             {
                 // 设置位置和缩放
                 headInstance.transform.position = transform.position;
-                
+
                 float headScale = this.sliderWidth;
                 headInstance.transform.localScale = new Vector3(headScale, headScale, 0.02f);
                 headInstance.SetActive(true);
@@ -798,14 +855,19 @@ namespace OsuVR
 
                 foreach (var r in headRenderers)
                 {
-                    if (r == null) continue;
+                    if (r == null)
+                        continue;
 
                     int targetQueue = baseQueue + 5;
                     string objName = r.gameObject.name;
-                    if (objName.Contains("Halo")) targetQueue = baseQueue + 4;
-                    else if (objName.Contains("Body") || objName.Contains("SliderHead")) targetQueue = baseQueue + 5;
-                    else if (objName.Contains("Overlay")) targetQueue = baseQueue + 6;
-                    else if (objName.Contains("ApproachCircle")) targetQueue = baseQueue + 8;
+                    if (objName.Contains("Halo"))
+                        targetQueue = baseQueue + 4;
+                    else if (objName.Contains("Body") || objName.Contains("SliderHead"))
+                        targetQueue = baseQueue + 5;
+                    else if (objName.Contains("Overlay"))
+                        targetQueue = baseQueue + 6;
+                    else if (objName.Contains("ApproachCircle"))
+                        targetQueue = baseQueue + 8;
 
                     // .material 首次访问会克隆共享材质（本滑条专属渲染队列），需登记待销毁
                     Material headMat = r.material;
@@ -819,15 +881,15 @@ namespace OsuVR
                     r.SetPropertyBlock(headMbp);
                 }
 
-            // 初始化缩圈动画组件
-            var scaler = headInstance.GetComponent<ApproachCircleScaler>();
-            if (scaler != null)
-            {
-                double arMs = sliderData.TimePreempt;
-                if (arMs < 100 && gameManager != null)
-                    arMs = gameManager.spawnOffsetMs;
-                scaler.Initialize(sliderData.StartTime, arMs, gameManager);
-            }
+                // 初始化缩圈动画组件
+                var scaler = headInstance.GetComponent<ApproachCircleScaler>();
+                if (scaler != null)
+                {
+                    double arMs = sliderData.TimePreempt;
+                    if (arMs < 100 && gameManager != null)
+                        arMs = gameManager.spawnOffsetMs;
+                    scaler.Initialize(sliderData.StartTime, arMs, gameManager);
+                }
 
                 // =========================================================
                 // 3. 动态生成滑条头光晕效果
@@ -867,7 +929,12 @@ namespace OsuVR
                 var headFadeIn = headInstance.GetComponent<ObjectFadeIn>();
                 if (headFadeIn == null)
                     headFadeIn = headInstance.AddComponent<ObjectFadeIn>();
-                headFadeIn.Initialize(sliderData.StartTime, sliderData.TimePreempt, gameManager, FadeMode.Standard);
+                headFadeIn.Initialize(
+                    sliderData.StartTime,
+                    sliderData.TimePreempt,
+                    gameManager,
+                    FadeMode.Standard
+                );
             }
 
             // =========================================================
@@ -899,18 +966,21 @@ namespace OsuVR
 
                             // Tick 大小为滑条宽度的 30%
                             float tickScale = this.sliderWidth * 0.3f;
-                            tickObj.transform.localScale = new Vector3(tickScale, tickScale, tickScale);
+                            tickObj.transform.localScale = new Vector3(
+                                tickScale,
+                                tickScale,
+                                tickScale
+                            );
 
                             // 根据 Tick 时间计算在路径上的位置
                             Vector3 tickPos = GetPositionAtTime(nested.Time);
                             tickObj.transform.localPosition = tickPos;
-                            tickObj.GetComponent<Renderer>().material.renderQueue = this.cachedBaseQueue + 3;
+                            tickObj.GetComponent<Renderer>().material.renderQueue =
+                                this.cachedBaseQueue + 3;
 
-                            tickVisuals.Add(new TickVisualInfo
-                            {
-                                data = nested,
-                                gameObject = tickObj
-                            });
+                            tickVisuals.Add(
+                                new TickVisualInfo { data = nested, gameObject = tickObj }
+                            );
                         }
                     }
                 }
@@ -941,7 +1011,6 @@ namespace OsuVR
                     SetReverseAlpha(headColorOL, currentComboColor, 0f);
                 }
 
-
                 // 2. 尾部粒子 (位置：point[last])
                 int last = worldPathPoints.Count - 1;
                 Vector3 tailLocalDir = (worldPathPoints[last] - worldPathPoints[last - 1]);
@@ -958,7 +1027,6 @@ namespace OsuVR
             }
         }
 
-
         // <summary>
         /// [修正版] 消除前摇，瞬时响应
         /// </summary>
@@ -967,8 +1035,18 @@ namespace OsuVR
             // 1. 如果已经跑完了所有段落，立刻关闭所有
             if (nextSpanIndex > sliderData.RepeatCount)
             {
-                if (headReversePS) { var em = headReversePS.emission; em.enabled = false; headReversePS.Clear(); }
-                if (tailReversePS) { var em = tailReversePS.emission; em.enabled = false; tailReversePS.Clear(); }
+                if (headReversePS)
+                {
+                    var em = headReversePS.emission;
+                    em.enabled = false;
+                    headReversePS.Clear();
+                }
+                if (tailReversePS)
+                {
+                    var em = tailReversePS.emission;
+                    em.enabled = false;
+                    tailReversePS.Clear();
+                }
                 return;
             }
 
@@ -1023,21 +1101,28 @@ namespace OsuVR
         /// 设置折返粒子的透明度（0=不可见，1=完全可见）
         /// 通过 colorOverLifetime 的 alpha 通道控制
         /// </summary>
-        private void SetReverseAlpha(ParticleSystem.ColorOverLifetimeModule colorOL, Color baseColor, float alpha)
+        private void SetReverseAlpha(
+            ParticleSystem.ColorOverLifetimeModule colorOL,
+            Color baseColor,
+            float alpha
+        )
         {
-            if (reverseGradient == null) reverseGradient = new Gradient();
+            if (reverseGradient == null)
+                reverseGradient = new Gradient();
             Color c = baseColor * 6.0f; // HDR 亮度
             c.a = alpha;
             reverseGradient.SetKeys(
-                new GradientColorKey[] {
+                new GradientColorKey[]
+                {
                     new GradientColorKey(new Color(c.r, c.g, c.b), 0f),
-                    new GradientColorKey(new Color(c.r, c.g, c.b), 1f)
+                    new GradientColorKey(new Color(c.r, c.g, c.b), 1f),
                 },
-                new GradientAlphaKey[] {
+                new GradientAlphaKey[]
+                {
                     new GradientAlphaKey(0f, 0f),
                     new GradientAlphaKey(alpha, 0.2f),
                     new GradientAlphaKey(alpha, 0.6f),
-                    new GradientAlphaKey(0f, 1f)
+                    new GradientAlphaKey(0f, 1f),
                 }
             );
             colorOL.color = reverseGradient;
@@ -1053,17 +1138,30 @@ namespace OsuVR
         /// </summary>
         private void UpdateReverseMarkerByTime()
         {
-            if (sliderData == null || sliderData.RepeatCount <= 1) return;
-            if (headReversePS == null || tailReversePS == null) return;
+            if (sliderData == null || sliderData.RepeatCount <= 1)
+                return;
+            if (headReversePS == null || tailReversePS == null)
+                return;
 
             // 滑条还没开始，保持初始状态
-            if (currentMusicTimeCache < sliderData.StartTime) return;
+            if (currentMusicTimeCache < sliderData.StartTime)
+                return;
 
             // 滑条结束，隐藏所有
             if (currentMusicTimeCache > sliderData.EndTime)
             {
-                if (tailShowing) { tailShowing = false; SetReverseAlpha(tailColorOL, currentComboColor, 0f); tailReversePS.Clear(); }
-                if (headShowing) { headShowing = false; SetReverseAlpha(headColorOL, currentComboColor, 0f); headReversePS.Clear(); }
+                if (tailShowing)
+                {
+                    tailShowing = false;
+                    SetReverseAlpha(tailColorOL, currentComboColor, 0f);
+                    tailReversePS.Clear();
+                }
+                if (headShowing)
+                {
+                    headShowing = false;
+                    SetReverseAlpha(headColorOL, currentComboColor, 0f);
+                    headReversePS.Clear();
+                }
                 return;
             }
 
@@ -1071,7 +1169,11 @@ namespace OsuVR
             double totalDur = sliderData.EndTime - sliderData.StartTime;
             double spanDur = totalDur / sliderData.RepeatCount;
             double timeSinceStart = currentMusicTimeCache - sliderData.StartTime;
-            int currentSpan = Mathf.Clamp((int)((timeSinceStart + 0.01) / spanDur), 0, sliderData.RepeatCount - 1);
+            int currentSpan = Mathf.Clamp(
+                (int)((timeSinceStart + 0.01) / spanDur),
+                0,
+                sliderData.RepeatCount - 1
+            );
 
             // 尾部位置（偶数 span）是否还有未处理的 Repeat（当前或之后）
             bool tailHasRepeat = false;
@@ -1109,19 +1211,32 @@ namespace OsuVR
             if (showTail != tailShowing)
             {
                 tailShowing = showTail;
-                if (showTail) { SetReverseAlpha(tailColorOL, currentComboColor, 0.75f); }
-                else { SetReverseAlpha(tailColorOL, currentComboColor, 0f); tailReversePS.Clear(); }
+                if (showTail)
+                {
+                    SetReverseAlpha(tailColorOL, currentComboColor, 0.75f);
+                }
+                else
+                {
+                    SetReverseAlpha(tailColorOL, currentComboColor, 0f);
+                    tailReversePS.Clear();
+                }
             }
 
             // 更新头部标记
             if (showHead != headShowing)
             {
                 headShowing = showHead;
-                if (showHead) { SetReverseAlpha(headColorOL, currentComboColor, 0.75f); }
-                else { SetReverseAlpha(headColorOL, currentComboColor, 0f); headReversePS.Clear(); }
+                if (showHead)
+                {
+                    SetReverseAlpha(headColorOL, currentComboColor, 0.75f);
+                }
+                else
+                {
+                    SetReverseAlpha(headColorOL, currentComboColor, 0f);
+                    headReversePS.Clear();
+                }
             }
         }
-
 
         private void CreateFollowBall()
         {
@@ -1164,8 +1279,9 @@ namespace OsuVR
                         clonedMaterials.Add(ballMat);
                     }
                     ballCollider = followBall.GetComponent<SphereCollider>();
-                    if (ballCollider == null) ballCollider = followBall.AddComponent<SphereCollider>();
-            PhysicsUtil.EnsureKinematicRigidbody(followBall); // 移动碰撞体补 kinematic RB
+                    if (ballCollider == null)
+                        ballCollider = followBall.AddComponent<SphereCollider>();
+                    PhysicsUtil.EnsureKinematicRigidbody(followBall); // 移动碰撞体补 kinematic RB
                     followBall.SetActive(false);
                 }
             }
@@ -1176,11 +1292,13 @@ namespace OsuVR
         /// </summary>
         private void UpdateFollowBall()
         {
-            if (followBall == null) return;
+            if (followBall == null)
+                return;
             double currentTime = gameManager.GetCurrentMusicTimeMs();
 
             // 简单防抖
-            if (System.Math.Abs(currentTime - lastUpdateTime) < 0.001) return;
+            if (System.Math.Abs(currentTime - lastUpdateTime) < 0.001)
+                return;
             lastUpdateTime = currentTime;
 
             double startTime = sliderData.StartTime;
@@ -1189,18 +1307,21 @@ namespace OsuVR
 
             if (currentTime >= startTime && currentTime <= endTime)
             {
-                if (!followBall.activeSelf) followBall.SetActive(true);
+                if (!followBall.activeSelf)
+                    followBall.SetActive(true);
 
                 Vector3 targetPos = GetPositionAtTime(currentTime);
                 followBall.transform.localPosition = targetPos;
             }
             else if (currentTime > endTime)
             {
-                if (followBall.activeSelf) followBall.SetActive(false);
+                if (followBall.activeSelf)
+                    followBall.SetActive(false);
             }
             else // 未开始
             {
-                if (followBall.activeSelf) followBall.SetActive(false);
+                if (followBall.activeSelf)
+                    followBall.SetActive(false);
             }
         }
 
@@ -1209,7 +1330,8 @@ namespace OsuVR
         /// </summary>
         private Vector3 GetPositionOnPathOptimized(float progress)
         {
-            if (worldPathPoints.Count < 2) return transform.position;
+            if (worldPathPoints.Count < 2)
+                return transform.position;
 
             progress = Mathf.Clamp01(progress);
             float targetDist = progress * totalPathLength;
@@ -1227,8 +1349,10 @@ namespace OsuVR
             // 所以目标在线段: (index-1) 到 (index) 之间
 
             // 边界检查
-            if (index <= 0) return worldPathPoints[0];
-            if (index >= cumulativeLengths.Count) return worldPathPoints[worldPathPoints.Count - 1];
+            if (index <= 0)
+                return worldPathPoints[0];
+            if (index >= cumulativeLengths.Count)
+                return worldPathPoints[worldPathPoints.Count - 1];
 
             int indexA = index - 1;
             int indexB = index;
@@ -1249,8 +1373,16 @@ namespace OsuVR
             fadeOutStartTime = Time.time;
 
             // 隐藏折返标记
-            if (headReversePS) { SetReverseAlpha(headColorOL, currentComboColor, 0f); headReversePS.Clear(); }
-            if (tailReversePS) { SetReverseAlpha(tailColorOL, currentComboColor, 0f); tailReversePS.Clear(); }
+            if (headReversePS)
+            {
+                SetReverseAlpha(headColorOL, currentComboColor, 0f);
+                headReversePS.Clear();
+            }
+            if (tailReversePS)
+            {
+                SetReverseAlpha(tailColorOL, currentComboColor, 0f);
+                tailReversePS.Clear();
+            }
             headShowing = false;
             tailShowing = false;
         }
@@ -1339,7 +1471,8 @@ namespace OsuVR
                 headInstance.SetActive(false);
             }
             // 如果已经结束且不在渐隐中，或者数据为空，停止运行
-            if (sliderData == null || finished) return;
+            if (sliderData == null || finished)
+                return;
 
             // 获取时间
             currentMusicTimeCache = gameManager.GetCurrentMusicTimeMs();
@@ -1356,7 +1489,6 @@ namespace OsuVR
             // 4. 视觉反馈
             UpdateVisuals();
 
-
             if (isTracking && isActive)
             {
                 // 1. 震动 (持续的微震)
@@ -1364,16 +1496,26 @@ namespace OsuVR
                 {
                     // [修改] 谁在摸就震谁
                     if (isRightHandTracking)
-                        HapticManager.Instance.PlayContinuous(true, HapticManager.Instance.profile.SliderSlideIntensity);
+                        HapticManager.Instance.PlayContinuous(
+                            true,
+                            HapticManager.Instance.profile.SliderSlideIntensity
+                        );
 
                     if (isLeftHandTracking)
-                        HapticManager.Instance.PlayContinuous(false, HapticManager.Instance.profile.SliderSlideIntensity);
+                        HapticManager.Instance.PlayContinuous(
+                            false,
+                            HapticManager.Instance.profile.SliderSlideIntensity
+                        );
                 }
 
                 // 2. 音效 (保持不变，音效通常不分左右声道，或者由 AudioSource 3D 设置决定)
                 if (!isTrackingAudioPlaying && AudioManager.Instance != null)
                 {
-                    AudioManager.Instance.ToggleSliderLoop(true, sliderData.SampleSet, sliderData.CustomIndex);
+                    AudioManager.Instance.ToggleSliderLoop(
+                        true,
+                        sliderData.SampleSet,
+                        sliderData.CustomIndex
+                    );
                     isTrackingAudioPlaying = true;
                 }
             }
@@ -1397,7 +1539,8 @@ namespace OsuVR
         /// </summary>
         private void UpdateGraceTimers()
         {
-            if (followBall == null || !headHit) return;
+            if (followBall == null || !headHit)
+                return;
 
             float allowedRadius = (sliderWidth * 0.5f) * followRadiusMultiplier;
             float dt = Time.deltaTime;
@@ -1479,7 +1622,8 @@ namespace OsuVR
         // 确保销毁时清理 Mesh 内存
         void OnDestroy()
         {
-            if (combinedMesh != null) Destroy(combinedMesh);
+            if (combinedMesh != null)
+                Destroy(combinedMesh);
         }
 
         // =========================================================
@@ -1515,12 +1659,14 @@ namespace OsuVR
             // 当物体被隐藏/回收时，清理残留
             CleanUpEverything();
         }
+
         /// <summary>
         /// 尝试击打滑条头 (由 LaserShooter 在按下/进入瞬间调用)
         /// </summary>
         public void TryHitHead(bool isRightHand, Vector3 hitPos)
         {
-            if (headHit) return;
+            if (headHit)
+                return;
 
             // 计算偏移量：当前时间 - 预期时间
             // 负数 = 提前 (Early), 正数 = 延迟 (Late)
@@ -1561,8 +1707,10 @@ namespace OsuVR
             {
                 headHit = true;
 
-                if (isRightHand) isRightHandTracking = true;
-                else isLeftHandTracking = true;
+                if (isRightHand)
+                    isRightHandTracking = true;
+                else
+                    isLeftHandTracking = true;
 
                 // 2. 视觉与触觉反馈
                 if (followBall)
@@ -1571,16 +1719,32 @@ namespace OsuVR
                     StartCoroutine(FollowBallPulse());
                 }
                 // Head 使用节点索引 0 的音效
-                if (AudioManager.Instance != null) AudioManager.Instance.PlaySliderNodeSound(sliderData, 0);
+                if (AudioManager.Instance != null)
+                    AudioManager.Instance.PlaySliderNodeSound(sliderData, 0);
                 // 音量 = TimingPoint音量 × 样本倍率
-                float vol = (sliderData.TimingPointVolume / 100f) * (sliderData.SampleVolume / 100f);
+                float vol =
+                    (sliderData.TimingPointVolume / 100f) * (sliderData.SampleVolume / 100f);
 
-                if (HapticManager.Instance != null) HapticManager.Instance.PlayHitHaptic(isRightHand, (int)sliderData.HitSound, vol);
+                if (HapticManager.Instance != null)
+                    HapticManager.Instance.PlayHitHaptic(
+                        isRightHand,
+                        (int)sliderData.HitSound,
+                        vol
+                    );
                 if (CodeOnlyVFX.Instance != null)
                 {
                     double absDiff01 = 1.0 - (System.Math.Abs(offset) / hitWindowMs);
-                    int vfxScore = RhythmGameManager.CalculateScoreFromAccuracy(System.Math.Clamp(absDiff01, 0.0, 1.0));
-                    CodeOnlyVFX.Instance.PlayHit(transform.position, transform.rotation, this.sliderWidth, currentComboColor, this.nextNotePosition, vfxScore);
+                    int vfxScore = RhythmGameManager.CalculateScoreFromAccuracy(
+                        System.Math.Clamp(absDiff01, 0.0, 1.0)
+                    );
+                    CodeOnlyVFX.Instance.PlayHit(
+                        transform.position,
+                        transform.rotation,
+                        this.sliderWidth,
+                        currentComboColor,
+                        this.nextNotePosition,
+                        vfxScore
+                    );
                 }
 
                 headHitValid = true;
@@ -1592,8 +1756,12 @@ namespace OsuVR
                 // 帧量化修正：判定窗口在本帧与上次检查之间开启（玩家早已在半径内悬停）时，
                 // 真实命中时刻即窗口边界，而非本帧采样时间（消除 0~1 帧量化误差）
                 // 两次检查间隔大于 40ms 说明射线中途离开过，无法用上次采样推断，回退到当前采样
-                if (!isAutoPlay && !double.IsNaN(prevHeadCheckDiff)
-                    && prevHeadCheckDiff < earlyWindow && (offset - prevHeadCheckDiff) <= 40.0)
+                if (
+                    !isAutoPlay
+                    && !double.IsNaN(prevHeadCheckDiff)
+                    && prevHeadCheckDiff < earlyWindow
+                    && (offset - prevHeadCheckDiff) <= 40.0
+                )
                     effectiveOffset = earlyWindow;
                 double maxWindow = hitWindowMs;
                 double absDiff = System.Math.Abs(effectiveOffset);
@@ -1601,7 +1769,8 @@ namespace OsuVR
                 accuracy01 = System.Math.Clamp(accuracy01, 0.0, 1.0);
 
                 int headScore = RhythmGameManager.CalculateScoreFromAccuracy(accuracy01);
-                if (headScore == 0) headScore = 50; // 只要接住就给保底 50 分
+                if (headScore == 0)
+                    headScore = 50; // 只要接住就给保底 50 分
 
                 // 4. 提交分数
                 if (gameManager != null && gameManager.scoreManager != null)
@@ -1612,11 +1781,17 @@ namespace OsuVR
                 // 5. ShowJudgement 调用
                 if (JudgementVisualizer.Instance != null)
                 {
-                    JudgementVisualizer.Instance.ShowJudgement(transform.position, headScore, currentComboColor);
+                    JudgementVisualizer.Instance.ShowJudgement(
+                        transform.position,
+                        headScore,
+                        currentComboColor
+                    );
                 }
 
 #if UNITY_EDITOR
-                Debug.Log($"<color=green>Slider Head HIT!</color> Offset: {offset:F2}ms, Score: {headScore}");
+                Debug.Log(
+                    $"<color=green>Slider Head HIT!</color> Offset: {offset:F2}ms, Score: {headScore}"
+                );
 #endif
             }
             else if (offset < earlyWindow)
@@ -1624,7 +1799,6 @@ namespace OsuVR
                 // 打太早，等待
                 return;
             }
-
         }
 
         /// <summary>
@@ -1633,7 +1807,8 @@ namespace OsuVR
         private void UpdateJudgement()
         {
             // 0. 前置检查
-            if (sliderData.NestedHitObjects == null) return;
+            if (sliderData.NestedHitObjects == null)
+                return;
 
             // AutoPlay 模式判定窗口
             // 加上音效延迟补偿，使音效与视觉打击同步
@@ -1654,16 +1829,20 @@ namespace OsuVR
                 double diff = currentMusicTimeCache - sliderData.StartTime;
 
                 // 安全计算单次折返的持续时间（防止 RepeatCount 为 0 导致报错）
-                double spanDuration = sliderData.RepeatCount > 0
-                    ? (sliderData.EndTime - sliderData.StartTime) / sliderData.RepeatCount
-                    : (sliderData.EndTime - sliderData.StartTime);
+                double spanDuration =
+                    sliderData.RepeatCount > 0
+                        ? (sliderData.EndTime - sliderData.StartTime) / sliderData.RepeatCount
+                        : (sliderData.EndTime - sliderData.StartTime);
 
                 // 触发 Head Miss 的三大条件：
                 // 1. 时间超过判定窗口 (随 OD 变化，OD8=250ms 基准)
                 // 2. 球已经跑完了一个折返段的时间 (针对快速滑条，球走远了算漏)
                 // 3. 整个滑条已经彻底结束 (解决极短滑条不显示 Miss 也不消失的问题)
                 double headWindowMs = gameManager != null ? gameManager.JudgementWindowMs : 250.0;
-                bool isTimeoutMiss = (diff > headWindowMs) || (diff > spanDuration && diff > 0) || (currentMusicTimeCache >= sliderData.EndTime);
+                bool isTimeoutMiss =
+                    (diff > headWindowMs)
+                    || (diff > spanDuration && diff > 0)
+                    || (currentMusicTimeCache >= sliderData.EndTime);
 
                 if (isTimeoutMiss)
                 {
@@ -1673,7 +1852,8 @@ namespace OsuVR
 #endif
 
                     // 1. 立即隐藏滑条头 (视觉上 Head 直接消失)
-                    if (headInstance != null) headInstance.SetActive(false);
+                    if (headInstance != null)
+                        headInstance.SetActive(false);
 
                     // 2. 告诉分数系统：断连了 (扣血/断Combo)
                     if (gameManager != null && gameManager.scoreManager != null)
@@ -1684,7 +1864,11 @@ namespace OsuVR
                     // 3. 弹小红叉文字 (位置在滑条头当前位置)
                     if (JudgementVisualizer.Instance != null)
                     {
-                        JudgementVisualizer.Instance.ShowJudgement(transform.position, 0, Color.red);
+                        JudgementVisualizer.Instance.ShowJudgement(
+                            transform.position,
+                            0,
+                            Color.red
+                        );
                     }
                 }
             }
@@ -1697,7 +1881,8 @@ namespace OsuVR
                 var nestedObject = sliderData.NestedHitObjects[currentNestedIndex];
 
                 // 时间没到，退出循环
-                if (currentMusicTimeCache < nestedObject.Time - 0.01) break;
+                if (currentMusicTimeCache < nestedObject.Time - 0.01)
+                    break;
 
                 // --- 判定开始 ---
                 bool hit = false;
@@ -1712,14 +1897,20 @@ namespace OsuVR
                     bool leftEffective = IsHandEffectivelyTracking(false);
                     if (leftEffective && isLeftHandTracking)
                     {
-                        minDist = Mathf.Min(minDist, Vector3.Distance(leftHandPos, followBall.transform.position));
+                        minDist = Mathf.Min(
+                            minDist,
+                            Vector3.Distance(leftHandPos, followBall.transform.position)
+                        );
                     }
 
                     // 检查右手（考虑容错期）
                     bool rightEffective = IsHandEffectivelyTracking(true);
                     if (rightEffective && isRightHandTracking)
                     {
-                        minDist = Mathf.Min(minDist, Vector3.Distance(rightHandPos, followBall.transform.position));
+                        minDist = Mathf.Min(
+                            minDist,
+                            Vector3.Distance(rightHandPos, followBall.transform.position)
+                        );
                     }
 
                     // 只要任意手在容错期内且距离有效，就算hit
@@ -1736,7 +1927,10 @@ namespace OsuVR
                         double timeUntilEnd = sliderData.EndTime - lastEffectiveTrackTime;
 
                         // 条件：曾经有效跟踪过，且最后一次跟踪在结束前2帧内
-                        if (lastEffectiveTrackTime > sliderData.StartTime && timeUntilEnd <= TAIL_GRACE_PERIOD_MS)
+                        if (
+                            lastEffectiveTrackTime > sliderData.StartTime
+                            && timeUntilEnd <= TAIL_GRACE_PERIOD_MS
+                        )
                         {
                             hit = true;
                         }
@@ -1753,7 +1947,8 @@ namespace OsuVR
                     switch (nestedObject.Type)
                     {
                         case SliderEventType.Tick:
-                            if (pulseCoroutine != null) StopCoroutine(pulseCoroutine);
+                            if (pulseCoroutine != null)
+                                StopCoroutine(pulseCoroutine);
                             StartCoroutine(FollowBallPulse());
 
                             for (int i = 0; i < tickVisuals.Count; i++)
@@ -1767,17 +1962,28 @@ namespace OsuVR
 
                             if (HapticManager.Instance != null)
                             {
-                                float tickVol = (sliderData.TimingPointVolume / 100f) * (sliderData.SampleVolume / 100f);
-                                if (isRightHandTracking) HapticManager.Instance.PlaySliderTick(true, tickVol);
-                                if (isLeftHandTracking) HapticManager.Instance.PlaySliderTick(false, tickVol);
+                                float tickVol =
+                                    (sliderData.TimingPointVolume / 100f)
+                                    * (sliderData.SampleVolume / 100f);
+                                if (isRightHandTracking)
+                                    HapticManager.Instance.PlaySliderTick(true, tickVol);
+                                if (isLeftHandTracking)
+                                    HapticManager.Instance.PlaySliderTick(false, tickVol);
                             }
                             if (AudioManager.Instance != null)
                             {
-                                float tickVol = (sliderData.TimingPointVolume / 100f) * (sliderData.SampleVolume / 100f);
-                                AudioManager.Instance.PlaySliderTick(sliderData.SampleSet, sliderData.CustomIndex, tickVol);
+                                float tickVol =
+                                    (sliderData.TimingPointVolume / 100f)
+                                    * (sliderData.SampleVolume / 100f);
+                                AudioManager.Instance.PlaySliderTick(
+                                    sliderData.SampleSet,
+                                    sliderData.CustomIndex,
+                                    tickVol
+                                );
                             }
 
-                            if (gameManager?.scoreManager != null) gameManager.scoreManager.RegisterComboHit(10);
+                            if (gameManager?.scoreManager != null)
+                                gameManager.scoreManager.RegisterComboHit(10);
 
                             // 🚫 绝对不要在这里加 ShowJudgement！Tick 不弹字！
                             break;
@@ -1785,35 +1991,66 @@ namespace OsuVR
                         case SliderEventType.Repeat:
                             // Repeat 使用节点索引 = SpanIndex + 1
                             int repeatNodeIndex = nestedObject.SpanIndex + 1;
-                            if (AudioManager.Instance != null) AudioManager.Instance.PlaySliderNodeSound(sliderData, repeatNodeIndex);
+                            if (AudioManager.Instance != null)
+                                AudioManager.Instance.PlaySliderNodeSound(
+                                    sliderData,
+                                    repeatNodeIndex
+                                );
                             if (HapticManager.Instance != null)
                             {
-                                float vol = (sliderData.TimingPointVolume / 100f) * (sliderData.SampleVolume / 100f);
+                                float vol =
+                                    (sliderData.TimingPointVolume / 100f)
+                                    * (sliderData.SampleVolume / 100f);
                                 int soundType = (int)sliderData.HitSound;
-                                if (isRightHandTracking) HapticManager.Instance.PlayHitHaptic(true, soundType, vol);
-                                if (isLeftHandTracking) HapticManager.Instance.PlayHitHaptic(false, soundType, vol);
+                                if (isRightHandTracking)
+                                    HapticManager.Instance.PlayHitHaptic(true, soundType, vol);
+                                if (isLeftHandTracking)
+                                    HapticManager.Instance.PlayHitHaptic(false, soundType, vol);
                             }
 
                             if (CodeOnlyVFX.Instance != null)
                             {
                                 bool atTail = (nestedObject.SpanIndex % 2 == 0);
-                                Vector3 vfxLocalPos = atTail ? worldPathPoints[worldPathPoints.Count - 1] : worldPathPoints[0];
-                                CodeOnlyVFX.Instance.PlayHit(transform.TransformPoint(vfxLocalPos), transform.rotation, this.sliderWidth, currentComboColor, this.nextNotePosition, 300);
+                                Vector3 vfxLocalPos = atTail
+                                    ? worldPathPoints[worldPathPoints.Count - 1]
+                                    : worldPathPoints[0];
+                                CodeOnlyVFX.Instance.PlayHit(
+                                    transform.TransformPoint(vfxLocalPos),
+                                    transform.rotation,
+                                    this.sliderWidth,
+                                    currentComboColor,
+                                    this.nextNotePosition,
+                                    300
+                                );
                             }
 
-                            if (gameManager?.scoreManager != null) gameManager.scoreManager.RegisterComboHit(30);
+                            if (gameManager?.scoreManager != null)
+                                gameManager.scoreManager.RegisterComboHit(30);
                             break;
 
                         case SliderEventType.Tail:
                             // Tail 使用节点索引 = RepeatCount + 1
                             int tailNodeIndex = sliderData.RepeatCount + 1;
-                            if (AudioManager.Instance != null) AudioManager.Instance.PlaySliderNodeSound(sliderData, tailNodeIndex);
+                            if (AudioManager.Instance != null)
+                                AudioManager.Instance.PlaySliderNodeSound(
+                                    sliderData,
+                                    tailNodeIndex
+                                );
                             // 尾巴发爆破粒子
                             if (CodeOnlyVFX.Instance != null)
                             {
                                 bool endsAtTail = (sliderData.RepeatCount % 2 != 0);
-                                Vector3 endLocalPos = endsAtTail ? worldPathPoints[worldPathPoints.Count - 1] : worldPathPoints[0];
-                                CodeOnlyVFX.Instance.PlayHit(transform.TransformPoint(endLocalPos), transform.rotation, this.sliderWidth, currentComboColor, this.nextNotePosition, 300);
+                                Vector3 endLocalPos = endsAtTail
+                                    ? worldPathPoints[worldPathPoints.Count - 1]
+                                    : worldPathPoints[0];
+                                CodeOnlyVFX.Instance.PlayHit(
+                                    transform.TransformPoint(endLocalPos),
+                                    transform.rotation,
+                                    this.sliderWidth,
+                                    currentComboColor,
+                                    this.nextNotePosition,
+                                    300
+                                );
                             }
                             break;
                     }
@@ -1832,18 +2069,23 @@ namespace OsuVR
                         if (JudgementVisualizer.Instance != null)
                         {
                             bool endsAtTail = (sliderData.RepeatCount % 2 != 0);
-                            Vector3 endLocalPos = endsAtTail ? worldPathPoints[worldPathPoints.Count - 1] : worldPathPoints[0];
-                            JudgementVisualizer.Instance.ShowTailMiss(transform.TransformPoint(endLocalPos));
+                            Vector3 endLocalPos = endsAtTail
+                                ? worldPathPoints[worldPathPoints.Count - 1]
+                                : worldPathPoints[0];
+                            JudgementVisualizer.Instance.ShowTailMiss(
+                                transform.TransformPoint(endLocalPos)
+                            );
                         }
                     }
-
 
                     if (gameManager != null && gameManager.scoreManager != null)
                     {
                         // 精准扣分：Tick 漏打加 10，Repeat 加 30，Tail 加 300
                         int maxScore = 300;
-                        if (nestedObject.Type == SliderEventType.Tick) maxScore = 10;
-                        else if (nestedObject.Type == SliderEventType.Repeat) maxScore = 30;
+                        if (nestedObject.Type == SliderEventType.Tick)
+                            maxScore = 10;
+                        else if (nestedObject.Type == SliderEventType.Repeat)
+                            maxScore = 30;
 
                         // 按物件统计：滑条内部扣分不重复计 Miss，只扣分断连
                         gameManager.scoreManager.RegisterMissScoreOnly(maxScore);
@@ -1875,10 +2117,14 @@ namespace OsuVR
                         // 滑条成功完成：Tail 音效已在 UpdateJudgement 的 Tail case 中播放
                         if (HapticManager.Instance != null)
                         {
-                            float vol = (sliderData.TimingPointVolume / 100f) * (sliderData.SampleVolume / 100f);
+                            float vol =
+                                (sliderData.TimingPointVolume / 100f)
+                                * (sliderData.SampleVolume / 100f);
                             int soundType = (int)sliderData.HitSound;
-                            if (isRightHandTracking) HapticManager.Instance.PlayHitHaptic(true, soundType, vol);
-                            if (isLeftHandTracking) HapticManager.Instance.PlayHitHaptic(false, soundType, vol);
+                            if (isRightHandTracking)
+                                HapticManager.Instance.PlayHitHaptic(true, soundType, vol);
+                            if (isLeftHandTracking)
+                                HapticManager.Instance.PlayHitHaptic(false, soundType, vol);
                         }
 
                         // 提交给 Manager，Manager 会根据 finalAcc 决定是给 300(>0.9), 100(>0.5) 还是 50
@@ -1916,7 +2162,8 @@ namespace OsuVR
         /// </summary>
         private void UpdateVisuals()
         {
-            if (tickVisuals == null || tickVisuals.Count == 0) return;
+            if (tickVisuals == null || tickVisuals.Count == 0)
+                return;
 
             // 预取数据
             double timePreempt = sliderData.TimePreempt;
@@ -1929,18 +2176,21 @@ namespace OsuVR
                 // 如果已经被击中，确保隐藏
                 if (tickInfo.data.IsHit)
                 {
-                    if (tickInfo.gameObject.activeSelf) tickInfo.gameObject.SetActive(false);
+                    if (tickInfo.gameObject.activeSelf)
+                        tickInfo.gameObject.SetActive(false);
                     continue;
                 }
 
                 // 如果已经激活了，跳过后续计算（性能优化）
-                if (tickInfo.gameObject.activeSelf) continue;
+                if (tickInfo.gameObject.activeSelf)
+                    continue;
 
                 // 贪吃蛇逻辑
                 double timeOffset = tickInfo.data.Time - sliderData.StartTime;
                 double snakeDelay = timeOffset / 3.0;
 
-                if (snakeDelay > 400) snakeDelay = 400;
+                if (snakeDelay > 400)
+                    snakeDelay = 400;
 
                 double appearTime = (sliderData.StartTime - timePreempt) + snakeDelay;
 
@@ -1951,11 +2201,20 @@ namespace OsuVR
                     tickInfo.gameObject.SetActive(true);
                 }
             }
-            if (followBallRenderer == null) return;
+            if (followBallRenderer == null)
+                return;
 
             float minDist = float.MaxValue;
-            if (isLeftHandTracking) minDist = Mathf.Min(minDist, Vector3.Distance(leftHandPos, followBall.transform.position));
-            if (isRightHandTracking) minDist = Mathf.Min(minDist, Vector3.Distance(rightHandPos, followBall.transform.position));
+            if (isLeftHandTracking)
+                minDist = Mathf.Min(
+                    minDist,
+                    Vector3.Distance(leftHandPos, followBall.transform.position)
+                );
+            if (isRightHandTracking)
+                minDist = Mathf.Min(
+                    minDist,
+                    Vector3.Distance(rightHandPos, followBall.transform.position)
+                );
             float allowedRadius = (sliderWidth * 0.5f) * followRadiusMultiplier;
             bool isEffectiveTracking = isTracking && (minDist <= allowedRadius);
 
@@ -1970,13 +2229,13 @@ namespace OsuVR
             followBallRenderer.SetPropertyBlock(_propBlock);
         }
 
-
         /// <summary>
         /// 跟随球的呼吸/脉冲效果 (Tick 击中反馈)
         /// </summary>
         private IEnumerator FollowBallPulse()
         {
-            if (followBall == null) yield break;
+            if (followBall == null)
+                yield break;
 
             float duration = 0.12f; // 动画时长
             float timer = 0f;
@@ -1993,7 +2252,8 @@ namespace OsuVR
                 if (followBall != null)
                 {
                     // 关键：基于 baseBallScale 计算，而不是基于当前 localScale
-                    followBall.transform.localScale = Vector3.one * (baseBallScale * scaleMultiplier);
+                    followBall.transform.localScale =
+                        Vector3.one * (baseBallScale * scaleMultiplier);
                 }
 
                 yield return null;
@@ -2052,7 +2312,8 @@ namespace OsuVR
         private void OnDrawGizmos()
         {
             // 只有当游戏运行时且有数据才画
-            if (!Application.isPlaying || worldPathPoints == null || worldPathPoints.Count < 2) return;
+            if (!Application.isPlaying || worldPathPoints == null || worldPathPoints.Count < 2)
+                return;
 
             // 1. 画路径线 (黄色)
             Gizmos.color = Color.yellow;
@@ -2069,7 +2330,10 @@ namespace OsuVR
             Gizmos.DrawSphere(transform.TransformPoint(worldPathPoints[0]), 0.02f);
 
             Gizmos.color = Color.red;
-            Gizmos.DrawSphere(transform.TransformPoint(worldPathPoints[worldPathPoints.Count - 1]), 0.02f);
+            Gizmos.DrawSphere(
+                transform.TransformPoint(worldPathPoints[worldPathPoints.Count - 1]),
+                0.02f
+            );
         }
 
         /// <summary>
@@ -2160,8 +2424,8 @@ namespace OsuVR
             if (oldBorder != null)
             {
                 MeshFilter mf = oldBorder.GetComponent<MeshFilter>();
-                if (mf != null && mf.sharedMesh != null) DestroyImmediate(mf.sharedMesh);
-
+                if (mf != null && mf.sharedMesh != null)
+                    DestroyImmediate(mf.sharedMesh);
 
                 MeshRenderer mr = oldBorder.GetComponent<MeshRenderer>();
                 if (mr != null)

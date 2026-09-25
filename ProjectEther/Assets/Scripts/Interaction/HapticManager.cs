@@ -1,6 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR; // 引用底层 XR 库
-using System.Collections.Generic;
 
 namespace OsuVR
 {
@@ -52,7 +52,8 @@ namespace OsuVR
         /// </summary>
         private void SendHaptic(XRNode node, float intensity, float duration)
         {
-            if (!hapticsEnabled) return;
+            if (!hapticsEnabled)
+                return;
 
             intensity *= hapticIntensityMultiplier;
 
@@ -86,15 +87,19 @@ namespace OsuVR
         {
             // 1. 获取基础配置
             HapticProfile.HapticData data = profile.NormalHit;
-            if ((hitSoundType & 4) > 0) data = profile.FinishHit;
-            else if ((hitSoundType & 8) > 0) data = profile.ClapHit;
-            else if ((hitSoundType & 2) > 0) data = profile.WhistleHit;
+            if ((hitSoundType & 4) > 0)
+                data = profile.FinishHit;
+            else if ((hitSoundType & 8) > 0)
+                data = profile.ClapHit;
+            else if ((hitSoundType & 2) > 0)
+                data = profile.WhistleHit;
 
             // 2. 根据音量计算最终强度 (音量越小震动越弱，但不仅是线性，可以用平方让小声音更柔和)
             float finalIntensity = data.intensity * Mathf.Clamp01(volume);
 
             // 设定一个最小震动阈值，避免有声音却没震动 (可选)
-            if (volume > 0.05f && finalIntensity < 0.1f) finalIntensity = 0.1f;
+            if (volume > 0.05f && finalIntensity < 0.1f)
+                finalIntensity = 0.1f;
 
             // 3. 发送
             XRNode node = isRightHand ? XRNode.RightHand : XRNode.LeftHand;
@@ -140,13 +145,17 @@ namespace OsuVR
         {
             HapticProfile.HapticData data = profile.NormalHit;
 
-            if ((hitSoundType & 4) > 0) data = profile.FinishHit;
-            else if ((hitSoundType & 8) > 0) data = profile.ClapHit;
-            else if ((hitSoundType & 2) > 0) data = profile.WhistleHit;
+            if ((hitSoundType & 4) > 0)
+                data = profile.FinishHit;
+            else if ((hitSoundType & 8) > 0)
+                data = profile.ClapHit;
+            else if ((hitSoundType & 2) > 0)
+                data = profile.WhistleHit;
 
             float finalIntensity = data.intensity * Mathf.Clamp01(volume);
 
-            if (volume > 0.05f && finalIntensity < 0.1f) finalIntensity = 0.1f;
+            if (volume > 0.05f && finalIntensity < 0.1f)
+                finalIntensity = 0.1f;
 
             PlayHapticBoth(finalIntensity, data.duration);
         }

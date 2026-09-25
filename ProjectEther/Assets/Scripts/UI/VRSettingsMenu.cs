@@ -5,10 +5,10 @@
 // 不要在新功能中引用本类。
 // =====================================================================
 using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.UI;
 using TMPro;
+using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace OsuVR
 {
@@ -108,7 +108,7 @@ namespace OsuVR
                 { "Reset", "ui_reset" },
                 { "Back", "ui_back" },
                 { "RESET", "ui_reset" },
-                { "BACK", "ui_back" }
+                { "BACK", "ui_back" },
             };
 
             foreach (var text in allTexts)
@@ -139,7 +139,9 @@ namespace OsuVR
         {
             if (languageDropdown != null)
             {
-                languageDropdown.SetValueWithoutNotify(LocalizationManager.GetCurrentLanguageIndex());
+                languageDropdown.SetValueWithoutNotify(
+                    LocalizationManager.GetCurrentLanguageIndex()
+                );
             }
             RefreshAllLocalizedText();
         }
@@ -153,31 +155,31 @@ namespace OsuVR
 
         private void RefreshQualityDropdownOptions()
         {
-            if (qualityDropdown == null) return;
+            if (qualityDropdown == null)
+                return;
             int currentValue = qualityDropdown.value;
             qualityDropdown.ClearOptions();
-            qualityDropdown.AddOptions(new List<string> 
-            { 
-                LocalizationManager.GetText("ui_low"),
-                LocalizationManager.GetText("ui_medium"),
-                LocalizationManager.GetText("ui_high"),
-                LocalizationManager.GetText("ui_ultra")
-            });
+            qualityDropdown.AddOptions(
+                new List<string>
+                {
+                    LocalizationManager.GetText("ui_low"),
+                    LocalizationManager.GetText("ui_medium"),
+                    LocalizationManager.GetText("ui_high"),
+                    LocalizationManager.GetText("ui_ultra"),
+                }
+            );
             qualityDropdown.SetValueWithoutNotify(currentValue);
         }
 
         private void RefreshAntiAliasingDropdownOptions()
         {
-            if (antiAliasingDropdown == null) return;
+            if (antiAliasingDropdown == null)
+                return;
             int currentValue = antiAliasingDropdown.value;
             antiAliasingDropdown.ClearOptions();
-            antiAliasingDropdown.AddOptions(new List<string> 
-            { 
-                LocalizationManager.GetText("ui_off"),
-                "2x",
-                "4x",
-                "8x"
-            });
+            antiAliasingDropdown.AddOptions(
+                new List<string> { LocalizationManager.GetText("ui_off"), "2x", "4x", "8x" }
+            );
             antiAliasingDropdown.SetValueWithoutNotify(currentValue);
         }
 
@@ -185,19 +187,21 @@ namespace OsuVR
         {
             for (int i = 0; i < tabButtons.Length; i++)
             {
-                if (tabButtons[i] == null) continue;
+                if (tabButtons[i] == null)
+                    continue;
                 var tmp = tabButtons[i].GetComponentInChildren<TextMeshProUGUI>();
-                if (tmp == null) continue;
-                
+                if (tmp == null)
+                    continue;
+
                 string key = i switch
                 {
                     0 => "ui_tab_game",
                     1 => "ui_tab_audio",
                     2 => "ui_tab_graphics",
                     3 => "ui_tab_controller",
-                    _ => null
+                    _ => null,
                 };
-                
+
                 if (!string.IsNullOrEmpty(key))
                 {
                     tmp.text = LocalizationManager.GetText(key);
@@ -264,7 +268,7 @@ namespace OsuVR
         {
             PlayClickSound();
             currentTabIndex = index;
-            
+
             for (int i = 0; i < tabPanels.Length; i++)
             {
                 if (tabPanels[i] != null)
@@ -284,9 +288,10 @@ namespace OsuVR
                     Image img = tabButtons[i].GetComponent<Image>();
                     if (img != null)
                     {
-                        img.color = (i == currentTabIndex) 
-                            ? new Color(0.2f, 0.35f, 0.55f, 1f) 
-                            : new Color(0.15f, 0.15f, 0.22f, 1f);
+                        img.color =
+                            (i == currentTabIndex)
+                                ? new Color(0.2f, 0.35f, 0.55f, 1f)
+                                : new Color(0.15f, 0.15f, 0.22f, 1f);
                     }
 
                     Transform indicator = tabButtons[i].transform.Find("Indicator");
@@ -295,9 +300,10 @@ namespace OsuVR
                         Image indicatorImg = indicator.GetComponent<Image>();
                         if (indicatorImg != null)
                         {
-                            indicatorImg.color = (i == currentTabIndex)
-                                ? new Color(0.25f, 0.55f, 0.85f, 1f)
-                                : new Color(0.25f, 0.55f, 0.85f, 0f);
+                            indicatorImg.color =
+                                (i == currentTabIndex)
+                                    ? new Color(0.25f, 0.55f, 0.85f, 1f)
+                                    : new Color(0.25f, 0.55f, 0.85f, 0f);
                         }
                     }
                 }
@@ -436,13 +442,15 @@ namespace OsuVR
             if (qualityDropdown != null)
             {
                 qualityDropdown.ClearOptions();
-                qualityDropdown.AddOptions(new List<string> 
-                { 
-                    LocalizationManager.GetText("ui_low"),
-                    LocalizationManager.GetText("ui_medium"),
-                    LocalizationManager.GetText("ui_high"),
-                    LocalizationManager.GetText("ui_ultra")
-                });
+                qualityDropdown.AddOptions(
+                    new List<string>
+                    {
+                        LocalizationManager.GetText("ui_low"),
+                        LocalizationManager.GetText("ui_medium"),
+                        LocalizationManager.GetText("ui_high"),
+                        LocalizationManager.GetText("ui_ultra"),
+                    }
+                );
                 qualityDropdown.value = tempSettings.qualityLevel;
                 qualityDropdown.onValueChanged.AddListener(OnQualityChanged);
                 AddHoverEffect(qualityDropdown.gameObject);
@@ -451,20 +459,16 @@ namespace OsuVR
             if (antiAliasingDropdown != null)
             {
                 antiAliasingDropdown.ClearOptions();
-                antiAliasingDropdown.AddOptions(new List<string> 
-                { 
-                    LocalizationManager.GetText("ui_off"),
-                    "2x",
-                    "4x",
-                    "8x"
-                });
+                antiAliasingDropdown.AddOptions(
+                    new List<string> { LocalizationManager.GetText("ui_off"), "2x", "4x", "8x" }
+                );
                 int aaIndex = tempSettings.antiAliasing switch
                 {
                     0 => 0,
                     2 => 1,
                     4 => 2,
                     8 => 3,
-                    _ => 2
+                    _ => 2,
                 };
                 antiAliasingDropdown.value = aaIndex;
                 antiAliasingDropdown.onValueChanged.AddListener(OnAntiAliasingChanged);
@@ -500,7 +504,7 @@ namespace OsuVR
                 1 => 2,
                 2 => 4,
                 3 => 8,
-                _ => 4
+                _ => 4,
             };
             if (SettingsManager.Instance != null)
             {
@@ -554,14 +558,18 @@ namespace OsuVR
             if (displayOriginalLanguageToggle != null)
             {
                 displayOriginalLanguageToggle.isOn = tempSettings.displayOriginalLanguage;
-                displayOriginalLanguageToggle.onValueChanged.AddListener(OnDisplayOriginalLanguageChanged);
+                displayOriginalLanguageToggle.onValueChanged.AddListener(
+                    OnDisplayOriginalLanguageChanged
+                );
                 AddHoverEffect(displayOriginalLanguageToggle.gameObject);
             }
 
             if (languageDropdown != null)
             {
                 languageDropdown.ClearOptions();
-                languageDropdown.AddOptions(new List<string>(LocalizationManager.GetAllLanguageNames()));
+                languageDropdown.AddOptions(
+                    new List<string>(LocalizationManager.GetAllLanguageNames())
+                );
                 languageDropdown.value = LocalizationManager.GetCurrentLanguageIndex();
                 languageDropdown.onValueChanged.AddListener(OnLanguageDropdownChanged);
                 AddHoverEffect(languageDropdown.gameObject);
@@ -630,7 +638,9 @@ namespace OsuVR
                 leftControllerZOffsetSlider.minValue = -0.5f;
                 leftControllerZOffsetSlider.maxValue = 0.5f;
                 leftControllerZOffsetSlider.value = tempSettings.leftControllerZOffset;
-                leftControllerZOffsetSlider.onValueChanged.AddListener(OnLeftControllerZOffsetChanged);
+                leftControllerZOffsetSlider.onValueChanged.AddListener(
+                    OnLeftControllerZOffsetChanged
+                );
                 UpdateLeftControllerZOffsetText(tempSettings.leftControllerZOffset);
                 AddHoverEffect(leftControllerZOffsetSlider.gameObject);
             }
@@ -640,7 +650,9 @@ namespace OsuVR
                 rightControllerZOffsetSlider.minValue = -0.5f;
                 rightControllerZOffsetSlider.maxValue = 0.5f;
                 rightControllerZOffsetSlider.value = tempSettings.rightControllerZOffset;
-                rightControllerZOffsetSlider.onValueChanged.AddListener(OnRightControllerZOffsetChanged);
+                rightControllerZOffsetSlider.onValueChanged.AddListener(
+                    OnRightControllerZOffsetChanged
+                );
                 UpdateRightControllerZOffsetText(tempSettings.rightControllerZOffset);
                 AddHoverEffect(rightControllerZOffsetSlider.gameObject);
             }
@@ -650,7 +662,9 @@ namespace OsuVR
                 leftControllerYOffsetSlider.minValue = -0.3f;
                 leftControllerYOffsetSlider.maxValue = 0.3f;
                 leftControllerYOffsetSlider.value = tempSettings.leftControllerYOffset;
-                leftControllerYOffsetSlider.onValueChanged.AddListener(OnLeftControllerYOffsetChanged);
+                leftControllerYOffsetSlider.onValueChanged.AddListener(
+                    OnLeftControllerYOffsetChanged
+                );
                 UpdateLeftControllerYOffsetText(tempSettings.leftControllerYOffset);
                 AddHoverEffect(leftControllerYOffsetSlider.gameObject);
             }
@@ -660,7 +674,9 @@ namespace OsuVR
                 rightControllerYOffsetSlider.minValue = -0.3f;
                 rightControllerYOffsetSlider.maxValue = 0.3f;
                 rightControllerYOffsetSlider.value = tempSettings.rightControllerYOffset;
-                rightControllerYOffsetSlider.onValueChanged.AddListener(OnRightControllerYOffsetChanged);
+                rightControllerYOffsetSlider.onValueChanged.AddListener(
+                    OnRightControllerYOffsetChanged
+                );
                 UpdateRightControllerYOffsetText(tempSettings.rightControllerYOffset);
                 AddHoverEffect(rightControllerYOffsetSlider.gameObject);
             }
@@ -670,7 +686,9 @@ namespace OsuVR
                 controllerRotationOffsetSlider.minValue = -45f;
                 controllerRotationOffsetSlider.maxValue = 45f;
                 controllerRotationOffsetSlider.value = tempSettings.controllerRotationOffset;
-                controllerRotationOffsetSlider.onValueChanged.AddListener(OnControllerRotationOffsetChanged);
+                controllerRotationOffsetSlider.onValueChanged.AddListener(
+                    OnControllerRotationOffsetChanged
+                );
                 UpdateControllerRotationOffsetText(tempSettings.controllerRotationOffset);
                 AddHoverEffect(controllerRotationOffsetSlider.gameObject);
             }
@@ -760,11 +778,16 @@ namespace OsuVR
         {
             if (SettingsManager.Instance != null)
             {
-                SettingsManager.Instance.Settings.leftControllerZOffset = tempSettings.leftControllerZOffset;
-                SettingsManager.Instance.Settings.rightControllerZOffset = tempSettings.rightControllerZOffset;
-                SettingsManager.Instance.Settings.leftControllerYOffset = tempSettings.leftControllerYOffset;
-                SettingsManager.Instance.Settings.rightControllerYOffset = tempSettings.rightControllerYOffset;
-                SettingsManager.Instance.Settings.controllerRotationOffset = tempSettings.controllerRotationOffset;
+                SettingsManager.Instance.Settings.leftControllerZOffset =
+                    tempSettings.leftControllerZOffset;
+                SettingsManager.Instance.Settings.rightControllerZOffset =
+                    tempSettings.rightControllerZOffset;
+                SettingsManager.Instance.Settings.leftControllerYOffset =
+                    tempSettings.leftControllerYOffset;
+                SettingsManager.Instance.Settings.rightControllerYOffset =
+                    tempSettings.rightControllerYOffset;
+                SettingsManager.Instance.Settings.controllerRotationOffset =
+                    tempSettings.controllerRotationOffset;
                 SettingsManager.Instance.SaveSettings();
             }
 
@@ -775,15 +798,24 @@ namespace OsuVR
             var rayControllers = FindObjectsOfType<RayController>();
             foreach (var rc in rayControllers)
             {
-                if (autoPlay != null && autoPlay.IsControlling(rc)) continue;
+                if (autoPlay != null && autoPlay.IsControlling(rc))
+                    continue;
 
                 if (rc.isRightHand)
                 {
-                    rc.directOffset = new Vector3(tempSettings.controllerRotationOffset, tempSettings.rightControllerYOffset, tempSettings.rightControllerZOffset);
+                    rc.directOffset = new Vector3(
+                        tempSettings.controllerRotationOffset,
+                        tempSettings.rightControllerYOffset,
+                        tempSettings.rightControllerZOffset
+                    );
                 }
                 else
                 {
-                    rc.directOffset = new Vector3(tempSettings.controllerRotationOffset, tempSettings.leftControllerYOffset, tempSettings.leftControllerZOffset);
+                    rc.directOffset = new Vector3(
+                        tempSettings.controllerRotationOffset,
+                        tempSettings.leftControllerYOffset,
+                        tempSettings.leftControllerZOffset
+                    );
                 }
             }
         }
@@ -826,20 +858,34 @@ namespace OsuVR
 
         private void RefreshUIFromSettings()
         {
-            if (audioOffsetSlider != null) audioOffsetSlider.value = tempSettings.audioOffsetMs;
-            if (masterVolumeSlider != null) masterVolumeSlider.value = tempSettings.masterVolume;
-            if (musicVolumeSlider != null) musicVolumeSlider.value = tempSettings.musicVolume;
-            if (sfxVolumeSlider != null) sfxVolumeSlider.value = tempSettings.sfxVolume;
-            if (qualityDropdown != null) qualityDropdown.value = tempSettings.qualityLevel;
-            if (hapticsToggle != null) hapticsToggle.isOn = tempSettings.enableHaptics;
-            if (hapticIntensitySlider != null) hapticIntensitySlider.value = tempSettings.hapticIntensity;
-            if (displayOriginalLanguageToggle != null) displayOriginalLanguageToggle.isOn = tempSettings.displayOriginalLanguage;
-            if (particleDensitySlider != null) particleDensitySlider.value = tempSettings.particleDensity;
-            if (leftControllerZOffsetSlider != null) leftControllerZOffsetSlider.value = tempSettings.leftControllerZOffset;
-            if (rightControllerZOffsetSlider != null) rightControllerZOffsetSlider.value = tempSettings.rightControllerZOffset;
-            if (leftControllerYOffsetSlider != null) leftControllerYOffsetSlider.value = tempSettings.leftControllerYOffset;
-            if (rightControllerYOffsetSlider != null) rightControllerYOffsetSlider.value = tempSettings.rightControllerYOffset;
-            if (controllerRotationOffsetSlider != null) controllerRotationOffsetSlider.value = tempSettings.controllerRotationOffset;
+            if (audioOffsetSlider != null)
+                audioOffsetSlider.value = tempSettings.audioOffsetMs;
+            if (masterVolumeSlider != null)
+                masterVolumeSlider.value = tempSettings.masterVolume;
+            if (musicVolumeSlider != null)
+                musicVolumeSlider.value = tempSettings.musicVolume;
+            if (sfxVolumeSlider != null)
+                sfxVolumeSlider.value = tempSettings.sfxVolume;
+            if (qualityDropdown != null)
+                qualityDropdown.value = tempSettings.qualityLevel;
+            if (hapticsToggle != null)
+                hapticsToggle.isOn = tempSettings.enableHaptics;
+            if (hapticIntensitySlider != null)
+                hapticIntensitySlider.value = tempSettings.hapticIntensity;
+            if (displayOriginalLanguageToggle != null)
+                displayOriginalLanguageToggle.isOn = tempSettings.displayOriginalLanguage;
+            if (particleDensitySlider != null)
+                particleDensitySlider.value = tempSettings.particleDensity;
+            if (leftControllerZOffsetSlider != null)
+                leftControllerZOffsetSlider.value = tempSettings.leftControllerZOffset;
+            if (rightControllerZOffsetSlider != null)
+                rightControllerZOffsetSlider.value = tempSettings.rightControllerZOffset;
+            if (leftControllerYOffsetSlider != null)
+                leftControllerYOffsetSlider.value = tempSettings.leftControllerYOffset;
+            if (rightControllerYOffsetSlider != null)
+                rightControllerYOffsetSlider.value = tempSettings.rightControllerYOffset;
+            if (controllerRotationOffsetSlider != null)
+                controllerRotationOffsetSlider.value = tempSettings.controllerRotationOffset;
         }
 
         #endregion
@@ -854,10 +900,7 @@ namespace OsuVR
                 trigger = obj.AddComponent<EventTrigger>();
             }
 
-            var enterEntry = new EventTrigger.Entry
-            {
-                eventID = EventTriggerType.PointerEnter
-            };
+            var enterEntry = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
             enterEntry.callback.AddListener((_) => PlayHoverSound());
             trigger.triggers.Add(enterEntry);
         }

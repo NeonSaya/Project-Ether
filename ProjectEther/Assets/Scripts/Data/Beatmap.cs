@@ -27,6 +27,7 @@ namespace OsuVR
             ComboColors.Add(new Color(0.34f, 0.80f, 0.93f)); // 蓝色
             ComboColors.Add(new Color(0.97f, 0.86f, 0.38f)); // 黄色
         }
+
         /// <summary>
         /// 获取指定时间的红线 (BPM)
         /// </summary>
@@ -111,7 +112,8 @@ namespace OsuVR
         public List<string> StoryboardLines { get; set; } = new List<string>();
 
         // --- Storyboard 变量 ([Variables] 段) ---
-        public Dictionary<string, string> Variables { get; set; } = new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, string> Variables { get; set; } =
+            new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase);
     }
 
     [Preserve]
@@ -119,7 +121,12 @@ namespace OsuVR
     {
         public double StartTime;
         public double EndTime;
-        public BreakPeriod(double start, double end) { StartTime = start; EndTime = end; }
+
+        public BreakPeriod(double start, double end)
+        {
+            StartTime = start;
+            EndTime = end;
+        }
     }
 
     [Preserve]
@@ -127,7 +134,12 @@ namespace OsuVR
     {
         public double StartTime;
         public double EndTime;
-        public KiaiPeriod(double start, double end) { StartTime = start; EndTime = end; }
+
+        public KiaiPeriod(double start, double end)
+        {
+            StartTime = start;
+            EndTime = end;
+        }
     }
 
     [Preserve]
@@ -146,6 +158,7 @@ namespace OsuVR
         public int TimeSignature;
         public int Volume;
         public bool IsKiai;
+
         public TimingPoint(double time, double msPerBeat, int timeSignature, int volume = 100)
         {
             Time = time;
@@ -166,7 +179,9 @@ namespace OsuVR
 
         public DifficultyPoint(double time, double speedMultiplier, int volume = 100)
         {
-            Time = time; SpeedMultiplier = speedMultiplier; Volume = volume;
+            Time = time;
+            SpeedMultiplier = speedMultiplier;
+            Volume = volume;
             IsKiai = false;
         }
     }

@@ -28,7 +28,8 @@ namespace OsuVR
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void AutoCreate()
         {
-            if (Instance != null) return;
+            if (Instance != null)
+                return;
             var go = new GameObject("[VRSceneTransition]");
             Instance = go.AddComponent<VRSceneTransitionManager>();
         }
@@ -79,7 +80,6 @@ namespace OsuVR
             var img = panel.AddComponent<Image>();
             img.color = fadeColor;
             img.raycastTarget = false;
-
         }
 
         // =========================================================
@@ -93,7 +93,8 @@ namespace OsuVR
             {
                 // 场景切换中相机可能短暂为 null，尝试查找
                 cam = FindFirstObjectByType<Camera>();
-                if (cam == null) return;
+                if (cam == null)
+                    return;
             }
 
             // Canvas 放在相机前方 0.5m，尺寸自适应

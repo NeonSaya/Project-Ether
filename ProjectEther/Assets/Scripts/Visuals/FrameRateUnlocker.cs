@@ -12,8 +12,10 @@ namespace OsuVR
 #if UNITY_STANDALONE_WIN && !UNITY_EDITOR
         [DllImport("user32.dll")]
         static extern IntPtr GetActiveWindow();
+
         [DllImport("user32.dll")]
         static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
         [DllImport("user32.dll")]
         static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
 
@@ -24,7 +26,8 @@ namespace OsuVR
         static void MakeWindowResizable()
         {
             IntPtr hwnd = GetActiveWindow();
-            if (hwnd == IntPtr.Zero) return;
+            if (hwnd == IntPtr.Zero)
+                return;
             int style = GetWindowLong(hwnd, GWL_STYLE);
             style |= WS_THICKFRAME | WS_MAXIMIZEBOX;
             SetWindowLong(hwnd, GWL_STYLE, style);
@@ -63,7 +66,10 @@ namespace OsuVR
             // 减少输入延迟
             QualitySettings.maxQueuedFrames = 1;
 
-            if (Application.platform == RuntimePlatform.WindowsPlayer || Application.platform == RuntimePlatform.WindowsEditor)
+            if (
+                Application.platform == RuntimePlatform.WindowsPlayer
+                || Application.platform == RuntimePlatform.WindowsEditor
+            )
             {
                 // PC 模式: 窗口化 + 可缩放 + 可最大化
                 Screen.fullScreenMode = FullScreenMode.Windowed;
@@ -73,7 +79,9 @@ namespace OsuVR
                 yield return null;
                 MakeWindowResizable();
 #endif
-                Debug.Log($"[FrameRate] PC Mode: Windowed (resizable), Target: {pcTargetFrameRate}, VSync: 0");
+                Debug.Log(
+                    $"[FrameRate] PC Mode: Windowed (resizable), Target: {pcTargetFrameRate}, VSync: 0"
+                );
             }
             else if (Application.platform == RuntimePlatform.Android)
             {
@@ -102,7 +110,9 @@ namespace OsuVR
             var display = displays[0];
 
             // 目标帧率优先级
-            float[] targets = tryForce120Hz ? new float[] { 120f, 90f, 80f, 72f } : new float[] { 90f, 80f, 72f };
+            float[] targets = tryForce120Hz
+                ? new float[] { 120f, 90f, 80f, 72f }
+                : new float[] { 90f, 80f, 72f };
 
             // =========================================================
             // 方案 A: 使用 Unity 2022+ 标准 API (如果有)
@@ -126,7 +136,9 @@ namespace OsuVR
 
                 if (CallTrySetRateReflectively(display, targetRate))
                 {
-                    Debug.Log($"<color=green>[FrameRate] Success (XR API)! Locked to {targetRate}Hz</color>");
+                    Debug.Log(
+                        $"<color=green>[FrameRate] Success (XR API)! Locked to {targetRate}Hz</color>"
+                    );
                     Application.targetFrameRate = (int)targetRate;
                     success = true;
                     break;
@@ -143,7 +155,9 @@ namespace OsuVR
                 {
                     if (SetRateViaOculusAndroid(targetRate))
                     {
-                        Debug.Log($"<color=green>[FrameRate] Success (Android Native)! Locked to {targetRate}Hz</color>");
+                        Debug.Log(
+                            $"<color=green>[FrameRate] Success (Android Native)! Locked to {targetRate}Hz</color>"
+                        );
                         Application.targetFrameRate = (int)targetRate;
                         success = true;
                         break;
@@ -153,7 +167,9 @@ namespace OsuVR
 
             if (!success)
             {
-                Debug.LogWarning("[FrameRate] Failed to set high refresh rate. Running at system default.");
+                Debug.LogWarning(
+                    "[FrameRate] Failed to set high refresh rate. Running at system default."
+                );
             }
         }
 
@@ -193,11 +209,16 @@ namespace OsuVR
                 using (var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
                 using (var activity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity"))
                 using (var window = activity.Call<AndroidJavaObject>("getWindow"))
-                using (var display = window.Call<AndroidJavaObject>("getWindowManager").Call<AndroidJavaObject>("getDefaultDisplay"))
+                using (
+                    var display = window
+                        .Call<AndroidJavaObject>("getWindowManager")
+                        .Call<AndroidJavaObject>("getDefaultDisplay")
+                )
                 {
                     var modes = display.Call<AndroidJavaObject[]>("getSupportedModes");
-                    
-                    if (modes == null) return false;
+
+                    if (modes == null)
+                        return false;
 
                     foreach (var mode in modes)
                     {
@@ -206,8 +227,10 @@ namespace OsuVR
                         if (Mathf.Abs(modeRate - rate) < 0.5f)
                         {
                             int modeId = mode.Call<int>("getModeId");
-                            
-                            using (var layoutParams = window.Call<AndroidJavaObject>("getAttributes"))
+
+                            using (
+                                var layoutParams = window.Call<AndroidJavaObject>("getAttributes")
+                            )
                             {
                                 layoutParams.Set("preferredDisplayModeId", modeId);
                                 window.Call("setAttributes", layoutParams);

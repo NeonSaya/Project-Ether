@@ -1,8 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using TMPro;
 using UnityEngine.UI;
 
 namespace OsuVR
@@ -19,40 +19,40 @@ namespace OsuVR
         // UI 引用
         // =========================================================
         [Header("UI 引用")]
-        public GameObject resultPanel;          // 结算面板根对象
-        public CanvasGroup canvasGroup;         // 用于淡入淡出
+        public GameObject resultPanel; // 结算面板根对象
+        public CanvasGroup canvasGroup; // 用于淡入淡出
 
         [Header("歌曲信息")]
-        public TextMeshProUGUI textTitle;       // 曲名
-        public TextMeshProUGUI textArtist;      // 艺术家
-        public TextMeshProUGUI textDifficulty;  // 难度名称
-        public TextMeshProUGUI textMapper;      // 谱师
+        public TextMeshProUGUI textTitle; // 曲名
+        public TextMeshProUGUI textArtist; // 艺术家
+        public TextMeshProUGUI textDifficulty; // 难度名称
+        public TextMeshProUGUI textMapper; // 谱师
 
         [Header("分数显示")]
-        public TextMeshProUGUI textScore;       // 最终分数
-        public TextMeshProUGUI textAccuracy;    // 准确率
-        public TextMeshProUGUI textMaxCombo;    // 最大连击
-        public TextMeshProUGUI textRank;        // 评级 (SS/S/A/B/C/D/F)
+        public TextMeshProUGUI textScore; // 最终分数
+        public TextMeshProUGUI textAccuracy; // 准确率
+        public TextMeshProUGUI textMaxCombo; // 最大连击
+        public TextMeshProUGUI textRank; // 评级 (SS/S/A/B/C/D/F)
 
         [Header("判定统计")]
-        public TextMeshProUGUI textHit300;      // 300 判定数
-        public TextMeshProUGUI textHit100;      // 100 判定数
-        public TextMeshProUGUI textHit50;       // 50 判定数
-        public TextMeshProUGUI textMiss;        // Miss 判定数
+        public TextMeshProUGUI textHit300; // 300 判定数
+        public TextMeshProUGUI textHit100; // 100 判定数
+        public TextMeshProUGUI textHit50; // 50 判定数
+        public TextMeshProUGUI textMiss; // Miss 判定数
 
         [Header("滑条统计")]
-        public TextMeshProUGUI textSliderInfo;  // 滑条完成情况
+        public TextMeshProUGUI textSliderInfo; // 滑条完成情况
 
         [Header("奖励")]
         public TextMeshProUGUI textSpinnerBonus; // 转盘奖励分
 
         [Header("Mod 显示")]
-        public TextMeshProUGUI textMods;        // 使用的 Mod
+        public TextMeshProUGUI textMods; // 使用的 Mod
 
         [Header("按钮")]
-        public Button buttonRetry;              // 重试按钮
-        public Button buttonBackToMenu;         // 返回菜单按钮
-        public Button buttonWatchReplay;        // 观看回放按钮 (未实现)
+        public Button buttonRetry; // 重试按钮
+        public Button buttonBackToMenu; // 返回菜单按钮
+        public Button buttonWatchReplay; // 观看回放按钮 (未实现)
 
         // =========================================================
         // 动画设置
@@ -60,44 +60,51 @@ namespace OsuVR
         [Header("动画设置")]
         [Tooltip("分数滚动时长 (秒)")]
         public float scoreAnimDuration = 0.8f;
+
         [Tooltip("评级出现延迟 (秒)")]
         public float rankAppearDelay = 0.5f;
+
         [Tooltip("淡入淡出时长 (秒)")]
         public float fadeDuration = 0.3f;
+
         [Tooltip("缩放动画曲线")]
         public AnimationCurve scaleCurve;
+
         [Tooltip("单项判定统计滚动时长 (秒)")]
         public float statAnimDuration = 0.15f;
+
         [Tooltip("判定统计间隔 (秒)")]
         public float statDelay = 0.05f;
 
         [Header("评级动画")]
         [Tooltip("评级弹出放大倍数")]
         public float rankPunchScale = 1.2f;
+
         [Tooltip("评级动画时长 (秒)")]
         public float rankPunchDuration = 0.2f;
+
         [Tooltip("评级发光颜色")]
         public Color rankGlowColor = Color.yellow;
 
         [Header("全连特效")]
-        public GameObject fullComboEffect;      // 全连特效对象
+        public GameObject fullComboEffect; // 全连特效对象
         public ParticleSystem fullComboParticles; // 全连粒子效果
 
         [Header("音效")]
-        public AudioClip resultAppearSound;     // 结算出现音效
-        public AudioClip rankAppearSound;       // 评级出现音效
-        public AudioClip fullComboSound;        // 全连音效
-        public AudioSource audioSource;         // 音源
+        public AudioClip resultAppearSound; // 结算出现音效
+        public AudioClip rankAppearSound; // 评级出现音效
+        public AudioClip fullComboSound; // 全连音效
+        public AudioSource audioSource; // 音源
 
         // =========================================================
         // 内部状态
         // =========================================================
-        private ResultData currentResult;       // 当前结算数据
-        private long displayScore = 0;          // 当前显示的分数 (用于动画)
-        private double displayAccuracy = 0;     // 当前显示的准确率 (用于动画)
-        private bool isAnimating = false;       // 是否正在播放动画
+        private ResultData currentResult; // 当前结算数据
+        private long displayScore = 0; // 当前显示的分数 (用于动画)
+        private double displayAccuracy = 0; // 当前显示的准确率 (用于动画)
+        private bool isAnimating = false; // 是否正在播放动画
 
-        private Vector3 originalPanelScale;     // 面板原始缩放
+        private Vector3 originalPanelScale; // 面板原始缩放
 
         // =========================================================
         // 生命周期
@@ -124,7 +131,8 @@ namespace OsuVR
                 scaleCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
             }
 
-            originalPanelScale = resultPanel != null ? resultPanel.transform.localScale : Vector3.one;
+            originalPanelScale =
+                resultPanel != null ? resultPanel.transform.localScale : Vector3.one;
         }
 
         void OnEnable()
@@ -149,7 +157,7 @@ namespace OsuVR
                 { "Rank", "ui_rank" },
                 { "RETRY", "ui_retry" },
                 { "Back to Menu", "ui_song_select" }, // 实际跳选歌场景（:701），与 VRPauseMenu 同一映射
-                { "Mapper", "ui_mapper" }
+                { "Mapper", "ui_mapper" },
             };
 
             foreach (var text in allTexts)
@@ -189,7 +197,11 @@ namespace OsuVR
             if (textSliderInfo != null && result.totalSliders > 0)
             {
                 string sliderTemplate = LocalizationManager.GetText("ui_sliders_info");
-                textSliderInfo.text = string.Format(sliderTemplate, result.slidersPerfect, result.totalSliders);
+                textSliderInfo.text = string.Format(
+                    sliderTemplate,
+                    result.slidersPerfect,
+                    result.totalSliders
+                );
             }
 
             if (textSpinnerBonus != null && result.spinnerBonus > 0)
@@ -281,7 +293,11 @@ namespace OsuVR
                     canvasGroup.alpha = t;
 
                 if (resultPanel != null)
-                    resultPanel.transform.localScale = Vector3.Lerp(Vector3.zero, originalPanelScale, scaleCurve.Evaluate(t));
+                    resultPanel.transform.localScale = Vector3.Lerp(
+                        Vector3.zero,
+                        originalPanelScale,
+                        scaleCurve.Evaluate(t)
+                    );
 
                 yield return null;
             }
@@ -342,14 +358,20 @@ namespace OsuVR
             }
 
             // 清空判定统计
-            if (textHit300 != null) textHit300.text = "";
-            if (textHit100 != null) textHit100.text = "";
-            if (textHit50 != null) textHit50.text = "";
-            if (textMiss != null) textMiss.text = "";
+            if (textHit300 != null)
+                textHit300.text = "";
+            if (textHit100 != null)
+                textHit100.text = "";
+            if (textHit50 != null)
+                textHit50.text = "";
+            if (textMiss != null)
+                textMiss.text = "";
 
             // 清空滑条和转盘信息
-            if (textSliderInfo != null) textSliderInfo.text = "";
-            if (textSpinnerBonus != null) textSpinnerBonus.text = "";
+            if (textSliderInfo != null)
+                textSliderInfo.text = "";
+            if (textSpinnerBonus != null)
+                textSpinnerBonus.text = "";
         }
 
         /// <summary>
@@ -399,7 +421,11 @@ namespace OsuVR
                 if (textScore != null)
                     textScore.text = displayScore.ToString("D7");
                 if (textAccuracy != null)
-                    textAccuracy.text = (displayAccuracy * 100).ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + "%";
+                    textAccuracy.text =
+                        (displayAccuracy * 100).ToString(
+                            "F2",
+                            System.Globalization.CultureInfo.InvariantCulture
+                        ) + "%";
                 if (textMaxCombo != null)
                     textMaxCombo.text = $"{result.maxCombo}x";
 
@@ -413,7 +439,11 @@ namespace OsuVR
             if (textScore != null)
                 textScore.text = result.finalScore.ToString("D7");
             if (textAccuracy != null)
-                textAccuracy.text = (result.accuracy * 100).ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + "%";
+                textAccuracy.text =
+                    (result.accuracy * 100).ToString(
+                        "F2",
+                        System.Globalization.CultureInfo.InvariantCulture
+                    ) + "%";
             if (textMaxCombo != null)
             {
                 textMaxCombo.text = $"{result.maxCombo}x";
@@ -430,19 +460,36 @@ namespace OsuVR
         /// </summary>
         private IEnumerator AnimateStatistics(ResultData result)
         {
-            yield return StartCoroutine(AnimateNumber(textHit300, result.hit300, LocalizationManager.GetText("ui_hit300")));
+            yield return StartCoroutine(
+                AnimateNumber(textHit300, result.hit300, LocalizationManager.GetText("ui_hit300"))
+            );
             yield return new WaitForSeconds(statDelay);
-            yield return StartCoroutine(AnimateNumber(textHit100, result.hit100, LocalizationManager.GetText("ui_hit100")));
+            yield return StartCoroutine(
+                AnimateNumber(textHit100, result.hit100, LocalizationManager.GetText("ui_hit100"))
+            );
             yield return new WaitForSeconds(statDelay);
-            yield return StartCoroutine(AnimateNumber(textHit50, result.hit50, LocalizationManager.GetText("ui_hit50")));
+            yield return StartCoroutine(
+                AnimateNumber(textHit50, result.hit50, LocalizationManager.GetText("ui_hit50"))
+            );
             yield return new WaitForSeconds(statDelay);
-            yield return StartCoroutine(AnimateNumber(textMiss, result.hitMiss, LocalizationManager.GetText("ui_miss"), Color.red));
+            yield return StartCoroutine(
+                AnimateNumber(
+                    textMiss,
+                    result.hitMiss,
+                    LocalizationManager.GetText("ui_miss"),
+                    Color.red
+                )
+            );
 
             // 滑条信息
             if (textSliderInfo != null && result.totalSliders > 0)
             {
                 string sliderTemplate = LocalizationManager.GetText("ui_sliders_info");
-                textSliderInfo.text = string.Format(sliderTemplate, result.slidersPerfect, result.totalSliders);
+                textSliderInfo.text = string.Format(
+                    sliderTemplate,
+                    result.slidersPerfect,
+                    result.totalSliders
+                );
             }
 
             // 转盘奖励
@@ -456,9 +503,15 @@ namespace OsuVR
         /// <summary>
         /// 单个数字滚动动画
         /// </summary>
-        private IEnumerator AnimateNumber(TextMeshProUGUI text, int target, string label, Color? color = null)
+        private IEnumerator AnimateNumber(
+            TextMeshProUGUI text,
+            int target,
+            string label,
+            Color? color = null
+        )
         {
-            if (text == null) yield break;
+            if (text == null)
+                yield break;
 
             int current = 0;
             float duration = statAnimDuration;
@@ -482,7 +535,8 @@ namespace OsuVR
         /// </summary>
         private IEnumerator ShowRank(ResultData result)
         {
-            if (textRank == null) yield break;
+            if (textRank == null)
+                yield break;
 
             textRank.text = result.rank;
             textRank.color = ResultData.GetRankColor(result.rank);
@@ -525,10 +579,14 @@ namespace OsuVR
                 useOriginalLanguage = SettingsManager.Instance.Settings.displayOriginalLanguage;
 
             // Inspector 未绑定时自动查找子对象
-            if (textTitle == null) textTitle = FindChildText("Title", "SongTitle");
-            if (textArtist == null) textArtist = FindChildText("Artist", "SongArtist");
-            if (textDifficulty == null) textDifficulty = FindChildText("Difficulty", "Version");
-            if (textMapper == null) textMapper = FindChildText("Mapper", "Creator");
+            if (textTitle == null)
+                textTitle = FindChildText("Title", "SongTitle");
+            if (textArtist == null)
+                textArtist = FindChildText("Artist", "SongArtist");
+            if (textDifficulty == null)
+                textDifficulty = FindChildText("Difficulty", "Version");
+            if (textMapper == null)
+                textMapper = FindChildText("Mapper", "Creator");
 
             string title = result.GetDisplayTitle(useOriginalLanguage);
             string artist = result.GetDisplayArtist(useOriginalLanguage);
@@ -541,7 +599,8 @@ namespace OsuVR
                 textTitle.text = $"<i><size=75%><margin=10%>{titleText}</i></size></margin>";
                 ApplySingleLineStyle(textTitle);
             }
-            else Debug.LogWarning("[Result] textTitle 未绑定且未找到子对象, 歌名无法显示");
+            else
+                Debug.LogWarning("[Result] textTitle 未绑定且未找到子对象, 歌名无法显示");
 
             if (textArtist != null)
             {
@@ -554,7 +613,9 @@ namespace OsuVR
             if (textDifficulty != null)
             {
                 ApplyCJKFont(textDifficulty);
-                string diffName = string.IsNullOrEmpty(result.difficultyName) ? LocalizationManager.GetText("ui_normal") : result.difficultyName;
+                string diffName = string.IsNullOrEmpty(result.difficultyName)
+                    ? LocalizationManager.GetText("ui_normal")
+                    : result.difficultyName;
                 textDifficulty.text = $"[{diffName}]";
                 ApplySingleLineStyle(textDifficulty);
             }
@@ -562,13 +623,17 @@ namespace OsuVR
             if (textMapper != null)
             {
                 ApplyCJKFont(textMapper);
-                string mapperName = string.IsNullOrEmpty(result.mapperName) ? LocalizationManager.GetText("ui_unknown_mapper") : result.mapperName;
+                string mapperName = string.IsNullOrEmpty(result.mapperName)
+                    ? LocalizationManager.GetText("ui_unknown_mapper")
+                    : result.mapperName;
                 string mappedByTemplate = LocalizationManager.GetText("ui_mapped_by");
                 textMapper.text = string.Format(mappedByTemplate, mapperName);
                 ApplySingleLineStyle(textMapper);
             }
 
-            Debug.Log($"[Result] 歌曲信息: title={title}, artist={artist}, diff={result.difficultyName}");
+            Debug.Log(
+                $"[Result] 歌曲信息: title={title}, artist={artist}, diff={result.difficultyName}"
+            );
         }
 
         /// <summary>
@@ -584,7 +649,8 @@ namespace OsuVR
             var panelRt = rt.parent as RectTransform;
             // 面板为全拉伸矩形，宽度 = 画布宽；留 80 边距，布局异常时兜底 1120
             float width = panelRt != null ? panelRt.rect.width - 80f : 1120f;
-            if (width < 200f) width = 1120f;
+            if (width < 200f)
+                width = 1120f;
 
             // TMP 省略号模式要求"单行行高"能放进矩形（CJK 字体行高约 1.55×字号），
             // 行高不足时 TMP 判定整行放不下会直接不渲染（实测 22 号字在 30 高矩形下为空）。
@@ -602,7 +668,8 @@ namespace OsuVR
                 string goName = text.gameObject.name;
                 foreach (var name in names)
                 {
-                    if (goName.Contains(name)) return text;
+                    if (goName.Contains(name))
+                        return text;
                 }
             }
             return null;
@@ -616,18 +683,25 @@ namespace OsuVR
 
         void ApplyCJKFont(TMP_Text tmpText)
         {
-            if (tmpText == null) return;
+            if (tmpText == null)
+                return;
 
             if (_cjkFont == null)
             {
-                _cjkFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/SourceHanSansSC-Regular SDF");
+                _cjkFont = Resources.Load<TMP_FontAsset>(
+                    "Fonts & Materials/SourceHanSansSC-Regular SDF"
+                );
                 if (_cjkFont == null)
                     _cjkFont = Resources.Load<TMP_FontAsset>("SourceHanSansSC-Regular SDF");
                 if (_cjkFont == null)
                 {
                     foreach (var font in Resources.LoadAll<TMP_FontAsset>(""))
                     {
-                        if (font.HasCharacter('\u65E5')) { _cjkFont = font; break; }
+                        if (font.HasCharacter('\u65E5'))
+                        {
+                            _cjkFont = font;
+                            break;
+                        }
                     }
                 }
                 if (_cjkFont != null)
@@ -693,7 +767,9 @@ namespace OsuVR
                 GameContext.Instance.ShouldRetry = true;
 
                 // 跳转到游戏场景
-                VRSceneTransitionManager.Instance.TransitionToScene(GameContext.Instance.GameSceneName);
+                VRSceneTransitionManager.Instance.TransitionToScene(
+                    GameContext.Instance.GameSceneName
+                );
             }
         }
 
@@ -715,7 +791,9 @@ namespace OsuVR
                 GameContext.Instance.ShouldRetry = false;
 
                 // 跳转到菜单场景
-                VRSceneTransitionManager.Instance.TransitionToScene(GameContext.Instance.SongSelectSceneName);
+                VRSceneTransitionManager.Instance.TransitionToScene(
+                    GameContext.Instance.SongSelectSceneName
+                );
             }
             else
             {

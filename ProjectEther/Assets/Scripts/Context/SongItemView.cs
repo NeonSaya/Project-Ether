@@ -1,7 +1,7 @@
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.Events;
+using UnityEngine.UI;
 
 namespace OsuVR
 {
@@ -39,7 +39,11 @@ namespace OsuVR
             RefreshDisplay();
         }
 
-        public void Setup(BeatmapMetadata metadata, int difficultyCount, UnityAction<BeatmapMetadata> onClickAction)
+        public void Setup(
+            BeatmapMetadata metadata,
+            int difficultyCount,
+            UnityAction<BeatmapMetadata> onClickAction
+        )
         {
             _metadata = metadata;
 
@@ -49,9 +53,12 @@ namespace OsuVR
                 useOriginalLanguage = SettingsManager.Instance.Settings.displayOriginalLanguage;
             }
 
-            if (titleText) titleText.text = metadata.GetDisplayTitle(useOriginalLanguage);
-            if (artistText) artistText.text = metadata.GetDisplayArtist(useOriginalLanguage);
-            if (difficultyCountText) difficultyCountText.text = $"{difficultyCount}D";
+            if (titleText)
+                titleText.text = metadata.GetDisplayTitle(useOriginalLanguage);
+            if (artistText)
+                artistText.text = metadata.GetDisplayArtist(useOriginalLanguage);
+            if (difficultyCountText)
+                difficultyCountText.text = $"{difficultyCount}D";
 
             if (backgroundImage == null)
             {
@@ -77,15 +84,18 @@ namespace OsuVR
             }
 
             Color textColor = selected ? SelectedTextColor : NormalTextColor;
-            if (titleText) titleText.color = textColor;
-            if (artistText) artistText.color = selected ? SelectedTextColor : new Color(0.7f, 0.7f, 0.7f);
+            if (titleText)
+                titleText.color = textColor;
+            if (artistText)
+                artistText.color = selected ? SelectedTextColor : new Color(0.7f, 0.7f, 0.7f);
         }
 
         public bool IsSelected => _isSelected;
 
         public void RefreshDisplay()
         {
-            if (_metadata == null) return;
+            if (_metadata == null)
+                return;
 
             bool useOriginalLanguage = false;
             if (SettingsManager.Instance != null && SettingsManager.Instance.Settings != null)
@@ -93,8 +103,10 @@ namespace OsuVR
                 useOriginalLanguage = SettingsManager.Instance.Settings.displayOriginalLanguage;
             }
 
-            if (titleText) titleText.text = _metadata.GetDisplayTitle(useOriginalLanguage);
-            if (artistText) artistText.text = _metadata.GetDisplayArtist(useOriginalLanguage);
+            if (titleText)
+                titleText.text = _metadata.GetDisplayTitle(useOriginalLanguage);
+            if (artistText)
+                artistText.text = _metadata.GetDisplayArtist(useOriginalLanguage);
         }
     }
 }

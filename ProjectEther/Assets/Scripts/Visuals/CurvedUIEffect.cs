@@ -1,6 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using System.Collections.Generic;
 
 namespace OsuVR
 {
@@ -39,7 +39,8 @@ namespace OsuVR
 
         public override void ModifyMesh(VertexHelper vh)
         {
-            if (!IsActive() || vh.currentVertCount == 0) return;
+            if (!IsActive() || vh.currentVertCount == 0)
+                return;
 
             // 安全检查：防止半径为 0 导致除零错误
             if (Mathf.Abs(curveRadius) < 0.1f)
@@ -88,7 +89,8 @@ namespace OsuVR
         {
             // 只有当是标准的 Quad (4顶点, 2三角形) 时才处理
             // TextMeshPro 的字本身就有很多顶点，不需要细分
-            if (vh.currentVertCount != 4) return;
+            if (vh.currentVertCount != 4)
+                return;
 
             UIVertex v0 = new UIVertex();
             UIVertex v1 = new UIVertex();
@@ -115,7 +117,10 @@ namespace OsuVR
                 UIVertex newV2 = LerpUIVertex(v1, v2, t2);
                 UIVertex newV3 = LerpUIVertex(v0, v3, t2);
 
-                quadBuffer[0] = newV0; quadBuffer[1] = newV1; quadBuffer[2] = newV2; quadBuffer[3] = newV3;
+                quadBuffer[0] = newV0;
+                quadBuffer[1] = newV1;
+                quadBuffer[2] = newV2;
+                quadBuffer[3] = newV3;
                 vh.AddUIVertexQuad(quadBuffer);
             }
         }

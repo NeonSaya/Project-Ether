@@ -1,10 +1,10 @@
 using System;
-using UnityEngine;
-using UnityEngine.Rendering;
-using Unity.Jobs;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Jobs;
 using Unity.Mathematics;
+using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace OsuVR
 {
@@ -38,91 +38,119 @@ namespace OsuVR
 
         [Header("粒子基础参数")]
         [Tooltip("最大粒子数量")]
-        [SerializeField] private int maxParticles = 12000;
+        [SerializeField]
+        private int maxParticles = 12000;
 
         [Tooltip("发射速率")]
-        [SerializeField] private int emissionRate = 120;
+        [SerializeField]
+        private int emissionRate = 120;
 
         [Tooltip("外层包裹半径（越大粒子场越广）")]
-        [SerializeField] private float outerRadius = 50f;
+        [SerializeField]
+        private float outerRadius = 50f;
 
         [Tooltip("内层排除半径（避免干扰读谱）")]
-        [SerializeField] private float innerRadius = 4.0f;
+        [SerializeField]
+        private float innerRadius = 4.0f;
 
         [Tooltip("内层区域最大粒子数（限制干扰）")]
-        [SerializeField] private int innerMaxParticles = 1500;
+        [SerializeField]
+        private int innerMaxParticles = 1500;
 
         [Tooltip("基础粒子大小")]
-        [SerializeField] private float baseParticleSize = 0.4f;
+        [SerializeField]
+        private float baseParticleSize = 0.4f;
 
         [Header("音频响应参数")]
         [Tooltip("Bass 对湍流的最大影响值")]
-        [SerializeField] private float maxNoiseStrength = 1.2f;
+        [SerializeField]
+        private float maxNoiseStrength = 1.2f;
 
         [Tooltip("基础湍流强度")]
-        [SerializeField] private float baseNoiseStrength = 0.2f;
+        [SerializeField]
+        private float baseNoiseStrength = 0.2f;
 
         [Tooltip("Bass 对亮度脉冲的最大乘数")]
-        [SerializeField] private float maxBassBrightness = 2.0f;
+        [SerializeField]
+        private float maxBassBrightness = 2.0f;
 
         [Tooltip("Bass 对 Size 脉冲的最大乘数")]
-        [SerializeField] private float maxBassSizePulse = 0.4f;
+        [SerializeField]
+        private float maxBassSizePulse = 0.4f;
 
         [Tooltip("Bass 脉冲速度")]
-        [SerializeField] private float bassPulseSpeed = 2f;
+        [SerializeField]
+        private float bassPulseSpeed = 2f;
 
         [Tooltip("Treble 对色相偏移速度")]
-        [SerializeField] private float trebleHueSpeed = 0.4f;
+        [SerializeField]
+        private float trebleHueSpeed = 0.4f;
 
         [Tooltip("Mid 对旋转加成")]
-        [SerializeField] private float maxMidRotationSpeed = 0.5f;
+        [SerializeField]
+        private float maxMidRotationSpeed = 0.5f;
 
         [Tooltip("响应平滑速度")]
-        [SerializeField] private float responseSmoothSpeed = 12f;
+        [SerializeField]
+        private float responseSmoothSpeed = 12f;
 
         [Header("节拍驱动参数")]
         [Tooltip("节拍闪烁亮度峰值")]
-        [SerializeField] private float beatFlashPeak = 3.5f;
+        [SerializeField]
+        private float beatFlashPeak = 3.5f;
 
         [Tooltip("节拍 size 脉冲峰值")]
-        [SerializeField] private float beatSizePeak = 1.8f;
+        [SerializeField]
+        private float beatSizePeak = 1.8f;
 
         [Tooltip("节拍闪烁衰减速度")]
-        [SerializeField] private float beatFlashDecay = 8f;
+        [SerializeField]
+        private float beatFlashDecay = 8f;
 
         [Tooltip("节拍 size 脉冲衰减速度")]
-        [SerializeField] private float beatSizeDecay = 6f;
+        [SerializeField]
+        private float beatSizeDecay = 6f;
 
         [Tooltip("节拍提前量（秒），让视觉提前于音频一点到达")]
-        [SerializeField] private float beatAnticipation = 0.02f;
+        [SerializeField]
+        private float beatAnticipation = 0.02f;
 
         [Tooltip("无谱面时的默认 BPM")]
-        [SerializeField] private float fallbackBPM = 120f;
+        [SerializeField]
+        private float fallbackBPM = 120f;
 
         [Header("Kiai 段参数")]
         [Tooltip("Kiai 期间粒子上升速度")]
-        [SerializeField] private float kiaiRiseSpeed = 3.0f;
+        [SerializeField]
+        private float kiaiRiseSpeed = 3.0f;
 
         [Tooltip("Kiai 期间 Mid 对上升速度的加成")]
-        [SerializeField] private float kiaiMidSpeedBonus = 1.2f;
+        [SerializeField]
+        private float kiaiMidSpeedBonus = 1.2f;
 
         [Tooltip("Kiai 亮度增强倍数")]
-        [SerializeField] private float kiaiBrightnessMultiplier = 1.5f;
+        [SerializeField]
+        private float kiaiBrightnessMultiplier = 1.5f;
 
         [Tooltip("Kiai 期间螺旋角速度")]
-        [SerializeField] private float kiaiAngularVelocity = 0.8f;
+        [SerializeField]
+        private float kiaiAngularVelocity = 0.8f;
 
         [Tooltip("Kiai burst 间隔（秒）")]
-        [SerializeField] private float kiaiBurstInterval = 0.5f;
+        [SerializeField]
+        private float kiaiBurstInterval = 0.5f;
 
         [Tooltip("Kiai burst 粒子数")]
-        [SerializeField] private int kiaiBurstCount = 30;
+        [SerializeField]
+        private int kiaiBurstCount = 30;
 
         [Tooltip("Kiai 节拍同步闪烁强度倍率")]
-        [SerializeField] private float kiaiBeatFlashMultiplier = 1.8f;
+        [SerializeField]
+        private float kiaiBeatFlashMultiplier = 1.8f;
 
         [Tooltip("Kiai 节拍 color burst 大小")]
-        [SerializeField] private int kiaiBeatBurstCount = 50;
+        [SerializeField]
+        private int kiaiBeatBurstCount = 50;
 
         // =========================================================
         // 内部状态
@@ -171,13 +199,13 @@ namespace OsuVR
         private float currentVelocityY = 0.1f;
 
         // --- BPM 精准节拍驱动 ---
-        private double nextBeatTimeMs = -1;         // 下一拍的音乐时间（毫秒）
-        private double currentMsPerBeat = 500;       // 当前每拍毫秒数（默认 120BPM）
-        private int currentTimingPointIndex = -1;    // 当前红线索引，用于检测 BPM 变化
-        private float beatFlashIntensity = 0f;       // 当前闪烁强度
-        private float beatSizePulseIntensity = 0f;   // 当前 size 脉冲强度
-        private bool isBeatFrame = false;            // 本帧是否检测到节拍
-        private Beatmap cachedBeatmap;               // 缓存当前谱面引用
+        private double nextBeatTimeMs = -1; // 下一拍的音乐时间（毫秒）
+        private double currentMsPerBeat = 500; // 当前每拍毫秒数（默认 120BPM）
+        private int currentTimingPointIndex = -1; // 当前红线索引，用于检测 BPM 变化
+        private float beatFlashIntensity = 0f; // 当前闪烁强度
+        private float beatSizePulseIntensity = 0f; // 当前 size 脉冲强度
+        private bool isBeatFrame = false; // 本帧是否检测到节拍
+        private Beatmap cachedBeatmap; // 缓存当前谱面引用
 
         // =========================================================
         // 生命周期
@@ -198,7 +226,10 @@ namespace OsuVR
             InitializeMaterialPropertyBlock();
 
             // 预分配 Persistent NativeArray (约束: 绝对禁止每帧 New/Dispose)
-            _particleNative = new NativeArray<ParticleSystem.Particle>(maxParticles, Allocator.Persistent);
+            _particleNative = new NativeArray<ParticleSystem.Particle>(
+                maxParticles,
+                Allocator.Persistent
+            );
             _nativeInitialized = true;
         }
 
@@ -214,7 +245,9 @@ namespace OsuVR
             rhythmGameManager = FindFirstObjectByType<RhythmGameManager>();
             if (rhythmGameManager == null)
             {
-                Debug.LogWarning("[CodeDrivenAmbientParticles] RhythmGameManager 未找到，Kiai/节拍检测将禁用");
+                Debug.LogWarning(
+                    "[CodeDrivenAmbientParticles] RhythmGameManager 未找到，Kiai/节拍检测将禁用"
+                );
             }
         }
 
@@ -263,7 +296,11 @@ namespace OsuVR
             double currentTimeMs = rhythmGameManager.currentMusicTimeMs;
             Beatmap beatmap = rhythmGameManager.GetCurrentBeatmap();
 
-            if (beatmap == null || beatmap.ControlPoints == null || beatmap.ControlPoints.Timing.Count == 0)
+            if (
+                beatmap == null
+                || beatmap.ControlPoints == null
+                || beatmap.ControlPoints.Timing.Count == 0
+            )
             {
                 DetectFallbackBeat();
                 return;
@@ -308,7 +345,10 @@ namespace OsuVR
                 nextBeatTimeMs += currentMsPerBeat;
 
                 // 如果下一拍超出了当前红线范围且存在后续红线，让下一帧的红线检测来重新同步
-                if (tpIndex + 1 < timingPoints.Count && nextBeatTimeMs >= timingPoints[tpIndex + 1].Time)
+                if (
+                    tpIndex + 1 < timingPoints.Count
+                    && nextBeatTimeMs >= timingPoints[tpIndex + 1].Time
+                )
                 {
                     // 标记需要重新同步
                     currentTimingPointIndex = -1;
@@ -319,9 +359,13 @@ namespace OsuVR
         /// <summary>
         /// 二分查找：找到 time 所属的 TimingPoint 索引（最后一个 Time <= time 的）
         /// </summary>
-        private static int FindTimingPointIndex(System.Collections.Generic.List<TimingPoint> timingPoints, double time)
+        private static int FindTimingPointIndex(
+            System.Collections.Generic.List<TimingPoint> timingPoints,
+            double time
+        )
         {
-            int lo = 0, hi = timingPoints.Count - 1;
+            int lo = 0,
+                hi = timingPoints.Count - 1;
             int result = 0;
             while (lo <= hi)
             {
@@ -348,10 +392,12 @@ namespace OsuVR
         private void DetectFallbackBeat()
         {
             var audioManager = AudioVisualizationManager.Instance;
-            if (audioManager == null) return;
+            if (audioManager == null)
+                return;
 
             beatCooldownTimer -= Time.deltaTime;
-            if (beatCooldownTimer < 0f) beatCooldownTimer = 0f;
+            if (beatCooldownTimer < 0f)
+                beatCooldownTimer = 0f;
 
             // fallback 的最短拍间距 = 60/200BPM = 0.3s
             float minBeatInterval = 0.3f;
@@ -444,7 +490,10 @@ namespace OsuVR
                 velocityModule.enabled = true;
                 velocityModule.space = ParticleSystemSimulationSpace.World;
                 velocityModule.x = new ParticleSystem.MinMaxCurve(-0.15f, 0.15f);
-                velocityModule.y = new ParticleSystem.MinMaxCurve(currentSpeed * 0.9f, currentSpeed * 1.1f);
+                velocityModule.y = new ParticleSystem.MinMaxCurve(
+                    currentSpeed * 0.9f,
+                    currentSpeed * 1.1f
+                );
                 velocityModule.z = new ParticleSystem.MinMaxCurve(-0.15f, 0.15f);
 
                 // Kiai: 螺旋上升效果
@@ -514,10 +563,12 @@ namespace OsuVR
         /// </summary>
         private void UpdateParticles()
         {
-            if (ps == null || !_nativeInitialized) return;
+            if (ps == null || !_nativeInitialized)
+                return;
 
             int particleCount = ps.particleCount;
-            if (particleCount == 0) return;
+            if (particleCount == 0)
+                return;
 
             // 1. 主线程: GetParticles → NativeArray (约束: 绝不在 Job 内调用 Unity API)
             int count = ps.GetParticles(_particleNative);
@@ -531,7 +582,7 @@ namespace OsuVR
                 InnerRadiusSq = innerRadius * innerRadius,
                 InnerMaxParticles = innerMaxParticles,
                 IsKiai = isKiaiActive ? (byte)1 : (byte)0,
-                Count = count
+                Count = count,
             };
 
             var handle = job.Schedule(count, 256);
@@ -579,7 +630,8 @@ namespace OsuVR
 
             public void Execute(int i)
             {
-                if (i >= Count) return;
+                if (i >= Count)
+                    return;
 
                 var p = Particles[i];
 
@@ -587,11 +639,16 @@ namespace OsuVR
                 uint seed = p.randomSeed;
                 float hue = HashToFloatBurst(seed);
                 hue = math.fmod(hue + HueOffset, 1f);
-                if (hue < 0f) hue += 1f;
+                if (hue < 0f)
+                    hue += 1f;
 
                 if (IsKiai != 0)
                 {
-                    float warmHue = math.lerp(hue, 0.08f + HashToFloatBurst(seed + 3u) * 0.1f, 0.4f);
+                    float warmHue = math.lerp(
+                        hue,
+                        0.08f + HashToFloatBurst(seed + 3u) * 0.1f,
+                        0.4f
+                    );
                     hue = warmHue;
                 }
 
@@ -646,18 +703,44 @@ namespace OsuVR
                 float x = c * (1f - math.abs(math.fmod(h * 6f, 2f) - 1f));
                 float m = v - c;
 
-                float r, g, b;
+                float r,
+                    g,
+                    b;
                 float hf = h * 6f;
                 int sector = (int)hf;
 
                 switch (sector)
                 {
-                    case 0: r = c; g = x; b = 0f; break;
-                    case 1: r = x; g = c; b = 0f; break;
-                    case 2: r = 0f; g = c; b = x; break;
-                    case 3: r = 0f; g = x; b = c; break;
-                    case 4: r = x; g = 0f; b = c; break;
-                    default: r = c; g = 0f; b = x; break;
+                    case 0:
+                        r = c;
+                        g = x;
+                        b = 0f;
+                        break;
+                    case 1:
+                        r = x;
+                        g = c;
+                        b = 0f;
+                        break;
+                    case 2:
+                        r = 0f;
+                        g = c;
+                        b = x;
+                        break;
+                    case 3:
+                        r = 0f;
+                        g = x;
+                        b = c;
+                        break;
+                    case 4:
+                        r = x;
+                        g = 0f;
+                        b = c;
+                        break;
+                    default:
+                        r = c;
+                        g = 0f;
+                        b = x;
+                        break;
                 }
 
                 return new float4(r + m, g + m, b + m, 1f);
@@ -891,14 +974,14 @@ namespace OsuVR
             cachedColorKeys = new GradientColorKey[]
             {
                 new GradientColorKey(Color.white, 0f),
-                new GradientColorKey(Color.white, 1f)
+                new GradientColorKey(Color.white, 1f),
             };
             cachedAlphaKeys = new GradientAlphaKey[]
             {
                 new GradientAlphaKey(0f, 0f),
                 new GradientAlphaKey(0.25f, 0.08f),
                 new GradientAlphaKey(0.18f, 0.8f),
-                new GradientAlphaKey(0f, 1f)
+                new GradientAlphaKey(0f, 1f),
             };
             cachedFadeGradient = new Gradient();
             cachedFadeGradient.SetKeys(cachedColorKeys, cachedAlphaKeys);
@@ -918,7 +1001,9 @@ namespace OsuVR
         {
             if (AudioVisualizationManager.Instance == null)
             {
-                Debug.LogWarning("[CodeDrivenAmbientParticles] AudioVisualizationManager 未找到，粒子将使用静态参数");
+                Debug.LogWarning(
+                    "[CodeDrivenAmbientParticles] AudioVisualizationManager 未找到，粒子将使用静态参数"
+                );
             }
         }
 
@@ -928,7 +1013,9 @@ namespace OsuVR
             float dt = Time.deltaTime;
             float lerpFactor = 1f - Mathf.Exp(-responseSmoothSpeed * dt);
 
-            float bass = 0f, mid = 0f, treble = 0f;
+            float bass = 0f,
+                mid = 0f,
+                treble = 0f;
             if (audioManager != null)
             {
                 bass = audioManager.Bass;
@@ -940,7 +1027,11 @@ namespace OsuVR
             if (!isKiaiActive)
             {
                 float targetNoiseStrength = baseNoiseStrength + bass * maxNoiseStrength;
-                currentNoiseStrength = Mathf.Lerp(currentNoiseStrength, targetNoiseStrength, lerpFactor);
+                currentNoiseStrength = Mathf.Lerp(
+                    currentNoiseStrength,
+                    targetNoiseStrength,
+                    lerpFactor
+                );
                 noiseModule.strength = currentNoiseStrength;
             }
 
@@ -962,7 +1053,8 @@ namespace OsuVR
 
             // Bass → Size 脉冲 + 节拍 size 脉冲叠加
             float targetSizePulse = 1f + bass * maxBassSizePulse;
-            if (isKiaiActive) targetSizePulse += bass * 0.2f;
+            if (isKiaiActive)
+                targetSizePulse += bass * 0.2f;
 
             // 叠加 BPM 节拍 size 脉冲
             targetSizePulse += beatSizePulseIntensity * 0.3f;
@@ -970,16 +1062,26 @@ namespace OsuVR
             currentSizeMultiplier = Mathf.Lerp(currentSizeMultiplier, targetSizePulse, lerpFactor);
 
             var sizeCurve = sizeOverLifetimeModule.size;
-            sizeOverLifetimeModule.size = new ParticleSystem.MinMaxCurve(currentSizeMultiplier, sizeCurve.curve);
+            sizeOverLifetimeModule.size = new ParticleSystem.MinMaxCurve(
+                currentSizeMultiplier,
+                sizeCurve.curve
+            );
 
             // Mid → 旋转速度
             if (!isKiaiActive)
             {
-                currentRotationSpeed = Mathf.Lerp(currentRotationSpeed, mid * maxMidRotationSpeed, lerpFactor);
+                currentRotationSpeed = Mathf.Lerp(
+                    currentRotationSpeed,
+                    mid * maxMidRotationSpeed,
+                    lerpFactor
+                );
                 if (currentRotationSpeed > 0.02f)
                 {
                     rotationModule.enabled = true;
-                    rotationModule.z = new ParticleSystem.MinMaxCurve(-currentRotationSpeed * 0.5f, currentRotationSpeed);
+                    rotationModule.z = new ParticleSystem.MinMaxCurve(
+                        -currentRotationSpeed * 0.5f,
+                        currentRotationSpeed
+                    );
                 }
                 else
                 {
@@ -989,7 +1091,8 @@ namespace OsuVR
 
             // Treble → 色相偏移
             currentHueOffset += treble * trebleHueSpeed * dt;
-            if (currentHueOffset > 1f) currentHueOffset -= 1f;
+            if (currentHueOffset > 1f)
+                currentHueOffset -= 1f;
 
             // Bass → 发射率脉动 + 节拍发射
             float currentRate = emissionModule.rateOverTime.constant;
@@ -1002,7 +1105,9 @@ namespace OsuVR
             {
                 targetRate *= 2.5f;
             }
-            emissionModule.rateOverTime = new ParticleSystem.MinMaxCurve(Mathf.Lerp(currentRate, targetRate, lerpFactor));
+            emissionModule.rateOverTime = new ParticleSystem.MinMaxCurve(
+                Mathf.Lerp(currentRate, targetRate, lerpFactor)
+            );
         }
 
         private void UpdateBrightness(float brightness)

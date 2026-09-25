@@ -130,7 +130,10 @@ namespace OsuVR
         /// <summary>
         /// 场景加载完成回调
         /// </summary>
-        private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+        private void OnSceneLoaded(
+            UnityEngine.SceneManagement.Scene scene,
+            UnityEngine.SceneManagement.LoadSceneMode mode
+        )
         {
             // 如果是重试，清除标记
             if (scene.name == GameSceneName && ShouldRetry)

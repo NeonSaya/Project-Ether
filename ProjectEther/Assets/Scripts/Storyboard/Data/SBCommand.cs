@@ -7,14 +7,14 @@ namespace OsuVR.Storyboard.Data
     /// </summary>
     public enum SBCommandType
     {
-        F,      // Fade (透明度)
-        M,      // Move (位置)
-        MX,     // MoveX (X轴移动)
-        MY,     // MoveY (Y轴移动)
-        S,      // Scale (缩放)
-        R,      // Rotate (旋转)
-        C,      // Color (颜色)
-        P,      // Parameter (特殊参数: H=水平翻转, V=垂直翻转, A=加法混合)
+        F, // Fade (透明度)
+        M, // Move (位置)
+        MX, // MoveX (X轴移动)
+        MY, // MoveY (Y轴移动)
+        S, // Scale (缩放)
+        R, // Rotate (旋转)
+        C, // Color (颜色)
+        P, // Parameter (特殊参数: H=水平翻转, V=垂直翻转, A=加法混合)
     }
 
     /// <summary>
@@ -41,7 +41,8 @@ namespace OsuVR.Storyboard.Data
         /// </summary>
         public float GetProgress(double currentTime)
         {
-            if (EndTime <= StartTime) return 1f;
+            if (EndTime <= StartTime)
+                return 1f;
             float t = (float)((currentTime - StartTime) / (EndTime - StartTime));
             return Mathf.Clamp01(t);
         }
@@ -67,7 +68,13 @@ namespace OsuVR.Storyboard.Data
         public float StartValue;
         public float EndValue;
 
-        public SBFadeCommand(SBEasing easing, double start, double end, float startVal, float endVal)
+        public SBFadeCommand(
+            SBEasing easing,
+            double start,
+            double end,
+            float startVal,
+            float endVal
+        )
             : base(SBCommandType.F, easing, start, end)
         {
             StartValue = startVal;
@@ -89,7 +96,13 @@ namespace OsuVR.Storyboard.Data
         public Vector2 StartPos;
         public Vector2 EndPos;
 
-        public SBMoveCommand(SBEasing easing, double start, double end, Vector2 startPos, Vector2 endPos)
+        public SBMoveCommand(
+            SBEasing easing,
+            double start,
+            double end,
+            Vector2 startPos,
+            Vector2 endPos
+        )
             : base(SBCommandType.M, easing, start, end)
         {
             StartPos = startPos;
@@ -111,7 +124,14 @@ namespace OsuVR.Storyboard.Data
         public float StartValue;
         public float EndValue;
 
-        public SBMoveAxisCommand(SBCommandType type, SBEasing easing, double start, double end, float startVal, float endVal)
+        public SBMoveAxisCommand(
+            SBCommandType type,
+            SBEasing easing,
+            double start,
+            double end,
+            float startVal,
+            float endVal
+        )
             : base(type, easing, start, end)
         {
             StartValue = startVal;
@@ -133,7 +153,13 @@ namespace OsuVR.Storyboard.Data
         public float StartValue;
         public float EndValue;
 
-        public SBScaleCommand(SBEasing easing, double start, double end, float startVal, float endVal)
+        public SBScaleCommand(
+            SBEasing easing,
+            double start,
+            double end,
+            float startVal,
+            float endVal
+        )
             : base(SBCommandType.S, easing, start, end)
         {
             StartValue = startVal;
@@ -152,15 +178,26 @@ namespace OsuVR.Storyboard.Data
     /// </summary>
     public class SBScaleVectorCommand : SBCommand
     {
-        public float StartValueX, StartValueY;
-        public float EndValueX, EndValueY;
+        public float StartValueX,
+            StartValueY;
+        public float EndValueX,
+            EndValueY;
 
-        public SBScaleVectorCommand(SBEasing easing, double start, double end,
-            float startX, float startY, float endX, float endY)
+        public SBScaleVectorCommand(
+            SBEasing easing,
+            double start,
+            double end,
+            float startX,
+            float startY,
+            float endX,
+            float endY
+        )
             : base(SBCommandType.S, easing, start, end)
         {
-            StartValueX = startX; StartValueY = startY;
-            EndValueX = endX; EndValueY = endY;
+            StartValueX = startX;
+            StartValueY = startY;
+            EndValueX = endX;
+            EndValueY = endY;
         }
     }
 
@@ -172,7 +209,13 @@ namespace OsuVR.Storyboard.Data
         public float StartValue;
         public float EndValue;
 
-        public SBRotateCommand(SBEasing easing, double start, double end, float startVal, float endVal)
+        public SBRotateCommand(
+            SBEasing easing,
+            double start,
+            double end,
+            float startVal,
+            float endVal
+        )
             : base(SBCommandType.R, easing, start, end)
         {
             StartValue = startVal;
@@ -194,7 +237,13 @@ namespace OsuVR.Storyboard.Data
         public Color StartColor;
         public Color EndColor;
 
-        public SBColorCommand(SBEasing easing, double start, double end, Color startColor, Color endColor)
+        public SBColorCommand(
+            SBEasing easing,
+            double start,
+            double end,
+            Color startColor,
+            Color endColor
+        )
             : base(SBCommandType.C, easing, start, end)
         {
             StartColor = startColor;

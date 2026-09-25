@@ -21,7 +21,11 @@ namespace OsuVR
         private bool isHidden = false;
         private RhythmGameManager cachedManager;
 
-        public void Initialize(double hitTimeMs, double timePreemptMs, RhythmGameManager manager = null)
+        public void Initialize(
+            double hitTimeMs,
+            double timePreemptMs,
+            RhythmGameManager manager = null
+        )
         {
             this.hitTime = hitTimeMs;
             this.timePreempt = timePreemptMs;
@@ -38,7 +42,8 @@ namespace OsuVR
             }
 
             // 1. 自动获取引用
-            if (targetTransform == null) targetTransform = transform;
+            if (targetTransform == null)
+                targetTransform = transform;
 
             // 尝试获取 Renderer (Quad 是 MeshRenderer, Sprite 是 SpriteRenderer)
             _renderer = targetTransform.GetComponent<Renderer>();
@@ -58,12 +63,14 @@ namespace OsuVR
             targetTransform.gameObject.SetActive(true);
 
             // 4. 先隐藏 Renderer (避免一开始闪一下)
-            if (_renderer) _renderer.enabled = false;
+            if (_renderer)
+                _renderer.enabled = false;
         }
 
         void Update()
         {
-            if (!isRunning) return;
+            if (!isRunning)
+                return;
 
             // 双重保险
             if (isHidden)
@@ -73,7 +80,8 @@ namespace OsuVR
                 return;
             }
 
-            if (cachedManager == null) return;
+            if (cachedManager == null)
+                return;
 
             double currentTime = cachedManager.GetCurrentMusicTimeMs();
             double timeRemaining = hitTime - currentTime;
@@ -81,22 +89,26 @@ namespace OsuVR
             // 状态 1: 时间太早 (还没进 AR 范围) -> 隐藏
             if (timeRemaining > timePreempt)
             {
-                if (_renderer) _renderer.enabled = false;
+                if (_renderer)
+                    _renderer.enabled = false;
             }
             // 状态 2: 时间到了 (击中/Miss) -> 隐藏
             else if (timeRemaining <= 0)
             {
                 targetTransform.localScale = Vector3.one;
-                if (_renderer) _renderer.enabled = false;
+                if (_renderer)
+                    _renderer.enabled = false;
                 isRunning = false;
             }
             // 状态 3: 正在缩圈 -> 显示并缩放
             else
             {
-                if (_renderer) _renderer.enabled = true;
+                if (_renderer)
+                    _renderer.enabled = true;
 
                 // 计算进度 (0 = 开始, 1 = 结束)；timePreempt=0（畸形/极端 AR）防除零产生 NaN 毒化 transform
-                float progress = timePreempt > 0.0001 ? 1f - (float)(timeRemaining / timePreempt) : 1f;
+                float progress =
+                    timePreempt > 0.0001 ? 1f - (float)(timeRemaining / timePreempt) : 1f;
 
                 // 线性插值：从 4x 到 1x
                 float scale = Mathf.Lerp(4f, 1f, progress);

@@ -1,8 +1,8 @@
 using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.EventSystems;
 using TMPro;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace OsuVR
 {
@@ -42,8 +42,12 @@ namespace OsuVR
         /// <param name="width">Canvas 像素宽度</param>
         /// <param name="height">Canvas 像素高度</param>
         /// <param name="applyCurve">是否自动添加 CurvedUIEffect</param>
-        public static Canvas CreateCanvas(string name, float width = 600f, float height = 450f,
-            bool applyCurve = false)
+        public static Canvas CreateCanvas(
+            string name,
+            float width = 600f,
+            float height = 450f,
+            bool applyCurve = false
+        )
         {
             var go = new GameObject(name);
             var canvas = go.AddComponent<Canvas>();
@@ -72,8 +76,13 @@ namespace OsuVR
         /// <summary>
         /// 创建带背景色的面板
         /// </summary>
-        public static RectTransform CreatePanel(Transform parent, string name,
-            Color? color = null, float? width = null, float? height = null)
+        public static RectTransform CreatePanel(
+            Transform parent,
+            string name,
+            Color? color = null,
+            float? width = null,
+            float? height = null
+        )
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
@@ -104,10 +113,16 @@ namespace OsuVR
         /// <param name="localizationKey">本地化 Key（非空时自动挂载 LocalizedText）</param>
         /// <param name="width">宽度（可选）</param>
         /// <param name="height">高度（可选）</param>
-        public static TextMeshProUGUI CreateText(Transform parent, string text,
-            float fontSize = DefaultFontSize, Color? color = null,
+        public static TextMeshProUGUI CreateText(
+            Transform parent,
+            string text,
+            float fontSize = DefaultFontSize,
+            Color? color = null,
             TextAlignmentOptions alignment = TextAlignmentOptions.Center,
-            string localizationKey = null, float? width = null, float? height = null)
+            string localizationKey = null,
+            float? width = null,
+            float? height = null
+        )
         {
             var go = new GameObject("Text");
             go.transform.SetParent(parent, false);
@@ -155,10 +170,18 @@ namespace OsuVR
         /// <param name="normalColor">Image 常态颜色</param>
         /// <param name="hoverColor">悬停颜色</param>
         /// <param name="addBoxCollider">是否添加 BoxCollider（VR 射线碰撞检测）</param>
-        public static Button CreateButton(Transform parent, string text, System.Action onClick = null,
-            string localizationKey = null, float width = 360f, float height = 70f,
-            float fontSize = 32f, Color? normalColor = null, Color? hoverColor = null,
-            bool addBoxCollider = false)
+        public static Button CreateButton(
+            Transform parent,
+            string text,
+            System.Action onClick = null,
+            string localizationKey = null,
+            float width = 360f,
+            float height = 70f,
+            float fontSize = 32f,
+            Color? normalColor = null,
+            Color? hoverColor = null,
+            bool addBoxCollider = false
+        )
         {
             // 按钮根物体
             var go = new GameObject("Button");
@@ -188,15 +211,28 @@ namespace OsuVR
             }
 
             // 按钮文字
-            var tmp = CreateText(go.transform, text ?? "", fontSize, DefaultTextColor,
-                TextAlignmentOptions.Center, localizationKey, width, height);
+            var tmp = CreateText(
+                go.transform,
+                text ?? "",
+                fontSize,
+                DefaultTextColor,
+                TextAlignmentOptions.Center,
+                localizationKey,
+                width,
+                height
+            );
 
             // 点击回调
             if (onClick != null)
                 button.onClick.AddListener(() => onClick());
 
             // 悬停颜色变化（通过 EventTrigger 实现精确控制）
-            AddColorHoverEffect(go, img, normalColor ?? ButtonNormalColor, hoverColor ?? ButtonHoverColor);
+            AddColorHoverEffect(
+                go,
+                img,
+                normalColor ?? ButtonNormalColor,
+                hoverColor ?? ButtonHoverColor
+            );
 
             return button;
         }
@@ -208,10 +244,15 @@ namespace OsuVR
         /// <summary>
         /// 添加垂直布局组件
         /// </summary>
-        public static VerticalLayoutGroup AddVerticalLayout(Transform parent, float spacing = 15f,
-            float paddingLeft = 0f, float paddingRight = 0f,
-            float paddingTop = 0f, float paddingBottom = 0f,
-            TextAnchor childAlignment = TextAnchor.UpperCenter)
+        public static VerticalLayoutGroup AddVerticalLayout(
+            Transform parent,
+            float spacing = 15f,
+            float paddingLeft = 0f,
+            float paddingRight = 0f,
+            float paddingTop = 0f,
+            float paddingBottom = 0f,
+            TextAnchor childAlignment = TextAnchor.UpperCenter
+        )
         {
             var vlg = parent.gameObject.AddComponent<VerticalLayoutGroup>();
             vlg.spacing = spacing;
@@ -221,17 +262,22 @@ namespace OsuVR
             vlg.childForceExpandWidth = false;
             vlg.childForceExpandHeight = false;
             vlg.padding = new RectOffset(
-                (int)paddingLeft, (int)paddingRight,
-                (int)paddingTop, (int)paddingBottom);
+                (int)paddingLeft,
+                (int)paddingRight,
+                (int)paddingTop,
+                (int)paddingBottom
+            );
             return vlg;
         }
 
         /// <summary>
         /// 添加 Content Size Fitter（让容器自适应子物体大小）
         /// </summary>
-        public static ContentSizeFitter AddContentSizeFitter(Transform parent,
+        public static ContentSizeFitter AddContentSizeFitter(
+            Transform parent,
             ContentSizeFitter.FitMode horizontal = ContentSizeFitter.FitMode.Unconstrained,
-            ContentSizeFitter.FitMode vertical = ContentSizeFitter.FitMode.PreferredSize)
+            ContentSizeFitter.FitMode vertical = ContentSizeFitter.FitMode.PreferredSize
+        )
         {
             var fitter = parent.gameObject.AddComponent<ContentSizeFitter>();
             fitter.horizontalFit = horizontal;
@@ -242,17 +288,26 @@ namespace OsuVR
         /// <summary>
         /// 为 Layout 子元素设置 LayoutElement 约束
         /// </summary>
-        public static LayoutElement SetLayoutElement(Transform target,
-            float? minWidth = null, float? minHeight = null,
-            float? preferredWidth = null, float? preferredHeight = null)
+        public static LayoutElement SetLayoutElement(
+            Transform target,
+            float? minWidth = null,
+            float? minHeight = null,
+            float? preferredWidth = null,
+            float? preferredHeight = null
+        )
         {
             var le = target.gameObject.GetComponent<LayoutElement>();
-            if (le == null) le = target.gameObject.AddComponent<LayoutElement>();
+            if (le == null)
+                le = target.gameObject.AddComponent<LayoutElement>();
 
-            if (minWidth.HasValue) le.minWidth = minWidth.Value;
-            if (minHeight.HasValue) le.minHeight = minHeight.Value;
-            if (preferredWidth.HasValue) le.preferredWidth = preferredWidth.Value;
-            if (preferredHeight.HasValue) le.preferredHeight = preferredHeight.Value;
+            if (minWidth.HasValue)
+                le.minWidth = minWidth.Value;
+            if (minHeight.HasValue)
+                le.minHeight = minHeight.Value;
+            if (preferredWidth.HasValue)
+                le.preferredWidth = preferredWidth.Value;
+            if (preferredHeight.HasValue)
+                le.preferredHeight = preferredHeight.Value;
 
             return le;
         }
@@ -264,8 +319,12 @@ namespace OsuVR
         /// <summary>
         /// 添加 CurvedUIEffect 弯曲效果
         /// </summary>
-        public static CurvedUIEffect AddCurvedUIEffect(GameObject go, float radius = DefaultCurveRadius,
-            float multiplier = 1f, int tessellation = 1)
+        public static CurvedUIEffect AddCurvedUIEffect(
+            GameObject go,
+            float radius = DefaultCurveRadius,
+            float multiplier = 1f,
+            int tessellation = 1
+        )
         {
             var effect = go.AddComponent<CurvedUIEffect>();
             effect.curveRadius = radius;
@@ -277,27 +336,44 @@ namespace OsuVR
         /// <summary>
         /// 添加悬停变色效果（PointerEnter/PointerExit）
         /// </summary>
-        public static void AddColorHoverEffect(GameObject go, Image targetImage,
-            Color normalColor, Color hoverColor)
+        public static void AddColorHoverEffect(
+            GameObject go,
+            Image targetImage,
+            Color normalColor,
+            Color hoverColor
+        )
         {
             var trigger = go.AddComponent<EventTrigger>();
 
             var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
-            enter.callback.AddListener(_ => { if (targetImage != null) targetImage.color = hoverColor; });
+            enter.callback.AddListener(_ =>
+            {
+                if (targetImage != null)
+                    targetImage.color = hoverColor;
+            });
             trigger.triggers.Add(enter);
 
             var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
-            exit.callback.AddListener(_ => { if (targetImage != null) targetImage.color = normalColor; });
+            exit.callback.AddListener(_ =>
+            {
+                if (targetImage != null)
+                    targetImage.color = normalColor;
+            });
             trigger.triggers.Add(exit);
         }
 
         /// <summary>
         /// 添加悬停音效（PointerEnter 时播放）
         /// </summary>
-        public static void AddHoverSoundEffect(GameObject go, AudioSource audioSource, AudioClip clip,
-            float volume = 0.5f)
+        public static void AddHoverSoundEffect(
+            GameObject go,
+            AudioSource audioSource,
+            AudioClip clip,
+            float volume = 0.5f
+        )
         {
-            if (audioSource == null || clip == null) return;
+            if (audioSource == null || clip == null)
+                return;
 
             var trigger = go.AddComponent<EventTrigger>();
             var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
@@ -345,10 +421,15 @@ namespace OsuVR
         /// <summary>
         /// 添加水平布局组件
         /// </summary>
-        public static HorizontalLayoutGroup AddHorizontalLayout(Transform parent,
-            float spacing = 0f, TextAnchor childAlignment = TextAnchor.MiddleCenter,
-            float paddingLeft = 0f, float paddingRight = 0f,
-            float paddingTop = 0f, float paddingBottom = 0f)
+        public static HorizontalLayoutGroup AddHorizontalLayout(
+            Transform parent,
+            float spacing = 0f,
+            TextAnchor childAlignment = TextAnchor.MiddleCenter,
+            float paddingLeft = 0f,
+            float paddingRight = 0f,
+            float paddingTop = 0f,
+            float paddingBottom = 0f
+        )
         {
             var hlg = parent.gameObject.AddComponent<HorizontalLayoutGroup>();
             hlg.spacing = spacing;
@@ -358,8 +439,11 @@ namespace OsuVR
             hlg.childForceExpandWidth = false;
             hlg.childForceExpandHeight = false;
             hlg.padding = new RectOffset(
-                (int)paddingLeft, (int)paddingRight,
-                (int)paddingTop, (int)paddingBottom);
+                (int)paddingLeft,
+                (int)paddingRight,
+                (int)paddingTop,
+                (int)paddingBottom
+            );
             return hlg;
         }
 
@@ -372,8 +456,12 @@ namespace OsuVR
         /// </summary>
         /// <returns>(scrollRect, contentRectTransform)</returns>
         public static (ScrollRect scrollRect, RectTransform content) CreateScrollView(
-            Transform parent, string name, float width, float height,
-            Color? viewportColor = null)
+            Transform parent,
+            string name,
+            float width,
+            float height,
+            Color? viewportColor = null
+        )
         {
             // ScrollView 根物体
             var scrollGo = new GameObject(name);
@@ -453,7 +541,8 @@ namespace OsuVR
             for (int i = 0; i < root.childCount; i++)
             {
                 var child = root.GetChild(i) as RectTransform;
-                if (child == null) continue;
+                if (child == null)
+                    continue;
                 child.anchorMin = new Vector2(0.5f, 0.5f);
                 child.anchorMax = new Vector2(0.5f, 0.5f);
                 child.pivot = new Vector2(0.5f, 0.5f);
@@ -475,12 +564,17 @@ namespace OsuVR
         /// <summary>
         /// 为子物体添加或设置 LayoutElement
         /// </summary>
-        private static void SetChildLayoutElement(Transform child, float preferredWidth,
-            float flexibleWidth = 0f)
+        private static void SetChildLayoutElement(
+            Transform child,
+            float preferredWidth,
+            float flexibleWidth = 0f
+        )
         {
-            if (child == null) return;
+            if (child == null)
+                return;
             var le = child.gameObject.GetComponent<LayoutElement>();
-            if (le == null) le = child.gameObject.AddComponent<LayoutElement>();
+            if (le == null)
+                le = child.gameObject.AddComponent<LayoutElement>();
             le.preferredWidth = preferredWidth;
             le.flexibleWidth = flexibleWidth;
         }
@@ -489,10 +583,18 @@ namespace OsuVR
         /// 实例化原子 Slider 预制体，配置 Label、范围、值显示和回调
         /// </summary>
         /// <returns>返回 Slider 组件引用</returns>
-        public static Slider InstantiateSliderPrefab(GameObject prefab, Transform parent,
-            string label, string localizationKey, float minVal, float maxVal, float currentVal,
-            string valueFormat, UnityEngine.Events.UnityAction<float> onValueChanged,
-            float valueScale = 1f)
+        public static Slider InstantiateSliderPrefab(
+            GameObject prefab,
+            Transform parent,
+            string label,
+            string localizationKey,
+            float minVal,
+            float maxVal,
+            float currentVal,
+            string valueFormat,
+            UnityEngine.Events.UnityAction<float> onValueChanged,
+            float valueScale = 1f
+        )
         {
             var instance = UnityEngine.Object.Instantiate(prefab, parent);
             var root = instance.GetComponent<RectTransform>();
@@ -512,7 +614,8 @@ namespace OsuVR
                     if (!string.IsNullOrEmpty(localizationKey))
                     {
                         var lt = labelTf.gameObject.GetComponent<LocalizedText>();
-                        if (lt == null) lt = labelTf.gameObject.AddComponent<LocalizedText>();
+                        if (lt == null)
+                            lt = labelTf.gameObject.AddComponent<LocalizedText>();
                         lt.localizationKey = localizationKey;
                     }
                 }
@@ -538,7 +641,11 @@ namespace OsuVR
                 SetChildLayoutElement(valueTextTf, ValuePreferredWidth);
                 valueTmp = valueTextTf.GetComponent<TextMeshProUGUI>();
                 if (valueTmp != null)
-                    valueTmp.text = string.Format(System.Globalization.CultureInfo.InvariantCulture, valueFormat, currentVal * valueScale);
+                    valueTmp.text = string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        valueFormat,
+                        currentVal * valueScale
+                    );
             }
 
             // 关联 Slider 值变化，同步更新数值文本
@@ -549,7 +656,11 @@ namespace OsuVR
                 var capturedTmp = valueTmp;
                 slider.onValueChanged.AddListener(v =>
                 {
-                    capturedTmp.text = string.Format(System.Globalization.CultureInfo.InvariantCulture, capturedFormat, v * capturedScale);
+                    capturedTmp.text = string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        capturedFormat,
+                        v * capturedScale
+                    );
                 });
             }
 
@@ -560,9 +671,14 @@ namespace OsuVR
         /// 实例化原子 Toggle 预制体，配置 Label、初始状态和回调
         /// </summary>
         /// <returns>返回 Toggle 组件引用</returns>
-        public static Toggle InstantiateTogglePrefab(GameObject prefab, Transform parent,
-            string label, string localizationKey, bool isOn,
-            UnityEngine.Events.UnityAction<bool> onValueChanged)
+        public static Toggle InstantiateTogglePrefab(
+            GameObject prefab,
+            Transform parent,
+            string label,
+            string localizationKey,
+            bool isOn,
+            UnityEngine.Events.UnityAction<bool> onValueChanged
+        )
         {
             var instance = UnityEngine.Object.Instantiate(prefab, parent);
             var root = instance.GetComponent<RectTransform>();
@@ -582,7 +698,8 @@ namespace OsuVR
                     if (!string.IsNullOrEmpty(localizationKey))
                     {
                         var lt = labelTf.gameObject.GetComponent<LocalizedText>();
-                        if (lt == null) lt = labelTf.gameObject.AddComponent<LocalizedText>();
+                        if (lt == null)
+                            lt = labelTf.gameObject.AddComponent<LocalizedText>();
                         lt.localizationKey = localizationKey;
                     }
                 }
@@ -605,9 +722,15 @@ namespace OsuVR
         /// 实例化原子 Dropdown 预制体，配置 Label、选项和回调
         /// </summary>
         /// <returns>返回 TMP_Dropdown 组件引用</returns>
-        public static TMP_Dropdown InstantiateDropdownPrefab(GameObject prefab, Transform parent,
-            string label, string localizationKey, List<string> options, int currentIndex,
-            UnityEngine.Events.UnityAction<int> onValueChanged)
+        public static TMP_Dropdown InstantiateDropdownPrefab(
+            GameObject prefab,
+            Transform parent,
+            string label,
+            string localizationKey,
+            List<string> options,
+            int currentIndex,
+            UnityEngine.Events.UnityAction<int> onValueChanged
+        )
         {
             var instance = UnityEngine.Object.Instantiate(prefab, parent);
             var root = instance.GetComponent<RectTransform>();
@@ -627,7 +750,8 @@ namespace OsuVR
                     if (!string.IsNullOrEmpty(localizationKey))
                     {
                         var lt = labelTf.gameObject.GetComponent<LocalizedText>();
-                        if (lt == null) lt = labelTf.gameObject.AddComponent<LocalizedText>();
+                        if (lt == null)
+                            lt = labelTf.gameObject.AddComponent<LocalizedText>();
                         lt.localizationKey = localizationKey;
                     }
                 }
@@ -641,7 +765,11 @@ namespace OsuVR
                 dropdown.ClearOptions();
                 if (options != null && options.Count > 0)
                     dropdown.AddOptions(options);
-                dropdown.value = Mathf.Clamp(currentIndex, 0, Mathf.Max(0, options != null ? options.Count - 1 : 0));
+                dropdown.value = Mathf.Clamp(
+                    currentIndex,
+                    0,
+                    Mathf.Max(0, options != null ? options.Count - 1 : 0)
+                );
                 dropdown.RefreshShownValue();
                 if (onValueChanged != null)
                     dropdown.onValueChanged.AddListener(onValueChanged);
@@ -653,9 +781,14 @@ namespace OsuVR
         /// <summary>
         /// 重新设置原子预制体子物体的值文本（用于 RefreshUI）
         /// </summary>
-        public static void UpdateSliderValueText(Slider slider, string valueFormat, float valueScale = 1f)
+        public static void UpdateSliderValueText(
+            Slider slider,
+            string valueFormat,
+            float valueScale = 1f
+        )
         {
-            if (slider == null) return;
+            if (slider == null)
+                return;
             // 在预制体实例中查找 ValueText 兄弟节点
             Transform valueTextTf = null;
             var parent = slider.transform.parent;
@@ -674,7 +807,11 @@ namespace OsuVR
             {
                 var tmp = valueTextTf.GetComponent<TextMeshProUGUI>();
                 if (tmp != null)
-                    tmp.text = string.Format(System.Globalization.CultureInfo.InvariantCulture, valueFormat, slider.value * valueScale);
+                    tmp.text = string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        valueFormat,
+                        slider.value * valueScale
+                    );
             }
         }
     }

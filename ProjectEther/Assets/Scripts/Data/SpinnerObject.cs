@@ -47,7 +47,8 @@ namespace OsuVR
         /// <summary>
         /// 屏幕空间中的游戏玩法堆叠结束位置（转盘总是在中心）
         /// </summary>
-        public override Vector2 ScreenSpaceGameplayStackedEndPosition => ScreenSpaceGameplayPosition;
+        public override Vector2 ScreenSpaceGameplayStackedEndPosition =>
+            ScreenSpaceGameplayPosition;
 
         /// <summary>
         /// 构造函数

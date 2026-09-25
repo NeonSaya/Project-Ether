@@ -1,6 +1,6 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 
 namespace OsuVR
 {
@@ -29,8 +29,14 @@ namespace OsuVR
         /// <summary>
         /// 初始化页面，注入预制体引用和音频资源
         /// </summary>
-        public void Initialize(GameObject sliderPrefab, GameObject togglePrefab,
-            GameObject dropdownPrefab, AudioSource source, AudioClip hover, AudioClip click)
+        public void Initialize(
+            GameObject sliderPrefab,
+            GameObject togglePrefab,
+            GameObject dropdownPrefab,
+            AudioSource source,
+            AudioClip hover,
+            AudioClip click
+        )
         {
             atomicSliderPrefab = sliderPrefab;
             atomicTogglePrefab = togglePrefab;
@@ -46,7 +52,11 @@ namespace OsuVR
         /// <param name="parent">内容区域的 RectTransform</param>
         /// <param name="tempSettings">当前工作设置副本</param>
         /// <param name="contentWidth">内容区域宽度</param>
-        public abstract void BuildContent(RectTransform parent, GameSettings tempSettings, float contentWidth);
+        public abstract void BuildContent(
+            RectTransform parent,
+            GameSettings tempSettings,
+            float contentWidth
+        );
 
         /// <summary>
         /// 从 tempSettings 刷新所有 UI 控件值（不触发 onValueChanged 回调）
@@ -69,12 +79,30 @@ namespace OsuVR
         /// <param name="valueFormat">值显示格式（如 "{0:F0} ms"）</param>
         /// <param name="onValueChanged">值变化回调</param>
         /// <returns>Slider 组件引用</returns>
-        protected Slider CreateSlider(Transform parent, string label, string localizationKey,
-            float minVal, float maxVal, float currentVal, string valueFormat,
-            UnityEngine.Events.UnityAction<float> onValueChanged, float valueScale = 1f)
+        protected Slider CreateSlider(
+            Transform parent,
+            string label,
+            string localizationKey,
+            float minVal,
+            float maxVal,
+            float currentVal,
+            string valueFormat,
+            UnityEngine.Events.UnityAction<float> onValueChanged,
+            float valueScale = 1f
+        )
         {
-            var slider = UILayoutHelper.InstantiateSliderPrefab(atomicSliderPrefab, parent,
-                label, localizationKey, minVal, maxVal, currentVal, valueFormat, onValueChanged, valueScale);
+            var slider = UILayoutHelper.InstantiateSliderPrefab(
+                atomicSliderPrefab,
+                parent,
+                label,
+                localizationKey,
+                minVal,
+                maxVal,
+                currentVal,
+                valueFormat,
+                onValueChanged,
+                valueScale
+            );
 
             if (slider != null)
                 AddControlSounds(slider.gameObject, true);
@@ -90,10 +118,17 @@ namespace OsuVR
         /// 创建 AudioOffsetRow（Header + Slider + FineTune 按钮行，高度 95px）
         /// 精确复刻 VRSettingsMenu.prefab 中的 AudioOffsetRow 结构
         /// </summary>
-        protected Slider CreateAudioOffsetRow(Transform parent, string label, string localizationKey,
-            float minVal, float maxVal, float currentVal, string valueFormat,
+        protected Slider CreateAudioOffsetRow(
+            Transform parent,
+            string label,
+            string localizationKey,
+            float minVal,
+            float maxVal,
+            float currentVal,
+            string valueFormat,
             UnityEngine.Events.UnityAction<float> onValueChanged,
-            UnityEngine.Events.UnityAction<int> onFineTune)
+            UnityEngine.Events.UnityAction<int> onFineTune
+        )
         {
             // 行根物体：VLG 垂直排列 Header / Slider / FineTune
             var rowGo = new GameObject("Audio OffsetRow");
@@ -159,7 +194,11 @@ namespace OsuVR
             headerValueRt.anchorMax = new Vector2(0.5f, 0.5f);
             headerValueRt.sizeDelta = new Vector2(0f, 24f);
             var headerValueTmp = headerValueGo.AddComponent<TextMeshProUGUI>();
-            headerValueTmp.text = string.Format(System.Globalization.CultureInfo.InvariantCulture, valueFormat, currentVal);
+            headerValueTmp.text = string.Format(
+                System.Globalization.CultureInfo.InvariantCulture,
+                valueFormat,
+                currentVal
+            );
             headerValueTmp.fontSize = 16f;
             headerValueTmp.fontStyle = FontStyles.Bold;
             headerValueTmp.color = Color.white;
@@ -233,7 +272,11 @@ namespace OsuVR
             var capturedTmp = headerValueTmp;
             slider.onValueChanged.AddListener(v =>
             {
-                capturedTmp.text = string.Format(System.Globalization.CultureInfo.InvariantCulture, capturedFormat, v);
+                capturedTmp.text = string.Format(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    capturedFormat,
+                    v
+                );
             });
 
             AddControlSounds(sliderGo, true);
@@ -278,8 +321,11 @@ namespace OsuVR
             le.flexibleWidth = 1f;
         }
 
-        private void CreateFineTuneButton(Transform parent, int value,
-            UnityEngine.Events.UnityAction<int> onFineTune)
+        private void CreateFineTuneButton(
+            Transform parent,
+            int value,
+            UnityEngine.Events.UnityAction<int> onFineTune
+        )
         {
             string text = value > 0 ? $"+{value}" : $"{value}";
             var go = new GameObject(text);
@@ -321,8 +367,12 @@ namespace OsuVR
             tmp.enableAutoSizing = false;
             tmp.raycastTarget = false;
 
-            UILayoutHelper.AddColorHoverEffect(go, img,
-                UILayoutHelper.ButtonNormalColor, UILayoutHelper.ButtonHoverColor);
+            UILayoutHelper.AddColorHoverEffect(
+                go,
+                img,
+                UILayoutHelper.ButtonNormalColor,
+                UILayoutHelper.ButtonHoverColor
+            );
             UILayoutHelper.AddHoverSoundEffect(go, audioSource, hoverSound, 0.5f);
         }
 
@@ -333,11 +383,22 @@ namespace OsuVR
         /// <summary>
         /// 创建一个原子化 Toggle 控件
         /// </summary>
-        protected Toggle CreateToggle(Transform parent, string label, string localizationKey,
-            bool isOn, UnityEngine.Events.UnityAction<bool> onValueChanged)
+        protected Toggle CreateToggle(
+            Transform parent,
+            string label,
+            string localizationKey,
+            bool isOn,
+            UnityEngine.Events.UnityAction<bool> onValueChanged
+        )
         {
-            var toggle = UILayoutHelper.InstantiateTogglePrefab(atomicTogglePrefab, parent,
-                label, localizationKey, isOn, onValueChanged);
+            var toggle = UILayoutHelper.InstantiateTogglePrefab(
+                atomicTogglePrefab,
+                parent,
+                label,
+                localizationKey,
+                isOn,
+                onValueChanged
+            );
 
             if (toggle != null)
                 AddControlSounds(toggle.gameObject, false);
@@ -352,12 +413,24 @@ namespace OsuVR
         /// <summary>
         /// 创建一个原子化 Dropdown 控件
         /// </summary>
-        protected TMP_Dropdown CreateDropdown(Transform parent, string label, string localizationKey,
-            System.Collections.Generic.List<string> options, int currentIndex,
-            UnityEngine.Events.UnityAction<int> onValueChanged)
+        protected TMP_Dropdown CreateDropdown(
+            Transform parent,
+            string label,
+            string localizationKey,
+            System.Collections.Generic.List<string> options,
+            int currentIndex,
+            UnityEngine.Events.UnityAction<int> onValueChanged
+        )
         {
-            var dropdown = UILayoutHelper.InstantiateDropdownPrefab(atomicDropdownPrefab, parent,
-                label, localizationKey, options, currentIndex, onValueChanged);
+            var dropdown = UILayoutHelper.InstantiateDropdownPrefab(
+                atomicDropdownPrefab,
+                parent,
+                label,
+                localizationKey,
+                options,
+                currentIndex,
+                onValueChanged
+            );
 
             if (dropdown != null)
                 AddControlSounds(dropdown.gameObject, false);
@@ -406,7 +479,8 @@ namespace OsuVR
         /// </summary>
         protected void SetSliderValueWithoutNotify(Slider slider, float value)
         {
-            if (slider == null) return;
+            if (slider == null)
+                return;
             slider.SetValueWithoutNotify(value);
             UILayoutHelper.UpdateSliderValueText(slider, GetFormatForSlider(slider));
         }
@@ -414,9 +488,15 @@ namespace OsuVR
         /// <summary>
         /// 安全设置 Slider 值并使用指定格式更新文本
         /// </summary>
-        protected void SetSliderValueWithoutNotify(Slider slider, float value, string format, float valueScale = 1f)
+        protected void SetSliderValueWithoutNotify(
+            Slider slider,
+            float value,
+            string format,
+            float valueScale = 1f
+        )
         {
-            if (slider == null) return;
+            if (slider == null)
+                return;
             slider.SetValueWithoutNotify(value);
             UILayoutHelper.UpdateSliderValueText(slider, format, valueScale);
         }
@@ -426,7 +506,8 @@ namespace OsuVR
         /// </summary>
         protected void SetToggleValueWithoutNotify(Toggle toggle, bool value)
         {
-            if (toggle == null) return;
+            if (toggle == null)
+                return;
             toggle.SetIsOnWithoutNotify(value);
         }
 
@@ -435,7 +516,8 @@ namespace OsuVR
         /// </summary>
         protected void SetDropdownValueWithoutNotify(TMP_Dropdown dropdown, int value)
         {
-            if (dropdown == null) return;
+            if (dropdown == null)
+                return;
             dropdown.SetValueWithoutNotify(value);
             dropdown.RefreshShownValue();
         }

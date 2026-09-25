@@ -133,7 +133,9 @@ namespace OsuVR
             // 如果锁定了目标，跳过自动查找
             if (lockTargetSource && targetAudioSource != null)
             {
-                Debug.Log($"[AudioVisualizationManager] 目标已锁定: {targetAudioSource.gameObject.name}");
+                Debug.Log(
+                    $"[AudioVisualizationManager] 目标已锁定: {targetAudioSource.gameObject.name}"
+                );
                 ValidateLaspSetup();
                 InitializeGlobalShaderVariables();
                 return;
@@ -148,7 +150,9 @@ namespace OsuVR
                     targetAudioSource = MusicManager.Instance.GetAudioSource();
                     if (targetAudioSource != null)
                     {
-                        Debug.Log($"[AudioVisualizationManager] 已连接到MusicManager的AudioSource: {targetAudioSource.gameObject.name}");
+                        Debug.Log(
+                            $"[AudioVisualizationManager] 已连接到MusicManager的AudioSource: {targetAudioSource.gameObject.name}"
+                        );
                     }
                 }
 
@@ -158,11 +162,15 @@ namespace OsuVR
                     targetAudioSource = FindFirstObjectByType<AudioSource>();
                     if (targetAudioSource != null)
                     {
-                        Debug.Log($"[AudioVisualizationManager] 已自动连接到AudioSource: {targetAudioSource.gameObject.name}");
+                        Debug.Log(
+                            $"[AudioVisualizationManager] 已自动连接到AudioSource: {targetAudioSource.gameObject.name}"
+                        );
                     }
                     else
                     {
-                        Debug.LogWarning("[AudioVisualizationManager] 未找到AudioSource，等待RhythmGameManager注入...");
+                        Debug.LogWarning(
+                            "[AudioVisualizationManager] 未找到AudioSource，等待RhythmGameManager注入..."
+                        );
                     }
                 }
             }
@@ -200,12 +208,16 @@ namespace OsuVR
         {
             if (source == null)
             {
-                Debug.LogWarning("[AudioVisualizationManager] SetTargetAudioSource: 传入的AudioSource为null");
+                Debug.LogWarning(
+                    "[AudioVisualizationManager] SetTargetAudioSource: 传入的AudioSource为null"
+                );
                 return;
             }
 
             targetAudioSource = source;
-            Debug.Log($"[AudioVisualizationManager] 已绑定到AudioSource: {source.gameObject.name} (Clip: {source.clip?.name ?? "null"})");
+            Debug.Log(
+                $"[AudioVisualizationManager] 已绑定到AudioSource: {source.gameObject.name} (Clip: {source.clip?.name ?? "null"})"
+            );
 
             // 重置能量值，避免残留数据
             rawBass = 0f;
@@ -225,7 +237,9 @@ namespace OsuVR
 #if LASP
             if (useLaspCapture && spectrumAnalyzer == null)
             {
-                Debug.LogWarning("[AudioVisualizationManager] useLaspCapture为true但未配置SpectrumAnalyzer，将使用AudioSource分析");
+                Debug.LogWarning(
+                    "[AudioVisualizationManager] useLaspCapture为true但未配置SpectrumAnalyzer，将使用AudioSource分析"
+                );
                 useLaspCapture = false;
             }
 #endif
@@ -259,10 +273,19 @@ namespace OsuVR
             int sampleRate = AudioSettings.outputSampleRate;
 
             int bassEnd = Mathf.Max(1, Mathf.FloorToInt(150f * spectrumLength / (sampleRate / 2f)));
-            int midStart = Mathf.Max(1, Mathf.FloorToInt(200f * spectrumLength / (sampleRate / 2f)));
-            int midEnd = Mathf.Max(midStart + 1, Mathf.FloorToInt(500f * spectrumLength / (sampleRate / 2f)));
+            int midStart = Mathf.Max(
+                1,
+                Mathf.FloorToInt(200f * spectrumLength / (sampleRate / 2f))
+            );
+            int midEnd = Mathf.Max(
+                midStart + 1,
+                Mathf.FloorToInt(500f * spectrumLength / (sampleRate / 2f))
+            );
             int trebleStart = midEnd;
-            int trebleEnd = Mathf.Max(trebleStart + 1, Mathf.FloorToInt(4000f * spectrumLength / (sampleRate / 2f)));
+            int trebleEnd = Mathf.Max(
+                trebleStart + 1,
+                Mathf.FloorToInt(4000f * spectrumLength / (sampleRate / 2f))
+            );
 
             float bassSum = 0f;
             int bassCount = 0;
@@ -271,7 +294,10 @@ namespace OsuVR
                 bassSum += spectrum[i];
                 bassCount++;
             }
-            rawBass = bassCount > 0 ? Mathf.Clamp01((bassSum / bassCount) * bassGain * normalizationFactor) : 0f;
+            rawBass =
+                bassCount > 0
+                    ? Mathf.Clamp01((bassSum / bassCount) * bassGain * normalizationFactor)
+                    : 0f;
 
             float midSum = 0f;
             int midCount = 0;
@@ -280,7 +306,10 @@ namespace OsuVR
                 midSum += spectrum[i];
                 midCount++;
             }
-            rawMid = midCount > 0 ? Mathf.Clamp01((midSum / midCount) * midGain * normalizationFactor) : 0f;
+            rawMid =
+                midCount > 0
+                    ? Mathf.Clamp01((midSum / midCount) * midGain * normalizationFactor)
+                    : 0f;
 
             float trebleSum = 0f;
             int trebleCount = 0;
@@ -289,7 +318,10 @@ namespace OsuVR
                 trebleSum += spectrum[i];
                 trebleCount++;
             }
-            rawTreble = trebleCount > 0 ? Mathf.Clamp01((trebleSum / trebleCount) * trebleGain * normalizationFactor) : 0f;
+            rawTreble =
+                trebleCount > 0
+                    ? Mathf.Clamp01((trebleSum / trebleCount) * trebleGain * normalizationFactor)
+                    : 0f;
         }
 #endif
 
@@ -313,9 +345,15 @@ namespace OsuVR
 
             int bassEnd = Mathf.Max(1, Mathf.FloorToInt(150f * spectrumSize / (sampleRate / 2f)));
             int midStart = Mathf.Max(1, Mathf.FloorToInt(200f * spectrumSize / (sampleRate / 2f)));
-            int midEnd = Mathf.Max(midStart + 1, Mathf.FloorToInt(500f * spectrumSize / (sampleRate / 2f)));
+            int midEnd = Mathf.Max(
+                midStart + 1,
+                Mathf.FloorToInt(500f * spectrumSize / (sampleRate / 2f))
+            );
             int trebleStart = midEnd;
-            int trebleEnd = Mathf.Max(trebleStart + 1, Mathf.FloorToInt(4000f * spectrumSize / (sampleRate / 2f)));
+            int trebleEnd = Mathf.Max(
+                trebleStart + 1,
+                Mathf.FloorToInt(4000f * spectrumSize / (sampleRate / 2f))
+            );
 
             float bassSum = 0f;
             int bassCount = 0;
@@ -324,7 +362,10 @@ namespace OsuVR
                 bassSum += spectrumData[i];
                 bassCount++;
             }
-            rawBass = bassCount > 0 ? Mathf.Clamp01((bassSum / bassCount) * bassGain * normalizationFactor) : 0f;
+            rawBass =
+                bassCount > 0
+                    ? Mathf.Clamp01((bassSum / bassCount) * bassGain * normalizationFactor)
+                    : 0f;
 
             float midSum = 0f;
             int midCount = 0;
@@ -333,7 +374,10 @@ namespace OsuVR
                 midSum += spectrumData[i];
                 midCount++;
             }
-            rawMid = midCount > 0 ? Mathf.Clamp01((midSum / midCount) * midGain * normalizationFactor) : 0f;
+            rawMid =
+                midCount > 0
+                    ? Mathf.Clamp01((midSum / midCount) * midGain * normalizationFactor)
+                    : 0f;
 
             float trebleSum = 0f;
             int trebleCount = 0;
@@ -342,7 +386,10 @@ namespace OsuVR
                 trebleSum += spectrumData[i];
                 trebleCount++;
             }
-            rawTreble = trebleCount > 0 ? Mathf.Clamp01((trebleSum / trebleCount) * trebleGain * normalizationFactor) : 0f;
+            rawTreble =
+                trebleCount > 0
+                    ? Mathf.Clamp01((trebleSum / trebleCount) * trebleGain * normalizationFactor)
+                    : 0f;
         }
 
         // =========================================================
@@ -382,7 +429,9 @@ namespace OsuVR
         [ContextMenu("打印当前频段值")]
         public void LogCurrentValues()
         {
-            Debug.Log($"[AudioVisualizationManager] Bass: {Bass:F3}, Mid: {Mid:F3}, Treble: {Treble:F3}");
+            Debug.Log(
+                $"[AudioVisualizationManager] Bass: {Bass:F3}, Mid: {Mid:F3}, Treble: {Treble:F3}"
+            );
         }
     }
 }

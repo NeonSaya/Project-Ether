@@ -49,8 +49,10 @@ namespace OsuVR.Storyboard.Data
         {
             for (int i = 0; i < 5; i++)
             {
-                if (i == (int)SBLayer.Fail && !IsFailState) continue;
-                if (i == (int)SBLayer.Pass && IsFailState) continue;
+                if (i == (int)SBLayer.Fail && !IsFailState)
+                    continue;
+                if (i == (int)SBLayer.Pass && IsFailState)
+                    continue;
                 foreach (var element in Layers[i])
                     yield return element;
             }

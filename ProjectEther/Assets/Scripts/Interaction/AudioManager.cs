@@ -1,7 +1,7 @@
-using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using UnityEngine;
 using UnityEngine.Networking;
 
 namespace OsuVR
@@ -19,19 +19,27 @@ namespace OsuVR
         // =========================================================
         [Header("配置")]
         public SkinConfig defaultSkin;
-        [Range(0, 1)] public float masterVolume = 1.0f;
-        [Range(0, 1)] public float musicVolume = 0.8f;
-        [Range(0, 1)] public float sfxVolume = 1.0f;
+
+        [Range(0, 1)]
+        public float masterVolume = 1.0f;
+
+        [Range(0, 1)]
+        public float musicVolume = 0.8f;
+
+        [Range(0, 1)]
+        public float sfxVolume = 1.0f;
 
         [Header("音频延迟补偿")]
         [Tooltip("音效延迟补偿（毫秒）：正值延迟播放，负值提前播放。osu!默认约20-30ms")]
-        [Range(-100, 100)] public float audioLatencyCompensation = 20f;
+        [Range(-100, 100)]
+        public float audioLatencyCompensation = 20f;
 
         // =========================================================
         // 运行时状态
         // =========================================================
         [Header("运行时")]
-        private Dictionary<string, AudioClip> beatmapSkinCache = new Dictionary<string, AudioClip>();
+        private Dictionary<string, AudioClip> beatmapSkinCache =
+            new Dictionary<string, AudioClip>();
         private AudioSource sliderLoopSource;
         private AudioSource spinnerLoopSource;
         private List<AudioSource> oneShotPool = new List<AudioSource>();
@@ -70,7 +78,9 @@ namespace OsuVR
             int numBuffers;
             AudioSettings.GetDSPBufferSize(out bufferLength, out numBuffers);
             audioSystemLatency = (double)bufferLength / AudioSettings.outputSampleRate;
-            Debug.Log($"[Audio] 系统硬件延迟: {audioSystemLatency * 1000:F2} ms, 音效补偿: {audioLatencyCompensation} ms");
+            Debug.Log(
+                $"[Audio] 系统硬件延迟: {audioSystemLatency * 1000:F2} ms, 音效补偿: {audioLatencyCompensation} ms"
+            );
 
             for (int i = 0; i < 20; i++)
             {
@@ -108,7 +118,8 @@ namespace OsuVR
         {
             foreach (var clip in beatmapSkinCache.Values)
             {
-                if (clip != null) Destroy(clip);
+                if (clip != null)
+                    Destroy(clip);
             }
             beatmapSkinCache.Clear();
 
@@ -129,13 +140,17 @@ namespace OsuVR
             string[] files = Directory.GetFiles(folder);
             foreach (var filePath in files)
             {
-                if (!filePath.EndsWith(".wav", System.StringComparison.OrdinalIgnoreCase)) continue;
+                if (!filePath.EndsWith(".wav", System.StringComparison.OrdinalIgnoreCase))
+                    continue;
                 string fileName = Path.GetFileNameWithoutExtension(filePath).ToLower();
 
-                if (!fileName.Contains("hit") && !fileName.Contains("slider")) continue;
+                if (!fileName.Contains("hit") && !fileName.Contains("slider"))
+                    continue;
 
                 string url = "file://" + filePath;
-                using (UnityWebRequest www = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.WAV))
+                using (
+                    UnityWebRequest www = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.WAV)
+                )
                 {
                     yield return www.SendWebRequest();
                     if (www.result == UnityWebRequest.Result.Success)
@@ -166,17 +181,25 @@ namespace OsuVR
             }
 
             // 最终音量 = TimingPoint音量 × 样本倍率
-            float finalVolume = (hitObject.TimingPointVolume / 100f) * (hitObject.SampleVolume / 100f);
+            float finalVolume =
+                (hitObject.TimingPointVolume / 100f) * (hitObject.SampleVolume / 100f);
 
             SampleSet set = hitObject.SampleSet;
-            if (set == SampleSet.None) set = SampleSet.Normal;
+            if (set == SampleSet.None)
+                set = SampleSet.Normal;
 
             SampleSet additionSet = hitObject.AdditionSet;
-            if (additionSet == SampleSet.None) additionSet = set;
+            if (additionSet == SampleSet.None)
+                additionSet = set;
 
             int customIndex = hitObject.CustomIndex;
 
-            OsuVR.Storyboard.StoryboardRenderer.Instance?.NotifyHitSound(set, additionSet, soundType, customIndex);
+            OsuVR.Storyboard.StoryboardRenderer.Instance?.NotifyHitSound(
+                set,
+                additionSet,
+                soundType,
+                customIndex
+            );
 
             // 始终播放 Normal (底鼓)
             PlaySpecificSample(set, HitSoundType.Normal, customIndex, finalVolume);
@@ -203,7 +226,8 @@ namespace OsuVR
         /// <param name="nodeIndex">节点索引 (0=Head, 1+=Repeat/Tail)</param>
         public void PlaySliderNodeSound(SliderObject slider, int nodeIndex)
         {
-            if (slider == null) return;
+            if (slider == null)
+                return;
 
             // 获取节点音效列表
             List<HitSampleInfo> nodeSamples = null;
@@ -216,10 +240,12 @@ namespace OsuVR
             float volume = (slider.TimingPointVolume / 100f) * (slider.SampleVolume / 100f);
 
             SampleSet sampleSet = slider.SampleSet;
-            if (sampleSet == SampleSet.None) sampleSet = SampleSet.Normal;
+            if (sampleSet == SampleSet.None)
+                sampleSet = SampleSet.Normal;
 
             SampleSet additionSet = slider.AdditionSet;
-            if (additionSet == SampleSet.None) additionSet = sampleSet;
+            if (additionSet == SampleSet.None)
+                additionSet = sampleSet;
 
             int customIndex = slider.CustomIndex;
 
@@ -232,8 +258,14 @@ namespace OsuVR
             {
                 // 回退：使用滑条默认音效
                 HitSoundType soundType = slider.HitSound;
-                if (soundType == HitSoundType.None) soundType = HitSoundType.Normal;
-                OsuVR.Storyboard.StoryboardRenderer.Instance?.NotifyHitSound(sampleSet, additionSet, soundType, customIndex);
+                if (soundType == HitSoundType.None)
+                    soundType = HitSoundType.Normal;
+                OsuVR.Storyboard.StoryboardRenderer.Instance?.NotifyHitSound(
+                    sampleSet,
+                    additionSet,
+                    soundType,
+                    customIndex
+                );
 
                 PlaySpecificSample(sampleSet, HitSoundType.Normal, customIndex, volume);
 
@@ -275,7 +307,7 @@ namespace OsuVR
             {
                 SampleBank.Soft => SampleSet.Soft,
                 SampleBank.Drum => SampleSet.Drum,
-                _ => SampleSet.Normal
+                _ => SampleSet.Normal,
             };
         }
 
@@ -284,11 +316,15 @@ namespace OsuVR
         /// </summary>
         private HitSoundType ConvertNameToHitSoundType(string name)
         {
-            if (string.IsNullOrEmpty(name)) return HitSoundType.Normal;
+            if (string.IsNullOrEmpty(name))
+                return HitSoundType.Normal;
 
-            if (name.Contains("whistle")) return HitSoundType.Whistle;
-            if (name.Contains("finish")) return HitSoundType.Finish;
-            if (name.Contains("clap")) return HitSoundType.Clap;
+            if (name.Contains("whistle"))
+                return HitSoundType.Whistle;
+            if (name.Contains("finish"))
+                return HitSoundType.Finish;
+            if (name.Contains("clap"))
+                return HitSoundType.Clap;
 
             return HitSoundType.Normal;
         }
@@ -305,13 +341,18 @@ namespace OsuVR
         {
             float finalVol = volume * masterVolume * sfxVolume;
             AudioClip clip = GetClip(set, HitSoundType.Normal, index, false, true);
-            if (clip) PlayOneShot(clip, finalVol);
+            if (clip)
+                PlayOneShot(clip, finalVol);
         }
 
         /// <summary>
         /// 切换滑条滑动循环音效
         /// </summary>
-        public void ToggleSliderLoop(bool isPlaying, SampleSet set = SampleSet.Normal, int index = 0)
+        public void ToggleSliderLoop(
+            bool isPlaying,
+            SampleSet set = SampleSet.Normal,
+            int index = 0
+        )
         {
             if (isPlaying)
             {
@@ -375,7 +416,13 @@ namespace OsuVR
         /// <summary>
         /// 查找音频文件
         /// </summary>
-        private AudioClip GetClip(SampleSet set, HitSoundType type, int index, bool isSlide = false, bool isTick = false)
+        private AudioClip GetClip(
+            SampleSet set,
+            HitSoundType type,
+            int index,
+            bool isSlide = false,
+            bool isTick = false
+        )
         {
             // key 空间有限（皮肤集×音效类型×编号×slide/tick），预缓存拼接结果，击打热路径零分配
             string searchKey = GetSearchKey(set, type, index, isSlide, isTick);
@@ -400,19 +447,40 @@ namespace OsuVR
 
         private readonly Dictionary<int, string> _searchKeyCache = new Dictionary<int, string>();
 
-        private string GetSearchKey(SampleSet set, HitSoundType type, int index, bool isSlide, bool isTick)
+        private string GetSearchKey(
+            SampleSet set,
+            HitSoundType type,
+            int index,
+            bool isSlide,
+            bool isTick
+        )
         {
-            if (index < 0) index = 0; // 负值视为无编号（与旧逻辑 indexStr 为空一致），同时避免负数哈希位污染
-            int h = ((int)set << 20) | ((int)type << 14) | ((index & 0x3FF) << 4) | (isSlide ? 2 : 0) | (isTick ? 1 : 0);
+            if (index < 0)
+                index = 0; // 负值视为无编号（与旧逻辑 indexStr 为空一致），同时避免负数哈希位污染
+            int h =
+                ((int)set << 20)
+                | ((int)type << 14)
+                | ((index & 0x3FF) << 4)
+                | (isSlide ? 2 : 0)
+                | (isTick ? 1 : 0);
             if (!_searchKeyCache.TryGetValue(h, out string key))
             {
                 string prefix = set.ToString().ToLower();
                 string middle = "hit";
                 string suffix = type.ToString().ToLower();
 
-                if (isSlide) { middle = "slider"; suffix = "slide"; }
-                else if (isTick) { middle = "slider"; suffix = "tick"; }
-                else if (type == HitSoundType.Normal) suffix = "normal";
+                if (isSlide)
+                {
+                    middle = "slider";
+                    suffix = "slide";
+                }
+                else if (isTick)
+                {
+                    middle = "slider";
+                    suffix = "tick";
+                }
+                else if (type == HitSoundType.Normal)
+                    suffix = "normal";
 
                 string indexStr = (index > 1) ? index.ToString() : "";
                 key = $"{prefix}-{middle}{suffix}{indexStr}";
@@ -427,7 +495,11 @@ namespace OsuVR
             AudioSource src = null;
             for (int i = 0; i < oneShotPool.Count; i++)
             {
-                if (!oneShotPool[i].isPlaying) { src = oneShotPool[i]; break; }
+                if (!oneShotPool[i].isPlaying)
+                {
+                    src = oneShotPool[i];
+                    break;
+                }
             }
             if (src == null)
             {
@@ -438,7 +510,9 @@ namespace OsuVR
                 src.playOnAwake = false;
                 src.spatialBlend = 0;
                 oneShotPool.Add(src);
-                Debug.LogWarning($"[Audio] 音效池已满，动态创建新的 AudioSource，当前池大小: {oneShotPool.Count}");
+                Debug.LogWarning(
+                    $"[Audio] 音效池已满，动态创建新的 AudioSource，当前池大小: {oneShotPool.Count}"
+                );
             }
             src.volume = vol;
             src.PlayOneShot(clip);

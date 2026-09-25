@@ -65,15 +65,21 @@ namespace OsuVR
 
         public BeatmapMetadata GetDefaultDifficulty()
         {
-            if (Difficulties.Count == 0) return null;
-            
+            if (Difficulties.Count == 0)
+                return null;
+
             foreach (var diff in Difficulties)
             {
-                if (!string.IsNullOrEmpty(diff.Version) && 
-                    (diff.Version.ToLower().Contains("normal") || diff.Version.ToLower().Contains("easy")))
+                if (
+                    !string.IsNullOrEmpty(diff.Version)
+                    && (
+                        diff.Version.ToLower().Contains("normal")
+                        || diff.Version.ToLower().Contains("easy")
+                    )
+                )
                     return diff;
             }
-            
+
             return Difficulties[Difficulties.Count / 2];
         }
     }
@@ -87,10 +93,10 @@ namespace OsuVR
         [Serializable]
         private class SongIndexEntry
         {
-            public string path;            // .osu 绝对路径
-            public long lastWriteTicks;    // LastWriteTimeUtc.Ticks (文件最后写入时间戳)
+            public string path; // .osu 绝对路径
+            public long lastWriteTicks; // LastWriteTimeUtc.Ticks (文件最后写入时间戳)
             public long fileSize;
-            public BeatmapMetadata meta;   // null = 已知无效（坏谱/非 osu! 模式）
+            public BeatmapMetadata meta; // null = 已知无效（坏谱/非 osu! 模式）
         }
 
         [Serializable]
@@ -101,7 +107,8 @@ namespace OsuVR
         }
 
         private const int IndexCacheVersion = 2; // 解析逻辑变更时 +1，使旧缓存自动失效重建
-        private static string IndexCachePath => Path.Combine(Application.persistentDataPath, "song_index.json");
+        private static string IndexCachePath =>
+            Path.Combine(Application.persistentDataPath, "song_index.json");
 
         private enum Section
         {
@@ -112,7 +119,7 @@ namespace OsuVR
             Events,
             TimingPoints,
             Colours,
-            HitObjects
+            HitObjects,
         }
 
         public static List<BeatmapMetadata> ScanSongFolder()
@@ -129,7 +136,8 @@ namespace OsuVR
             var result = new List<BeatmapMetadata>();
             string rootPath = BeatmapImporter.SongsDirectory;
 
-            if (!Directory.Exists(rootPath)) return result;
+            if (!Directory.Exists(rootPath))
+                return result;
 
             var cache = LoadIndexCache();
             var cacheMap = new Dictionary<string, SongIndexEntry>();
@@ -150,7 +158,8 @@ namespace OsuVR
                 {
                     var fi = new FileInfo(osuFile);
 
-                    bool hit = cacheMap.TryGetValue(osuFile, out SongIndexEntry entry)
+                    bool hit =
+                        cacheMap.TryGetValue(osuFile, out SongIndexEntry entry)
                         && entry.lastWriteTicks == fi.LastWriteTimeUtc.Ticks
                         && entry.fileSize == fi.Length;
 
@@ -161,14 +170,15 @@ namespace OsuVR
                             path = osuFile,
                             lastWriteTicks = fi.LastWriteTimeUtc.Ticks,
                             fileSize = fi.Length,
-                            meta = ParseHeader(osuFile) // 坏谱/非 osu! 模式返回 null（负缓存）
+                            meta = ParseHeader(osuFile), // 坏谱/非 osu! 模式返回 null（负缓存）
                         };
                         dirty = true;
                     }
 
                     newEntries.Add(entry);
 
-                    if (entry.meta == null) continue; // 已知无效，不入列表
+                    if (entry.meta == null)
+                        continue; // 已知无效，不入列表
 
                     entry.meta.FolderPath = dir;
                     entry.meta.OsuFilePath = osuFile;
@@ -194,7 +204,11 @@ namespace OsuVR
                 {
                     string json = File.ReadAllText(IndexCachePath);
                     var cache = JsonUtility.FromJson<SongIndexCache>(json);
-                    if (cache != null && cache.version == IndexCacheVersion && cache.entries != null)
+                    if (
+                        cache != null
+                        && cache.version == IndexCacheVersion
+                        && cache.entries != null
+                    )
                         return cache;
                 }
             }
@@ -238,7 +252,10 @@ namespace OsuVR
                     set.Title = meta.Title;
                 if (string.IsNullOrEmpty(set.Artist))
                     set.Artist = meta.Artist;
-                if (string.IsNullOrEmpty(set.BackgroundPath) && !string.IsNullOrEmpty(meta.BackgroundFilename))
+                if (
+                    string.IsNullOrEmpty(set.BackgroundPath)
+                    && !string.IsNullOrEmpty(meta.BackgroundFilename)
+                )
                     set.BackgroundPath = Path.Combine(meta.FolderPath, meta.BackgroundFilename);
             }
 
@@ -269,7 +286,8 @@ namespace OsuVR
                 foreach (var rawLine in File.ReadLines(filePath))
                 {
                     string line = rawLine.Trim();
-                    if (string.IsNullOrEmpty(line) || line.StartsWith("//")) continue;
+                    if (string.IsNullOrEmpty(line) || line.StartsWith("//"))
+                        continue;
 
                     if (line.StartsWith("osu file format v"))
                     {
@@ -283,7 +301,8 @@ namespace OsuVR
                         string sectionName = line.Trim('[', ']');
                         if (!System.Enum.TryParse(sectionName, true, out section))
                             section = Section.None;
-                        if (sectionName == "Colours") section = Section.Colours;
+                        if (sectionName == "Colours")
+                            section = Section.Colours;
                         continue;
                     }
 
@@ -296,7 +315,15 @@ namespace OsuVR
                             ParseMetadata(line, meta);
                             break;
                         case Section.Difficulty:
-                            ParseDifficulty(line, meta, ref hasExplicitAR, ref hasExplicitOD, ref hasExplicitCS, ref hasExplicitHP, ref sliderMultiplier);
+                            ParseDifficulty(
+                                line,
+                                meta,
+                                ref hasExplicitAR,
+                                ref hasExplicitOD,
+                                ref hasExplicitCS,
+                                ref hasExplicitHP,
+                                ref sliderMultiplier
+                            );
                             break;
                         case Section.Events:
                             ParseEvents(line, meta, ref section);
@@ -318,17 +345,31 @@ namespace OsuVR
             catch (Exception e)
             {
                 // 坏谱不再静默丢失：记录文件名与原因，便于排查库中问题谱面
-                Debug.LogWarning($"[SongMetaLoader] 谱面解析失败，已跳过: {Path.GetFileName(filePath)} - {e.Message}");
+                Debug.LogWarning(
+                    $"[SongMetaLoader] 谱面解析失败，已跳过: {Path.GetFileName(filePath)} - {e.Message}"
+                );
                 return null;
             }
         }
 
-        private static double ParseHitObjectTime(string line, float sliderMultiplier, List<(double time, double beatLength)> redLines)
+        private static double ParseHitObjectTime(
+            string line,
+            float sliderMultiplier,
+            List<(double time, double beatLength)> redLines
+        )
         {
             string[] parts = line.Split(',');
-            if (parts.Length < 3) return 0;
+            if (parts.Length < 3)
+                return 0;
 
-            if (double.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out double time))
+            if (
+                double.TryParse(
+                    parts[2],
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out double time
+                )
+            )
             {
                 int rawType = 0;
                 if (parts.Length > 3 && int.TryParse(parts[3], out rawType))
@@ -337,18 +378,34 @@ namespace OsuVR
                     {
                         double pixelLength = 0;
                         int repeatCount = 1;
-                        if (double.TryParse(parts[7], NumberStyles.Float, CultureInfo.InvariantCulture, out pixelLength))
+                        if (
+                            double.TryParse(
+                                parts[7],
+                                NumberStyles.Float,
+                                CultureInfo.InvariantCulture,
+                                out pixelLength
+                            )
+                        )
                         {
-                            if (parts.Length > 6) int.TryParse(parts[6], out repeatCount);
+                            if (parts.Length > 6)
+                                int.TryParse(parts[6], out repeatCount);
                             // osu! 官方公式：时长 = 长度 / (100 * SliderMultiplier) 拍 * beatLength * 折返数
                             double beatLength = GetBeatLengthAt(redLines, time);
-                            double sliderDuration = pixelLength / (100.0 * sliderMultiplier) * beatLength * repeatCount;
+                            double sliderDuration =
+                                pixelLength / (100.0 * sliderMultiplier) * beatLength * repeatCount;
                             return time + sliderDuration;
                         }
                     }
                     else if ((rawType & 8) != 0 && parts.Length > 5)
                     {
-                        if (double.TryParse(parts[5], NumberStyles.Float, CultureInfo.InvariantCulture, out double endTime))
+                        if (
+                            double.TryParse(
+                                parts[5],
+                                NumberStyles.Float,
+                                CultureInfo.InvariantCulture,
+                                out double endTime
+                            )
+                        )
                         {
                             return endTime;
                         }
@@ -362,13 +419,18 @@ namespace OsuVR
         /// <summary>
         /// 获取指定时间点生效的红线 beatLength（红线按文件顺序即时间序），兜底 120BPM
         /// </summary>
-        private static double GetBeatLengthAt(List<(double time, double beatLength)> redLines, double time)
+        private static double GetBeatLengthAt(
+            List<(double time, double beatLength)> redLines,
+            double time
+        )
         {
             double beat = 500.0; // 即 120 BPM
             for (int i = 0; i < redLines.Count; i++)
             {
-                if (redLines[i].time <= time) beat = redLines[i].beatLength;
-                else break;
+                if (redLines[i].time <= time)
+                    beat = redLines[i].beatLength;
+                else
+                    break;
             }
             return beat;
         }
@@ -376,7 +438,8 @@ namespace OsuVR
         private static void ParseGeneral(string line, BeatmapMetadata meta)
         {
             int colonIndex = line.IndexOf(':');
-            if (colonIndex < 0) return;
+            if (colonIndex < 0)
+                return;
 
             string key = line.Substring(0, colonIndex).Trim();
             string value = line.Substring(colonIndex + 1).Trim();
@@ -391,7 +454,12 @@ namespace OsuVR
                     meta.PreviewTime = preview;
                     break;
                 case "Mode":
-                    int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int mode);
+                    int.TryParse(
+                        value,
+                        NumberStyles.Integer,
+                        CultureInfo.InvariantCulture,
+                        out int mode
+                    );
                     meta.Mode = mode;
                     break;
             }
@@ -400,7 +468,8 @@ namespace OsuVR
         private static void ParseMetadata(string line, BeatmapMetadata meta)
         {
             int colonIndex = line.IndexOf(':');
-            if (colonIndex < 0) return;
+            if (colonIndex < 0)
+                return;
 
             string key = line.Substring(0, colonIndex).Trim();
             string value = line.Substring(colonIndex + 1).Trim();
@@ -428,12 +497,19 @@ namespace OsuVR
             }
         }
 
-        private static void ParseDifficulty(string line, BeatmapMetadata meta,
-            ref bool hasExplicitAR, ref bool hasExplicitOD, ref bool hasExplicitCS, ref bool hasExplicitHP,
-            ref float sliderMultiplier)
+        private static void ParseDifficulty(
+            string line,
+            BeatmapMetadata meta,
+            ref bool hasExplicitAR,
+            ref bool hasExplicitOD,
+            ref bool hasExplicitCS,
+            ref bool hasExplicitHP,
+            ref float sliderMultiplier
+        )
         {
             int colonIndex = line.IndexOf(':');
-            if (colonIndex < 0) return;
+            if (colonIndex < 0)
+                return;
 
             string key = line.Substring(0, colonIndex).Trim();
             string value = line.Substring(colonIndex + 1).Trim();
@@ -441,35 +517,71 @@ namespace OsuVR
             switch (key)
             {
                 case "HPDrainRate":
-                    if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float hp))
+                    if (
+                        float.TryParse(
+                            value,
+                            NumberStyles.Float,
+                            CultureInfo.InvariantCulture,
+                            out float hp
+                        )
+                    )
                     {
                         meta.HPDrainRate = hp;
                         hasExplicitHP = true;
                     }
                     break;
                 case "CircleSize":
-                    if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float cs))
+                    if (
+                        float.TryParse(
+                            value,
+                            NumberStyles.Float,
+                            CultureInfo.InvariantCulture,
+                            out float cs
+                        )
+                    )
                     {
                         meta.CircleSize = cs;
                         hasExplicitCS = true;
                     }
                     break;
                 case "OverallDifficulty":
-                    if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float od))
+                    if (
+                        float.TryParse(
+                            value,
+                            NumberStyles.Float,
+                            CultureInfo.InvariantCulture,
+                            out float od
+                        )
+                    )
                     {
                         meta.OverallDifficulty = od;
                         hasExplicitOD = true;
                     }
                     break;
                 case "ApproachRate":
-                    if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float ar))
+                    if (
+                        float.TryParse(
+                            value,
+                            NumberStyles.Float,
+                            CultureInfo.InvariantCulture,
+                            out float ar
+                        )
+                    )
                     {
                         meta.ApproachRate = ar;
                         hasExplicitAR = true;
                     }
                     break;
                 case "SliderMultiplier":
-                    if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float sm) && sm > 0)
+                    if (
+                        float.TryParse(
+                            value,
+                            NumberStyles.Float,
+                            CultureInfo.InvariantCulture,
+                            out float sm
+                        )
+                        && sm > 0
+                    )
                     {
                         sliderMultiplier = sm;
                     }
@@ -480,7 +592,8 @@ namespace OsuVR
         private static void ParseEvents(string line, BeatmapMetadata meta, ref Section section)
         {
             string[] parts = line.Split(',');
-            if (parts.Length < 3) return;
+            if (parts.Length < 3)
+                return;
 
             if (parts[0].Trim() == "0" && parts[1].Trim() == "0")
             {
@@ -489,13 +602,29 @@ namespace OsuVR
             }
         }
 
-        private static void ParseTimingPoints(string line, List<(double time, double beatLength)> redLines)
+        private static void ParseTimingPoints(
+            string line,
+            List<(double time, double beatLength)> redLines
+        )
         {
             string[] parts = line.Split(',');
-            if (parts.Length < 2) return;
+            if (parts.Length < 2)
+                return;
 
-            if (double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out double time) &&
-                double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double beatLength))
+            if (
+                double.TryParse(
+                    parts[0],
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out double time
+                )
+                && double.TryParse(
+                    parts[1],
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out double beatLength
+                )
+            )
             {
                 bool uninherited = parts.Length <= 6 || parts[6].Trim() == "1";
 
@@ -506,8 +635,12 @@ namespace OsuVR
             }
         }
 
-        private static BeatmapMetadata FinalizeMetadata(BeatmapMetadata meta, bool hasExplicitAR,
-            List<(double time, double beatLength)> redLines, double lastHitObjectTime)
+        private static BeatmapMetadata FinalizeMetadata(
+            BeatmapMetadata meta,
+            bool hasExplicitAR,
+            List<(double time, double beatLength)> redLines,
+            double lastHitObjectTime
+        )
         {
             // 无显式 AR 时沿用 osu! 规则：AR = OD（与文件格式版本无关，原 if/else 两分支相同）
             if (!hasExplicitAR)
@@ -522,9 +655,10 @@ namespace OsuVR
                 double bestWeight = -1;
                 for (int i = 0; i < redLines.Count; i++)
                 {
-                    double end = (i + 1 < redLines.Count)
-                        ? redLines[i + 1].time
-                        : Math.Max(lastHitObjectTime, redLines[i].time);
+                    double end =
+                        (i + 1 < redLines.Count)
+                            ? redLines[i + 1].time
+                            : Math.Max(lastHitObjectTime, redLines[i].time);
                     double weight = Math.Max(0, end - redLines[i].time);
                     if (weight > bestWeight)
                     {
@@ -540,14 +674,17 @@ namespace OsuVR
             meta.OverallDifficulty = Mathf.Clamp(meta.OverallDifficulty, 0f, 10f);
             meta.HPDrainRate = Mathf.Clamp(meta.HPDrainRate, 0f, 10f);
 
-            if (string.IsNullOrEmpty(meta.AudioFilename)) return null;
+            if (string.IsNullOrEmpty(meta.AudioFilename))
+                return null;
 
             // 过滤非 osu! 模式谱面（taiko/ctb/mania），按难度粒度跳过：
             // 混模式的谱集会只保留 osu! 难度，整个谱面被按 osu! 解析会产生乱谱
             if (meta.Mode != 0)
             {
 #if UNITY_EDITOR
-                Debug.Log($"[SongMetaLoader] 跳过非 osu! 模式谱面 (Mode={meta.Mode}): {meta.Title} [{meta.Version}]");
+                Debug.Log(
+                    $"[SongMetaLoader] 跳过非 osu! 模式谱面 (Mode={meta.Mode}): {meta.Title} [{meta.Version}]"
+                );
 #endif
                 return null;
             }
@@ -569,9 +706,7 @@ namespace OsuVR
                     return texture;
                 }
             }
-            catch
-            {
-            }
+            catch { }
             return null;
         }
     }

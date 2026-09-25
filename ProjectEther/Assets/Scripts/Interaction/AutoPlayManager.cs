@@ -1,6 +1,6 @@
 using System.Collections.Generic;
-using UnityEngine;
 using System.Linq;
+using UnityEngine;
 using UnityEngine.InputSystem.XR;
 using UnityEngine.XR.Interaction.Toolkit;
 
@@ -81,8 +81,14 @@ namespace OsuVR
         // 滑条 GameObject -> 渲染器数组缓存。
         // GetComponentsInChildren 每帧每滑条调用开销大（分配 + 遍历层级），
         // 以滑条根 childCount 为签名：followBall 等子物体动态挂载时自动失效重取
-        private struct RendererCacheEntry { public Renderer[] renderers; public int childCount; }
-        private readonly Dictionary<GameObject, RendererCacheEntry> _sliderRendererCache = new Dictionary<GameObject, RendererCacheEntry>();
+        private struct RendererCacheEntry
+        {
+            public Renderer[] renderers;
+            public int childCount;
+        }
+
+        private readonly Dictionary<GameObject, RendererCacheEntry> _sliderRendererCache =
+            new Dictionary<GameObject, RendererCacheEntry>();
 
         /// <summary>
         /// 检查指定的 RayController 是否正被 AutoPlay 控制。
@@ -91,7 +97,8 @@ namespace OsuVR
         /// </summary>
         public bool IsControlling(RayController ray)
         {
-            if (ray == null || !isActiveAndEnabled || isPaused) return false;
+            if (ray == null || !isActiveAndEnabled || isPaused)
+                return false;
             return (leftHand != null && leftHand.controller == ray)
                 || (rightHand != null && rightHand.controller == ray);
         }
@@ -99,17 +106,21 @@ namespace OsuVR
         private static bool HasNullRenderer(Renderer[] renderers)
         {
             for (int i = 0; i < renderers.Length; i++)
-                if (renderers[i] == null) return true;
+                if (renderers[i] == null)
+                    return true;
             return false;
         }
 
         private Renderer[] GetSliderRenderers(GameObject obj)
         {
-            if (obj == null) return null;
+            if (obj == null)
+                return null;
 
-            if (_sliderRendererCache.TryGetValue(obj, out var entry)
+            if (
+                _sliderRendererCache.TryGetValue(obj, out var entry)
                 && entry.childCount == obj.transform.childCount
-                && !HasNullRenderer(entry.renderers))
+                && !HasNullRenderer(entry.renderers)
+            )
                 return entry.renderers;
 
             entry.renderers = obj.GetComponentsInChildren<Renderer>(true);
@@ -123,7 +134,8 @@ namespace OsuVR
         /// </summary>
         void Start()
         {
-            if (gameManager == null) return;
+            if (gameManager == null)
+                return;
 
             _cachedMainCam = Camera.main;
 
@@ -197,21 +209,35 @@ namespace OsuVR
         /// <returns>初始化后的 AutoHand 对象</returns>
         private AutoHand InitHand(RayController ray, bool isRight)
         {
-            if (ray == null) return null;
+            if (ray == null)
+                return null;
 
             Transform originalParent = ray.transform.parent;
             ray.transform.SetParent(_tempRoot.transform, true);
             ray.gameObject.SetActive(true);
             ray.isRightHand = isRight;
 
-            var hand = new AutoHand { controller = ray, transform = ray.transform, originalParent = originalParent };
+            var hand = new AutoHand
+            {
+                controller = ray,
+                transform = ray.transform,
+                originalParent = originalParent,
+            };
             // 保存用户原始设置
             hand.userMode = ray.currentMode;
             hand.userVerticalOffset = ray.verticalOffset;
             hand.userDirectOffset = ray.directOffset;
 
-            foreach (var d in ray.GetComponents<TrackedPoseDriver>()) { d.enabled = false; hand.disabledComponents.Add(d); }
-            foreach (var c in ray.GetComponents<ActionBasedController>()) { c.enabled = false; hand.disabledComponents.Add(c); }
+            foreach (var d in ray.GetComponents<TrackedPoseDriver>())
+            {
+                d.enabled = false;
+                hand.disabledComponents.Add(d);
+            }
+            foreach (var c in ray.GetComponents<ActionBasedController>())
+            {
+                c.enabled = false;
+                hand.disabledComponents.Add(c);
+            }
 
             ray.currentMode = RayController.ControlMode.Direct1to1;
             ray.verticalOffset = 0f;
@@ -235,14 +261,17 @@ namespace OsuVR
         /// </summary>
         private void RestoreHand(AutoHand hand)
         {
-            if (hand == null || hand.transform == null || hand.transform.Equals(null)) return;
+            if (hand == null || hand.transform == null || hand.transform.Equals(null))
+                return;
             if (hand.originalParent != null && !hand.originalParent.Equals(null))
             {
                 hand.transform.SetParent(hand.originalParent, true);
                 hand.transform.localPosition = Vector3.zero;
                 hand.transform.localRotation = Quaternion.identity;
             }
-            foreach (var c in hand.disabledComponents) if (c != null) c.enabled = true;
+            foreach (var c in hand.disabledComponents)
+                if (c != null)
+                    c.enabled = true;
             hand.disabledComponents.Clear();
 
             // 恢复用户原始的射线偏转设置（与 RestoreHandForPlayerControl 对齐，
@@ -272,7 +301,8 @@ namespace OsuVR
         /// </summary>
         public void OnGamePaused()
         {
-            if (isPaused) return;
+            if (isPaused)
+                return;
             isPaused = true;
 
             // 保存暂停时 Auto 空间的手柄位置，恢复时用这些位置避免 miss
@@ -298,7 +328,8 @@ namespace OsuVR
         /// </summary>
         public void OnGameResumed()
         {
-            if (!isPaused) return;
+            if (!isPaused)
+                return;
             isPaused = false;
             TakeOverHand(leftHand, leftPausePosition, leftPauseRotation);
             TakeOverHand(rightHand, rightPausePosition, rightPauseRotation);
@@ -311,7 +342,8 @@ namespace OsuVR
         /// </summary>
         private void RestoreHandForPlayerControl(AutoHand hand)
         {
-            if (hand == null || hand.transform == null || hand.transform.Equals(null)) return;
+            if (hand == null || hand.transform == null || hand.transform.Equals(null))
+                return;
 
             // 还原父子关系
             if (hand.originalParent != null && !hand.originalParent.Equals(null))
@@ -324,7 +356,8 @@ namespace OsuVR
             // 重新启用 XR 追踪组件
             foreach (var c in hand.disabledComponents)
             {
-                if (c != null) c.enabled = true;
+                if (c != null)
+                    c.enabled = true;
             }
 
             // 恢复用户原始的射线偏转设置
@@ -342,7 +375,8 @@ namespace OsuVR
         /// </summary>
         private void TakeOverHand(AutoHand hand, Vector3 savedPosition, Quaternion savedRotation)
         {
-            if (hand == null || hand.transform == null || hand.transform.Equals(null)) return;
+            if (hand == null || hand.transform == null || hand.transform.Equals(null))
+                return;
 
             // 确保 _tempRoot 存在
             if (_tempRoot == null || _tempRoot.Equals(null))
@@ -354,8 +388,16 @@ namespace OsuVR
 
             // 先禁用 XR 追踪组件（必须在移到临时容器之前，防止 XR 覆盖位置）
             hand.disabledComponents.Clear();
-            foreach (var d in hand.transform.GetComponents<TrackedPoseDriver>()) { d.enabled = false; hand.disabledComponents.Add(d); }
-            foreach (var c in hand.transform.GetComponents<ActionBasedController>()) { c.enabled = false; hand.disabledComponents.Add(c); }
+            foreach (var d in hand.transform.GetComponents<TrackedPoseDriver>())
+            {
+                d.enabled = false;
+                hand.disabledComponents.Add(d);
+            }
+            foreach (var c in hand.transform.GetComponents<ActionBasedController>())
+            {
+                c.enabled = false;
+                hand.disabledComponents.Add(c);
+            }
 
             // 移回临时容器
             if (_tempRoot != null)
@@ -383,7 +425,8 @@ namespace OsuVR
         /// </summary>
         private void TakeOverHandForRestart(AutoHand hand)
         {
-            if (hand == null || hand.transform == null || hand.transform.Equals(null)) return;
+            if (hand == null || hand.transform == null || hand.transform.Equals(null))
+                return;
 
             // 确保 _tempRoot 存在
             if (_tempRoot == null || _tempRoot.Equals(null))
@@ -395,8 +438,16 @@ namespace OsuVR
 
             // 先禁用 XR 追踪组件
             hand.disabledComponents.Clear();
-            foreach (var d in hand.transform.GetComponents<TrackedPoseDriver>()) { d.enabled = false; hand.disabledComponents.Add(d); }
-            foreach (var c in hand.transform.GetComponents<ActionBasedController>()) { c.enabled = false; hand.disabledComponents.Add(c); }
+            foreach (var d in hand.transform.GetComponents<TrackedPoseDriver>())
+            {
+                d.enabled = false;
+                hand.disabledComponents.Add(d);
+            }
+            foreach (var c in hand.transform.GetComponents<ActionBasedController>())
+            {
+                c.enabled = false;
+                hand.disabledComponents.Add(c);
+            }
 
             // 移到临时容器
             if (_tempRoot != null)
@@ -416,24 +467,35 @@ namespace OsuVR
 
         void Update()
         {
-            if (_cachedMainCam == null) _cachedMainCam = Camera.main;
-            if (_cachedMainCam != null && _cachedMainCam.transform.localPosition.y < 0.1f && simulatedHeadHeight > 0.01f)
+            if (_cachedMainCam == null)
+                _cachedMainCam = Camera.main;
+            if (
+                _cachedMainCam != null
+                && _cachedMainCam.transform.localPosition.y < 0.1f
+                && simulatedHeadHeight > 0.01f
+            )
                 _cachedMainCam.transform.localPosition = new Vector3(0, simulatedHeadHeight, 0);
 
-            if (gameManager == null) return;
+            if (gameManager == null)
+                return;
             // 游戏进行中或缓冲期内都要更新手柄（缓冲期内提前移动到首个音符位置）
-            if (!gameManager.isPlaying && !gameManager.isBufferPhase) return;
+            if (!gameManager.isPlaying && !gameManager.isBufferPhase)
+                return;
 
             // 检查手柄是否有效（重试时可能被 OnDisable 还原导致 transform 无效）
             if (leftHand != null && (leftHand.transform == null || leftHand.transform.Equals(null)))
                 return;
-            if (rightHand != null && (rightHand.transform == null || rightHand.transform.Equals(null)))
+            if (
+                rightHand != null
+                && (rightHand.transform == null || rightHand.transform.Equals(null))
+            )
                 return;
 
             double time = gameManager.currentMusicTimeMs;
 
             AssignTasks(time);
-            if (_allNotes == null || _allNotes.Count == 0) return;
+            if (_allNotes == null || _allNotes.Count == 0)
+                return;
 
             UpdateHandMotion(leftHand, time);
             UpdateHandMotion(rightHand, time);
@@ -444,7 +506,9 @@ namespace OsuVR
         /// </summary>
         private Vector3 GetShoulderPos(AutoHand hand)
         {
-            Vector3 headPos = _cachedMainCam ? _cachedMainCam.transform.position : new Vector3(0, simulatedHeadHeight, 0);
+            Vector3 headPos = _cachedMainCam
+                ? _cachedMainCam.transform.position
+                : new Vector3(0, simulatedHeadHeight, 0);
             float sign = hand.controller.isRightHand ? 1f : -1f;
             return headPos + new Vector3(sign * 0.2f, -0.25f, 0.0f);
         }
@@ -454,8 +518,10 @@ namespace OsuVR
         /// </summary>
         private float EasingInOutCubic(float t)
         {
-            if (t <= 0) return 0;
-            if (t >= 1) return 1;
+            if (t <= 0)
+                return 0;
+            if (t >= 1)
+                return 1;
             return t < 0.5f ? 4f * t * t * t : 1f - Mathf.Pow(-2f * t + 2f, 3f) / 2f;
         }
 
@@ -466,7 +532,12 @@ namespace OsuVR
         /// - Slider：45cm 警戒圈，严格防守防止刮断
         /// - 提前 1.2 秒预警，确保有足够时间避险
         /// </summary>
-        private Vector3 GetHoverPose(AutoHand hand, double time, bool isLongBreak, out bool isDodging)
+        private Vector3 GetHoverPose(
+            AutoHand hand,
+            double time,
+            bool isLongBreak,
+            out bool isDodging
+        )
         {
             isDodging = false;
             Vector3 baseWorld;
@@ -480,7 +551,9 @@ namespace OsuVR
             {
                 baseWorld = hand.restAnchor;
                 if (baseWorld == Vector3.zero)
-                    baseWorld = CoordinateMapper.MapToWorld(new Vector2(hand.controller.isRightHand ? 480f : 32f, 192f));
+                    baseWorld = CoordinateMapper.MapToWorld(
+                        new Vector2(hand.controller.isRightHand ? 480f : 32f, 192f)
+                    );
             }
 
             if (_allNotes != null)
@@ -489,10 +562,13 @@ namespace OsuVR
                 {
                     var danger = _allNotes[i];
 
-                    if (danger.StartTime > time + 1200) break;
-                    if (GetTaskEndTime(danger) < time) continue;
+                    if (danger.StartTime > time + 1200)
+                        break;
+                    if (GetTaskEndTime(danger) < time)
+                        continue;
 
-                    if (hand.currentTask == danger || hand.taskQueue.Contains(danger)) continue;
+                    if (hand.currentTask == danger || hand.taskQueue.Contains(danger))
+                        continue;
 
                     // 分类处理 1：如果是普通圈 (HitCircle)，缩小警戒圈
                     if (danger is HitCircle)
@@ -510,20 +586,34 @@ namespace OsuVR
                     {
                         float minDist = float.MaxValue;
 
-                        if (_activeObjectsRef != null && _activeObjectsRef.TryGetValue(danger, out GameObject obj) && obj != null)
+                        if (
+                            _activeObjectsRef != null
+                            && _activeObjectsRef.TryGetValue(danger, out GameObject obj)
+                            && obj != null
+                        )
                         {
                             var renderers = GetSliderRenderers(obj);
                             foreach (var r in renderers)
                             {
                                 Vector3 closestPoint = r.bounds.ClosestPoint(baseWorld);
                                 float d = Vector3.Distance(baseWorld, closestPoint);
-                                if (d < minDist) minDist = d;
+                                if (d < minDist)
+                                    minDist = d;
                             }
                         }
                         else
                         {
-                            minDist = Mathf.Min(minDist, Vector3.Distance(baseWorld, CoordinateMapper.MapToWorld(s.Position)));
-                            minDist = Mathf.Min(minDist, Vector3.Distance(baseWorld, CoordinateMapper.MapToWorld(s.EndPosition)));
+                            minDist = Mathf.Min(
+                                minDist,
+                                Vector3.Distance(baseWorld, CoordinateMapper.MapToWorld(s.Position))
+                            );
+                            minDist = Mathf.Min(
+                                minDist,
+                                Vector3.Distance(
+                                    baseWorld,
+                                    CoordinateMapper.MapToWorld(s.EndPosition)
+                                )
+                            );
                         }
 
                         // 滑条本体警戒圈依然保持 45 厘米，绝对防止中段刮断连击
@@ -543,10 +633,16 @@ namespace OsuVR
             }
 
             float scale = isLongBreak ? 1f : 0.4f;
-            float wanderX = Mathf.Sin((float)time * 0.0015f) * (30f * scale) + Mathf.Cos((float)time * 0.0009f) * (15f * scale);
-            float wanderY = Mathf.Sin((float)time * 0.0019f) * (35f * scale) + Mathf.Cos((float)time * 0.0011f) * (20f * scale);
+            float wanderX =
+                Mathf.Sin((float)time * 0.0015f) * (30f * scale)
+                + Mathf.Cos((float)time * 0.0009f) * (15f * scale);
+            float wanderY =
+                Mathf.Sin((float)time * 0.0019f) * (35f * scale)
+                + Mathf.Cos((float)time * 0.0011f) * (20f * scale);
 
-            Vector3 wanderWorld = CoordinateMapper.MapToWorld(new Vector2(256 + wanderX, 192 + wanderY)) - CoordinateMapper.MapToWorld(new Vector2(256, 192));
+            Vector3 wanderWorld =
+                CoordinateMapper.MapToWorld(new Vector2(256 + wanderX, 192 + wanderY))
+                - CoordinateMapper.MapToWorld(new Vector2(256, 192));
 
             return baseWorld + wanderWorld;
         }
@@ -560,7 +656,8 @@ namespace OsuVR
         /// </summary>
         private void UpdateHandMotion(AutoHand hand, double time)
         {
-            if (hand == null || hand.transform == null || hand.transform.Equals(null)) return;
+            if (hand == null || hand.transform == null || hand.transform.Equals(null))
+                return;
             CheckTask(hand, time);
 
             Vector3 shoulderPos = GetShoulderPos(hand);
@@ -584,7 +681,8 @@ namespace OsuVR
                     else
                     {
                         aimTarget = GetAimTarget(hand, time);
-                        if (time <= sp.EndTime) isHitting = true;
+                        if (time <= sp.EndTime)
+                            isHitting = true;
                     }
                 }
                 else
@@ -606,7 +704,11 @@ namespace OsuVR
                         }
                         else
                         {
-                            aimTarget = Vector3.Lerp(hand.lastValidAimPos, targetHover, Time.deltaTime * 15f);
+                            aimTarget = Vector3.Lerp(
+                                hand.lastValidAimPos,
+                                targetHover,
+                                Time.deltaTime * 15f
+                            );
                         }
 
                         hand.taskSourceAim = aimTarget;
@@ -614,21 +716,31 @@ namespace OsuVR
                     else if (timeUntilHit > 0)
                     {
                         float effectiveDuration = forceDodge ? 120f : approachDuration;
-                        if (effectiveDuration < 5f) effectiveDuration = 5f;
+                        if (effectiveDuration < 5f)
+                            effectiveDuration = 5f;
 
                         float t = 1f - (float)(timeUntilHit / effectiveDuration);
                         t = EasingInOutCubic(Mathf.Clamp01(t));
 
-                        Vector3 targetCircle = CoordinateMapper.MapToWorld(hand.currentTask.Position);
+                        Vector3 targetCircle = CoordinateMapper.MapToWorld(
+                            hand.currentTask.Position
+                        );
                         aimTarget = Vector3.Lerp(hand.taskSourceAim, targetCircle, t);
 
-                        if (timeUntilHit <= 30) isHitting = true;
+                        if (timeUntilHit <= 30)
+                            isHitting = true;
                     }
                     else
                     {
                         aimTarget = GetAimTarget(hand, time);
-                        if (hand.currentTask is HitCircle && Mathf.Abs((float)timeUntilHit) <= 30) isHitting = true;
-                        if (hand.currentTask is SliderObject s && time >= s.StartTime && time <= s.EndTime) isHitting = true;
+                        if (hand.currentTask is HitCircle && Mathf.Abs((float)timeUntilHit) <= 30)
+                            isHitting = true;
+                        if (
+                            hand.currentTask is SliderObject s
+                            && time >= s.StartTime
+                            && time <= s.EndTime
+                        )
+                            isHitting = true;
                     }
                 }
             }
@@ -644,7 +756,11 @@ namespace OsuVR
                 }
                 else
                 {
-                    aimTarget = Vector3.Lerp(hand.lastValidAimPos, targetHover, Time.deltaTime * 15f);
+                    aimTarget = Vector3.Lerp(
+                        hand.lastValidAimPos,
+                        targetHover,
+                        Time.deltaTime * 15f
+                    );
                 }
 
                 hand.taskSourceAim = aimTarget;
@@ -656,7 +772,8 @@ namespace OsuVR
             Vector3 targetPos = shoulderPos + dirToTarget * armExtension;
             Quaternion targetRot = Quaternion.LookRotation(dirToTarget);
 
-            if (isHitting) targetPos += dirToTarget * 0.05f;
+            if (isHitting)
+                targetPos += dirToTarget * 0.05f;
 
             // 瞬移解禁：如果拉响了避难警报，直接用 `=` 赋值覆盖
             // 这意味着手柄在当前帧会在屏幕中消失，并直接在绝对死角出现，绝不会发生沿途碰撞！
@@ -667,8 +784,16 @@ namespace OsuVR
             }
             else
             {
-                hand.transform.position = Vector3.Lerp(hand.transform.position, targetPos, Time.deltaTime * 120f);
-                hand.transform.rotation = Quaternion.Slerp(hand.transform.rotation, targetRot, Time.deltaTime * 120f);
+                hand.transform.position = Vector3.Lerp(
+                    hand.transform.position,
+                    targetPos,
+                    Time.deltaTime * 120f
+                );
+                hand.transform.rotation = Quaternion.Slerp(
+                    hand.transform.rotation,
+                    targetRot,
+                    Time.deltaTime * 120f
+                );
             }
 
             // AutoPlay 直接触发判定，确保音效播放
@@ -685,7 +810,8 @@ namespace OsuVR
         /// </summary>
         private void TryTriggerHit(AutoHand hand, double time)
         {
-            if (hand.currentTask == null) return;
+            if (hand.currentTask == null)
+                return;
 
             double timeUntilHit = hand.currentTask.StartTime - time;
 
@@ -694,11 +820,18 @@ namespace OsuVR
             if (timeUntilHit <= 16 && timeUntilHit >= -100)
             {
                 // 检查是否已经触发过
-                if (hand.triggeredNotes == null) hand.triggeredNotes = new HashSet<HitObject>();
-                if (hand.triggeredNotes.Contains(hand.currentTask)) return;
+                if (hand.triggeredNotes == null)
+                    hand.triggeredNotes = new HashSet<HitObject>();
+                if (hand.triggeredNotes.Contains(hand.currentTask))
+                    return;
 
                 // 获取活跃对象
-                if (_activeObjectsRef == null || !_activeObjectsRef.TryGetValue(hand.currentTask, out GameObject obj) || obj == null) return;
+                if (
+                    _activeObjectsRef == null
+                    || !_activeObjectsRef.TryGetValue(hand.currentTask, out GameObject obj)
+                    || obj == null
+                )
+                    return;
 
                 bool isRightHand = hand.controller.isRightHand;
 
@@ -737,7 +870,8 @@ namespace OsuVR
             {
                 Vector3 center = CoordinateMapper.MapToWorld(new Vector2(256, 192));
                 float angle = (float)(time * 0.05f);
-                if (hand.controller.isRightHand) angle += Mathf.PI;
+                if (hand.controller.isRightHand)
+                    angle += Mathf.PI;
 
                 return center + new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0) * 0.2f;
             }
@@ -746,12 +880,20 @@ namespace OsuVR
                 bool foundBall = false;
                 Vector3 ballPos = Vector3.zero;
 
-                if (_activeObjectsRef != null && _activeObjectsRef.TryGetValue(s, out GameObject obj) && obj != null)
+                if (
+                    _activeObjectsRef != null
+                    && _activeObjectsRef.TryGetValue(s, out GameObject obj)
+                    && obj != null
+                )
                 {
                     var renderers = GetSliderRenderers(obj);
                     foreach (var r in renderers)
                     {
-                        if (r.name.Contains("Ball") || r.name.Contains("Sphere") || r.gameObject.name.Contains("FollowBall"))
+                        if (
+                            r.name.Contains("Ball")
+                            || r.name.Contains("Sphere")
+                            || r.gameObject.name.Contains("FollowBall")
+                        )
                         {
                             ballPos = r.transform.position;
                             foundBall = true;
@@ -790,9 +932,12 @@ namespace OsuVR
             if (hand.currentTask != null)
             {
                 bool done = false;
-                if (hand.currentTask is HitCircle && time > hand.currentTask.StartTime + 20) done = true;
-                else if (hand.currentTask is SliderObject s && time > s.EndTime + 25) done = true;
-                else if (hand.currentTask is SpinnerObject sp && time > sp.EndTime) done = true;
+                if (hand.currentTask is HitCircle && time > hand.currentTask.StartTime + 20)
+                    done = true;
+                else if (hand.currentTask is SliderObject s && time > s.EndTime + 25)
+                    done = true;
+                else if (hand.currentTask is SpinnerObject sp && time > sp.EndTime)
+                    done = true;
 
                 if (done)
                 {
@@ -828,10 +973,12 @@ namespace OsuVR
         /// </summary>
         private void AssignTasks(double currentTime)
         {
-            if (gameManager == null) return;
+            if (gameManager == null)
+                return;
 
             var currentNotes = gameManager.HitObjects;
-            if (currentNotes == null) return;
+            if (currentNotes == null)
+                return;
 
             if (_allNotes == null || _allNotes.Count != currentNotes.Count)
             {
@@ -840,12 +987,18 @@ namespace OsuVR
                 _assignedNotes.Clear();
 
                 // 谱面重置时，清空已触发判定的音符记录
-                if (leftHand != null && leftHand.triggeredNotes != null) leftHand.triggeredNotes.Clear();
-                if (rightHand != null && rightHand.triggeredNotes != null) rightHand.triggeredNotes.Clear();
+                if (leftHand != null && leftHand.triggeredNotes != null)
+                    leftHand.triggeredNotes.Clear();
+                if (rightHand != null && rightHand.triggeredNotes != null)
+                    rightHand.triggeredNotes.Clear();
             }
-            if (_allNotes.Count == 0) return;
+            if (_allNotes.Count == 0)
+                return;
 
-            while (_noteStartIndex < _allNotes.Count && GetTaskEndTime(_allNotes[_noteStartIndex]) < currentTime - 1000)
+            while (
+                _noteStartIndex < _allNotes.Count
+                && GetTaskEndTime(_allNotes[_noteStartIndex]) < currentTime - 1000
+            )
             {
                 _noteStartIndex++;
             }
@@ -854,7 +1007,8 @@ namespace OsuVR
             for (int i = _noteStartIndex; i < _allNotes.Count; i++)
             {
                 var note = _allNotes[i];
-                if (note.StartTime > currentTime + 2000) break;
+                if (note.StartTime > currentTime + 2000)
+                    break;
 
                 // 核心防打架：只要在这个表里的，绝对不再看第二眼
                 if (note.StartTime >= currentTime - 20 && !_assignedNotes.Contains(note))
@@ -879,7 +1033,8 @@ namespace OsuVR
                     }
 
                     assignedCount++;
-                    if (assignedCount >= 10) break;
+                    if (assignedCount >= 10)
+                        break;
                 }
             }
         }
@@ -889,7 +1044,8 @@ namespace OsuVR
         /// </summary>
         private Vector2 GetNoteEndPosition(HitObject note)
         {
-            if (note is SliderObject s) return s.EndPosition;
+            if (note is SliderObject s)
+                return s.EndPosition;
             return note.Position;
         }
 
@@ -906,17 +1062,24 @@ namespace OsuVR
             bool leftFree = IsHandFreeAt(leftHand, note.StartTime);
             bool rightFree = IsHandFreeAt(rightHand, note.StartTime);
 
-            if (leftFree && !rightFree) return leftHand;
-            if (rightFree && !leftFree) return rightHand;
-            if (!leftFree && !rightFree) return GetLastEndTime(leftHand) <= GetLastEndTime(rightHand) ? leftHand : rightHand;
+            if (leftFree && !rightFree)
+                return leftHand;
+            if (rightFree && !leftFree)
+                return rightHand;
+            if (!leftFree && !rightFree)
+                return GetLastEndTime(leftHand) <= GetLastEndTime(rightHand) ? leftHand : rightHand;
 
             if (lastAssignedNote != null && lastAssignedHand != null)
             {
                 // 测算距离时，用上一个物件的”结束坐标(EndPosition)”来测算
-                float distance = Vector2.Distance(GetNoteEndPosition(lastAssignedNote), note.Position);
+                float distance = Vector2.Distance(
+                    GetNoteEndPosition(lastAssignedNote),
+                    note.Position
+                );
                 double timeDelta = note.StartTime - GetTaskEndTime(lastAssignedNote);
 
-                if (timeDelta > 800) return note.Position.x < 256 ? leftHand : rightHand;
+                if (timeDelta > 800)
+                    return note.Position.x < 256 ? leftHand : rightHand;
 
                 // 终极堆叠锁定：只要物理距离极近 (< 40)，说明是滑条头尾堆叠或原地连打
                 // 无视一切 Combo 颜色，直接强制使用这只手，绝不打架！
@@ -957,11 +1120,13 @@ namespace OsuVR
         private double GetLastEndTime(AutoHand hand)
         {
             double lastTime = 0;
-            if (hand.currentTask != null) lastTime = GetTaskEndTime(hand.currentTask);
+            if (hand.currentTask != null)
+                lastTime = GetTaskEndTime(hand.currentTask);
             foreach (var t in hand.taskQueue)
             {
                 double tEnd = GetTaskEndTime(t);
-                if (tEnd > lastTime) lastTime = tEnd;
+                if (tEnd > lastTime)
+                    lastTime = tEnd;
             }
             return lastTime;
         }
@@ -971,8 +1136,10 @@ namespace OsuVR
         /// </summary>
         private double GetTaskEndTime(HitObject task)
         {
-            if (task is SliderObject s) return s.EndTime;
-            if (task is SpinnerObject sp) return sp.EndTime;
+            if (task is SliderObject s)
+                return s.EndTime;
+            if (task is SpinnerObject sp)
+                return sp.EndTime;
             return task.StartTime;
         }
     }

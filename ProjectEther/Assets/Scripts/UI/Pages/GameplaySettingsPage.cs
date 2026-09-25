@@ -1,7 +1,7 @@
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 
 namespace OsuVR
 {
@@ -19,23 +19,34 @@ namespace OsuVR
 
         private const string PercentFormat = "{0:F0}%";
 
-        public override void BuildContent(RectTransform parent, GameSettings tempSettings, float contentWidth)
+        public override void BuildContent(
+            RectTransform parent,
+            GameSettings tempSettings,
+            float contentWidth
+        )
         {
             // 语言下拉框
             var languageNames = new List<string>(LocalizationManager.GetAllLanguageNames());
             int currentLangIndex = LocalizationManager.GetCurrentLanguageIndex();
-            languageDropdown = CreateDropdown(parent, "Language", "ui_language",
-                languageNames, currentLangIndex,
+            languageDropdown = CreateDropdown(
+                parent,
+                "Language",
+                "ui_language",
+                languageNames,
+                currentLangIndex,
                 v =>
                 {
                     LocalizationManager.SetLanguageByIndex(v);
                     SettingsManager.Instance.SaveSettings();
                     PlayClickSound();
-                });
+                }
+            );
 
             // 以原文显示歌名开关
-            displayOriginalLanguageToggle = CreateToggle(parent,
-                "Display Song Names in Original Language", "ui_display_original_language",
+            displayOriginalLanguageToggle = CreateToggle(
+                parent,
+                "Display Song Names in Original Language",
+                "ui_display_original_language",
                 tempSettings.displayOriginalLanguage,
                 v =>
                 {
@@ -44,29 +55,43 @@ namespace OsuVR
                     SettingsManager.Instance.SaveSettings();
                     LocalizationManager.ForceUpdateLanguage();
                     PlayClickSound();
-                });
+                }
+            );
 
             // 触觉强度滑条
-            hapticIntensitySlider = CreateSlider(parent, "Haptic Intensity", "ui_haptic_intensity",
-                0f, 1f, tempSettings.hapticIntensity, PercentFormat,
+            hapticIntensitySlider = CreateSlider(
+                parent,
+                "Haptic Intensity",
+                "ui_haptic_intensity",
+                0f,
+                1f,
+                tempSettings.hapticIntensity,
+                PercentFormat,
                 v =>
                 {
                     tempSettings.hapticIntensity = v;
                     SettingsManager.Instance.SetHapticIntensity(v);
-                }, valueScale: 100f);
+                },
+                valueScale: 100f
+            );
 
             // 触觉反馈开关
-            hapticsToggle = CreateToggle(parent, "Enable Haptics", "ui_enable_haptics",
+            hapticsToggle = CreateToggle(
+                parent,
+                "Enable Haptics",
+                "ui_enable_haptics",
                 tempSettings.enableHaptics,
                 v =>
                 {
                     tempSettings.enableHaptics = v;
                     SettingsManager.Instance.SetHapticsEnabled(v);
                     PlayClickSound();
-                });
+                }
+            );
 
             // --- 导入谱面按钮 ---
-            UILayoutHelper.CreateButton(parent,
+            UILayoutHelper.CreateButton(
+                parent,
                 LocalizationManager.GetText("ui_import_osz"),
                 () =>
                 {
@@ -74,42 +99,70 @@ namespace OsuVR
                     OnImportButtonClicked();
                 },
                 localizationKey: "ui_import_osz",
-                width: 360f, height: 50f, fontSize: 18f,
-                addBoxCollider: true);
+                width: 360f,
+                height: 50f,
+                fontSize: 18f,
+                addBoxCollider: true
+            );
         }
 
         public override void RefreshUI(GameSettings tempSettings)
         {
-            SetDropdownValueWithoutNotify(languageDropdown, LocalizationManager.GetCurrentLanguageIndex());
-            SetToggleValueWithoutNotify(displayOriginalLanguageToggle, tempSettings.displayOriginalLanguage);
-            SetSliderValueWithoutNotify(hapticIntensitySlider, tempSettings.hapticIntensity, PercentFormat, 100f);
+            SetDropdownValueWithoutNotify(
+                languageDropdown,
+                LocalizationManager.GetCurrentLanguageIndex()
+            );
+            SetToggleValueWithoutNotify(
+                displayOriginalLanguageToggle,
+                tempSettings.displayOriginalLanguage
+            );
+            SetSliderValueWithoutNotify(
+                hapticIntensitySlider,
+                tempSettings.hapticIntensity,
+                PercentFormat,
+                100f
+            );
             SetToggleValueWithoutNotify(hapticsToggle, tempSettings.enableHaptics);
         }
 
         private void OnImportButtonClicked()
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
-            BeatmapImporter.OpenAndroidFilePicker((result, detail) =>
-            {
-                switch (result)
+            BeatmapImporter.OpenAndroidFilePicker(
+                (result, detail) =>
                 {
-                    case ImportResult.Success:
-                        ShowToast(string.Format(LocalizationManager.GetText("ui_import_success"), detail), Color.green);
-                        break;
-                    case ImportResult.Cancelled:
-                        ShowToast(LocalizationManager.GetText("ui_import_cancelled"), new Color(1f, 0.85f, 0.3f));
-                        break;
-                    case ImportResult.Error:
-                        string errMsg = LocalizationManager.GetText("ui_import_error");
-                        if (!string.IsNullOrEmpty(detail))
-                            errMsg += "\n" + detail;
-                        ShowToast(errMsg, Color.red, 8f);
-                        break;
+                    switch (result)
+                    {
+                        case ImportResult.Success:
+                            ShowToast(
+                                string.Format(
+                                    LocalizationManager.GetText("ui_import_success"),
+                                    detail
+                                ),
+                                Color.green
+                            );
+                            break;
+                        case ImportResult.Cancelled:
+                            ShowToast(
+                                LocalizationManager.GetText("ui_import_cancelled"),
+                                new Color(1f, 0.85f, 0.3f)
+                            );
+                            break;
+                        case ImportResult.Error:
+                            string errMsg = LocalizationManager.GetText("ui_import_error");
+                            if (!string.IsNullOrEmpty(detail))
+                                errMsg += "\n" + detail;
+                            ShowToast(errMsg, Color.red, 8f);
+                            break;
+                    }
                 }
-            });
+            );
 #else
             BeatmapImporter.OpenSongsDirectory();
-            ShowToast(LocalizationManager.GetText("ui_import_folder_opened"), new Color(0.4f, 0.8f, 1f));
+            ShowToast(
+                LocalizationManager.GetText("ui_import_folder_opened"),
+                new Color(0.4f, 0.8f, 1f)
+            );
 #endif
         }
 
@@ -168,7 +221,8 @@ namespace OsuVR
 
         public void UpdateToast()
         {
-            if (!_toastActive || _toastObj == null) return;
+            if (!_toastActive || _toastObj == null)
+                return;
 
             float elapsed = Time.unscaledTime - _toastFadeStart;
             if (elapsed >= _toastDuration)
@@ -188,11 +242,15 @@ namespace OsuVR
 
         public void RefreshLanguageDropdown()
         {
-            if (languageDropdown == null) return;
+            if (languageDropdown == null)
+                return;
             var languageNames = new List<string>(LocalizationManager.GetAllLanguageNames());
             languageDropdown.ClearOptions();
             languageDropdown.AddOptions(languageNames);
-            SetDropdownValueWithoutNotify(languageDropdown, LocalizationManager.GetCurrentLanguageIndex());
+            SetDropdownValueWithoutNotify(
+                languageDropdown,
+                LocalizationManager.GetCurrentLanguageIndex()
+            );
         }
 
         protected override string GetFormatForSlider(Slider slider)

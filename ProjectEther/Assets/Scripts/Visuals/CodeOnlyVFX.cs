@@ -1,6 +1,6 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Pool;
-using System.Collections;
 
 namespace OsuVR
 {
@@ -22,11 +22,12 @@ namespace OsuVR
         [Header("🧱 直飞掉落残渣 (Straight & Drop)")]
         public int debrisMin = 3;
         public int debrisMax = 5;
+
         [Tooltip("水平飞行速度 (控制飞多快)")]
-        public float horizontalSpeed = 1.0f;        
+        public float horizontalSpeed = 1.0f;
 
         [Tooltip("下落速度 (控制掉多快)")]
-        public float dropSpeed = 12.0f;              
+        public float dropSpeed = 12.0f;
 
         [Tooltip("直飞时间占比 (0.1-0.9，值越大直飞越久)")]
         [Range(0.1f, 0.9f)]
@@ -35,11 +36,8 @@ namespace OsuVR
         [Tooltip("下落阶段的重力倍率")]
         public float gravityScale = 12.0f;
 
-
         [Header("🎨 视觉设置")]
         public float hdrIntensity = 6.0f; // 适配圈圈亮度
-
-        
 
         // ======================= 🔧 内部资源 =======================
 
@@ -49,8 +47,16 @@ namespace OsuVR
 
         void Awake()
         {
-            if (Instance == null) { Instance = this; DontDestroyOnLoad(gameObject); }
-            else { Destroy(gameObject); return; }
+            if (Instance == null)
+            {
+                Instance = this;
+                DontDestroyOnLoad(gameObject);
+            }
+            else
+            {
+                Destroy(gameObject);
+                return;
+            }
 
             PrepareResources();
 
@@ -58,7 +64,11 @@ namespace OsuVR
                 createFunc: CreateCombinedSystem,
                 actionOnGet: OnGetItem,
                 actionOnRelease: OnReleaseItem,
-                actionOnDestroy: (ps) => { if (ps) Destroy(ps.gameObject); },
+                actionOnDestroy: (ps) =>
+                {
+                    if (ps)
+                        Destroy(ps.gameObject);
+                },
                 defaultCapacity: 50,
                 maxSize: 300
             );
@@ -66,7 +76,8 @@ namespace OsuVR
 
         void OnDestroy()
         {
-            if (particleMat != null) Destroy(particleMat);
+            if (particleMat != null)
+                Destroy(particleMat);
         }
 
         void PrepareResources()
@@ -82,24 +93,37 @@ namespace OsuVR
             whiteTex.Apply();
 
             Shader shader = Shader.Find("Mobile/Particles/Additive");
-            if (!shader) shader = Shader.Find("Legacy Shaders/Particles/Additive");
-            if (!shader) shader = Shader.Find("Particles/Standard Unlit");
-            if (!shader) shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
-            if (!shader) shader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (!shader) shader = Shader.Find("Standard");
+            if (!shader)
+                shader = Shader.Find("Legacy Shaders/Particles/Additive");
+            if (!shader)
+                shader = Shader.Find("Particles/Standard Unlit");
+            if (!shader)
+                shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+            if (!shader)
+                shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (!shader)
+                shader = Shader.Find("Standard");
 
-            if (!shader) { Debug.LogError("[CodeOnlyVFX] 所有粒子 Shader 不可用，特效将失效"); return; }
+            if (!shader)
+            {
+                Debug.LogError("[CodeOnlyVFX] 所有粒子 Shader 不可用，特效将失效");
+                return;
+            }
             particleMat = new Material(shader);
             particleMat.renderQueue = 3005;
             particleMat.enableInstancing = true;
 
             // 4. 给贴图
-            if (particleMat.HasProperty("_MainTex")) particleMat.SetTexture("_MainTex", whiteTex);
-            if (particleMat.HasProperty("_BaseMap")) particleMat.SetTexture("_BaseMap", whiteTex);
+            if (particleMat.HasProperty("_MainTex"))
+                particleMat.SetTexture("_MainTex", whiteTex);
+            if (particleMat.HasProperty("_BaseMap"))
+                particleMat.SetTexture("_BaseMap", whiteTex);
 
             // 5. 基础色设为白
-            if (particleMat.HasProperty("_Color")) particleMat.SetColor("_Color", Color.white);
-            if (particleMat.HasProperty("_BaseColor")) particleMat.SetColor("_BaseColor", Color.white);
+            if (particleMat.HasProperty("_Color"))
+                particleMat.SetColor("_Color", Color.white);
+            if (particleMat.HasProperty("_BaseColor"))
+                particleMat.SetColor("_BaseColor", Color.white);
         }
 
         // ======================= 🎇 系统构建 =======================
@@ -186,7 +210,7 @@ namespace OsuVR
                 AnimationCurve gravCurve = new AnimationCurve();
                 gravCurve.AddKey(0.0f, 0.0f);
                 gravCurve.AddKey(hoverTimeFraction, 0.0f); // 悬停结束
-                
+
                 Keyframe endKey = new Keyframe(1.0f, 1.0f);
                 endKey.inTangent = 2.0f;
                 gravCurve.AddKey(endKey);
@@ -195,7 +219,6 @@ namespace OsuVR
                 gravityCurve.mode = ParticleSystemCurveMode.Curve;
                 main.gravityModifier = gravityCurve;
 
-                
                 // 我们要它掉得越快越好，不要阻力
                 var limit = ps.limitVelocityOverLifetime;
                 limit.enabled = false;
@@ -232,18 +255,25 @@ namespace OsuVR
             ps.gameObject.SetActive(false);
         }
 
-
         /// <summary>
         /// 播放打击特效 (防卡顿/防丢失终极版)
         /// </summary>
         /// <param name="accuracy">判定分数 (300/100/50)，用于缩放粒子强度</param>
-        public void PlayHit(Vector3 pos, Quaternion rot, float size, Color color, Vector3? avoidPos = null, int accuracy = 300)
+        public void PlayHit(
+            Vector3 pos,
+            Quaternion rot,
+            float size,
+            Color color,
+            Vector3? avoidPos = null,
+            int accuracy = 300
+        )
         {
             // 1. 从池中获取
             ParticleSystem rootPS = pool.Get();
 
             // 🛑 [保险措施 1] 确保物体是激活的，否则协程和粒子都不工作
-            if (!rootPS.gameObject.activeSelf) rootPS.gameObject.SetActive(true);
+            if (!rootPS.gameObject.activeSelf)
+                rootPS.gameObject.SetActive(true);
 
             // 🛑 [保险措施 2] 暴力重置状态
             // Stop: 停止播放
@@ -264,27 +294,39 @@ namespace OsuVR
             {
                 Vector3 toNext = (avoidPos.Value - pos).normalized;
                 Vector3 localToNext = Quaternion.Inverse(rot) * toNext;
-                if (localToNext.x > 0.1f) leftProbability = 0.8f;
-                else if (localToNext.normalized.x < -0.1f) leftProbability = 0.2f;
+                if (localToNext.x > 0.1f)
+                    leftProbability = 0.8f;
+                else if (localToNext.normalized.x < -0.1f)
+                    leftProbability = 0.2f;
             }
 
             // 判定衰减：300 保持现状，100/50 逐级衰减
             float accScale = 1.0f;
-            if (accuracy <= 50) accScale = 0.4f;
-            else if (accuracy <= 100) accScale = 0.7f;
+            if (accuracy <= 50)
+                accScale = 0.4f;
+            else if (accuracy <= 100)
+                accScale = 0.7f;
 
             Color hdrColor = new Color(
                 color.r * hdrIntensity * accScale,
                 color.g * hdrIntensity * accScale,
-                color.b * hdrIntensity * accScale, 1.0f);
+                color.b * hdrIntensity * accScale,
+                1.0f
+            );
 
             // 3. 配置子粒子系统 (直接获取，零GC)
             // 索引 0: Burst_Floating (主爆破)
             ParticleSystem psFloating = rootTrans.GetChild(0).GetComponent<ParticleSystem>();
             var mainFloating = psFloating.main;
             mainFloating.startColor = hdrColor;
-            mainFloating.startSize = new ParticleSystem.MinMaxCurve(cubeSize * size, cubeSize * size * 1.2f);
-            mainFloating.startSpeed = new ParticleSystem.MinMaxCurve(1.5f * accScale, 6.0f * accScale);
+            mainFloating.startSize = new ParticleSystem.MinMaxCurve(
+                cubeSize * size,
+                cubeSize * size * 1.2f
+            );
+            mainFloating.startSpeed = new ParticleSystem.MinMaxCurve(
+                1.5f * accScale,
+                6.0f * accScale
+            );
 
             var shapeFloating = psFloating.shape;
             shapeFloating.radius = burstRadius * size;
@@ -304,7 +346,8 @@ namespace OsuVR
 
             // 4. 手动发射残渣
             int debrisCount = (int)(Random.Range(debrisMin, debrisMax + 1) * accScale);
-            if (debrisCount < 1 && accuracy > 0) debrisCount = 1; // 至少保留 1 个残渣
+            if (debrisCount < 1 && accuracy > 0)
+                debrisCount = 1; // 至少保留 1 个残渣
             var emitParams = new ParticleSystem.EmitParams();
             emitParams.startColor = hdrColor;
 
@@ -317,7 +360,8 @@ namespace OsuVR
 
                 Vector3 localDir = new Vector3(dirX, dirY, dirZ).normalized;
                 Vector3 baseVelocity = rot * localDir;
-                float finalSpeed = Random.Range(horizontalSpeed * 0.8f, horizontalSpeed * 1.2f) * accScale;
+                float finalSpeed =
+                    Random.Range(horizontalSpeed * 0.8f, horizontalSpeed * 1.2f) * accScale;
                 Vector3 subtleNoise = Random.insideUnitSphere * 0.5f;
 
                 emitParams.velocity = (baseVelocity * finalSpeed) + subtleNoise;
@@ -330,7 +374,6 @@ namespace OsuVR
             // 5. 快速回收
             StartCoroutine(ForceRecycle(rootPS, 1.0f));
         }
-
 
         /// <summary>
         /// 播放转盘完成时的白色破碎特效 (完美复刻 Note 手感版)
@@ -354,7 +397,8 @@ namespace OsuVR
                 main.loop = false;
                 ps.Clear();
 
-                if (ps == rootPS) continue;
+                if (ps == rootPS)
+                    continue;
 
                 // A. 主爆破 (Burst_Floating)
                 if (ps.name == "Burst_Floating")
@@ -372,7 +416,12 @@ namespace OsuVR
 
                     var em = ps.emission;
                     // 数量稍微多一点点 (普通是 20-30，这里给 30-45)
-                    em.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0f, (short)Random.Range(30, 45)) });
+                    em.SetBursts(
+                        new ParticleSystem.Burst[]
+                        {
+                            new ParticleSystem.Burst(0f, (short)Random.Range(30, 45)),
+                        }
+                    );
 
                     ps.Play();
                 }
@@ -406,7 +455,10 @@ namespace OsuVR
                         Vector3 baseVelocity = localDir;
 
                         // 2. 速度 (完全一致)
-                        float finalSpeed = Random.Range(horizontalSpeed * 0.8f, horizontalSpeed * 1.2f);
+                        float finalSpeed = Random.Range(
+                            horizontalSpeed * 0.8f,
+                            horizontalSpeed * 1.2f
+                        );
 
                         // 3. 噪声 (完全一致)
                         Vector3 subtleNoise = Random.insideUnitSphere * 0.5f;

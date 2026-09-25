@@ -69,12 +69,17 @@ namespace OsuVR
             }
             Instance = this;
 
-            useProceduralGeneration = forceProceduralGeneration ||
-                (hitCirclePrefab == null && sliderPrefab == null);
+            useProceduralGeneration =
+                forceProceduralGeneration || (hitCirclePrefab == null && sliderPrefab == null);
 
             if (useProceduralGeneration)
             {
-                HitObjectFactory.Initialize(bodyMaterial, overlayMaterial, approachMaterial, glowMaterial);
+                HitObjectFactory.Initialize(
+                    bodyMaterial,
+                    overlayMaterial,
+                    approachMaterial,
+                    glowMaterial
+                );
                 Debug.Log("[NotePoolManager] 使用纯代码生成模式");
             }
             else
@@ -91,7 +96,8 @@ namespace OsuVR
                 createFunc: () => CreateHitCircle(),
                 actionOnGet: (obj) =>
                 {
-                    if (obj != null) obj.SetActive(true);
+                    if (obj != null)
+                        obj.SetActive(true);
                 },
                 actionOnRelease: (obj) =>
                 {
@@ -111,7 +117,8 @@ namespace OsuVR
                 createFunc: () => CreateSlider(),
                 actionOnGet: (obj) =>
                 {
-                    if (obj != null) obj.SetActive(true);
+                    if (obj != null)
+                        obj.SetActive(true);
                 },
                 actionOnRelease: (obj) =>
                 {
@@ -131,7 +138,8 @@ namespace OsuVR
                 createFunc: () => CreateSpinner(),
                 actionOnGet: (obj) =>
                 {
-                    if (obj != null) obj.SetActive(true);
+                    if (obj != null)
+                        obj.SetActive(true);
                 },
                 actionOnRelease: (obj) =>
                 {
@@ -151,7 +159,8 @@ namespace OsuVR
                 createFunc: () => CreateSliderTick(),
                 actionOnGet: (obj) =>
                 {
-                    if (obj != null) obj.SetActive(true);
+                    if (obj != null)
+                        obj.SetActive(true);
                 },
                 actionOnRelease: (obj) =>
                 {
@@ -171,7 +180,8 @@ namespace OsuVR
                 createFunc: () => CreateFollowBall(),
                 actionOnGet: (obj) =>
                 {
-                    if (obj != null) obj.SetActive(true);
+                    if (obj != null)
+                        obj.SetActive(true);
                 },
                 actionOnRelease: (obj) =>
                 {
@@ -191,7 +201,8 @@ namespace OsuVR
                 createFunc: () => CreateSliderHead(),
                 actionOnGet: (obj) =>
                 {
-                    if (obj != null) obj.SetActive(true);
+                    if (obj != null)
+                        obj.SetActive(true);
                 },
                 actionOnRelease: (obj) =>
                 {
@@ -340,7 +351,8 @@ namespace OsuVR
         void OnDestroy()
         {
             // 静态 Instance 随场景卸载置空，防止残留“假非空”引用
-            if (Instance == this) Instance = null;
+            if (Instance == this)
+                Instance = null;
 
             CirclePool?.Clear();
             SliderPool?.Clear();

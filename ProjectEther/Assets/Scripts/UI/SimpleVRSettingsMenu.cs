@@ -1,9 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using TMPro;
 
 namespace OsuVR
 {
@@ -129,7 +129,11 @@ namespace OsuVR
 
             // ---- 根 Canvas ----
             // WorldSpace Canvas，固定尺寸（与 SimpleMainMenu 一致的模式）
-            var rootCanvas = UILayoutHelper.CreateCanvas("SettingsCanvas", CanvasWidth, CanvasHeight);
+            var rootCanvas = UILayoutHelper.CreateCanvas(
+                "SettingsCanvas",
+                CanvasWidth,
+                CanvasHeight
+            );
             rootCanvas.sortingOrder = SortingOrder;
             rootCanvas.transform.SetParent(transform, false);
             rootCanvas.transform.localPosition = new Vector3(0f, 0f, CanvasLocalZ);
@@ -185,7 +189,13 @@ namespace OsuVR
             tabHlg.childForceExpandHeight = true;
 
             // 标签页顺序：Audio、Graphics、Game、Controller（与 Prefab 一致）
-            string[] tabKeys = { "ui_tab_audio", "ui_tab_graphics", "ui_tab_game", "ui_tab_controller" };
+            string[] tabKeys =
+            {
+                "ui_tab_audio",
+                "ui_tab_graphics",
+                "ui_tab_game",
+                "ui_tab_controller",
+            };
             string[] tabDefaults = { "Audio", "Graphics", "Game", "Controller" };
             int tabCount = tabKeys.Length;
 
@@ -244,7 +254,9 @@ namespace OsuVR
             settingsScrollRect = scrollRect;
 
             // 初始化 tempSettings
-            tempSettings = SettingsManager.Instance?.Settings?.Clone() ?? ScriptableObject.CreateInstance<GameSettings>();
+            tempSettings =
+                SettingsManager.Instance?.Settings?.Clone()
+                ?? ScriptableObject.CreateInstance<GameSettings>();
 
             // 创建页面
             pages = new SettingsPageBase[]
@@ -252,15 +264,22 @@ namespace OsuVR
                 new AudioSettingsPage(),
                 new GraphicsSettingsPage(),
                 new GameplaySettingsPage(),
-                new ControllerSettingsPage()
+                new ControllerSettingsPage(),
             };
 
             pagePanels = new RectTransform[pages.Length];
 
             for (int i = 0; i < pages.Length; i++)
             {
-                pages[i].Initialize(atomicSliderPrefab, atomicTogglePrefab, atomicDropdownPrefab,
-                    audioSource, hoverSound, clickSound);
+                pages[i]
+                    .Initialize(
+                        atomicSliderPrefab,
+                        atomicTogglePrefab,
+                        atomicDropdownPrefab,
+                        audioSource,
+                        hoverSound,
+                        clickSound
+                    );
 
                 // 在 ScrollContent 下创建面板
                 var panelGo = new GameObject($"Page_{i}");
@@ -321,8 +340,16 @@ namespace OsuVR
             bottomHlg.childForceExpandHeight = true;
 
             // 返回按钮（配色与样式与 Prefab 一致）
-            CreateBottomButton(bottomGo.transform, "Back", "ui_back",
-                () => { PlayClickSound(); VRSceneTransitionManager.Instance.TransitionToScene("MainMenuScene"); });
+            CreateBottomButton(
+                bottomGo.transform,
+                "Back",
+                "ui_back",
+                () =>
+                {
+                    PlayClickSound();
+                    VRSceneTransitionManager.Instance.TransitionToScene("MainMenuScene");
+                }
+            );
 
             // 重置按钮
             CreateBottomButton(bottomGo.transform, "Reset", "ui_reset", OnResetClicked);
@@ -405,8 +432,12 @@ namespace OsuVR
         //  底部按钮（精确复刻 Prefab）
         // ============================================================
 
-        private void CreateBottomButton(Transform parent, string text, string locKey,
-            UnityEngine.Events.UnityAction onClick)
+        private void CreateBottomButton(
+            Transform parent,
+            string text,
+            string locKey,
+            UnityEngine.Events.UnityAction onClick
+        )
         {
             var go = new GameObject(text);
             go.transform.SetParent(parent, false);

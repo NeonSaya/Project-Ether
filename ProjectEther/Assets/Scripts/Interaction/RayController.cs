@@ -1,9 +1,9 @@
 using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.InputSystem;
-using UnityEngine.EventSystems;
 using TMPro;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 namespace OsuVR
 {
@@ -18,7 +18,11 @@ namespace OsuVR
     /// </summary>
     public class RayController : MonoBehaviour
     {
-        public enum ControlMode { WristGain, Direct1to1 }
+        public enum ControlMode
+        {
+            WristGain,
+            Direct1to1,
+        }
 
         [Header("模式选择")]
         public ControlMode currentMode = ControlMode.WristGain;
@@ -75,7 +79,8 @@ namespace OsuVR
 
         // --- 缓存（避免每帧 FindObjectsOfType） ---
         private HashSet<GameObject> previousHitObjects = new HashSet<GameObject>();
-        private Dictionary<GameObject, Vector3> currentHitMap = new Dictionary<GameObject, Vector3>();
+        private Dictionary<GameObject, Vector3> currentHitMap =
+            new Dictionary<GameObject, Vector3>();
         private HashSet<GameObject> currentHitObjects = new HashSet<GameObject>();
         private List<RaycastResult> raycastResults = new List<RaycastResult>();
 
@@ -91,17 +96,20 @@ namespace OsuVR
 
         void OnEnable()
         {
-            if (triggerAction != null) triggerAction.Enable();
+            if (triggerAction != null)
+                triggerAction.Enable();
             EnableAction(rightStickAction);
             // 场景加载后立即刷新缓存，消除 1-2s UI 无响应延迟
-            if (eventSystem == null) eventSystem = EventSystem.current;
+            if (eventSystem == null)
+                eventSystem = EventSystem.current;
             cachedMainCam = FindAnyCamera();
             RefreshHeavyCaches();
         }
 
         void OnDisable()
         {
-            if (triggerAction != null) triggerAction.Disable();
+            if (triggerAction != null)
+                triggerAction.Disable();
             DisableAction(rightStickAction);
             isPointerDown = false;
             pointerPressTarget = null;
@@ -116,19 +124,31 @@ namespace OsuVR
             if (eventSystem == null)
                 Debug.LogError("[RayController] 场景中没有 EventSystem！");
 
-            var inputModule = eventSystem?.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+            var inputModule =
+                eventSystem?.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
             if (inputModule != null)
             {
                 inputModule.enabled = false;
                 Debug.Log("[RayController] 已禁用 InputSystemUIInputModule");
             }
 
-            string handPath = isRightHand ? "<XRController>{RightHand}/triggerButton" : "<XRController>{LeftHand}/triggerButton";
-            triggerAction = new InputAction("Trigger_" + (isRightHand ? "R" : "L"), binding: handPath);
-            triggerAction.AddBinding(isRightHand ? "<XRController>{RightHand}/triggerPressed" : "<XRController>{LeftHand}/triggerPressed");
+            string handPath = isRightHand
+                ? "<XRController>{RightHand}/triggerButton"
+                : "<XRController>{LeftHand}/triggerButton";
+            triggerAction = new InputAction(
+                "Trigger_" + (isRightHand ? "R" : "L"),
+                binding: handPath
+            );
+            triggerAction.AddBinding(
+                isRightHand
+                    ? "<XRController>{RightHand}/triggerPressed"
+                    : "<XRController>{LeftHand}/triggerPressed"
+            );
             triggerAction.Enable();
 
-            Debug.Log($"[RayController] {handPath} 扳机已绑定, action valid={triggerAction.enabled}");
+            Debug.Log(
+                $"[RayController] {handPath} 扳机已绑定, action valid={triggerAction.enabled}"
+            );
 
             // 从 SettingsManager 加载持久化的控制器偏移量
             LoadControllerOffset();
@@ -141,7 +161,11 @@ namespace OsuVR
 
         void OnDestroy()
         {
-            if (triggerAction != null) { triggerAction.Disable(); triggerAction.Dispose(); }
+            if (triggerAction != null)
+            {
+                triggerAction.Disable();
+                triggerAction.Dispose();
+            }
             UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
         }
 
@@ -175,7 +199,10 @@ namespace OsuVR
         /// <summary>
         /// 场景加载完成时立即刷新所有缓存，确保新场景的 UI 在第一帧就可交互
         /// </summary>
-        private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+        private void OnSceneLoaded(
+            UnityEngine.SceneManagement.Scene scene,
+            UnityEngine.SceneManagement.LoadSceneMode mode
+        )
         {
             // 场景切换后 Camera.main 可能为 null (XR 追踪重建中)，立即积极查找
             cachedMainCam = FindAnyCamera();
@@ -193,16 +220,20 @@ namespace OsuVR
         Camera FindAnyCamera()
         {
             var cam = Camera.main;
-            if (cam != null) return cam;
+            if (cam != null)
+                return cam;
             var camGo = GameObject.FindWithTag("MainCamera");
-            if (camGo != null) return camGo.GetComponent<Camera>();
+            if (camGo != null)
+                return camGo.GetComponent<Camera>();
             return FindFirstObjectByType<Camera>();
         }
 
         void Update()
         {
-            if (currentMode == ControlMode.WristGain) ApplyWristGainMapping();
-            else ApplyDirectMapping();
+            if (currentMode == ControlMode.WristGain)
+                ApplyWristGainMapping();
+            else
+                ApplyDirectMapping();
 
             // Canvas 缓存刷新: 场景加载后密集刷新 (每帧), 平时低频轮询
             if (postLoadRefreshFrames > 0)
@@ -214,7 +245,10 @@ namespace OsuVR
             {
                 cacheRefreshTimer += Time.deltaTime;
                 if (cacheRefreshTimer >= CACHE_REFRESH_INTERVAL)
-                { cacheRefreshTimer = 0f; RefreshHeavyCaches(); }
+                {
+                    cacheRefreshTimer = 0f;
+                    RefreshHeavyCaches();
+                }
             }
 
             if (cachedMainCam == null)
@@ -254,35 +288,53 @@ namespace OsuVR
         // ============================================================
 
         private static void EnableAction(InputActionProperty action)
-        { if (action.action != null && action.action.bindings.Count > 0) action.action.Enable(); }
+        {
+            if (action.action != null && action.action.bindings.Count > 0)
+                action.action.Enable();
+        }
 
         private static void DisableAction(InputActionProperty action)
-        { if (action.action != null && action.action.bindings.Count > 0) action.action.Disable(); }
+        {
+            if (action.action != null && action.action.bindings.Count > 0)
+                action.action.Disable();
+        }
 
         private bool WasClickedThisFrame()
         {
-            if (triggerAction != null && triggerAction.WasPressedThisFrame()) return true;
-            if (!isRightHand) return false;
-            if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame) return true;
-            if (Input.GetMouseButtonDown(0)) return true;
+            if (triggerAction != null && triggerAction.WasPressedThisFrame())
+                return true;
+            if (!isRightHand)
+                return false;
+            if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+                return true;
+            if (Input.GetMouseButtonDown(0))
+                return true;
             return false;
         }
 
         private bool WasReleasedThisFrame()
         {
-            if (triggerAction != null && triggerAction.WasReleasedThisFrame()) return true;
-            if (!isRightHand) return false;
-            if (Mouse.current != null && Mouse.current.leftButton.wasReleasedThisFrame) return true;
-            if (Input.GetMouseButtonUp(0)) return true;
+            if (triggerAction != null && triggerAction.WasReleasedThisFrame())
+                return true;
+            if (!isRightHand)
+                return false;
+            if (Mouse.current != null && Mouse.current.leftButton.wasReleasedThisFrame)
+                return true;
+            if (Input.GetMouseButtonUp(0))
+                return true;
             return false;
         }
 
         private bool IsTriggerHeld()
         {
-            if (triggerAction != null && triggerAction.ReadValue<float>() > 0.5f) return true;
-            if (!isRightHand) return false;
-            if (Mouse.current != null && Mouse.current.leftButton.isPressed) return true;
-            if (Input.GetMouseButton(0)) return true;
+            if (triggerAction != null && triggerAction.ReadValue<float>() > 0.5f)
+                return true;
+            if (!isRightHand)
+                return false;
+            if (Mouse.current != null && Mouse.current.leftButton.isPressed)
+                return true;
+            if (Input.GetMouseButton(0))
+                return true;
             return false;
         }
 
@@ -297,7 +349,11 @@ namespace OsuVR
             float inputY = NormalizeAngle(currentEuler.y);
             if (visualRay != null)
             {
-                visualRay.localRotation = Quaternion.Euler(CalculateNonLinear(inputX) + verticalOffset, CalculateNonLinear(inputY), 0);
+                visualRay.localRotation = Quaternion.Euler(
+                    CalculateNonLinear(inputX) + verticalOffset,
+                    CalculateNonLinear(inputY),
+                    0
+                );
                 visualRay.localPosition = new Vector3(0, directOffset.y, directOffset.z);
             }
         }
@@ -311,8 +367,17 @@ namespace OsuVR
             }
         }
 
-        private float CalculateNonLinear(float a) { return Mathf.Sign(a) * Mathf.Pow(Mathf.Clamp01(Mathf.Abs(a) / maxInputAngle), gainFactor) * maxOutputAngle; }
-        private float NormalizeAngle(float a) { return a > 180f ? a - 360f : a; }
+        private float CalculateNonLinear(float a)
+        {
+            return Mathf.Sign(a)
+                * Mathf.Pow(Mathf.Clamp01(Mathf.Abs(a) / maxInputAngle), gainFactor)
+                * maxOutputAngle;
+        }
+
+        private float NormalizeAngle(float a)
+        {
+            return a > 180f ? a - 360f : a;
+        }
 
         // ============================================================
         //  3D 物理射线 (音符判定) — 预分配集合避免 GC
@@ -323,35 +388,59 @@ namespace OsuVR
 
         private void PerformRaycastAll()
         {
-            if (visualRay == null) return;
-            Vector3 origin = visualRay.position, direction = visualRay.forward;
-            int hitCount = Physics.SphereCastNonAlloc(new Ray(origin, direction), rayRadius, _hitBuffer, rayLength, noteLayer, QueryTriggerInteraction.Collide);
+            if (visualRay == null)
+                return;
+            Vector3 origin = visualRay.position,
+                direction = visualRay.forward;
+            int hitCount = Physics.SphereCastNonAlloc(
+                new Ray(origin, direction),
+                rayRadius,
+                _hitBuffer,
+                rayLength,
+                noteLayer,
+                QueryTriggerInteraction.Collide
+            );
 
             currentHitMap.Clear();
             currentHitObjects.Clear();
-            float minDist = float.MaxValue; Vector3 closestPt = Vector3.zero; GameObject closestObj = null;
+            float minDist = float.MaxValue;
+            Vector3 closestPt = Vector3.zero;
+            GameObject closestObj = null;
 
             for (int _hi = 0; _hi < hitCount; _hi++)
             {
                 var hit = _hitBuffer[_hi];
                 GameObject obj = hit.collider.gameObject;
                 currentHitObjects.Add(obj);
-                if (!currentHitMap.ContainsKey(obj)) currentHitMap.Add(obj, hit.point);
+                if (!currentHitMap.ContainsKey(obj))
+                    currentHitMap.Add(obj, hit.point);
                 var spinner = obj.GetComponentInParent<SpinnerController>();
-                if (spinner != null) spinner.UpdateRotation(hit.point, this);
-                if (hit.distance < minDist) { minDist = hit.distance; closestPt = hit.point; closestObj = obj; }
+                if (spinner != null)
+                    spinner.UpdateRotation(hit.point, this);
+                if (hit.distance < minDist)
+                {
+                    minDist = hit.distance;
+                    closestPt = hit.point;
+                    closestObj = obj;
+                }
             }
 
             IsHitting = closestObj != null;
             CurrentHitPoint = IsHitting ? closestPt : Vector3.zero;
             lastHitObject = closestObj;
 
-            foreach (var old in previousHitObjects) { if (old != null && !currentHitObjects.Contains(old)) NotifyHoverState(old, false, Vector3.zero); }
-            foreach (var kvp in currentHitMap) NotifyHoverState(kvp.Key, true, kvp.Value);
+            foreach (var old in previousHitObjects)
+            {
+                if (old != null && !currentHitObjects.Contains(old))
+                    NotifyHoverState(old, false, Vector3.zero);
+            }
+            foreach (var kvp in currentHitMap)
+                NotifyHoverState(kvp.Key, true, kvp.Value);
 
             // Swap 而不是 new，避免 GC
             previousHitObjects.Clear();
-            foreach (var key in currentHitMap.Keys) previousHitObjects.Add(key);
+            foreach (var key in currentHitMap.Keys)
+                previousHitObjects.Add(key);
         }
 
         // ============================================================
@@ -375,7 +464,8 @@ namespace OsuVR
                     needsRefresh = true;
                     continue;
                 }
-                if (!canvas.gameObject.activeInHierarchy) continue;
+                if (!canvas.gameObject.activeInHierarchy)
+                    continue;
 
                 for (int j = 0; j < canvas.transform.childCount; j++)
                 {
@@ -387,7 +477,11 @@ namespace OsuVR
                         for (int k = 0; k < cachedDropdowns.Count; k++)
                         {
                             var dd = cachedDropdowns[k];
-                            if (dd == null || dd.Equals(null)) { needsRefresh = true; continue; }
+                            if (dd == null || dd.Equals(null))
+                            {
+                                needsRefresh = true;
+                                continue;
+                            }
                             if (dd.IsActive() && dd.IsInteractable())
                             {
                                 Canvas ddCanvas = dd.GetComponentInParent<Canvas>();
@@ -401,10 +495,12 @@ namespace OsuVR
                         break;
                     }
                 }
-                if (dropdownListClone != null) break;
+                if (dropdownListClone != null)
+                    break;
             }
 
-            if (needsRefresh) RefreshAllCaches();
+            if (needsRefresh)
+                RefreshAllCaches();
 
             if (activeDropdown != null && prevDropdown == null)
             {
@@ -423,8 +519,10 @@ namespace OsuVR
             for (int i = 0; i < cachedCanvases.Count; i++)
             {
                 var canvas = cachedCanvases[i];
-                if (canvas == null || canvas.Equals(null)) continue;
-                if (!canvas.gameObject.activeInHierarchy) continue;
+                if (canvas == null || canvas.Equals(null))
+                    continue;
+                if (!canvas.gameObject.activeInHierarchy)
+                    continue;
 
                 for (int j = 0; j < canvas.transform.childCount; j++)
                 {
@@ -441,11 +539,13 @@ namespace OsuVR
 
         private bool IsInDropdownList(GameObject uiObj)
         {
-            if (dropdownListClone == null) return false;
+            if (dropdownListClone == null)
+                return false;
             Transform t = uiObj.transform;
             while (t != null)
             {
-                if (t == dropdownListClone.transform) return true;
+                if (t == dropdownListClone.transform)
+                    return true;
                 t = t.parent;
             }
             return false;
@@ -453,7 +553,8 @@ namespace OsuVR
 
         private bool IsDropdownBody(GameObject uiObj)
         {
-            if (activeDropdown == null) return false;
+            if (activeDropdown == null)
+                return false;
             var dd = uiObj.GetComponentInParent<TMP_Dropdown>();
             return dd == activeDropdown && !IsInDropdownList(uiObj);
         }
@@ -464,16 +565,19 @@ namespace OsuVR
 
         private void PerformUIRaycast()
         {
-            if (visualRay == null) return;
+            if (visualRay == null)
+                return;
 
             // 如果缓存为空，立即刷新（确保新场景/新 UI 立即可检测）
-            if (cachedCanvases.Count == 0) RefreshHeavyCaches();
+            if (cachedCanvases.Count == 0)
+                RefreshHeavyCaches();
 
             IsHittingUI = false;
             previousUIHoverObject = currentUIHoverObject;
             currentUIHoverObject = null;
 
-            Vector3 origin = visualRay.position, direction = visualRay.forward;
+            Vector3 origin = visualRay.position,
+                direction = visualRay.forward;
             float closestDistance = float.MaxValue;
             Vector3 closestUIHitPoint = Vector3.zero;
             GameObject closestUIObject = null;
@@ -482,23 +586,30 @@ namespace OsuVR
             // 不依赖 GraphicRaycaster 缓存，确保新出现的 UI 立即可检测
             foreach (var canvas in cachedCanvases)
             {
-                if (canvas == null || canvas.Equals(null)) continue;
-                if (canvas.renderMode != RenderMode.WorldSpace) continue;
-                if (!canvas.gameObject.activeInHierarchy) continue;
+                if (canvas == null || canvas.Equals(null))
+                    continue;
+                if (canvas.renderMode != RenderMode.WorldSpace)
+                    continue;
+                if (!canvas.gameObject.activeInHierarchy)
+                    continue;
 
                 GraphicRaycaster raycaster = canvas.GetComponent<GraphicRaycaster>();
-                if (raycaster == null) continue;
+                if (raycaster == null)
+                    continue;
 
                 Camera eventCam = canvas.worldCamera != null ? canvas.worldCamera : cachedMainCam;
-                if (eventCam == null) continue;
+                if (eventCam == null)
+                    continue;
 
                 Plane canvasPlane = new Plane(canvas.transform.forward, canvas.transform.position);
                 float enter;
-                if (!canvasPlane.Raycast(new Ray(origin, direction), out enter)) continue;
+                if (!canvasPlane.Raycast(new Ray(origin, direction), out enter))
+                    continue;
 
                 Vector3 hitPoint = origin + direction * enter;
 
-                if (pointerData == null) pointerData = new PointerEventData(eventSystem);
+                if (pointerData == null)
+                    pointerData = new PointerEventData(eventSystem);
                 pointerData.position = eventCam.WorldToScreenPoint(hitPoint);
 
                 raycastResults.Clear();
@@ -511,7 +622,8 @@ namespace OsuVR
                         foreach (var result in raycastResults)
                         {
                             GameObject obj = result.gameObject;
-                            if (obj.name == "Blocker") continue;
+                            if (obj.name == "Blocker")
+                                continue;
 
                             if (IsInDropdownList(obj))
                             {
@@ -541,7 +653,8 @@ namespace OsuVR
                     {
                         foreach (var result in raycastResults)
                         {
-                            if (result.gameObject.name == "Blocker") continue;
+                            if (result.gameObject.name == "Blocker")
+                                continue;
                             if (enter < closestDistance)
                             {
                                 closestDistance = enter;
@@ -568,16 +681,29 @@ namespace OsuVR
 
         private void HandleUIHover()
         {
-            if (hoverPointerData == null) hoverPointerData = new PointerEventData(eventSystem);
+            if (hoverPointerData == null)
+                hoverPointerData = new PointerEventData(eventSystem);
 
             if (currentUIHoverObject != null && currentUIHoverObject != previousUIHoverObject)
             {
                 if (previousUIHoverObject != null)
-                    ExecuteEvents.ExecuteHierarchy<IPointerExitHandler>(previousUIHoverObject, hoverPointerData, ExecuteEvents.pointerExitHandler);
-                ExecuteEvents.ExecuteHierarchy<IPointerEnterHandler>(currentUIHoverObject, hoverPointerData, ExecuteEvents.pointerEnterHandler);
+                    ExecuteEvents.ExecuteHierarchy<IPointerExitHandler>(
+                        previousUIHoverObject,
+                        hoverPointerData,
+                        ExecuteEvents.pointerExitHandler
+                    );
+                ExecuteEvents.ExecuteHierarchy<IPointerEnterHandler>(
+                    currentUIHoverObject,
+                    hoverPointerData,
+                    ExecuteEvents.pointerEnterHandler
+                );
             }
             if (currentUIHoverObject == null && previousUIHoverObject != null)
-                ExecuteEvents.ExecuteHierarchy<IPointerExitHandler>(previousUIHoverObject, hoverPointerData, ExecuteEvents.pointerExitHandler);
+                ExecuteEvents.ExecuteHierarchy<IPointerExitHandler>(
+                    previousUIHoverObject,
+                    hoverPointerData,
+                    ExecuteEvents.pointerExitHandler
+                );
         }
 
         // ============================================================
@@ -589,9 +715,17 @@ namespace OsuVR
             if (pointerData == null)
                 pointerData = new PointerEventData(eventSystem);
 
-            if (isPointerDown && pointerPressCanvas != null && pointerPressCamera != null && visualRay != null)
+            if (
+                isPointerDown
+                && pointerPressCanvas != null
+                && pointerPressCamera != null
+                && visualRay != null
+            )
             {
-                Plane canvasPlane = new Plane(pointerPressCanvas.transform.forward, pointerPressCanvas.transform.position);
+                Plane canvasPlane = new Plane(
+                    pointerPressCanvas.transform.forward,
+                    pointerPressCanvas.transform.position
+                );
                 float enter;
                 if (canvasPlane.Raycast(new Ray(visualRay.position, visualRay.forward), out enter))
                 {
@@ -606,7 +740,8 @@ namespace OsuVR
                 Canvas canvas = currentUIHoverObject.GetComponentInParent<Canvas>();
                 if (canvas != null && canvas.renderMode == RenderMode.WorldSpace)
                 {
-                    Camera eventCam = canvas.worldCamera != null ? canvas.worldCamera : cachedMainCam;
+                    Camera eventCam =
+                        canvas.worldCamera != null ? canvas.worldCamera : cachedMainCam;
                     if (eventCam != null)
                     {
                         pointerData.position = eventCam.WorldToScreenPoint(CurrentHitPoint);
@@ -676,7 +811,9 @@ namespace OsuVR
                     var toggle = currentUIHoverObject.GetComponentInParent<Toggle>();
                     if (toggle != null)
                     {
-                        Debug.Log($"[RayController] Dropdown 选项点击: {currentUIHoverObject.name}, Toggle: {toggle.gameObject.name}");
+                        Debug.Log(
+                            $"[RayController] Dropdown 选项点击: {currentUIHoverObject.name}, Toggle: {toggle.gameObject.name}"
+                        );
                         toggle.isOn = true;
                     }
                     else
@@ -695,9 +832,12 @@ namespace OsuVR
                 isPointerDown = true;
 
                 Canvas pressCanvas = currentUIHoverObject.GetComponentInParent<Canvas>();
-                GraphicRaycaster pressRaycaster = pressCanvas != null ? pressCanvas.GetComponent<GraphicRaycaster>() : null;
-                Camera pressCam = pressCanvas != null && pressCanvas.worldCamera != null
-                    ? pressCanvas.worldCamera : cachedMainCam;
+                GraphicRaycaster pressRaycaster =
+                    pressCanvas != null ? pressCanvas.GetComponent<GraphicRaycaster>() : null;
+                Camera pressCam =
+                    pressCanvas != null && pressCanvas.worldCamera != null
+                        ? pressCanvas.worldCamera
+                        : cachedMainCam;
 
                 RaycastResult pressRaycast = new RaycastResult();
                 pressRaycast.module = pressRaycaster;
@@ -709,17 +849,26 @@ namespace OsuVR
                 pointerData.pressPosition = pointerData.position;
 
                 var pressObj = ExecuteEvents.ExecuteHierarchy<IPointerDownHandler>(
-                    currentUIHoverObject, pointerData, ExecuteEvents.pointerDownHandler);
+                    currentUIHoverObject,
+                    pointerData,
+                    ExecuteEvents.pointerDownHandler
+                );
                 pointerPressTarget = pressObj ?? currentUIHoverObject;
                 pointerData.pointerPress = pointerPressTarget;
 
-                var clickHandler = ExecuteEvents.GetEventHandler<IPointerClickHandler>(currentUIHoverObject);
+                var clickHandler = ExecuteEvents.GetEventHandler<IPointerClickHandler>(
+                    currentUIHoverObject
+                );
                 var dragObj = ExecuteEvents.GetEventHandler<IDragHandler>(currentUIHoverObject);
 
-                if (dragObj != null && (clickHandler == null || dragObj.gameObject == clickHandler.gameObject))
+                if (
+                    dragObj != null
+                    && (clickHandler == null || dragObj.gameObject == clickHandler.gameObject)
+                )
                 {
                     pointerData.pointerDrag = dragObj;
-                    pointerData.useDragThreshold = (dragObj.GetComponentInParent<Slider>() != null) ? false : true;
+                    pointerData.useDragThreshold =
+                        (dragObj.GetComponentInParent<Slider>() != null) ? false : true;
                 }
                 else
                 {
@@ -731,7 +880,9 @@ namespace OsuVR
                 pointerPressCanvas = pressCanvas;
                 pointerPressCamera = pressCam;
 
-                Debug.Log($"[RayController] PointerDown: press={pointerPressTarget.name}, click={clickHandler?.name ?? "null"}, drag={dragObj?.name ?? "null"}, pointerDrag={pointerData.pointerDrag?.name ?? "null"}");
+                Debug.Log(
+                    $"[RayController] PointerDown: press={pointerPressTarget.name}, click={clickHandler?.name ?? "null"}, drag={dragObj?.name ?? "null"}, pointerDrag={pointerData.pointerDrag?.name ?? "null"}"
+                );
             }
 
             if (isPointerDown && pointerData.pointerDrag != null && IsTriggerHeld())
@@ -740,19 +891,28 @@ namespace OsuVR
 
                 if (!pointerData.dragging)
                 {
-                    if (!pointerData.useDragThreshold ||
-                        Vector2.Distance(pointerData.position, pointerData.pressPosition) > EventSystem.current.pixelDragThreshold)
+                    if (
+                        !pointerData.useDragThreshold
+                        || Vector2.Distance(pointerData.position, pointerData.pressPosition)
+                            > EventSystem.current.pixelDragThreshold
+                    )
                     {
                         pointerData.dragging = true;
                         ExecuteEvents.Execute<IBeginDragHandler>(
-                            pointerData.pointerDrag, pointerData, ExecuteEvents.beginDragHandler);
+                            pointerData.pointerDrag,
+                            pointerData,
+                            ExecuteEvents.beginDragHandler
+                        );
                     }
                 }
 
                 if (pointerData.dragging)
                 {
                     ExecuteEvents.Execute<IDragHandler>(
-                        pointerData.pointerDrag, pointerData, ExecuteEvents.dragHandler);
+                        pointerData.pointerDrag,
+                        pointerData,
+                        ExecuteEvents.dragHandler
+                    );
                 }
             }
 
@@ -761,34 +921,57 @@ namespace OsuVR
                 if (pointerPressTarget != null)
                 {
                     ExecuteEvents.Execute<IPointerUpHandler>(
-                        pointerPressTarget, pointerData, ExecuteEvents.pointerUpHandler);
+                        pointerPressTarget,
+                        pointerData,
+                        ExecuteEvents.pointerUpHandler
+                    );
 
                     if (!pointerData.dragging)
                     {
                         if (currentUIHoverObject != null)
                         {
-                            var clickHandlerOnCurrent = ExecuteEvents.GetEventHandler<IPointerClickHandler>(currentUIHoverObject);
-                            var clickHandlerOnPress = ExecuteEvents.GetEventHandler<IPointerClickHandler>(pointerPressTarget);
-                            if (clickHandlerOnCurrent != null && clickHandlerOnCurrent == clickHandlerOnPress)
+                            var clickHandlerOnCurrent =
+                                ExecuteEvents.GetEventHandler<IPointerClickHandler>(
+                                    currentUIHoverObject
+                                );
+                            var clickHandlerOnPress =
+                                ExecuteEvents.GetEventHandler<IPointerClickHandler>(
+                                    pointerPressTarget
+                                );
+                            if (
+                                clickHandlerOnCurrent != null
+                                && clickHandlerOnCurrent == clickHandlerOnPress
+                            )
                             {
                                 ExecuteEvents.Execute<IPointerClickHandler>(
-                                    pointerPressTarget, pointerData, ExecuteEvents.pointerClickHandler);
+                                    pointerPressTarget,
+                                    pointerData,
+                                    ExecuteEvents.pointerClickHandler
+                                );
                             }
                         }
                         else if (pointerPressTarget != null)
                         {
                             ExecuteEvents.Execute<IPointerClickHandler>(
-                                pointerPressTarget, pointerData, ExecuteEvents.pointerClickHandler);
+                                pointerPressTarget,
+                                pointerData,
+                                ExecuteEvents.pointerClickHandler
+                            );
                         }
                     }
 
                     if (pointerData.dragging && pointerData.pointerDrag != null)
                     {
                         ExecuteEvents.Execute<IEndDragHandler>(
-                            pointerData.pointerDrag, pointerData, ExecuteEvents.endDragHandler);
+                            pointerData.pointerDrag,
+                            pointerData,
+                            ExecuteEvents.endDragHandler
+                        );
                     }
 
-                    Debug.Log($"[RayController] PointerUp: {pointerPressTarget.name}, dragged={pointerData.dragging}");
+                    Debug.Log(
+                        $"[RayController] PointerUp: {pointerPressTarget.name}, dragged={pointerData.dragging}"
+                    );
                 }
 
                 isPointerDown = false;
@@ -808,13 +991,26 @@ namespace OsuVR
         private void NotifyHoverState(GameObject obj, bool state, Vector3 hitPoint)
         {
             var note = obj.GetComponentInParent<NoteController>();
-            if (note != null) { if (state) note.OnRayHover(isRightHand); else note.OnRayExit(); }
+            if (note != null)
+            {
+                if (state)
+                    note.OnRayHover(isRightHand);
+                else
+                    note.OnRayExit();
+            }
 
             var sliderCtrl = obj.GetComponentInParent<SliderController>();
-            if (sliderCtrl != null) { if (state) sliderCtrl.OnRayStay(isRightHand, hitPoint); else sliderCtrl.OnRayExit(isRightHand); }
+            if (sliderCtrl != null)
+            {
+                if (state)
+                    sliderCtrl.OnRayStay(isRightHand, hitPoint);
+                else
+                    sliderCtrl.OnRayExit(isRightHand);
+            }
 
             var spinner = obj.GetComponentInParent<SpinnerController>();
-            if (spinner != null) spinner.isHovered = true;
+            if (spinner != null)
+                spinner.isHovered = true;
         }
 
         // ============================================================
@@ -828,27 +1024,58 @@ namespace OsuVR
                 stickValue = rightStickAction.action.ReadValue<Vector2>();
 
             if (isRightHand && Mouse.current != null)
-            { Vector2 ms = Mouse.current.scroll.ReadValue(); if (Mathf.Abs(ms.y) > 0.1f) stickValue.y = ms.y > 0 ? 1f : -1f; }
+            {
+                Vector2 ms = Mouse.current.scroll.ReadValue();
+                if (Mathf.Abs(ms.y) > 0.1f)
+                    stickValue.y = ms.y > 0 ? 1f : -1f;
+            }
 
             if (Mathf.Abs(stickValue.y) > 0.3f)
             {
                 if (activeDropdown != null && dropdownListClone != null)
                 {
                     var dropdownScroll = dropdownListClone.GetComponentInChildren<ScrollRect>();
-                    if (dropdownScroll != null && dropdownScroll.gameObject.activeInHierarchy && dropdownScroll.vertical)
+                    if (
+                        dropdownScroll != null
+                        && dropdownScroll.gameObject.activeInHierarchy
+                        && dropdownScroll.vertical
+                    )
                     {
-                        dropdownScroll.verticalNormalizedPosition += stickValue.y * scrollSpeed * Time.deltaTime / dropdownScroll.content.rect.height;
-                        dropdownScroll.verticalNormalizedPosition = Mathf.Clamp01(dropdownScroll.verticalNormalizedPosition);
+                        dropdownScroll.verticalNormalizedPosition +=
+                            stickValue.y
+                            * scrollSpeed
+                            * Time.deltaTime
+                            / dropdownScroll.content.rect.height;
+                        dropdownScroll.verticalNormalizedPosition = Mathf.Clamp01(
+                            dropdownScroll.verticalNormalizedPosition
+                        );
                     }
                     return;
                 }
 
                 foreach (var sv in cachedScrollRects)
-                { if (sv != null && !sv.Equals(null) && sv.gameObject.activeInHierarchy && sv.vertical) { sv.verticalNormalizedPosition += stickValue.y * scrollSpeed * Time.deltaTime / sv.content.rect.height; sv.verticalNormalizedPosition = Mathf.Clamp01(sv.verticalNormalizedPosition); } }
+                {
+                    if (
+                        sv != null
+                        && !sv.Equals(null)
+                        && sv.gameObject.activeInHierarchy
+                        && sv.vertical
+                    )
+                    {
+                        sv.verticalNormalizedPosition +=
+                            stickValue.y * scrollSpeed * Time.deltaTime / sv.content.rect.height;
+                        sv.verticalNormalizedPosition = Mathf.Clamp01(
+                            sv.verticalNormalizedPosition
+                        );
+                    }
+                }
             }
         }
 
-        public void SetMode(bool isLazyMode) { currentMode = isLazyMode ? ControlMode.WristGain : ControlMode.Direct1to1; }
+        public void SetMode(bool isLazyMode)
+        {
+            currentMode = isLazyMode ? ControlMode.WristGain : ControlMode.Direct1to1;
+        }
 
         /// <summary>
         /// 通知所有 RayController 刷新缓存（新 UI Canvas 出现时调用）

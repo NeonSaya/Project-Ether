@@ -19,7 +19,9 @@ namespace OsuVR
         public Transform approachCircle; // 缩圈圆环的Transform
 
         [Header("判定设置")]
-        [Tooltip("判定窗口回退值（毫秒）：无 Manager 时使用；实际判定窗口随谱面 OD 变化（RhythmGameManager.GetJudgementWindowMs，OD8=250ms 基准）")]
+        [Tooltip(
+            "判定窗口回退值（毫秒）：无 Manager 时使用；实际判定窗口随谱面 OD 变化（RhythmGameManager.GetJudgementWindowMs，OD8=250ms 基准）"
+        )]
         public float hitWindow = 250f;
 
         [Tooltip("最大缩圈倍数：圆环开始时是Note的几倍大")]
@@ -59,14 +61,19 @@ namespace OsuVR
         private static readonly int PropTintColor = Shader.PropertyToID("_TintColor");
         private static readonly int PropEmissionColor = Shader.PropertyToID("_EmissionColor");
         private static readonly int PropZWrite = Shader.PropertyToID("_ZWrite");
+
         // 缓存已克隆的材质，避免 .material 每次复用时泄漏新实例
-        private static readonly Dictionary<int, Material> _clonedMaterials = new Dictionary<int, Material>();
+        private static readonly Dictionary<int, Material> _clonedMaterials =
+            new Dictionary<int, Material>();
+
         // 添加一个变量来防止第一帧暴毙
         private bool isFirstFrame = true;
+
         // 上一次 CheckHitOrMiss 采样到的 (当前时间 - 打击时间)，用于帧量化修正
         private double lastCheckDiff = double.NaN;
         private MeshRenderer bodyRenderer;
         private MeshRenderer overlayRenderer;
+
         // 缓存光晕贴图
         private static Texture2D cachedRingGlowTex;
         private static Mesh cachedQuadMesh;
@@ -74,14 +81,15 @@ namespace OsuVR
         private int myRenderQueue = 3050;
 
         /// <summary>实际生效的判定窗口（毫秒）：随谱面 OD 变化（OD8=250ms 基准，OD 越高越早 Miss）；无 Manager 时回退 hitWindow 字段值。提前窗固定 -13ms 不受影响。</summary>
-        private double EffectiveHitWindow => gameManager != null ? gameManager.JudgementWindowMs : hitWindow;
-
+        private double EffectiveHitWindow =>
+            gameManager != null ? gameManager.JudgementWindowMs : hitWindow;
 
         private Camera MainCamera
         {
             get
             {
-                if (_cachedMainCamera == null) _cachedMainCamera = Camera.main;
+                if (_cachedMainCamera == null)
+                    _cachedMainCamera = Camera.main;
                 return _cachedMainCamera;
             }
         }
@@ -104,6 +112,7 @@ namespace OsuVR
 
         // 光晕对象
         private GameObject haloObject;
+
         /// <summary>
         /// 当物体被激活（或从池中取出）时调用
         /// </summary>
@@ -114,7 +123,8 @@ namespace OsuVR
             hasBeenHit = false;
             // 从池中取出时恢复碰撞体（OnHit/OnMiss 会禁用它）
             var col = GetComponent<Collider>();
-            if (col != null) col.enabled = true;
+            if (col != null)
+                col.enabled = true;
         }
 
         /// <summary>
@@ -135,13 +145,13 @@ namespace OsuVR
             isHovered = false;
         }
 
-
         /// <summary>
         /// 获取手绘光晕贴图
         /// </summary>
         private Texture2D GetGlowTexture()
         {
-            if (cachedRingGlowTex != null) return cachedRingGlowTex;
+            if (cachedRingGlowTex != null)
+                return cachedRingGlowTex;
 
             int size = 128;
             var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
@@ -152,8 +162,8 @@ namespace OsuVR
 
             // Scale = 1.25, Note边缘在 0.8
             float startRadius = 0.72f; //稍微往里缩一点，让淡入更深邃
-            float peakRadius = 0.80f;  // 物理边缘 (最亮)
-            float endRadius = 1.0f;    // 光晕边界
+            float peakRadius = 0.80f; // 物理边缘 (最亮)
+            float endRadius = 1.0f; // 光晕边界
 
             for (int y = 0; y < size; y++)
             {
@@ -203,7 +213,17 @@ namespace OsuVR
         /// 初始化音符
         /// </summary>
         /// <param name="renderIndex">安全渲染索引 (safeRenderIndex)，由 RhythmGameManager 计算</param>
-        public void Initialize(HitObject hitObj, Vector3 targetPos, float speed, float beatmapCS, Color comboColor, RhythmGameManager manager, IObjectPool<GameObject> pool, int renderIndex, Vector3? nextPos = null)
+        public void Initialize(
+            HitObject hitObj,
+            Vector3 targetPos,
+            float speed,
+            float beatmapCS,
+            Color comboColor,
+            RhythmGameManager manager,
+            IObjectPool<GameObject> pool,
+            int renderIndex,
+            Vector3? nextPos = null
+        )
         {
             EnsureComponentsCached();
 
@@ -224,7 +244,8 @@ namespace OsuVR
             this.originalColor = comboColor;
             this.originalColor.a = 1.0f;
             ApplyColor(this.originalColor);
-            if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
+            if (_propBlock == null)
+                _propBlock = new MaterialPropertyBlock();
             // 正确引用渲染器
             this.circleRenderer = GetComponentInChildren<MeshRenderer>();
             // 存下下一个音符位置
@@ -250,14 +271,17 @@ namespace OsuVR
             {
                 Transform bodyTr = transform.Find("Body");
                 // 如果找不到名为 Body 的子物体，就尝试用根物体（兼容旧Prefab结构）
-                if (bodyTr) bodyRenderer = bodyTr.GetComponent<MeshRenderer>();
-                else bodyRenderer = GetComponent<MeshRenderer>();
+                if (bodyTr)
+                    bodyRenderer = bodyTr.GetComponent<MeshRenderer>();
+                else
+                    bodyRenderer = GetComponent<MeshRenderer>();
             }
 
             if (overlayRenderer == null)
             {
                 Transform overlayTr = transform.Find("Overlay");
-                if (overlayTr) overlayRenderer = overlayTr.GetComponent<MeshRenderer>();
+                if (overlayTr)
+                    overlayRenderer = overlayTr.GetComponent<MeshRenderer>();
             }
 
             // -----------------------------------------------------------
@@ -275,7 +299,8 @@ namespace OsuVR
             );
 
             // 准备属性块
-            if (_propBlock == null) _propBlock = new MaterialPropertyBlock();
+            if (_propBlock == null)
+                _propBlock = new MaterialPropertyBlock();
 
             // A. 给 Body 设置发光颜色
             if (bodyRenderer != null)
@@ -324,21 +349,28 @@ namespace OsuVR
             Renderer[] renderers = GetComponentsInChildren<Renderer>();
             foreach (var r in renderers)
             {
-                if (r == null) continue;
+                if (r == null)
+                    continue;
 
                 int targetQueue = baseQueue + 5;
                 string objName = r.gameObject.name;
-                if (objName.Contains("Halo")) targetQueue = baseQueue + 4;
-                else if (objName.Contains("Body") || objName.Contains("HitCircle")) targetQueue = baseQueue + 5;
-                else if (objName.Contains("Overlay")) targetQueue = baseQueue + 6;
-                else if (objName.Contains("ApproachCircle")) targetQueue = baseQueue + 8;
+                if (objName.Contains("Halo"))
+                    targetQueue = baseQueue + 4;
+                else if (objName.Contains("Body") || objName.Contains("HitCircle"))
+                    targetQueue = baseQueue + 5;
+                else if (objName.Contains("Overlay"))
+                    targetQueue = baseQueue + 6;
+                else if (objName.Contains("ApproachCircle"))
+                    targetQueue = baseQueue + 8;
 
                 var mat = GetOrCloneMaterial(r);
                 mat.renderQueue = targetQueue;
-                if (mat.HasProperty(PropZWrite)) mat.SetInt(PropZWrite, 0);
+                if (mat.HasProperty(PropZWrite))
+                    mat.SetInt(PropZWrite, 0);
 
                 // Overlay 保持半透明白色，不应用 combo 颜色
-                if (objName.Contains("Overlay")) continue;
+                if (objName.Contains("Overlay"))
+                    continue;
 
                 r.GetPropertyBlock(_propBlock);
                 _propBlock.SetColor(PropColor, hdrColor);
@@ -351,17 +383,20 @@ namespace OsuVR
             if (hitObject.TimePreempt < 100)
             {
                 // 如果 Manager 也没算，就默认 AR5 (1200ms)
-                double defaultAR = (manager != null && manager.spawnOffsetMs > 100) ? manager.spawnOffsetMs : 1200;
+                double defaultAR =
+                    (manager != null && manager.spawnOffsetMs > 100) ? manager.spawnOffsetMs : 1200;
                 hitObject.TimePreempt = defaultAR;
             }
 
-            if (MainCamera != null) transform.LookAt(MainCamera.transform);
+            if (MainCamera != null)
+                transform.LookAt(MainCamera.transform);
 
             // 初始化视觉 (缩圈)
             if (approachCircleObject != null)
             {
                 var scaler = approachCircleObject.GetComponent<ApproachCircleScaler>();
-                if (scaler == null) scaler = approachCircleObject.gameObject.AddComponent<ApproachCircleScaler>();
+                if (scaler == null)
+                    scaler = approachCircleObject.gameObject.AddComponent<ApproachCircleScaler>();
 
                 // 确保传入正确的 TimePreempt，并传入 manager 以便处理 Mod 效果
                 // 这里的 active 在内部已经被 HD 判断处理了，外部不再强制设定 active(true)
@@ -370,7 +405,8 @@ namespace OsuVR
 
             // 创建光晕
             Renderer targetRenderer = transform.Find("Body")?.GetComponent<Renderer>();
-            if (targetRenderer == null) targetRenderer = this.circleRenderer;
+            if (targetRenderer == null)
+                targetRenderer = this.circleRenderer;
 
             if (targetRenderer != null)
             {
@@ -384,12 +420,16 @@ namespace OsuVR
                 if (fadeInComponent == null)
                     fadeInComponent = gameObject.AddComponent<ObjectFadeIn>();
             }
-            fadeInComponent.Initialize(hitObject.StartTime, hitObject.TimePreempt, manager, FadeMode.Standard);
+            fadeInComponent.Initialize(
+                hitObject.StartTime,
+                hitObject.TimePreempt,
+                manager,
+                FadeMode.Standard
+            );
 
             // 手动调用一次 Update 确保初始大小正确
             Update();
         }
-
 
         /// <summary>
         /// [优化版] 创建/复用纯白发光光晕
@@ -417,10 +457,17 @@ namespace OsuVR
                 dstFilter.sharedMesh = cachedQuadMesh;
 
                 Shader shader = Shader.Find("Mobile/Particles/Additive");
-                if (!shader) shader = Shader.Find("Legacy Shaders/Particles/Additive");
-                if (!shader) shader = Shader.Find("Universal Render Pipeline/Unlit");
-                if (!shader) shader = Shader.Find("Standard");
-                if (!shader) { Debug.LogError("[NoteController] Halo Shader 不可用，跳过光晕"); return; }
+                if (!shader)
+                    shader = Shader.Find("Legacy Shaders/Particles/Additive");
+                if (!shader)
+                    shader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (!shader)
+                    shader = Shader.Find("Standard");
+                if (!shader)
+                {
+                    Debug.LogError("[NoteController] Halo Shader 不可用，跳过光晕");
+                    return;
+                }
                 Material haloMat = new Material(shader);
                 haloMat.mainTexture = GetGlowTexture();
 
@@ -441,7 +488,7 @@ namespace OsuVR
             {
                 // 清理可能由于 ObjectFadeIn 在上一轮生命周期残留的透明度数据
                 r.SetPropertyBlock(null);
-                
+
                 var mat = GetOrCloneMaterial(r);
                 mat.renderQueue = this.myRenderQueue;
                 Color whiteGlow = new Color(2.5f, 2.5f, 2.5f, 0.75f);
@@ -490,10 +537,12 @@ namespace OsuVR
         /// </summary>
         void Update()
         {
-            if (!isActive) return;
+            if (!isActive)
+                return;
 
             // 防御: 池中对象可能在 Initialize 之前被 Unity 调度 Update
-            if (hitObject == null) return;
+            if (hitObject == null)
+                return;
 
             // 1. 获取精准时间
             if (gameManager != null)
@@ -508,7 +557,10 @@ namespace OsuVR
             if (approachCircle != null)
             {
                 // 获取 AR：优先用 hitObject 自带的，没有就用 Manager 的全局 AR，还没有就默认 1200
-                double preempt = hitObject.TimePreempt > 0.1 ? hitObject.TimePreempt : (gameManager ? gameManager.spawnOffsetMs : 1200);
+                double preempt =
+                    hitObject.TimePreempt > 0.1
+                        ? hitObject.TimePreempt
+                        : (gameManager ? gameManager.spawnOffsetMs : 1200);
 
                 // 计算进度 (1.0 -> 0.0)
                 float progress = (float)(timeToHit / preempt);
@@ -524,7 +576,8 @@ namespace OsuVR
 
                 // 防御: VR 相机在场景切换瞬间可能为 null，避免每帧 NRE
                 Camera cam = MainCamera;
-                if (cam != null) approachCircle.LookAt(cam.transform);
+                if (cam != null)
+                    approachCircle.LookAt(cam.transform);
             }
 
             // 判定移到 Update 末尾: 与射线检测同帧执行，消除一帧延迟
@@ -536,9 +589,11 @@ namespace OsuVR
         /// </summary>
         private void CheckHitOrMiss()
         {
-            if (hasBeenHit) return;
+            if (hasBeenHit)
+                return;
 
-            if (gameManager == null || hitObject == null) return;
+            if (gameManager == null || hitObject == null)
+                return;
 
             double now = gameManager.GetCurrentMusicTimeMs();
             double diff = now - hitObject.StartTime;
@@ -552,7 +607,9 @@ namespace OsuVR
                 // 如果第一帧就延迟超过 100ms，打印警告
                 if (diff > 100)
                 {
-                    Debug.LogWarning($"[Timing Lag] 音符生成延迟！Diff: {diff:F2}ms (Window: {EffectiveHitWindow})");
+                    Debug.LogWarning(
+                        $"[Timing Lag] 音符生成延迟！Diff: {diff:F2}ms (Window: {EffectiveHitWindow})"
+                    );
                 }
 
                 // 如果是第一帧且判定为 Miss，强制不判 Miss，给它一次机会
@@ -616,7 +673,8 @@ namespace OsuVR
 
             foreach (var r in allRenderers)
             {
-                if (r == null) continue;
+                if (r == null)
+                    continue;
 
                 r.GetPropertyBlock(_propBlock); // 现在 _propBlock 绝对不为空
                 _propBlock.SetColor(PropColor, color);
@@ -627,14 +685,11 @@ namespace OsuVR
             }
         }
 
-
-
         /// <summary>
         /// 供 LaserShooter 调用的接口
         /// </summary>
         public void OnRayHover(bool isRightHand)
         {
-
             isHovered = true;
             hoveringHandIsRight = isRightHand;
             CheckHitOrMiss();
@@ -645,13 +700,15 @@ namespace OsuVR
         /// </summary>
         public void OnHit(double accuracy, bool isRightHand)
         {
-            if (hasBeenHit || !isActive) return;
+            if (hasBeenHit || !isActive)
+                return;
             hasBeenHit = true;
             isActive = false;
 
             // 立即禁用碰撞体，释放射线通道给下一个音符
             var col = GetComponent<Collider>();
-            if (col != null) col.enabled = false;
+            if (col != null)
+                col.enabled = false;
 
             // 音量 = TimingPoint音量 × 样本倍率
             float vol = (hitObject.TimingPointVolume / 100f) * (hitObject.SampleVolume / 100f);
@@ -687,10 +744,12 @@ namespace OsuVR
                 );
             }
 
-            // 播放音效 
+            // 播放音效
             if (AudioManager.Instance == null)
             {
-                Debug.LogError("❌ 【严重错误】AudioManager.Instance 为空！场景里没有挂载 AudioManager，或者它被销毁了！");
+                Debug.LogError(
+                    "❌ 【严重错误】AudioManager.Instance 为空！场景里没有挂载 AudioManager，或者它被销毁了！"
+                );
             }
             else
             {
@@ -698,19 +757,20 @@ namespace OsuVR
                 AudioManager.Instance.PlayHitSound(this.hitObject);
             }
 
-
-
             // 通知管理器
             if (gameManager != null)
             {
                 gameManager.OnNoteHit(hitObject, accuracy);
             }
 
-            if (haloObject != null) haloObject.SetActive(false);
+            if (haloObject != null)
+                haloObject.SetActive(false);
 
             // 播放消失动画（替代 LeanTween）
-            if (approachCircle != null) StartCoroutine(HitEffectCoroutine());
-            else ReturnToPool();
+            if (approachCircle != null)
+                StartCoroutine(HitEffectCoroutine());
+            else
+                ReturnToPool();
         }
 
         /// <summary>
@@ -718,14 +778,16 @@ namespace OsuVR
         /// </summary>
         private void OnMiss()
         {
-            if (hasBeenHit || !isActive) return;
+            if (hasBeenHit || !isActive)
+                return;
 
             hasBeenHit = true;
             isActive = false;
 
             // 立即禁用碰撞体，释放射线通道
             var col = GetComponent<Collider>();
-            if (col != null) col.enabled = false;
+            if (col != null)
+                col.enabled = false;
 
             // 通知管理器
             if (gameManager != null)
@@ -752,8 +814,6 @@ namespace OsuVR
             Color startColor = originalColor;
             Color endColor = startColor;
             endColor.a = 0f;
-
-         
 
             while (timer < duration)
             {
@@ -837,12 +897,14 @@ namespace OsuVR
             {
                 foreach (var r in allRenderers)
                 {
-                    if (r == null) continue;
+                    if (r == null)
+                        continue;
                     int id = r.GetInstanceID();
                     if (_clonedMaterials.TryGetValue(id, out var mat))
                     {
                         _clonedMaterials.Remove(id);
-                        if (mat != null) Destroy(mat);
+                        if (mat != null)
+                            Destroy(mat);
                     }
                 }
             }
@@ -856,12 +918,11 @@ namespace OsuVR
                     if (_clonedMaterials.TryGetValue(id, out var mat))
                     {
                         _clonedMaterials.Remove(id);
-                        if (mat != null) Destroy(mat);
+                        if (mat != null)
+                            Destroy(mat);
                     }
                 }
             }
         }
-
-
     }
 }

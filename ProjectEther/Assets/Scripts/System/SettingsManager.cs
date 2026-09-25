@@ -56,7 +56,13 @@ namespace OsuVR
             public float particleDensity;
             public int targetFPS; // 仅用于 Android，PC 始终为 -1（无限制）
 
-            public GraphicsPreset(int quality, int aa, float renderScale, float particleDensity, int targetFPS = -1)
+            public GraphicsPreset(
+                int quality,
+                int aa,
+                float renderScale,
+                float particleDensity,
+                int targetFPS = -1
+            )
             {
                 this.quality = quality;
                 this.aa = aa;
@@ -71,10 +77,10 @@ namespace OsuVR
         /// </summary>
         private static readonly GraphicsPreset[] PC_PRESETS =
         {
-            new GraphicsPreset(0, 0, 0.80f, 0.50f),   // 低画质
-            new GraphicsPreset(1, 4, 0.90f, 0.80f),   // 中画质
-            new GraphicsPreset(2, 4, 1.00f, 1.00f),   // 高画质 (默认)
-            new GraphicsPreset(3, 8, 1.00f, 1.00f),   // 超高画质
+            new GraphicsPreset(0, 0, 0.80f, 0.50f), // 低画质
+            new GraphicsPreset(1, 4, 0.90f, 0.80f), // 中画质
+            new GraphicsPreset(2, 4, 1.00f, 1.00f), // 高画质 (默认)
+            new GraphicsPreset(3, 8, 1.00f, 1.00f), // 超高画质
         };
 
         /// <summary>
@@ -83,10 +89,10 @@ namespace OsuVR
         /// </summary>
         private static readonly GraphicsPreset[] STANDALONE_PRESETS =
         {
-            new GraphicsPreset(0, 0, 0.55f, 0.45f),  // 低画质
-            new GraphicsPreset(1, 2, 0.70f, 0.55f),  // 中画质 (2x AA)
-            new GraphicsPreset(2, 2, 0.85f, 0.65f),  // 高画质 (默认, 2x AA)
-            new GraphicsPreset(3, 4, 1.00f, 0.75f),  // 超高画质 (4x AA, RS=1.0)
+            new GraphicsPreset(0, 0, 0.55f, 0.45f), // 低画质
+            new GraphicsPreset(1, 2, 0.70f, 0.55f), // 中画质 (2x AA)
+            new GraphicsPreset(2, 2, 0.85f, 0.65f), // 高画质 (默认, 2x AA)
+            new GraphicsPreset(3, 4, 1.00f, 0.75f), // 超高画质 (4x AA, RS=1.0)
         };
 
         /// <summary>
@@ -146,7 +152,9 @@ namespace OsuVR
                 settings.antiAliasing = defaultPreset.aa;
                 settings.renderScale = defaultPreset.renderScale;
                 settings.particleDensity = defaultPreset.particleDensity;
-                Debug.Log($"[SettingsManager] First run: applied platform defaults (Quality={defaultPreset.quality}, AA={defaultPreset.aa}, RS={defaultPreset.renderScale:F2}, PD={defaultPreset.particleDensity:F2})");
+                Debug.Log(
+                    $"[SettingsManager] First run: applied platform defaults (Quality={defaultPreset.quality}, AA={defaultPreset.aa}, RS={defaultPreset.renderScale:F2}, PD={defaultPreset.particleDensity:F2})"
+                );
             }
             else
             {
@@ -164,10 +172,15 @@ namespace OsuVR
             settings.rightControllerYOffset = PlayerPrefs.GetFloat(PREF_KEY_RIGHT_CTRL_Y, 0f);
             settings.controllerRotationOffset = PlayerPrefs.GetFloat(PREF_KEY_CTRL_ROT, 0f);
             settings.showAccuracy = PlayerPrefs.GetInt(PREF_KEY_SHOW_ACCURACY, 1) == 1;
-            settings.displayOriginalLanguage = PlayerPrefs.GetInt(PREF_KEY_DISPLAY_ORIGINAL_LANG, 0) == 1;
+            settings.displayOriginalLanguage =
+                PlayerPrefs.GetInt(PREF_KEY_DISPLAY_ORIGINAL_LANG, 0) == 1;
             settings.enableStoryboard = PlayerPrefs.GetInt(PREF_KEY_ENABLE_STORYBOARD, 1) == 1;
-            settings.enableStoryboardPlayback = PlayerPrefs.GetInt(PREF_KEY_ENABLE_SB_PLAYBACK, 1) == 1;
-            settings.storyboardScreenDistance = PlayerPrefs.GetFloat(PREF_KEY_SB_SCREEN_DISTANCE, 12.5f);
+            settings.enableStoryboardPlayback =
+                PlayerPrefs.GetInt(PREF_KEY_ENABLE_SB_PLAYBACK, 1) == 1;
+            settings.storyboardScreenDistance = PlayerPrefs.GetFloat(
+                PREF_KEY_SB_SCREEN_DISTANCE,
+                12.5f
+            );
             settings.storyboardScreenAlpha = PlayerPrefs.GetFloat(PREF_KEY_SB_SCREEN_ALPHA, 0.5f);
 
             Debug.Log("[SettingsManager] Settings loaded from PlayerPrefs");
@@ -193,9 +206,15 @@ namespace OsuVR
             PlayerPrefs.SetFloat(PREF_KEY_RIGHT_CTRL_Y, settings.rightControllerYOffset);
             PlayerPrefs.SetFloat(PREF_KEY_CTRL_ROT, settings.controllerRotationOffset);
             PlayerPrefs.SetInt(PREF_KEY_SHOW_ACCURACY, settings.showAccuracy ? 1 : 0);
-            PlayerPrefs.SetInt(PREF_KEY_DISPLAY_ORIGINAL_LANG, settings.displayOriginalLanguage ? 1 : 0);
+            PlayerPrefs.SetInt(
+                PREF_KEY_DISPLAY_ORIGINAL_LANG,
+                settings.displayOriginalLanguage ? 1 : 0
+            );
             PlayerPrefs.SetInt(PREF_KEY_ENABLE_STORYBOARD, settings.enableStoryboard ? 1 : 0);
-            PlayerPrefs.SetInt(PREF_KEY_ENABLE_SB_PLAYBACK, settings.enableStoryboardPlayback ? 1 : 0);
+            PlayerPrefs.SetInt(
+                PREF_KEY_ENABLE_SB_PLAYBACK,
+                settings.enableStoryboardPlayback ? 1 : 0
+            );
             PlayerPrefs.SetFloat(PREF_KEY_SB_SCREEN_DISTANCE, settings.storyboardScreenDistance);
             PlayerPrefs.SetFloat(PREF_KEY_SB_SCREEN_ALPHA, settings.storyboardScreenAlpha);
 
@@ -252,13 +271,18 @@ namespace OsuVR
             QualitySettings.vSyncCount = settings.enableVSync ? 1 : 0;
 
             int aaValue = settings.antiAliasing;
-            if (aaValue == 0) aaValue = 1;
+            if (aaValue == 0)
+                aaValue = 1;
             else if (aaValue > 0 && (aaValue & (aaValue - 1)) != 0)
             {
-                if (aaValue < 2) aaValue = 2;
-                else if (aaValue < 4) aaValue = 2;
-                else if (aaValue < 8) aaValue = 4;
-                else aaValue = 8;
+                if (aaValue < 2)
+                    aaValue = 2;
+                else if (aaValue < 4)
+                    aaValue = 2;
+                else if (aaValue < 8)
+                    aaValue = 4;
+                else
+                    aaValue = 8;
             }
             QualitySettings.antiAliasing = aaValue;
 
@@ -274,7 +298,9 @@ namespace OsuVR
                 EtherealEnvironment.Instance.SetParticleDensity(settings.particleDensity);
             }
 
-            Debug.Log($"[SettingsManager] Graphics: Q={settings.qualityLevel}, AA={settings.antiAliasing}, RS={settings.renderScale:F2}, PD={settings.particleDensity:F2}, FPS={Application.targetFrameRate}");
+            Debug.Log(
+                $"[SettingsManager] Graphics: Q={settings.qualityLevel}, AA={settings.antiAliasing}, RS={settings.renderScale:F2}, PD={settings.particleDensity:F2}, FPS={Application.targetFrameRate}"
+            );
         }
 
         public void ApplyVRSettings()
@@ -297,18 +323,29 @@ namespace OsuVR
             var rayControllers = FindObjectsOfType<RayController>();
             foreach (var rc in rayControllers)
             {
-                if (autoPlay != null && autoPlay.IsControlling(rc)) continue;
+                if (autoPlay != null && autoPlay.IsControlling(rc))
+                    continue;
 
                 if (rc.isRightHand)
                 {
-                    rc.directOffset = new Vector3(settings.controllerRotationOffset, settings.rightControllerYOffset, settings.rightControllerZOffset);
+                    rc.directOffset = new Vector3(
+                        settings.controllerRotationOffset,
+                        settings.rightControllerYOffset,
+                        settings.rightControllerZOffset
+                    );
                 }
                 else
                 {
-                    rc.directOffset = new Vector3(settings.controllerRotationOffset, settings.leftControllerYOffset, settings.leftControllerZOffset);
+                    rc.directOffset = new Vector3(
+                        settings.controllerRotationOffset,
+                        settings.leftControllerYOffset,
+                        settings.leftControllerZOffset
+                    );
                 }
             }
-            Debug.Log($"[SettingsManager] Controller offsets applied: Rot={settings.controllerRotationOffset}°, L_Z={settings.leftControllerZOffset}, L_Y={settings.leftControllerYOffset}, R_Z={settings.rightControllerZOffset}, R_Y={settings.rightControllerYOffset}");
+            Debug.Log(
+                $"[SettingsManager] Controller offsets applied: Rot={settings.controllerRotationOffset}°, L_Z={settings.leftControllerZOffset}, L_Y={settings.leftControllerYOffset}, R_Z={settings.rightControllerZOffset}, R_Y={settings.rightControllerYOffset}"
+            );
         }
 
         public void ApplyStoryboardSettings()
@@ -317,7 +354,9 @@ namespace OsuVR
             {
                 OsuVR.Storyboard.HolographicScreenManager.Instance.OnSettingsChanged();
             }
-            Debug.Log($"[SettingsManager] Storyboard applied: Enable={settings.enableStoryboard}, Playback={settings.enableStoryboardPlayback}, Distance={settings.storyboardScreenDistance:F1}m, Alpha={settings.storyboardScreenAlpha:F2}");
+            Debug.Log(
+                $"[SettingsManager] Storyboard applied: Enable={settings.enableStoryboard}, Playback={settings.enableStoryboardPlayback}, Distance={settings.storyboardScreenDistance:F1}m, Alpha={settings.storyboardScreenAlpha:F2}"
+            );
         }
 
         #endregion
@@ -426,7 +465,13 @@ namespace OsuVR
             SaveSettings();
         }
 
-        public void SetControllerOffsets(float leftZ, float rightZ, float leftY, float rightY, float rotation)
+        public void SetControllerOffsets(
+            float leftZ,
+            float rightZ,
+            float leftY,
+            float rightY,
+            float rotation
+        )
         {
             settings.leftControllerZOffset = leftZ;
             settings.rightControllerZOffset = rightZ;

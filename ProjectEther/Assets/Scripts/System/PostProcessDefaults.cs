@@ -17,16 +17,24 @@ namespace OsuVR
 
         [Header("Chromatic Aberration")]
         public bool enableChromaticAberration = true;
-        [Range(0f, 1f)] public float chromaticAberrationIntensity = 0.1f;
+
+        [Range(0f, 1f)]
+        public float chromaticAberrationIntensity = 0.1f;
 
         [Header("Color Grading")]
         public bool enableColorGrading = true;
-        [Range(-1f, 1f)] public float saturation = 0.1f;
-        [Range(-1f, 1f)] public float contrast = 0.05f;
+
+        [Range(-1f, 1f)]
+        public float saturation = 0.1f;
+
+        [Range(-1f, 1f)]
+        public float contrast = 0.05f;
 
         [Header("Film Grain")]
         public bool enableFilmGrain = false;
-        [Range(0f, 1f)] public float filmGrainIntensity = 0.2f;
+
+        [Range(0f, 1f)]
+        public float filmGrainIntensity = 0.2f;
 
         private void Start()
         {
@@ -37,7 +45,8 @@ namespace OsuVR
             }
 
             var profile = PostProcessManager.Instance.GetProfile();
-            if (profile == null) return;
+            if (profile == null)
+                return;
 
             if (enableChromaticAberration)
             {

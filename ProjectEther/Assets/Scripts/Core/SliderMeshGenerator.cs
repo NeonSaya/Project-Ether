@@ -1,6 +1,6 @@
 using System.Collections.Generic;
-using UnityEngine.Rendering;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace OsuVR
 {
@@ -25,26 +25,43 @@ namespace OsuVR
         /// - Body 材质 (霸体写入): StencilComp = Always, StencilOp = Replace
         /// - Border 材质 (避让读取): StencilComp = NotEqual, StencilOp = Keep
         /// </remarks>
-        public static (Mesh border, Mesh body, Material borderMaterial, Material bodyMaterial) GeneratePhysicalSlider(
+        public static (
+            Mesh border,
+            Mesh body,
+            Material borderMaterial,
+            Material bodyMaterial
+        ) GeneratePhysicalSlider(
             List<Vector3> worldPathPoints,
             float radius,
             float borderThickness,
             Color borderColor,
             Color bodyColor,
-            int stencilID)
+            int stencilID
+        )
         {
             // 1. 生成网格
             // 边框网格半径 = 半径 + 厚度
-            Mesh border = BuildSausageMesh(worldPathPoints, radius + borderThickness, "Slider_Border");
+            Mesh border = BuildSausageMesh(
+                worldPathPoints,
+                radius + borderThickness,
+                "Slider_Border"
+            );
             // 本体网格半径 = 半径
             Mesh body = BuildSausageMesh(worldPathPoints, radius, "Slider_Body");
 
             // 2. 查找并创建材质
             Shader osuShader = Shader.Find(SHADER_NAME);
-            if (osuShader == null) osuShader = Shader.Find("Universal Render Pipeline/Lit");
-            if (osuShader == null) osuShader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (osuShader == null) osuShader = Shader.Find("Standard");
-            if (osuShader == null) { Debug.LogError("[SliderMeshGenerator] 所有 Shader 均不可用!"); return (null, null, null, null); }
+            if (osuShader == null)
+                osuShader = Shader.Find("Universal Render Pipeline/Lit");
+            if (osuShader == null)
+                osuShader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (osuShader == null)
+                osuShader = Shader.Find("Standard");
+            if (osuShader == null)
+            {
+                Debug.LogError("[SliderMeshGenerator] 所有 Shader 均不可用!");
+                return (null, null, null, null);
+            }
 
             // ---------------------------------------------------------
             // 机制3: 滑条自我交叉防重叠 (Stencil Buffer)
@@ -136,8 +153,12 @@ namespace OsuVR
                     v.Add(next + side * w);
 
                     // 构建两个三角形组成矩形
-                    t.Add(b); t.Add(b + 2); t.Add(b + 1);
-                    t.Add(b + 1); t.Add(b + 2); t.Add(b + 3);
+                    t.Add(b);
+                    t.Add(b + 2);
+                    t.Add(b + 1);
+                    t.Add(b + 1);
+                    t.Add(b + 2);
+                    t.Add(b + 3);
                 }
             }
             m.SetVertices(v);

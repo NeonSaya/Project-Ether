@@ -7,7 +7,7 @@ namespace OsuVR
     {
         Standard, // 正常渐隐（在到达击打时间前消失）
         SliderBody, // 滑条本体渐隐（在击打时间之后才开始逐渐消失）
-        HitCircleDelayed // HitCircle 贴图延迟隐藏（在到达击打时间后才开始消失）
+        HitCircleDelayed, // HitCircle 贴图延迟隐藏（在到达击打时间后才开始消失）
     }
 
     public class ObjectFadeIn : MonoBehaviour
@@ -36,7 +36,13 @@ namespace OsuVR
         private FadeMode fadeMode = FadeMode.Standard;
         private double sliderEndTime = 0;
 
-        public void Initialize(double hitTimeMs, double timePreemptMs, RhythmGameManager manager, FadeMode mode = FadeMode.Standard, double endTimeMs = 0)
+        public void Initialize(
+            double hitTimeMs,
+            double timePreemptMs,
+            RhythmGameManager manager,
+            FadeMode mode = FadeMode.Standard,
+            double endTimeMs = 0
+        )
         {
             this.hitTime = hitTimeMs;
             this.timePreempt = timePreemptMs;
@@ -60,7 +66,7 @@ namespace OsuVR
                 // HD 模式下：
                 // 前 40% 时间淡入
                 this.timeFadeIn = timePreemptMs * 0.4;
-                
+
                 if (this.fadeMode == FadeMode.Standard)
                 {
                     // 标准模式：从 40% 到 70% 的时间淡出
@@ -72,7 +78,10 @@ namespace OsuVR
                     // 滑条本体模式：在 HitTime 开始淡出，直到 EndTime 结束
                     this.fadeOutStartTime = hitTimeMs;
                     // 确保有一定时长的淡出过程，防止极短滑条瞬间消失
-                    this.fadeOutDuration = System.Math.Max(endTimeMs - hitTimeMs, timePreemptMs * 0.3);
+                    this.fadeOutDuration = System.Math.Max(
+                        endTimeMs - hitTimeMs,
+                        timePreemptMs * 0.3
+                    );
                 }
                 else if (this.fadeMode == FadeMode.HitCircleDelayed)
                 {
@@ -93,15 +102,17 @@ namespace OsuVR
 
             var allRenderers = GetComponentsInChildren<Renderer>(true);
             var validRenderers = new List<Renderer>();
-            
+
             foreach (var r in allRenderers)
             {
                 // 排除 FollowBall，因为它在滑动时需要保持可见
-                if (r.gameObject.name.Contains("FollowBall")) continue;
-                
+                if (r.gameObject.name.Contains("FollowBall"))
+                    continue;
+
                 // 排除已经有自己独立 ObjectFadeIn 的子物体（比如作为 SliderController 子物体的 headInstance）
                 var childFadeIn = r.GetComponentInParent<ObjectFadeIn>();
-                if (childFadeIn != null && childFadeIn != this) continue;
+                if (childFadeIn != null && childFadeIn != this)
+                    continue;
 
                 validRenderers.Add(r);
             }
@@ -115,15 +126,17 @@ namespace OsuVR
                 cachedColors[i] = GetCurrentColor(cachedRenderers[i]);
                 cachedEmissions[i] = GetEmissionColor(cachedRenderers[i]);
             }
-            
+
             SetAlpha(0f);
         }
 
         private Color GetCurrentColor(Renderer renderer)
         {
-            if (renderer == null) return Color.white;
+            if (renderer == null)
+                return Color.white;
 
-            if (propBlock == null) propBlock = new MaterialPropertyBlock();
+            if (propBlock == null)
+                propBlock = new MaterialPropertyBlock();
             MaterialPropertyBlock tempBlock = propBlock;
             renderer.GetPropertyBlock(tempBlock);
 
@@ -170,16 +183,21 @@ namespace OsuVR
 
         private Color GetEmissionColor(Renderer renderer)
         {
-            if (renderer == null) return Color.black;
+            if (renderer == null)
+                return Color.black;
 
-            if (propBlock == null) propBlock = new MaterialPropertyBlock();
+            if (propBlock == null)
+                propBlock = new MaterialPropertyBlock();
             MaterialPropertyBlock tempBlock = propBlock;
             renderer.GetPropertyBlock(tempBlock);
 
             if (tempBlock.HasProperty("_EmissionColor"))
                 return tempBlock.GetColor("_EmissionColor");
 
-            if (renderer.sharedMaterial != null && renderer.sharedMaterial.HasProperty("_EmissionColor"))
+            if (
+                renderer.sharedMaterial != null
+                && renderer.sharedMaterial.HasProperty("_EmissionColor")
+            )
                 return renderer.sharedMaterial.GetColor("_EmissionColor");
 
             return Color.black;
@@ -196,7 +214,8 @@ namespace OsuVR
 
             if (!isHidden)
             {
-                if (hasFinishedFadeIn) return;
+                if (hasFinishedFadeIn)
+                    return;
 
                 if (currentTime < fadeStartTime)
                 {
@@ -247,12 +266,14 @@ namespace OsuVR
 
         private void SetAlpha(float alpha)
         {
-            if (cachedRenderers == null || cachedColors == null) return;
+            if (cachedRenderers == null || cachedColors == null)
+                return;
 
             for (int i = 0; i < cachedRenderers.Length; i++)
             {
                 var renderer = cachedRenderers[i];
-                if (renderer == null) continue;
+                if (renderer == null)
+                    continue;
 
                 float currentAlpha = alpha;
 
@@ -305,7 +326,8 @@ namespace OsuVR
                 }
                 else
                 {
-                    if (!renderer.enabled) renderer.enabled = true;
+                    if (!renderer.enabled)
+                        renderer.enabled = true;
                 }
             }
         }
@@ -325,7 +347,7 @@ namespace OsuVR
                         cachedRenderers[i].SetPropertyBlock(null);
                 }
             }
-            
+
             // 恢复所有 Renderer 的启用状态
             if (cachedRenderers != null)
             {

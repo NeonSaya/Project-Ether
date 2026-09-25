@@ -59,7 +59,8 @@ namespace OsuVR
                 var currentObj = hitObjects[i];
 
                 // 转盘不参与堆叠，StackOrder 保持 0
-                if (currentObj is SpinnerObject) continue;
+                if (currentObj is SpinnerObject)
+                    continue;
 
                 // 往后找，看有没有谁压着我
                 for (int n = i + 1; n < count; n++)
@@ -67,14 +68,16 @@ namespace OsuVR
                     var nextObj = hitObjects[n];
 
                     // 如果找到转盘，跳过它，继续往后找（转盘不会打断堆叠链）
-                    if (nextObj is SpinnerObject) continue;
+                    if (nextObj is SpinnerObject)
+                        continue;
 
                     // A. 时间检查：从前物件的「结束时间」起算（osu! stable 语义；圈的 EndTime=StartTime 行为不变）
                     //    长滑条/转盘期间后续音符仍应参与堆叠。
                     //    注意：SliderObject.EndTime 是隐藏（hide）而非 override，经基类引用调用会绑到基类实现
                     //    （=StartTime），必须显式模式匹配取真实结束时间；SpinnerObject 是正常 override。
                     double currentEndTime = currentObj.EndTime;
-                    if (currentObj is SliderObject sliderObj) currentEndTime = sliderObj.EndTime;
+                    if (currentObj is SliderObject sliderObj)
+                        currentEndTime = sliderObj.EndTime;
 
                     if (nextObj.StartTime - currentEndTime > stackThreshold)
                     {
@@ -84,13 +87,20 @@ namespace OsuVR
 
                     // B. 空间检查：距离是否足够近 (3 osu!pixels)
                     //    除头部 Position 外，滑条尾端也参与距离判定（stable：尾压头/尾压圈也堆叠）
-                    bool closeToHead = Vector2.Distance(currentObj.Position, nextObj.Position) < STACK_DISTANCE_THRESHOLD;
+                    bool closeToHead =
+                        Vector2.Distance(currentObj.Position, nextObj.Position)
+                        < STACK_DISTANCE_THRESHOLD;
                     bool closeToTail = false;
-                    if (!closeToHead && currentObj is SliderObject curSlider
-                        && curSlider.PathPoints != null && curSlider.PathPoints.Count > 0)
+                    if (
+                        !closeToHead
+                        && currentObj is SliderObject curSlider
+                        && curSlider.PathPoints != null
+                        && curSlider.PathPoints.Count > 0
+                    )
                     {
                         Vector2 tailPos = curSlider.PathPoints[curSlider.PathPoints.Count - 1];
-                        closeToTail = Vector2.Distance(tailPos, nextObj.Position) < STACK_DISTANCE_THRESHOLD;
+                        closeToTail =
+                            Vector2.Distance(tailPos, nextObj.Position) < STACK_DISTANCE_THRESHOLD;
                     }
 
                     if (closeToHead || closeToTail)
@@ -141,14 +151,18 @@ namespace OsuVR
                 }
             }
 
-            Debug.Log($"[Stacking] 处理完成. CS:{cs} AR:{ar} Offset:{offsetBase:F2}px. MaxStack:{GetMaxStack(hitObjects)}");
+            Debug.Log(
+                $"[Stacking] 处理完成. CS:{cs} AR:{ar} Offset:{offsetBase:F2}px. MaxStack:{GetMaxStack(hitObjects)}"
+            );
         }
 
         // 辅助调试：查看最大堆叠层数
         private static int GetMaxStack(List<HitObject> list)
         {
             int max = 0;
-            foreach (var o in list) if (o.StackOrder > max) max = o.StackOrder;
+            foreach (var o in list)
+                if (o.StackOrder > max)
+                    max = o.StackOrder;
             return max;
         }
     }

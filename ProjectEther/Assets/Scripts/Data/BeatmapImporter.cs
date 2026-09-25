@@ -6,7 +6,12 @@ using UnityEngine;
 
 namespace OsuVR
 {
-    public enum ImportResult { Success, Cancelled, Error }
+    public enum ImportResult
+    {
+        Success,
+        Cancelled,
+        Error,
+    }
 
     /// <summary>
     /// 静态工具类：负责解压 .osz 文件 + 跨平台导入
@@ -21,7 +26,8 @@ namespace OsuVR
             get
             {
                 string path = Path.Combine(Application.persistentDataPath, "Songs");
-                if (!Directory.Exists(path)) Directory.CreateDirectory(path);
+                if (!Directory.Exists(path))
+                    Directory.CreateDirectory(path);
                 return path;
             }
         }
@@ -69,7 +75,9 @@ namespace OsuVR
         private static System.Action<ImportResult, string> _onFilePicked;
         private static BeatmapImporterHelper _helper;
 
-        public static void OpenAndroidFilePicker(System.Action<ImportResult, string> onComplete = null)
+        public static void OpenAndroidFilePicker(
+            System.Action<ImportResult, string> onComplete = null
+        )
         {
             _onFilePicked = onComplete;
 
@@ -80,10 +88,20 @@ namespace OsuVR
 
                 using (var intent = new AndroidJavaObject("android.content.Intent"))
                 {
-                    intent.Call<AndroidJavaObject>("setAction", "android.intent.action.GET_CONTENT");
+                    intent.Call<AndroidJavaObject>(
+                        "setAction",
+                        "android.intent.action.GET_CONTENT"
+                    );
                     intent.Call<AndroidJavaObject>("setType", "*/*");
-                    intent.Call<AndroidJavaObject>("addCategory", "android.intent.category.OPENABLE");
-                    intent.Call<AndroidJavaObject>("putExtra", "android.intent.extra.ALLOW_MULTIPLE", true);
+                    intent.Call<AndroidJavaObject>(
+                        "addCategory",
+                        "android.intent.category.OPENABLE"
+                    );
+                    intent.Call<AndroidJavaObject>(
+                        "putExtra",
+                        "android.intent.extra.ALLOW_MULTIPLE",
+                        true
+                    );
 
                     using (var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
                     {
@@ -98,9 +116,10 @@ namespace OsuVR
             {
                 Debug.LogError($"[Importer] Android 文件选择器启动失败: {e.Message}");
                 // 典型场景: 设备未注册任何文件选择器 (ActivityNotFoundException)
-                string hint = e.Message != null && e.Message.Contains("No Activity found")
-                    ? "此设备的系统未提供文件选择器，请手动将 .osz 文件复制到 Songs 目录"
-                    : e.Message;
+                string hint =
+                    e.Message != null && e.Message.Contains("No Activity found")
+                        ? "此设备的系统未提供文件选择器，请手动将 .osz 文件复制到 Songs 目录"
+                        : e.Message;
                 _onFilePicked?.Invoke(ImportResult.Error, hint);
             }
 #else
@@ -158,7 +177,9 @@ namespace OsuVR
                         continue;
                     }
                     if (token.Length > 0)
-                        names.Add(token.EndsWith(".osz") ? token.Substring(0, token.Length - 4) : token);
+                        names.Add(
+                            token.EndsWith(".osz") ? token.Substring(0, token.Length - 4) : token
+                        );
                 }
 
                 string detail = string.Join(", ", names);
@@ -209,7 +230,9 @@ namespace OsuVR
                 using (var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
                 {
                     var activity = player.GetStatic<AndroidJavaObject>("currentActivity");
-                    using (var cls = new AndroidJavaClass("com.nyaon.projectether.FilePickerActivity"))
+                    using (
+                        var cls = new AndroidJavaClass("com.nyaon.projectether.FilePickerActivity")
+                    )
                         return cls.CallStatic<string>("consumePendingResult", activity);
                 }
             }
@@ -230,13 +253,17 @@ namespace OsuVR
         /// <summary>已导入 .osz 的 MD5 记录文件（Songs 目录下，每行一个哈希）。
         /// 用于内容去重：同一文件改名后再次导入会被跳过。
         /// 注：记录在本功能上线之前的存量歌曲无哈希可查，改名重导会重复一次，属已知限制。</summary>
-        private static readonly string HashFilePath =
-            Path.Combine(Application.persistentDataPath, "Songs", ".imported.md5");
+        private static readonly string HashFilePath = Path.Combine(
+            Application.persistentDataPath,
+            "Songs",
+            ".imported.md5"
+        );
 
         public static void ImportNewOszFiles()
         {
             string[] oszFiles = Directory.GetFiles(SongsDirectory, "*.osz");
-            if (oszFiles.Length == 0) return;
+            if (oszFiles.Length == 0)
+                return;
 
             Debug.Log($"[Importer] 发现 {oszFiles.Length} 个新 .osz 文件，准备解压...");
             var duplicates = new List<string>();
@@ -250,8 +277,11 @@ namespace OsuVR
             {
                 string detail = string.Join(", ", duplicates);
                 Debug.Log($"[Importer] 跳过 {duplicates.Count} 个重复谱面: {detail}");
-                VRToast.Show(string.Format(LocalizationManager.GetText("ui_import_duplicate"), detail),
-                    new Color(1f, 0.85f, 0.3f), 5f);
+                VRToast.Show(
+                    string.Format(LocalizationManager.GetText("ui_import_duplicate"), detail),
+                    new Color(1f, 0.85f, 0.3f),
+                    5f
+                );
             }
         }
 
@@ -270,10 +300,17 @@ namespace OsuVR
             {
                 foreach (var entry in archive.Entries)
                 {
-                    string destPath = Path.GetFullPath(Path.Combine(fullTarget, entry.FullName.Replace('/', Path.DirectorySeparatorChar)));
+                    string destPath = Path.GetFullPath(
+                        Path.Combine(
+                            fullTarget,
+                            entry.FullName.Replace('/', Path.DirectorySeparatorChar)
+                        )
+                    );
                     if (!destPath.StartsWith(fullTarget, System.StringComparison.Ordinal))
                     {
-                        Debug.LogWarning($"[Importer] 跳过可疑 zip 条目（路径越界）: {entry.FullName}");
+                        Debug.LogWarning(
+                            $"[Importer] 跳过可疑 zip 条目（路径越界）: {entry.FullName}"
+                        );
                         continue;
                     }
 
@@ -284,7 +321,8 @@ namespace OsuVR
                     }
 
                     string parentDir = Path.GetDirectoryName(destPath);
-                    if (!string.IsNullOrEmpty(parentDir)) Directory.CreateDirectory(parentDir);
+                    if (!string.IsNullOrEmpty(parentDir))
+                        Directory.CreateDirectory(parentDir);
                     entry.ExtractToFile(destPath, true);
                 }
             }
@@ -314,7 +352,8 @@ namespace OsuVR
                     // 重复导入: 目标文件夹已存在，直接清掉 .osz，
                     // 否则它会一直残留在 Songs 里，导致每次启动都被重复扫描。
                     // 顺带记录哈希，让之后改名的重复导入也能命中
-                    if (hash != null) SaveImportedHashes(hash, imported);
+                    if (hash != null)
+                        SaveImportedHashes(hash, imported);
                     TryDeleteOsz(oszPath, "重复文件名");
                     duplicate = true;
                     return true;
@@ -323,7 +362,8 @@ namespace OsuVR
                 Debug.Log($"正在解压: {fileName}...");
                 ExtractZipSafely(oszPath, targetFolder);
                 File.Delete(oszPath);
-                if (hash != null) SaveImportedHashes(hash, imported);
+                if (hash != null)
+                    SaveImportedHashes(hash, imported);
                 Debug.Log($"<color=green>导入成功:</color> {fileName}");
                 return false;
             }
@@ -332,14 +372,18 @@ namespace OsuVR
                 Debug.LogError($"解压失败 {oszPath}: {e.Message}");
                 string fileName = Path.GetFileNameWithoutExtension(oszPath);
                 string targetFolder = Path.Combine(SongsDirectory, fileName);
-                if (Directory.Exists(targetFolder)) Directory.Delete(targetFolder, true);
+                if (Directory.Exists(targetFolder))
+                    Directory.Delete(targetFolder, true);
                 return false;
             }
         }
 
         private static void TryDeleteOsz(string oszPath, string reason)
         {
-            try { File.Delete(oszPath); }
+            try
+            {
+                File.Delete(oszPath);
+            }
             catch (System.Exception e)
             {
                 Debug.LogWarning($"[Importer] 清理重复的 .osz 失败 ({reason}): {e.Message}");
@@ -353,7 +397,10 @@ namespace OsuVR
             {
                 using (var md5 = MD5.Create())
                 using (var stream = File.OpenRead(path))
-                    return System.BitConverter.ToString(md5.ComputeHash(stream)).Replace("-", "").ToLowerInvariant();
+                    return System
+                        .BitConverter.ToString(md5.ComputeHash(stream))
+                        .Replace("-", "")
+                        .ToLowerInvariant();
             }
             catch (System.Exception e)
             {
@@ -369,7 +416,8 @@ namespace OsuVR
             {
                 if (File.Exists(HashFilePath))
                     foreach (var line in File.ReadAllLines(HashFilePath))
-                        if (line.Length == 32) set.Add(line);
+                        if (line.Length == 32)
+                            set.Add(line);
             }
             catch (System.Exception e)
             {

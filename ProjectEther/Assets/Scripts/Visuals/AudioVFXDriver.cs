@@ -17,13 +17,13 @@ namespace OsuVR
         {
             Bass,
             Mid,
-            Treble
+            Treble,
         }
 
         public enum DriveTarget
         {
             TransformScale,
-            VFXProperty
+            VFXProperty,
         }
 
         // =========================================================
@@ -129,7 +129,7 @@ namespace OsuVR
                 FrequencyBand.Bass => AudioVisualizationManager.Instance.Bass,
                 FrequencyBand.Mid => AudioVisualizationManager.Instance.Mid,
                 FrequencyBand.Treble => AudioVisualizationManager.Instance.Treble,
-                _ => 0f
+                _ => 0f,
             };
         }
 
@@ -152,7 +152,8 @@ namespace OsuVR
 
         private void ApplyVFXProperty(float energy)
         {
-            if (visualEffect == null) return;
+            if (visualEffect == null)
+                return;
 
             float mappedValue = Mathf.Lerp(vfxMinValue, vfxMaxValue, energy);
             visualEffect.SetFloat(vfxPropertyName, mappedValue);
@@ -165,7 +166,8 @@ namespace OsuVR
 #if UNITY_EDITOR
         void OnValidate()
         {
-            if (!previewInEditor) return;
+            if (!previewInEditor)
+                return;
 
             if (driveTarget == DriveTarget.VFXProperty)
             {
@@ -175,7 +177,8 @@ namespace OsuVR
 
         void OnDrawGizmosSelected()
         {
-            if (!previewInEditor) return;
+            if (!previewInEditor)
+                return;
 
             float energy = GetEnergyValue();
             energy = responseCurve.Evaluate(energy);

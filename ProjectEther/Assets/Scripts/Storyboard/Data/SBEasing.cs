@@ -98,7 +98,9 @@ namespace OsuVR.Storyboard.Data
                     return (n -= 1f) * n * n * n * n + 1f;
 
                 case SBEasing.InOutQuint:
-                    return n < 0.5f ? n * n * n * n * n * 16f : (n -= 1f) * n * n * n * n * 16f + 1f;
+                    return n < 0.5f
+                        ? n * n * n * n * n * 16f
+                        : (n -= 1f) * n * n * n * n * 16f + 1f;
 
                 case SBEasing.InSine:
                     return 1f - Mathf.Cos(n * Mathf.PI * 0.5f);
@@ -134,28 +136,34 @@ namespace OsuVR.Storyboard.Data
 
                 case SBEasing.InElastic:
                     return -Mathf.Pow(2f, -10f + 10f * n)
-                           * Mathf.Sin((1f - 0.075f - n) * (2f * Mathf.PI) / 0.3f);
+                        * Mathf.Sin((1f - 0.075f - n) * (2f * Mathf.PI) / 0.3f);
 
                 case SBEasing.OutElastic:
                     return Mathf.Pow(2f, -10f * n)
-                           * Mathf.Sin((n - 0.075f) * (2f * Mathf.PI) / 0.3f) + 1f;
+                            * Mathf.Sin((n - 0.075f) * (2f * Mathf.PI) / 0.3f)
+                        + 1f;
 
                 case SBEasing.OutElasticHalf:
                     return Mathf.Pow(2f, -10f * n)
-                           * Mathf.Sin((0.5f * n - 0.075f) * (2f * Mathf.PI) / 0.3f) + 1f;
+                            * Mathf.Sin((0.5f * n - 0.075f) * (2f * Mathf.PI) / 0.3f)
+                        + 1f;
 
                 case SBEasing.OutElasticQuarter:
                     return Mathf.Pow(2f, -10f * n)
-                           * Mathf.Sin((0.25f * n - 0.075f) * (2f * Mathf.PI) / 0.3f) + 1f;
+                            * Mathf.Sin((0.25f * n - 0.075f) * (2f * Mathf.PI) / 0.3f)
+                        + 1f;
 
                 case SBEasing.InOutElastic:
                     // 与 storybrew 一致: ToInOut(ElasticIn), 使用原始 elastic 常量
                     if ((n *= 2f) < 1f)
-                        return -0.5f * Mathf.Pow(2f, -10f + 10f * n)
-                               * Mathf.Sin((1f - 0.075f - n) * (2f * Mathf.PI) / 0.3f);
+                        return -0.5f
+                            * Mathf.Pow(2f, -10f + 10f * n)
+                            * Mathf.Sin((1f - 0.075f - n) * (2f * Mathf.PI) / 0.3f);
                     n -= 1f;
-                    return 0.5f * Mathf.Pow(2f, -10f * n)
-                           * Mathf.Sin((n - 0.075f) * (2f * Mathf.PI) / 0.3f) + 1f;
+                    return 0.5f
+                            * Mathf.Pow(2f, -10f * n)
+                            * Mathf.Sin((n - 0.075f) * (2f * Mathf.PI) / 0.3f)
+                        + 1f;
 
                 case SBEasing.InBack:
                     return n * n * ((1.70158f + 1f) * n - 1.70158f);

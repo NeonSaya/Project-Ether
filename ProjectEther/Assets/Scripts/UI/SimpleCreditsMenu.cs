@@ -1,7 +1,7 @@
 using System.Collections;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 
 namespace OsuVR
 {
@@ -49,40 +49,40 @@ namespace OsuVR
 
         // ---- 开源许可全文（所有文本集中在 C# 层，改这里即可） ----
         private const string MitLicenseText =
-            "Permission is hereby granted, free of charge, to any person obtaining a copy " +
-            "of this software and associated documentation files (the \"Software\"), to deal " +
-            "in the Software without restriction, including without limitation the rights " +
-            "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell " +
-            "copies of the Software, and to permit persons to whom the Software is " +
-            "furnished to do so, subject to the following conditions:\n\n" +
-            "The above copyright notice and this permission notice shall be included in all " +
-            "copies or substantial portions of the Software.\n\n" +
-            "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR " +
-            "IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, " +
-            "FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE " +
-            "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER " +
-            "LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, " +
-            "OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE " +
-            "SOFTWARE.";
+            "Permission is hereby granted, free of charge, to any person obtaining a copy "
+            + "of this software and associated documentation files (the \"Software\"), to deal "
+            + "in the Software without restriction, including without limitation the rights "
+            + "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell "
+            + "copies of the Software, and to permit persons to whom the Software is "
+            + "furnished to do so, subject to the following conditions:\n\n"
+            + "The above copyright notice and this permission notice shall be included in all "
+            + "copies or substantial portions of the Software.\n\n"
+            + "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR "
+            + "IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, "
+            + "FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE "
+            + "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER "
+            + "LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, "
+            + "OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE "
+            + "SOFTWARE.";
 
         private const string UnlicenseText =
-            "This is free and unencumbered software released into the public domain.\n\n" +
-            "Anyone is free to copy, modify, publish, use, compile, sell, or distribute this " +
-            "software, either in source code form or as a compiled binary, for any purpose, " +
-            "commercial or non-commercial, and by any means.\n\n" +
-            "In jurisdictions that recognize copyright laws, the author or authors of this " +
-            "software dedicate any and all copyright interest in the software to the public " +
-            "domain. We make this dedication for the benefit of the public at large and to " +
-            "the detriment of our heirs and successors. We intend this dedication to be an " +
-            "overt act of relinquishment in perpetuity of all present and future rights to " +
-            "this software under copyright law.\n\n" +
-            "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR " +
-            "IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, " +
-            "FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE " +
-            "AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN " +
-            "ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION " +
-            "WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n\n" +
-            "For more information, please refer to <https://unlicense.org>";
+            "This is free and unencumbered software released into the public domain.\n\n"
+            + "Anyone is free to copy, modify, publish, use, compile, sell, or distribute this "
+            + "software, either in source code form or as a compiled binary, for any purpose, "
+            + "commercial or non-commercial, and by any means.\n\n"
+            + "In jurisdictions that recognize copyright laws, the author or authors of this "
+            + "software dedicate any and all copyright interest in the software to the public "
+            + "domain. We make this dedication for the benefit of the public at large and to "
+            + "the detriment of our heirs and successors. We intend this dedication to be an "
+            + "overt act of relinquishment in perpetuity of all present and future rights to "
+            + "this software under copyright law.\n\n"
+            + "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR "
+            + "IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, "
+            + "FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE "
+            + "AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN "
+            + "ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION "
+            + "WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n\n"
+            + "For more information, please refer to <https://unlicense.org>";
 
         private AudioSource audioSource;
 
@@ -108,7 +108,11 @@ namespace OsuVR
             audioSource.spatialBlend = 0f;
 
             // ---- 根 Canvas（与设置菜单同规格） ----
-            var rootCanvas = UILayoutHelper.CreateCanvas("CreditsCanvas", CanvasWidth, CanvasHeight);
+            var rootCanvas = UILayoutHelper.CreateCanvas(
+                "CreditsCanvas",
+                CanvasWidth,
+                CanvasHeight
+            );
             rootCanvas.sortingOrder = SortingOrder;
             rootCanvas.transform.SetParent(transform, false);
             rootCanvas.transform.localPosition = new Vector3(0f, 0f, CanvasLocalZ);
@@ -148,8 +152,15 @@ namespace OsuVR
             titleBarRt.sizeDelta = new Vector2(0, TitleBarHeight);
             titleBarRt.anchoredPosition = Vector2.zero;
 
-            var titleTmp = CreateText(titleBarRt, "Credits", 22f, Color.white,
-                TextAlignmentOptions.Center, FontStyles.Bold, "ui_credits");
+            var titleTmp = CreateText(
+                titleBarRt,
+                "Credits",
+                22f,
+                Color.white,
+                TextAlignmentOptions.Center,
+                FontStyles.Bold,
+                "ui_credits"
+            );
             var titleTrt = titleTmp.rectTransform;
             titleTrt.anchorMin = new Vector2(0, 1);
             titleTrt.anchorMax = new Vector2(1, 1);
@@ -157,8 +168,15 @@ namespace OsuVR
             titleTrt.anchoredPosition = new Vector2(0, -6);
             titleTrt.sizeDelta = new Vector2(-40, 32);
 
-            var versionTmp = CreateText(titleBarRt, $"Project Ether v{Application.version}",
-                12f, MutedColor, TextAlignmentOptions.Center, FontStyles.Normal, null);
+            var versionTmp = CreateText(
+                titleBarRt,
+                $"Project Ether v{Application.version}",
+                12f,
+                MutedColor,
+                TextAlignmentOptions.Center,
+                FontStyles.Normal,
+                null
+            );
             var versionTrt = versionTmp.rectTransform;
             versionTrt.anchorMin = new Vector2(0, 1);
             versionTrt.anchorMax = new Vector2(1, 1);
@@ -234,8 +252,16 @@ namespace OsuVR
             bottomHlg.childForceExpandWidth = true;
             bottomHlg.childForceExpandHeight = true;
 
-            CreateBottomButton(bottomGo.transform, "Back", "ui_back",
-                () => { PlayClickSound(); VRSceneTransitionManager.Instance.TransitionToScene("MainMenuScene"); });
+            CreateBottomButton(
+                bottomGo.transform,
+                "Back",
+                "ui_back",
+                () =>
+                {
+                    PlayClickSound();
+                    VRSceneTransitionManager.Instance.TransitionToScene("MainMenuScene");
+                }
+            );
 
             StartCoroutine(NotifyRayControllerNextFrame());
         }
@@ -248,12 +274,25 @@ namespace OsuVR
         {
             // ============ 第 1 节：开发者 ============
             AddSectionTitle(parent, "Development", "ui_credits_section_dev");
-            AddEntry(parent, "Project Ether — Design & Code — NyaonSaya><", 14f, EntryColor, FontStyles.Bold);
+            AddEntry(
+                parent,
+                "Project Ether — Design & Code — NyaonSaya><",
+                14f,
+                EntryColor,
+                FontStyles.Bold
+            );
             AddSpacing(parent, 8f);
 
             AddGroupTitle(parent, "A Word from the Developer", "ui_credits_section_word");
-            var wordTmp = CreateText(parent, "", 13f, EntryColor,
-                TextAlignmentOptions.Left, FontStyles.Italic, "ui_credits_word_text");
+            var wordTmp = CreateText(
+                parent,
+                "",
+                13f,
+                EntryColor,
+                TextAlignmentOptions.Left,
+                FontStyles.Italic,
+                "ui_credits_word_text"
+            );
             wordTmp.raycastTarget = false;
             AddSpacing(parent, 12f);
 
@@ -261,57 +300,122 @@ namespace OsuVR
             AddSectionTitle(parent, "Open Source Acknowledgments", "ui_credits_section_opensource");
 
             AddGroupTitle(parent, "Gameplay & Beatmap Format", null);
-            AddEntry(parent, "osu! (peppy) — the soul of this project's gameplay, and its open beatmap format (.osu)");
-            AddEntry(parent, "osu!lazer [MIT] — reference implementation for storyboard command evaluation");
-            AddEntry(parent, "storybrew (Damnae) [MIT] — storyboard timeline & rendering reference");
+            AddEntry(
+                parent,
+                "osu! (peppy) — the soul of this project's gameplay, and its open beatmap format (.osu)"
+            );
+            AddEntry(
+                parent,
+                "osu!lazer [MIT] — reference implementation for storyboard command evaluation"
+            );
+            AddEntry(
+                parent,
+                "storybrew (Damnae) [MIT] — storyboard timeline & rendering reference"
+            );
             AddEntry(parent, "osu-droid [Apache-2.0] — reference for the beatmap parser");
             AddEntry(parent, "OsuParsers (mrflashstudio) [MIT] — .osu/.osb decoding reference");
             AddSpacing(parent, 8f);
 
             AddGroupTitle(parent, "Audio", null);
-            AddEntry(parent, "Lasp (Keijiro Takahashi) [Unlicense] — low-latency audio FFT capture");
+            AddEntry(
+                parent,
+                "Lasp (Keijiro Takahashi) [Unlicense] — low-latency audio FFT capture"
+            );
             AddEntry(parent, "AudioLink (llealloo) [MIT] — audio-reactive visual data");
             AddSpacing(parent, 8f);
 
             AddGroupTitle(parent, "Graphics", null);
-            AddEntry(parent, "X-PostProcessing-Library (QianMo) [MIT] — URP post-processing filters");
+            AddEntry(
+                parent,
+                "X-PostProcessing-Library (QianMo) [MIT] — URP post-processing filters"
+            );
             AddEntry(parent, "Effekseer [MIT] — open-source particle effect toolchain");
             AddSpacing(parent, 8f);
 
             AddGroupTitle(parent, "Engine & Tools", null);
-            AddEntry(parent, "Unity [Unity Companion License] — URP / XR Interaction Toolkit / VFX Graph / TextMeshPro / Input System");
+            AddEntry(
+                parent,
+                "Unity [Unity Companion License] — URP / XR Interaction Toolkit / VFX Graph / TextMeshPro / Input System"
+            );
             AddEntry(parent, "Liberation Sans font [SIL OFL 1.1]");
-            AddEntry(parent, "Source Han Sans (Adobe & Google) [SIL OFL 1.1] — CJK UI font (Simplified Chinese / Japanese)");
+            AddEntry(
+                parent,
+                "Source Han Sans (Adobe & Google) [SIL OFL 1.1] — CJK UI font (Simplified Chinese / Japanese)"
+            );
             AddSpacing(parent, 12f);
 
             // ============ 第 3 节：开源许可 ============
             AddSectionTitle(parent, "Open Source Licenses", "ui_credits_section_licenses");
 
-            AddEntry(parent, "MIT License — applies to: osu!lazer (c) ppy Pty Ltd & contributors, storybrew (c) Damnae, OsuParsers (c) mrflashstudio, AudioLink (c) llealloo, X-PostProcessing-Library (c) contributors, Effekseer (c) contributors", 12f, MutedColor);
+            AddEntry(
+                parent,
+                "MIT License — applies to: osu!lazer (c) ppy Pty Ltd & contributors, storybrew (c) Damnae, OsuParsers (c) mrflashstudio, AudioLink (c) llealloo, X-PostProcessing-Library (c) contributors, Effekseer (c) contributors",
+                12f,
+                MutedColor
+            );
             AddParagraph(parent, MitLicenseText, 11f);
             AddSpacing(parent, 10f);
 
-            AddEntry(parent, "GNU General Public License v3.0 — applies to: Project Ether (c) 2026 NyaonSaya><. See https://www.gnu.org/licenses/gpl-3.0.html", 12f, MutedColor);
+            AddEntry(
+                parent,
+                "GNU General Public License v3.0 — applies to: Project Ether (c) 2026 NyaonSaya><. See https://www.gnu.org/licenses/gpl-3.0.html",
+                12f,
+                MutedColor
+            );
             AddSpacing(parent, 10f);
 
-            AddEntry(parent, "The Unlicense — applies to: Lasp (c) Keijiro Takahashi", 12f, MutedColor);
+            AddEntry(
+                parent,
+                "The Unlicense — applies to: Lasp (c) Keijiro Takahashi",
+                12f,
+                MutedColor
+            );
             AddParagraph(parent, UnlicenseText, 11f);
             AddSpacing(parent, 10f);
 
-            AddEntry(parent, "Apache License 2.0 — applies to: osu-droid. Licensed under the Apache License, Version 2.0. See https://www.apache.org/licenses/LICENSE-2.0", 12f, MutedColor);
+            AddEntry(
+                parent,
+                "Apache License 2.0 — applies to: osu-droid. Licensed under the Apache License, Version 2.0. See https://www.apache.org/licenses/LICENSE-2.0",
+                12f,
+                MutedColor
+            );
             AddSpacing(parent, 10f);
 
-            AddEntry(parent, "Liberation Sans and Source Han Sans fonts are licensed under the SIL Open Font License 1.1 (https://openfontlicense.org).", 12f, MutedColor);
-            AddEntry(parent, "X-PostProcessing-Library shader sources are derived from Unity's Post Processing Stack and remain under the Unity Companion License.", 12f, MutedColor);
-            AddEntry(parent, "Unity Editor & Engine components are subject to the Unity Companion License. See https://unity.com/legal", 12f, MutedColor);
+            AddEntry(
+                parent,
+                "Liberation Sans and Source Han Sans fonts are licensed under the SIL Open Font License 1.1 (https://openfontlicense.org).",
+                12f,
+                MutedColor
+            );
+            AddEntry(
+                parent,
+                "X-PostProcessing-Library shader sources are derived from Unity's Post Processing Stack and remain under the Unity Companion License.",
+                12f,
+                MutedColor
+            );
+            AddEntry(
+                parent,
+                "Unity Editor & Engine components are subject to the Unity Companion License. See https://unity.com/legal",
+                12f,
+                MutedColor
+            );
             AddSpacing(parent, 12f);
 
             // ============ 第 4 节：版权与商标 ============
             AddSectionTitle(parent, "Copyright & Trademarks", "ui_credits_section_disclaimer");
-            AddEntry(parent, "Project Ether is a free, fan-made, non-commercial VR beatmap player. It is not affiliated with osu! or ppy Pty Ltd.");
+            AddEntry(
+                parent,
+                "Project Ether is a free, fan-made, non-commercial VR beatmap player. It is not affiliated with osu! or ppy Pty Ltd."
+            );
             AddEntry(parent, "\"osu!\" is a trademark of ppy Pty Ltd.");
-            AddEntry(parent, "All beatmaps, music, videos and storyboards belong to their original creators and artists.");
-            AddEntry(parent, "Project Ether (c) 2026 NyaonSaya>< — open source under the GNU General Public License v3.0.");
+            AddEntry(
+                parent,
+                "All beatmaps, music, videos and storyboards belong to their original creators and artists."
+            );
+            AddEntry(
+                parent,
+                "Project Ether (c) 2026 NyaonSaya>< — open source under the GNU General Public License v3.0."
+            );
         }
 
         // ============================================================
@@ -321,32 +425,65 @@ namespace OsuVR
         /// <summary>节标题（三语本地化，蓝色加粗）</summary>
         private void AddSectionTitle(RectTransform parent, string defaultText, string locKey)
         {
-            var tmp = CreateText(parent, defaultText, 16f, SectionTitleColor,
-                TextAlignmentOptions.Left, FontStyles.Bold, locKey);
+            var tmp = CreateText(
+                parent,
+                defaultText,
+                16f,
+                SectionTitleColor,
+                TextAlignmentOptions.Left,
+                FontStyles.Bold,
+                locKey
+            );
             tmp.rectTransform.sizeDelta = new Vector2(0, 24f);
         }
 
         /// <summary>分组小标题（可选本地化）</summary>
         private void AddGroupTitle(RectTransform parent, string defaultText, string locKey)
         {
-            var tmp = CreateText(parent, defaultText, 13f, GroupTitleColor,
-                TextAlignmentOptions.Left, FontStyles.Bold, locKey);
+            var tmp = CreateText(
+                parent,
+                defaultText,
+                13f,
+                GroupTitleColor,
+                TextAlignmentOptions.Left,
+                FontStyles.Bold,
+                locKey
+            );
             tmp.rectTransform.sizeDelta = new Vector2(0, 20f);
         }
 
         /// <summary>普通条目（英文正文）</summary>
-        private void AddEntry(RectTransform parent, string text, float fontSize = 13f,
-            Color? color = null, FontStyles style = FontStyles.Normal)
+        private void AddEntry(
+            RectTransform parent,
+            string text,
+            float fontSize = 13f,
+            Color? color = null,
+            FontStyles style = FontStyles.Normal
+        )
         {
-            var tmp = CreateText(parent, text, fontSize, color ?? EntryColor,
-                TextAlignmentOptions.Left, style, null);
+            var tmp = CreateText(
+                parent,
+                text,
+                fontSize,
+                color ?? EntryColor,
+                TextAlignmentOptions.Left,
+                style,
+                null
+            );
         }
 
         /// <summary>长段落（自动换行，如许可全文）</summary>
         private void AddParagraph(RectTransform parent, string text, float fontSize)
         {
-            var tmp = CreateText(parent, text, fontSize, MutedColor,
-                TextAlignmentOptions.Left, FontStyles.Normal, null);
+            var tmp = CreateText(
+                parent,
+                text,
+                fontSize,
+                MutedColor,
+                TextAlignmentOptions.Left,
+                FontStyles.Normal,
+                null
+            );
         }
 
         /// <summary>占位间距</summary>
@@ -362,8 +499,15 @@ namespace OsuVR
         }
 
         /// <summary>创建 TMP 文本（自动换行，高度由布局撑开）</summary>
-        private static TextMeshProUGUI CreateText(Transform parent, string text, float fontSize,
-            Color color, TextAlignmentOptions alignment, FontStyles style, string locKey)
+        private static TextMeshProUGUI CreateText(
+            Transform parent,
+            string text,
+            float fontSize,
+            Color color,
+            TextAlignmentOptions alignment,
+            FontStyles style,
+            string locKey
+        )
         {
             var go = new GameObject("Text");
             go.transform.SetParent(parent, false);
@@ -391,8 +535,12 @@ namespace OsuVR
         //  底部按钮（复刻 SimpleVRSettingsMenu）
         // ============================================================
 
-        private void CreateBottomButton(Transform parent, string text, string locKey,
-            UnityEngine.Events.UnityAction onClick)
+        private void CreateBottomButton(
+            Transform parent,
+            string text,
+            string locKey,
+            UnityEngine.Events.UnityAction onClick
+        )
         {
             var go = new GameObject(text);
             go.transform.SetParent(parent, false);

@@ -14,12 +14,12 @@ namespace OsuVR
         public RayController rayController;
 
         [Header("视觉配置 (复刻旧版)")]
-        public Color laserColor = Color.cyan;   // 常态颜色
-        public Color hitColor = Color.yellow;   // 击中颜色
-        public float laserWidth = 0.01f;        // 线条粗细
+        public Color laserColor = Color.cyan; // 常态颜色
+        public Color hitColor = Color.yellow; // 击中颜色
+        public float laserWidth = 0.01f; // 线条粗细
 
         [Header("高级特效")]
-        public Material rayMaterial;            // 射线材质 (可选)
+        public Material rayMaterial; // 射线材质 (可选)
 
         private LineRenderer lineRenderer;
 
@@ -42,13 +42,21 @@ namespace OsuVR
             if (lineRenderer.sharedMaterial == null || rayMaterial == null)
             {
                 Shader uiShader = Shader.Find("UI/Default");
-                if (uiShader == null) uiShader = Shader.Find("Universal Render Pipeline/Unlit");
-                if (uiShader == null) uiShader = Shader.Find("Standard");
-                if (uiShader == null) { Debug.LogError("[RayVisualizer] UI Shader 不可用，射线将无材质"); }
+                if (uiShader == null)
+                    uiShader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (uiShader == null)
+                    uiShader = Shader.Find("Standard");
+                if (uiShader == null)
+                {
+                    Debug.LogError("[RayVisualizer] UI Shader 不可用，射线将无材质");
+                }
                 else
                 {
                     Material alwaysOnTopMat = new Material(uiShader);
-                    alwaysOnTopMat.SetInt("unity_GUIZTestMode", (int)UnityEngine.Rendering.CompareFunction.Always);
+                    alwaysOnTopMat.SetInt(
+                        "unity_GUIZTestMode",
+                        (int)UnityEngine.Rendering.CompareFunction.Always
+                    );
                     lineRenderer.material = alwaysOnTopMat;
                 }
             }
@@ -63,7 +71,8 @@ namespace OsuVR
 
         void LateUpdate()
         {
-            if (rayController == null || rayController.visualRay == null) return;
+            if (rayController == null || rayController.visualRay == null)
+                return;
 
             Transform source = rayController.visualRay;
             Vector3 startPos = source.position;

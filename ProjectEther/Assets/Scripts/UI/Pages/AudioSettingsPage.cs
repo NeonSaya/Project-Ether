@@ -1,6 +1,6 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 
 namespace OsuVR
 {
@@ -20,36 +20,70 @@ namespace OsuVR
         private const string OffsetFormat = "{0:F0} ms";
         private const string VolumeFormat = "{0:F0}%";
 
-        public override void BuildContent(RectTransform parent, GameSettings tempSettings, float contentWidth)
+        public override void BuildContent(
+            RectTransform parent,
+            GameSettings tempSettings,
+            float contentWidth
+        )
         {
             // Volume sliders (Prefab 顺序: Master → Music → SFX)
-            masterVolumeSlider = CreateSlider(parent, "Master Volume", "ui_master_volume",
-                0f, 1f, tempSettings.masterVolume, VolumeFormat,
+            masterVolumeSlider = CreateSlider(
+                parent,
+                "Master Volume",
+                "ui_master_volume",
+                0f,
+                1f,
+                tempSettings.masterVolume,
+                VolumeFormat,
                 v =>
                 {
                     tempSettings.masterVolume = v;
                     SettingsManager.Instance.SetMasterVolume(v);
-                }, valueScale: 100f);
+                },
+                valueScale: 100f
+            );
 
-            musicVolumeSlider = CreateSlider(parent, "Music Volume", "ui_music_volume",
-                0f, 1f, tempSettings.musicVolume, VolumeFormat,
+            musicVolumeSlider = CreateSlider(
+                parent,
+                "Music Volume",
+                "ui_music_volume",
+                0f,
+                1f,
+                tempSettings.musicVolume,
+                VolumeFormat,
                 v =>
                 {
                     tempSettings.musicVolume = v;
                     SettingsManager.Instance.SetMusicVolume(v);
-                }, valueScale: 100f);
+                },
+                valueScale: 100f
+            );
 
-            sfxVolumeSlider = CreateSlider(parent, "SFX Volume", "ui_sfx_volume",
-                0f, 1f, tempSettings.sfxVolume, VolumeFormat,
+            sfxVolumeSlider = CreateSlider(
+                parent,
+                "SFX Volume",
+                "ui_sfx_volume",
+                0f,
+                1f,
+                tempSettings.sfxVolume,
+                VolumeFormat,
                 v =>
                 {
                     tempSettings.sfxVolume = v;
                     SettingsManager.Instance.SetSFXVolume(v);
-                }, valueScale: 100f);
+                },
+                valueScale: 100f
+            );
 
             // Audio Offset（Prefab 精确结构：Header + Slider + FineTune 按钮行）
-            audioOffsetSlider = CreateAudioOffsetRow(parent, "Audio Offset", "ui_audio_offset",
-                -200f, 200f, tempSettings.audioOffsetMs, OffsetFormat,
+            audioOffsetSlider = CreateAudioOffsetRow(
+                parent,
+                "Audio Offset",
+                "ui_audio_offset",
+                -200f,
+                200f,
+                tempSettings.audioOffsetMs,
+                OffsetFormat,
                 v =>
                 {
                     tempSettings.audioOffsetMs = v;
@@ -62,9 +96,14 @@ namespace OsuVR
                     SettingsManager.Instance.SetAudioOffset(newVal);
                     audioOffsetSlider.SetValueWithoutNotify(newVal);
                     if (audioOffsetValueText != null)
-                        audioOffsetValueText.text = string.Format(System.Globalization.CultureInfo.InvariantCulture, OffsetFormat, newVal);
+                        audioOffsetValueText.text = string.Format(
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            OffsetFormat,
+                            newVal
+                        );
                     PlayClickSound();
-                });
+                }
+            );
 
             // 缓存 Header/Value 引用（RefreshUI 需要直接更新）
             if (audioOffsetSlider != null)
@@ -78,20 +117,40 @@ namespace OsuVR
 
         public override void RefreshUI(GameSettings tempSettings)
         {
-            SetSliderValueWithoutNotify(masterVolumeSlider, tempSettings.masterVolume, VolumeFormat, 100f);
-            SetSliderValueWithoutNotify(musicVolumeSlider, tempSettings.musicVolume, VolumeFormat, 100f);
-            SetSliderValueWithoutNotify(sfxVolumeSlider, tempSettings.sfxVolume, VolumeFormat, 100f);
+            SetSliderValueWithoutNotify(
+                masterVolumeSlider,
+                tempSettings.masterVolume,
+                VolumeFormat,
+                100f
+            );
+            SetSliderValueWithoutNotify(
+                musicVolumeSlider,
+                tempSettings.musicVolume,
+                VolumeFormat,
+                100f
+            );
+            SetSliderValueWithoutNotify(
+                sfxVolumeSlider,
+                tempSettings.sfxVolume,
+                VolumeFormat,
+                100f
+            );
             if (audioOffsetSlider != null)
             {
                 audioOffsetSlider.SetValueWithoutNotify(tempSettings.audioOffsetMs);
                 if (audioOffsetValueText != null)
-                    audioOffsetValueText.text = string.Format(System.Globalization.CultureInfo.InvariantCulture, OffsetFormat, tempSettings.audioOffsetMs);
+                    audioOffsetValueText.text = string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        OffsetFormat,
+                        tempSettings.audioOffsetMs
+                    );
             }
         }
 
         protected override string GetFormatForSlider(Slider slider)
         {
-            if (slider == audioOffsetSlider) return OffsetFormat;
+            if (slider == audioOffsetSlider)
+                return OffsetFormat;
             return VolumeFormat;
         }
     }

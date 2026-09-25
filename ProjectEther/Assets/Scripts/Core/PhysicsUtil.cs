@@ -16,7 +16,8 @@ namespace OsuVR
         public static Rigidbody EnsureKinematicRigidbody(GameObject go)
         {
             var rb = go.GetComponent<Rigidbody>();
-            if (rb == null) rb = go.AddComponent<Rigidbody>();
+            if (rb == null)
+                rb = go.AddComponent<Rigidbody>();
             rb.isKinematic = true;
             rb.useGravity = false;
             rb.interpolation = RigidbodyInterpolation.None;

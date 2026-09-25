@@ -34,19 +34,19 @@ namespace OsuVR.Storyboard.Engine
     {
         static readonly SBCommandValueType[] Types =
         {
-            SBCommandValueType.Float,   // Alpha
-            SBCommandValueType.Float,   // X
-            SBCommandValueType.Float,   // Y
-            SBCommandValueType.Float,   // ScaleX
-            SBCommandValueType.Float,   // ScaleY
-            SBCommandValueType.Float,   // Rotation
-            SBCommandValueType.Color,   // Color
-            SBCommandValueType.Bool,    // BlendingMode
-            SBCommandValueType.Bool,    // FlipH
-            SBCommandValueType.Bool,    // FlipV
-            SBCommandValueType.Float,   // UniformScale
-            SBCommandValueType.Float,   // VectorScaleX
-            SBCommandValueType.Float,   // VectorScaleY
+            SBCommandValueType.Float, // Alpha
+            SBCommandValueType.Float, // X
+            SBCommandValueType.Float, // Y
+            SBCommandValueType.Float, // ScaleX
+            SBCommandValueType.Float, // ScaleY
+            SBCommandValueType.Float, // Rotation
+            SBCommandValueType.Color, // Color
+            SBCommandValueType.Bool, // BlendingMode
+            SBCommandValueType.Bool, // FlipH
+            SBCommandValueType.Bool, // FlipV
+            SBCommandValueType.Float, // UniformScale
+            SBCommandValueType.Float, // VectorScaleX
+            SBCommandValueType.Float, // VectorScaleY
         };
 
         public static SBCommandValueType GetValueType(this SBCommandTarget target)
