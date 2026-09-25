@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace OsuVR.Storyboard.Engine
 {
-    /// <summary>Legacy commands mapped to independent lazer transform properties.</summary>
+    /// <summary>把旧式命令映射到 lazer 中相互独立的 transform 属性。</summary>
     public static class SBCommandGroupBuilder
     {
         public static SBCommandGroup Build(SBElement element)

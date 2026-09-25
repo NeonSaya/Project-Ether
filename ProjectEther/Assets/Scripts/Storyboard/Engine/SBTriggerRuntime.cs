@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace OsuVR.Storyboard.Engine
 {
-    /// <summary>Append fired transforms to the sprite timeline, retaining delayed/repeated events.</summary>
+    /// <summary>把触发的 transform 追加到 sprite 时间轴上，保留延迟/重复触发的事件。</summary>
     public sealed class SBTriggerRuntime
     {
         sealed class Definition
@@ -129,8 +129,8 @@ namespace OsuVR.Storyboard.Engine
                 var command = template;
                 command.StartTime += time;
                 command.EndTime += time;
-                // A new trigger cancels queued future changes to the same property.
-                // Cancelling an older P reset keeps the retriggered pulse alive.
+                // 新触发会取消同一属性上排队中的未来变更。
+                // 取消较旧的 P 重置，可以让重新触发的脉冲继续生效。
                 for (int previous = sprite.TriggerHead; previous >= 0; previous = timeline.TriggerCommands[previous].Next)
                 {
                     var older = timeline.TriggerCommands[previous];
@@ -152,8 +152,8 @@ namespace OsuVR.Storyboard.Engine
                 timeline.TriggerCommands[index] = new SBTriggeredCommand { Command = command, Next = sprite.TriggerHead };
                 sprite.TriggerHead = index;
             }
-            // As in lazer, triggers add transforms; they do not invent an HP state or
-            // replace the declared sprite lifetime. GroupNumber is retained by the parser.
+            // 与 lazer 一致，触发器只添加 transform；它们不会产生 HP 状态，也
+            // 不会替换声明的 sprite 生命周期。GroupNumber 由解析器保留。
             timeline.Sprites[definition.Sprite] = sprite;
         }
     }

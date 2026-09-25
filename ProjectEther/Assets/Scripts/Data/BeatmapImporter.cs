@@ -57,7 +57,7 @@ namespace OsuVR
         //  重建、Unity 重新初始化，因此「复制文件」由 FilePickerActivity.java
         //  的后台线程直接完成（写入 persistentDataPath/Songs），不依赖
         //  Unity 的恢复时序。本类只负责解压与提示：
-        //    1. OpenAndroidFilePicker -> startActivityForResult(1001)
+        //    1. 调用 OpenAndroidFilePicker -> startActivityForResult(1001)
         //    2. Java 复制完成 -> UnitySendMessage("ok:..|err:..") 快通道
         //       + SharedPreferences 慢通道（消息丢失时 C# 主动拉取）
         //    3. HandleImportMessage -> ImportNewOszFiles() 解压 + toast

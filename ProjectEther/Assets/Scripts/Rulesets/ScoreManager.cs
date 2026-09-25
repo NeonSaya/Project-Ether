@@ -207,7 +207,7 @@ namespace OsuVR
                     // 1. Head (300分)
                     SimulateHit(ref simCombo, 300);
 
-                    // 2. Nested Objects (Tick & Repeat)
+                    // 2. 嵌套物件（Tick 与 Repeat）
                     if (slider.NestedHitObjects != null)
                     {
                         foreach (var nested in slider.NestedHitObjects)

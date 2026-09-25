@@ -41,12 +41,12 @@ namespace OsuVR.Storyboard
         // ---- 隔离坐标 ----
         static readonly Vector3 IsolatedPosition = new Vector3(0, -1000f, 0);
 
-        // ---- Layer ----
+        // ---- 图层 ----
 
 
         // ---- GPU 实例化参数 ----
         const int InitialInstanceCapacity = 8192;
-        const int InstanceDataStride = 96;   // sizeof(SpriteInstanceData)
+        const int InstanceDataStride = 96;   // sizeof(SpriteInstanceData) 的字节数
 
         const float SBQuadZ = 0f;
 
@@ -57,10 +57,10 @@ namespace OsuVR.Storyboard
         [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
         struct SpriteInstanceData
         {
-            public Matrix4x4 objectToWorld; // 64 bytes
-            public Vector4 color;           // 16 bytes
-            public Vector4 params0;         // 16 bytes (x=texIndex, y=blendMode, z=flipH, w=flipV)
-        }   // Total: 96 bytes
+            public Matrix4x4 objectToWorld; // 64 字节
+            public Vector4 color;           // 16 字节
+            public Vector4 params0;         // 16 字节 (x=texIndex, y=blendMode, z=flipH, w=flipV)
+        }   // 合计: 96 字节
 
         // SpriteInputData 已移至 SBFlatData.cs (OsuVR.Storyboard.Engine 命名空间)
 
@@ -91,8 +91,8 @@ namespace OsuVR.Storyboard
                 var input = Inputs[i];
 
                 // GPU 剔除法: 不可见精灵 Scale→zero, Vertex Shader 瞬间剔除
-                // Match lazer/stable legacy behaviour: alpha above 1 wraps and is used
-                // by storyboard authors for deliberate flicker patterns.
+                // 与 lazer/stable 的旧版行为一致: alpha 大于 1 时回绕取余,
+                // SB 作者会利用这一点刻意做出闪烁效果。
                 float alpha = input.Alpha;
                 if (alpha > 1f) alpha = math.fmod(alpha, 1f);
                 if (alpha <= 0f || input.TexIndex < 0)
@@ -119,7 +119,7 @@ namespace OsuVR.Storyboard
                 if ((uint)originIdx >= (uint)OriginOffsets.Length) originIdx = 1;
                 float2 pivot = OriginOffsets[originIdx];
 
-                // AdjustOrigin: flip XOR negative scale
+                // AdjustOrigin: 翻转与负缩放取异或, 为真时反转对应的 pivot 分量
                 if ((input.FlipH != 0) ^ (input.VectorScaleX < 0)) pivot.x = -pivot.x;
                 if ((input.FlipV != 0) ^ (input.VectorScaleY < 0)) pivot.y = -pivot.y;
 
@@ -209,16 +209,16 @@ namespace OsuVR.Storyboard
         // ---- Origin 偏移缓存 ----
         static readonly Vector2[] OriginOffsets = new Vector2[]
         {
-            new Vector2(-0.5f,  0.5f),  // [0] TopLeft
-            new Vector2( 0.0f,  0.0f),  // [1] Centre
-            new Vector2(-0.5f,  0.0f),  // [2] CentreLeft
-            new Vector2( 0.5f,  0.5f),  // [3] TopRight
-            new Vector2( 0.0f, -0.5f),  // [4] BottomCentre
-            new Vector2( 0.0f,  0.5f),  // [5] TopCentre
-            new Vector2(-0.5f,  0.5f),  // [6] Custom → fallback to TopLeft
-            new Vector2( 0.5f,  0.0f),  // [7] CentreRight
-            new Vector2(-0.5f, -0.5f),  // [8] BottomLeft
-            new Vector2( 0.5f, -0.5f),  // [9] BottomRight
+            new Vector2(-0.5f,  0.5f),  // [0] TopLeft（左上）
+            new Vector2( 0.0f,  0.0f),  // [1] Centre（中心）
+            new Vector2(-0.5f,  0.0f),  // [2] CentreLeft（中左）
+            new Vector2( 0.5f,  0.5f),  // [3] TopRight（右上）
+            new Vector2( 0.0f, -0.5f),  // [4] BottomCentre（下中）
+            new Vector2( 0.0f,  0.5f),  // [5] TopCentre（上中）
+            new Vector2(-0.5f,  0.5f),  // [6] Custom（自定义）→ 回退到 TopLeft（左上）
+            new Vector2( 0.5f,  0.0f),  // [7] CentreRight（中右）
+            new Vector2(-0.5f, -0.5f),  // [8] BottomLeft（左下）
+            new Vector2( 0.5f, -0.5f),  // [9] BottomRight（右下）
         };
 
         // =========================================================
@@ -238,7 +238,7 @@ namespace OsuVR.Storyboard
         static readonly int InstanceOffsetId = Shader.PropertyToID("_InstanceOffset");
 
         // =========================================================
-        //  Lifecycle
+        //  生命周期
         // =========================================================
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -342,8 +342,8 @@ namespace OsuVR.Storyboard
 
                 isRendering = true;
 
-                // lazer replaces the preview background when the Background layer refers
-                // to that exact asset, even if it has fade commands or appears much later.
+                // 当 Background 图层引用的正是该背景资源时, lazer 会替换预览背景图,
+                // 即使该元素带有淡入命令、或出现时间晚得多也一样。
                 string backgroundKey = NormalizeStoryboardPath(backgroundPath);
                 if (backgroundKey.Length > 0)
                     foreach (var element in storyboard.Layers[(int)SBLayer.Background])
@@ -535,7 +535,7 @@ namespace OsuVR.Storyboard
         }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-        // Deterministic frame capture uses the production evaluator and GPU submission.
+        // 确定性帧捕获复用正式的求值器与 GPU 提交流程。
         public void RenderAtTime(double milliseconds)
         {
             if (!isRendering) return;
@@ -575,8 +575,8 @@ namespace OsuVR.Storyboard
             if (_jobActiveCount > 0)
                 instanceBuffer.SetData(_jobOutput, 0, 0, _jobActiveCount);
             storyboardMaterial.SetBuffer("_InstanceData", instanceBuffer);
-            // Cancel the isolation translation before vertex multiplication to avoid
-            // rounding large world coordinates at half-pixel boundaries.
+            // 在顶点变换前抵消隔离用的平移, 避免过大的世界坐标
+            // 在半像素边界处被取整。
             var view = renderCamera.worldToCameraMatrix * Matrix4x4.Translate(IsolatedPosition);
             var vp = GL.GetGPUProjectionMatrix(renderCamera.projectionMatrix, false) * view;
             if (underlayTexture != null)
@@ -616,11 +616,11 @@ namespace OsuVR.Storyboard
                 blend = nextBlend;
             }
             if (!isWidescreen) drawCommands.DisableScissorRect();
-            // Rasterize in display orientation, then adapt to Unity RT orientation.
-            // Flipping geometry changes edge inclusion at half-pixel boundaries.
+            // 先按显示方向光栅化, 再适配 Unity 的 RT 方向。
+            // 翻转几何会改变半像素边界处的边缘像素归属。
             if (rasterSurface != null)
                 drawCommands.Blit(rasterSurface, renderTexture, new Vector2(1, -1), new Vector2(0, 1));
-            // Explicit command order bypasses URP transparent sorting and LightMode selection.
+            // 显式的命令顺序绕过 URP 的透明排序与 LightMode 选择。
             var previousTarget = RenderTexture.active;
             bool previousSRGB = GL.sRGBWrite;
             try
@@ -876,12 +876,12 @@ namespace OsuVR.Storyboard
             try
             {
                 if (!System.IO.File.Exists(path)) return null;
-                // Keep the source dimensions and pixels. The old array packer rescaled
-                // every image to the largest SB texture, which changes sprite content.
+                // 保留源图的尺寸与像素。旧的数组打包会把每张图
+                // 缩放到最大的 SB 纹理尺寸, 这会改变精灵的内容。
                 var image = StbImageSharp.ImageResult.FromMemory(System.IO.File.ReadAllBytes(path), StbImageSharp.ColorComponents.RedGreenBlueAlpha);
                 if (image.Width > SystemInfo.maxTextureSize || image.Height > SystemInfo.maxTextureSize)
                     throw new System.NotSupportedException("image exceeds device texture-size limit");
-                // STB returns top-to-bottom rows; Unity raw texture storage starts at the bottom.
+                // STB 返回的像素行自上而下排列, 而 Unity 的原始纹理由底部行开始存储。
                 int stride = checked(image.Width * 4);
                 var row = new byte[stride];
                 for (int y = 0; y < image.Height / 2; y++)
@@ -990,7 +990,7 @@ namespace OsuVR.Storyboard
                 rasterSurface.Create();
             }
             renderCamera.targetTexture = renderTexture;
-            renderCamera.enabled = false; // The same projection is used by the ordered compositor.
+            renderCamera.enabled = false; // 有序合成器使用同一套投影矩阵。
             ClearRenderTexture();
 
             // 后处理: 确保模糊/bloom等效果烘焙进 SB RenderTexture
@@ -1022,7 +1022,7 @@ namespace OsuVR.Storyboard
         }
 
         // =========================================================
-        //  Cleanup
+        //  清理
         // =========================================================
 
         static void ReleaseObject(UnityEngine.Object value)

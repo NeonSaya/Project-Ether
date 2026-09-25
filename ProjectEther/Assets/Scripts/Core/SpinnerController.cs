@@ -67,7 +67,7 @@ namespace OsuVR
 
         // RPM 计算
         private float rotationDeltaAccumulator = 0f;
-        // Bonus
+        // Bonus (奖励)
         private int bonusCount = 0;
         private float bonusThreshold = 0f;
 

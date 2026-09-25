@@ -245,15 +245,15 @@ namespace OsuVR
                 bool isNewCombo = (rawType & 4) != 0;
 
                 // 4. 分发 (调用你原来的逻辑)
-                if ((rawType & 1) != 0) // Circle
+                if ((rawType & 1) != 0) // Circle (圆圈)
                 {
                     CreateHitCircle(parts, time, position, beatmap, isNewCombo, comboOffset, hitSoundInt);
                 }
-                else if ((rawType & 2) != 0) // Slider
+                else if ((rawType & 2) != 0) // Slider (滑条)
                 {
                     CreateSlider(parts, time, position, beatmap, isNewCombo, comboOffset, hitSoundInt);
                 }
-                else if ((rawType & 8) != 0) // Spinner
+                else if ((rawType & 8) != 0) // Spinner (转盘)
                 {
                     CreateSpinner(parts, time, beatmap, isNewCombo, hitSoundInt);
                 }

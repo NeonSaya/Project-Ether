@@ -171,7 +171,7 @@ namespace OsuVR
                     {
                         // 内部淡入：使用 SmoothStep 让过渡更丝滑
                         float t = (r - startRadius) / (peakRadius - startRadius);
-                        alpha = t * t * (3f - 2f * t); // SmoothStep
+                        alpha = t * t * (3f - 2f * t); // SmoothStep (平滑插值)
                     }
                     else
                     {
@@ -234,10 +234,10 @@ namespace OsuVR
             // 机制2: 十步长画家算法
             // 目标：确保先生成的物件永远盖在后生成的物件之上
             // 子图层分配：
-            // - Halo = baseQueue + 4
+            // - Halo = baseQueue + 4 (光晕层)
             // - Body/HitCircle = baseQueue + 5 (主体层)
-            // - Overlay = baseQueue + 6
-            // - FollowBall = baseQueue + 7
+            // - Overlay = baseQueue + 6 (覆盖层)
+            // - FollowBall = baseQueue + 7 (跟随球)
             // - ApproachCircle = baseQueue + 8 (最高层，置顶)
             // ---------------------------------------------------------
             int baseQueue = 3900 - (renderIndex * 10);
@@ -809,7 +809,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// Destory
+        /// 清理并归还对象池（无可用对象池时才真正销毁）
         /// </summary>
         public void ReturnToPool()
         {

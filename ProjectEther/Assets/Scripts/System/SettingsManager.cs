@@ -71,22 +71,22 @@ namespace OsuVR
         /// </summary>
         private static readonly GraphicsPreset[] PC_PRESETS =
         {
-            new GraphicsPreset(0, 0, 0.80f, 0.50f),   // Low
-            new GraphicsPreset(1, 4, 0.90f, 0.80f),   // Medium
-            new GraphicsPreset(2, 4, 1.00f, 1.00f),   // High (默认)
-            new GraphicsPreset(3, 8, 1.00f, 1.00f),   // Ultra
+            new GraphicsPreset(0, 0, 0.80f, 0.50f),   // 低画质
+            new GraphicsPreset(1, 4, 0.90f, 0.80f),   // 中画质
+            new GraphicsPreset(2, 4, 1.00f, 1.00f),   // 高画质 (默认)
+            new GraphicsPreset(3, 8, 1.00f, 1.00f),   // 超高画质
         };
 
         /// <summary>
         /// Standalone VR 预设：不锁帧，跑满设备最高刷新率
-        /// Medium+ 至少 2x AA，Ultra 用 100% RenderScale
+        /// 中画质及以上至少 2x AA，超高画质用 100% RenderScale
         /// </summary>
         private static readonly GraphicsPreset[] STANDALONE_PRESETS =
         {
-            new GraphicsPreset(0, 0, 0.55f, 0.45f),  // Low
-            new GraphicsPreset(1, 2, 0.70f, 0.55f),  // Medium (2x AA)
-            new GraphicsPreset(2, 2, 0.85f, 0.65f),  // High (默认, 2x AA)
-            new GraphicsPreset(3, 4, 1.00f, 0.75f),  // Ultra (4x AA, RS=1.0)
+            new GraphicsPreset(0, 0, 0.55f, 0.45f),  // 低画质
+            new GraphicsPreset(1, 2, 0.70f, 0.55f),  // 中画质 (2x AA)
+            new GraphicsPreset(2, 2, 0.85f, 0.65f),  // 高画质 (默认, 2x AA)
+            new GraphicsPreset(3, 4, 1.00f, 0.75f),  // 超高画质 (4x AA, RS=1.0)
         };
 
         /// <summary>
@@ -139,9 +139,9 @@ namespace OsuVR
 
             if (isFirstRun)
             {
-                // 首次运行：应用平台 High 预设作为默认值
+                // 首次运行：取平台预设中的中画质档作为默认值（见下行 presets[1]）
                 var presets = GetPlatformPresets();
-                var defaultPreset = presets[1]; // Medium = index 1，新玩家默认中画质，防止卡顿
+                var defaultPreset = presets[1]; // 中画质 = index 1，新玩家默认中画质，防止卡顿
                 settings.qualityLevel = defaultPreset.quality;
                 settings.antiAliasing = defaultPreset.aa;
                 settings.renderScale = defaultPreset.renderScale;

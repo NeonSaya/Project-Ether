@@ -28,7 +28,7 @@ namespace OsuVR
 
         public override void BuildContent(RectTransform parent, GameSettings tempSettings, float contentWidth)
         {
-            // Quality dropdown
+            // 画质下拉框
             var qualityOptions = new List<string>
             {
                 LocalizationManager.GetText("ui_low"),
@@ -60,7 +60,7 @@ namespace OsuVR
                 });
 
 #if !UNITY_ANDROID || UNITY_EDITOR
-            // Anti-aliasing dropdown（Android 隐藏，由预设自动管理）
+            // 抗锯齿下拉框（Android 隐藏，由预设自动管理）
             var aaOptions = new List<string>
             {
                 LocalizationManager.GetText("ui_off"),
@@ -79,7 +79,7 @@ namespace OsuVR
 #endif
 
 #if !UNITY_ANDROID || UNITY_EDITOR
-            // Particle density slider（Android 隐藏，由预设自动管理）
+            // 粒子密度滑条（Android 隐藏，由预设自动管理）
             particleDensitySlider = CreateSlider(parent, "Particle Density", "ui_particle_density",
                 0f, 1f, tempSettings.particleDensity, PercentFormat,
                 v =>

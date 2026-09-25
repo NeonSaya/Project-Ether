@@ -20,7 +20,7 @@ namespace OsuVR
         private const string OffsetFormat = "{0:F2} m";
         private const string RotationFormat = "{0:F0}°";
 
-        // Cached references for batch apply
+        // 缓存的引用，用于批量应用
         private GameSettings cachedTempSettings;
 
         public override void BuildContent(RectTransform parent, GameSettings tempSettings, float contentWidth)

@@ -5,7 +5,7 @@ using Unity.Mathematics;
 
 namespace OsuVR.Storyboard.Engine
 {
-    /// <summary>Evaluate the last started transform on each independent lazer property.</summary>
+    /// <summary>对每个相互独立的 lazer 属性，求值最后开始的那个 transform。</summary>
     [BurstCompile]
     public struct SBEvaluateTimelineJob : IJobParallelFor
     {
@@ -17,7 +17,7 @@ namespace OsuVR.Storyboard.Engine
         [WriteOnly] public NativeArray<SpriteInputData> Output;
         public double CurrentTime;
         public int SpriteCount;
-        public float XOffset; // always zero for both normal and widescreen storyboards
+        public float XOffset; // 普通与宽屏 storyboard 中均恒为 0
 
         struct Candidate
         {
@@ -143,8 +143,8 @@ namespace OsuVR.Storyboard.Engine
             double start = command.StartTime + offset;
             if (start > CurrentTime) return;
             double end = command.EndTime + offset;
-            // P schedules two independent instantaneous changes in lazer. An older
-            // window ending now can reset a newer overlapping parameter window.
+            // 在 lazer 中，P 命令会调度两次相互独立的瞬时变更。一个刚好在此刻
+            // 结束的较旧窗口，可以重置掉更新的、与之重叠的参数窗口。
             if (command.Target >= 7 && command.Target <= 9 && CurrentTime >= end) start = end;
             var previous = selected[command.Target];
             double orderStart = command.StartTime + orderOffset;
@@ -169,8 +169,8 @@ namespace OsuVR.Storyboard.Engine
             float progress = GetEasedProgress(command, time);
             if (target == 6)
             {
-                // osu-framework interpolates colour commands in linear light, then
-                // emits encoded colour to its UNORM sprite shader.
+                // osu-framework 在线性光（linear light）空间中对颜色命令做插值，
+                // 然后把编码后的颜色输出给它的 UNORM sprite shader。
                 progress = math.saturate(progress);
                 state.R = InterpolateColour(command.ColorStartR, command.ColorEndR, progress);
                 state.G = InterpolateColour(command.ColorStartG, command.ColorEndG, progress);
@@ -259,7 +259,7 @@ namespace OsuVR.Storyboard.Engine
                     return math.pow(2f, -10f * t)
                            * math.sin((0.25f * t - 0.075f) * (2f * math.PI) / 0.3f) + 1f
                            - t / 1024f * math.sin((0.25f - 0.075f) * (2f * math.PI) / 0.3f);
-                case 28: // lazer uses a 0.45 period for InOutElastic, with endpoint correction.
+                case 28: // lazer 的 InOutElastic 使用 0.45 的周期，并做端点校正。
                     {
                         float n = t * 2f;
                         float frequency = 2f * math.PI / 0.45f;

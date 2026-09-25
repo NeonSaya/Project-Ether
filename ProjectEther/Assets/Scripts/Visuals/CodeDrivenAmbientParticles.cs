@@ -456,7 +456,7 @@ namespace OsuVR
                 noiseModule.strength = baseNoiseStrength * 0.3f;
                 noiseModule.frequency = 0.5f;
 
-                // Kiai burst
+                // Kiai 段爆发
                 kiaiBurstTimer += Time.deltaTime;
                 if (kiaiBurstTimer >= kiaiBurstInterval)
                 {
@@ -742,22 +742,22 @@ namespace OsuVR
             noiseModule.octaveMultiplier = 0.5f;
             noiseModule.octaveScale = 2f;
 
-            // Color Over Lifetime
+            // 颜色随生命周期模块（ColorOverLifetime）
             colorOverLifetimeModule = ps.colorOverLifetime;
             colorOverLifetimeModule.enabled = true;
 
-            // Cache modules
+            // 缓存模块引用
             velocityModule = ps.velocityOverLifetime;
             rotationModule = ps.rotationOverLifetime;
 
-            // Velocity Over Lifetime
+            // 速度随生命周期模块（VelocityOverLifetime）
             velocityModule.enabled = true;
             velocityModule.space = ParticleSystemSimulationSpace.World;
             velocityModule.x = new ParticleSystem.MinMaxCurve(-0.15f, 0.15f);
             velocityModule.y = new ParticleSystem.MinMaxCurve(-0.05f, 0.2f);
             velocityModule.z = new ParticleSystem.MinMaxCurve(-0.15f, 0.15f);
 
-            // Size Over Lifetime
+            // 大小随生命周期模块（SizeOverLifetime）
             sizeOverLifetimeModule = ps.sizeOverLifetime;
             sizeOverLifetimeModule.enabled = true;
             AnimationCurve sizeCurve = new AnimationCurve();

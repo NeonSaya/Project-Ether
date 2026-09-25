@@ -445,7 +445,7 @@ namespace OsuVR
         }
 
         // =========================================================
-        // Settings Integration
+        // 设置系统对接
         // =========================================================
 
         public void SetMasterVolume(float volume)

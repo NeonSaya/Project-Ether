@@ -287,7 +287,7 @@ namespace OsuVR.Storyboard
             }
             else if (type == "6" || type.Equals("Animation", StringComparison.OrdinalIgnoreCase))
             {
-                // Animation,layer,origin,"imagePath",x,y,frameCount,frameDelay,loopType
+                // Animation,layer,origin,"imagePath",x,y,frameCount,frameDelay,loopType（依次为: 图层,原点,图片路径,坐标,帧数,帧延迟,循环方式）
                 int frameCount = parts.Count > 6 ? ParseInt(parts[6]) : 1;
                 double frameDelay = parts.Count > 7 ? ParseDouble(parts[7]) : 0;
                 var loopType = parts.Count > 8 && (parts[8].Trim() == "1" || parts[8].Trim().Equals("LoopOnce", StringComparison.OrdinalIgnoreCase))
@@ -297,7 +297,7 @@ namespace OsuVR.Storyboard
             }
             else if (type.Equals("Sample", StringComparison.OrdinalIgnoreCase))
             {
-                // Sample,time,layer,"filepath",volume
+                // Sample,time,layer,"filepath",volume（依次为: 时间,图层,文件路径,音量）
                 double time = parts.Count > 1 ? ParseDouble(parts[1]) : 0;
                 SBLayer sampleLayer = SBLayer.Background;
                 if (parts.Count > 2) Enum.TryParse(parts[2].Trim(), true, out sampleLayer);
@@ -326,7 +326,7 @@ namespace OsuVR.Storyboard
             //             [0]    [1]      [2]       [3]     [4+]
             string typeStr = parts[0].Trim();
 
-            // Easing (parts[1])
+            // Easing 缓动 (parts[1])
             SBEasing easing = SBEasing.Linear;
             if (parts.Count > 1)
             {
@@ -342,7 +342,7 @@ namespace OsuVR.Storyboard
                 }
             }
 
-            // StartTime (parts[2]), EndTime (parts[3])
+            // StartTime 开始时间 (parts[2]), EndTime 结束时间 (parts[3])
             double startTime = parts.Count > 2 ? ParseDouble(parts[2]) : 0;
             double endTime = parts.Count > 3 && !string.IsNullOrWhiteSpace(parts[3]) ? ParseDouble(parts[3]) : startTime;
 
@@ -352,7 +352,7 @@ namespace OsuVR.Storyboard
             switch (typeStr)
             {
                 case "F":
-                    // F,easing,startTime,endTime,startOpacity[,endOpacity]
+                    // F,easing,startTime,endTime,startOpacity[,endOpacity]（依次为: 缓动,开始时间,结束时间,起始不透明度[,结束不透明度]）
                     // F,easing,startTime,,opacity (空 endTime = 立即设置)
                     {
                         // 检测空 endTime (如 "F,0,15501,,0.6")
@@ -366,7 +366,7 @@ namespace OsuVR.Storyboard
                     break;
 
                 case "M":
-                    // M,easing,startTime,endTime,startX,startY[,endX,endY]
+                    // M,easing,startTime,endTime,startX,startY[,endX,endY]（依次为: 缓动,开始时间,结束时间,起始X,起始Y[,结束X,结束Y]）
                     if (parts.Count < 6) break; // 至少需要 startX,startY
                     AddMoveCommand(target, sequence, easing, startTime, endTime,
                         new Vector2(ParseFloat(parts[4]), ParseFloat(parts[5])),
@@ -376,28 +376,28 @@ namespace OsuVR.Storyboard
                     break;
 
                 case "MX":
-                    // MX,easing,startTime,endTime,startX[,endX]
+                    // MX,easing,startTime,endTime,startX[,endX]（依次为: 缓动,开始时间,结束时间,起始X[,结束X]）
                     AddMoveXCommand(target, sequence, easing, startTime, endTime,
                         parts.Count > 4 ? ParseFloat(parts[4]) : 0f,
                         parts.Count > 5 ? ParseFloat(parts[5]) : (parts.Count > 4 ? ParseFloat(parts[4]) : 0f));
                     break;
 
                 case "MY":
-                    // MY,easing,startTime,endTime,startY[,endY]
+                    // MY,easing,startTime,endTime,startY[,endY]（依次为: 缓动,开始时间,结束时间,起始Y[,结束Y]）
                     AddMoveYCommand(target, sequence, easing, startTime, endTime,
                         parts.Count > 4 ? ParseFloat(parts[4]) : 0f,
                         parts.Count > 5 ? ParseFloat(parts[5]) : (parts.Count > 4 ? ParseFloat(parts[4]) : 0f));
                     break;
 
                 case "S":
-                    // S,easing,startTime,endTime,startScale[,endScale]
+                    // S,easing,startTime,endTime,startScale[,endScale]（依次为: 缓动,开始时间,结束时间,起始缩放[,结束缩放]）
                     AddScaleCommand(target, sequence, easing, startTime, endTime,
                         parts.Count > 4 ? ParseFloat(parts[4]) : 1f,
                         parts.Count > 5 ? ParseFloat(parts[5]) : (parts.Count > 4 ? ParseFloat(parts[4]) : 1f));
                     break;
 
                 case "V":
-                    // V,easing,startTime,endTime,startScaleX,startScaleY,endScaleX,endScaleY
+                    // V,easing,startTime,endTime,startScaleX,startScaleY,endScaleX,endScaleY（依次为: 缓动,开始时间,结束时间,起始缩放X,起始缩放Y,结束缩放X,结束缩放Y）
                     if (parts.Count < 6) break;
                     AddScaleVectorCommand(target, sequence, easing, startTime, endTime,
                         ParseFloat(parts[4]), ParseFloat(parts[5]),
@@ -406,7 +406,7 @@ namespace OsuVR.Storyboard
                     break;
 
                 case "R":
-                    // R,easing,startTime,endTime,startRotation[,endRotation]
+                    // R,easing,startTime,endTime,startRotation[,endRotation]（依次为: 缓动,开始时间,结束时间,起始旋转[,结束旋转]）
                     AddRotateCommand(target, sequence, easing, startTime, endTime,
                         parts.Count > 4 ? ParseFloat(parts[4]) : 0f,
                         parts.Count > 5 ? ParseFloat(parts[5]) : (parts.Count > 4 ? ParseFloat(parts[4]) : 0f));
@@ -422,7 +422,7 @@ namespace OsuVR.Storyboard
                     break;
 
                 case "P":
-                    // P,easing,startTime,endTime,parameter
+                    // P,easing,startTime,endTime,parameter（依次为: 缓动,开始时间,结束时间,参数名）
                     string param = parts.Count > 4 ? parts[4].Trim() : "";
                     AddParameterCommand(target, sequence, easing, startTime, endTime, param);
                     break;
@@ -433,8 +433,8 @@ namespace OsuVR.Storyboard
         {
             var parts = SplitCsv(data);
             if (parts.Count < 2) return null;
-            // LegacyStoryboardDecoder passes max(0, fileCount - 1) to lazer,
-            // whose internal repeat count excludes the initial playback.
+            // LegacyStoryboardDecoder 向 lazer 传入 max(0, fileCount - 1),
+            // 因为 lazer 内部的重复次数不含首次播放。
             return new SBLoop(ParseDouble(parts[0]), Math.Max(1, ParseInt(parts[1])));
         }
 

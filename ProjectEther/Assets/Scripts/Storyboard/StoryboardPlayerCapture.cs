@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace OsuVR.Storyboard
 {
-    /// <summary>Opt-in development-player capture; never changes ordinary game startup.</summary>
+    /// <summary>按需启用的开发版播放器截图功能；不影响普通游戏的启动流程。</summary>
     public sealed class StoryboardPlayerCapture : MonoBehaviour
     {
         string mapPath, outputPath;
@@ -29,7 +29,7 @@ namespace OsuVR.Storyboard
 
         IEnumerator Start()
         {
-            // Allow the render pipeline and normal runtime singletons to initialise.
+            // 等待渲染管线和常规运行时单例完成初始化。
             yield return null;
             yield return null;
             int exitCode=0;

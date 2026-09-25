@@ -185,7 +185,7 @@ namespace OsuVR
             {
                 elapsed += Time.unscaledDeltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
-                t = t * t * (3f - 2f * t); // SmoothStep
+                t = t * t * (3f - 2f * t); // 平滑插值（SmoothStep）
                 canvasGroup.alpha = Mathf.Lerp(from, to, t);
                 yield return null;
             }

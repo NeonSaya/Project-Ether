@@ -144,8 +144,8 @@ namespace OsuVR.Storyboard.Engine
         public SBLoopCommand(double startTime, int loopCount, SBCommandGroup innerGroup)
             : base(SBCommandTarget.Alpha, SBEasing.Linear, startTime, 0)
         {
-            // The parser stores total iterations (the file repeat count). A zero
-            // repeat count is normalized by lazer to one playback.
+            // 解析器保存的是总迭代次数（文件中的重复次数）。重复次数为 0 时，
+            // lazer 会把它归一化为播放一次。
             LoopCount = loopCount <= 0 ? 1 : loopCount;
             InnerGroup = innerGroup;
             double first = innerGroup.Commands.Count == 0 ? 0 : innerGroup.StartTime();
@@ -160,7 +160,7 @@ namespace OsuVR.Storyboard.Engine
 
         public override SBSpriteCommand CreateHoldCommand(double holdStart, double holdEnd)
         {
-            return null; // Loop commands don't need hold
+            return null; // Loop 命令无需 hold
         }
     }
 }

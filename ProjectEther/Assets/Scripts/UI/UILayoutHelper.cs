@@ -32,7 +32,7 @@ namespace OsuVR
         public const int DefaultFontSize = 36;
 
         // ============================================================
-        //  Canvas
+        //  Canvas（画布）
         // ============================================================
 
         /// <summary>
@@ -66,7 +66,7 @@ namespace OsuVR
         }
 
         // ============================================================
-        //  Panel
+        //  Panel（面板）
         // ============================================================
 
         /// <summary>
@@ -90,7 +90,7 @@ namespace OsuVR
         }
 
         // ============================================================
-        //  Text
+        //  Text（文本）
         // ============================================================
 
         /// <summary>
@@ -139,7 +139,7 @@ namespace OsuVR
         }
 
         // ============================================================
-        //  Button
+        //  Button（按钮）
         // ============================================================
 
         /// <summary>
@@ -202,7 +202,7 @@ namespace OsuVR
         }
 
         // ============================================================
-        //  Vertical Layout
+        //  垂直布局
         // ============================================================
 
         /// <summary>
@@ -339,7 +339,7 @@ namespace OsuVR
         }
 
         // ============================================================
-        //  Horizontal Layout
+        //  水平布局
         // ============================================================
 
         /// <summary>
@@ -364,7 +364,7 @@ namespace OsuVR
         }
 
         // ============================================================
-        //  ScrollView
+        //  ScrollView（滚动视图）
         // ============================================================
 
         /// <summary>
@@ -375,7 +375,7 @@ namespace OsuVR
             Transform parent, string name, float width, float height,
             Color? viewportColor = null)
         {
-            // ScrollView root
+            // ScrollView 根物体
             var scrollGo = new GameObject(name);
             scrollGo.transform.SetParent(parent, false);
             var scrollRt = scrollGo.AddComponent<RectTransform>();
@@ -387,7 +387,7 @@ namespace OsuVR
             scrollRect.movementType = ScrollRect.MovementType.Clamped;
             scrollRect.scrollSensitivity = 30f;
 
-            // Viewport
+            // Viewport（视口）
             var viewportGo = new GameObject("Viewport");
             viewportGo.transform.SetParent(scrollGo.transform, false);
             var viewportRt = viewportGo.AddComponent<RectTransform>();
@@ -400,7 +400,7 @@ namespace OsuVR
             var mask = viewportGo.AddComponent<Mask>();
             mask.showMaskGraphic = false;
 
-            // Content
+            // Content（滚动内容区）
             var contentGo = new GameObject("Content");
             contentGo.transform.SetParent(viewportGo.transform, false);
             var contentRt = contentGo.AddComponent<RectTransform>();
@@ -417,7 +417,7 @@ namespace OsuVR
         }
 
         // ============================================================
-        //  Atomic Prefab Instantiation
+        //  原子预制体实例化
         //
         //  原子预制体通过 HLG + LayoutElement 参与父级布局：
         //  - root: HLG(childControlWidth=true) + LayoutElement(flexibleWidth=1)
@@ -500,7 +500,7 @@ namespace OsuVR
             // 配置 HLG + 布局（Slider 行高 36）
             SetupAtomicPrefabRoot(root, 36f);
 
-            // Label
+            // Label（标签文本）
             var labelTf = instance.transform.Find("Label");
             if (labelTf != null)
             {
@@ -518,7 +518,7 @@ namespace OsuVR
                 }
             }
 
-            // Slider
+            // Slider 滑条
             var slider = instance.GetComponentInChildren<Slider>();
             if (slider != null)
             {
@@ -530,7 +530,7 @@ namespace OsuVR
                     slider.onValueChanged.AddListener(onValueChanged);
             }
 
-            // ValueText
+            // ValueText（数值文本）
             var valueTextTf = instance.transform.Find("ValueText");
             TextMeshProUGUI valueTmp = null;
             if (valueTextTf != null)
@@ -541,7 +541,7 @@ namespace OsuVR
                     valueTmp.text = string.Format(System.Globalization.CultureInfo.InvariantCulture, valueFormat, currentVal * valueScale);
             }
 
-            // Wire slider value change to update text
+            // 关联 Slider 值变化，同步更新数值文本
             if (slider != null && valueTmp != null)
             {
                 var capturedFormat = valueFormat;
@@ -570,7 +570,7 @@ namespace OsuVR
             // 配置 HLG + LayoutElement（Toggle 行高 32）
             SetupAtomicPrefabRoot(root, 32f);
 
-            // Label
+            // Label（标签文本）
             var labelTf = instance.transform.Find("Label");
             if (labelTf != null)
             {
@@ -588,7 +588,7 @@ namespace OsuVR
                 }
             }
 
-            // Toggle
+            // Toggle 开关
             var toggle = instance.GetComponentInChildren<Toggle>();
             if (toggle != null)
             {
@@ -615,7 +615,7 @@ namespace OsuVR
             // 配置 HLG + LayoutElement（Dropdown 行高 36）
             SetupAtomicPrefabRoot(root, 36f);
 
-            // Label
+            // Label（标签文本）
             var labelTf = instance.transform.Find("Label");
             if (labelTf != null)
             {
@@ -633,7 +633,7 @@ namespace OsuVR
                 }
             }
 
-            // Dropdown
+            // Dropdown 下拉框
             var dropdown = instance.GetComponentInChildren<TMP_Dropdown>();
             if (dropdown != null)
             {

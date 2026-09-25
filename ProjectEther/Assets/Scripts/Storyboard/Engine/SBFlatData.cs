@@ -17,12 +17,12 @@ namespace OsuVR.Storyboard.Engine
         public float InitR, InitG, InitB;
         public byte InitFlipH, InitFlipV, InitAdditive;
 
-        // ---- 直接命令范围 (索引 into NativeArray<SBCommandFlatData>) ----
-        public int TriggerHead; // linked history of fired commands, -1 when none
+        // ---- 直接命令范围 (NativeArray<SBCommandFlatData> 中的索引) ----
+        public int TriggerHead; // 已触发命令链表的头索引，无记录时为 -1
         public int CmdOffset;
         public int CmdCount;
 
-        // ---- Loop 范围 (索引 into NativeArray<SBLoopFlatData>) ----
+        // ---- Loop 范围 (NativeArray<SBLoopFlatData> 中的索引) ----
         public int LoopOffset;
         public int LoopCount;
 
@@ -39,7 +39,7 @@ namespace OsuVR.Storyboard.Engine
         public int AnimFrameCount;
         public double AnimFrameDelay;
         public int AnimLoopType;   // 0=LoopForever, 1=LoopOnce
-        public int AnimFrameMapOffset; // 索引 into SBFlatTimelineData.FrameMap: 声明帧→纹理切片 (-1=缺失帧, 不绘制)
+        public int AnimFrameMapOffset; // SBFlatTimelineData.FrameMap 中的起始索引: 声明帧→纹理切片 (-1=缺失帧, 不绘制)
     }
 
     /// <summary>

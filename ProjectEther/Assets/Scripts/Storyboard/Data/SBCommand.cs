@@ -22,7 +22,7 @@ namespace OsuVR.Storyboard.Data
     /// </summary>
     public class SBCommand
     {
-        public int Sequence; // declaration order for equal-time commands
+        public int Sequence; // 同一时刻命令的声明顺序
         public SBCommandType Type;
         public SBEasing Easing;
         public double StartTime;

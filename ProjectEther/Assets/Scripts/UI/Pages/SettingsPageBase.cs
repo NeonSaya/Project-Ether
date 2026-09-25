@@ -95,7 +95,7 @@ namespace OsuVR
             UnityEngine.Events.UnityAction<float> onValueChanged,
             UnityEngine.Events.UnityAction<int> onFineTune)
         {
-            // Row root: VLG 垂直排列 Header / Slider / FineTune
+            // 行根物体：VLG 垂直排列 Header / Slider / FineTune
             var rowGo = new GameObject("Audio OffsetRow");
             rowGo.transform.SetParent(parent, false);
 
@@ -113,7 +113,7 @@ namespace OsuVR
             rowVlg.childForceExpandWidth = true;
             rowVlg.childForceExpandHeight = false;
 
-            // ---- Header (Label + Value) ----
+            // ---- Header 行（Label 标签 + Value 数值）----
             var headerGo = new GameObject("Header");
             headerGo.transform.SetParent(rowGo.transform, false);
             var headerRt = headerGo.AddComponent<RectTransform>();
@@ -129,7 +129,7 @@ namespace OsuVR
             headerHlg.childForceExpandWidth = true;
             headerHlg.childForceExpandHeight = true;
 
-            // Header/Label
+            // Header 下的 Label（标签文本）
             var headerLabelGo = new GameObject("Label");
             headerLabelGo.transform.SetParent(headerGo.transform, false);
             var headerLabelRt = headerLabelGo.AddComponent<RectTransform>();
@@ -151,7 +151,7 @@ namespace OsuVR
             var headerLabelLe = headerLabelGo.AddComponent<LayoutElement>();
             headerLabelLe.flexibleWidth = 1f;
 
-            // Header/Value
+            // Header 下的 Value（数值文本）
             var headerValueGo = new GameObject("Value");
             headerValueGo.transform.SetParent(headerGo.transform, false);
             var headerValueRt = headerValueGo.AddComponent<RectTransform>();
@@ -169,7 +169,7 @@ namespace OsuVR
             var headerValueLe = headerValueGo.AddComponent<LayoutElement>();
             headerValueLe.preferredWidth = 100f;
 
-            // ---- Slider ----
+            // ---- Slider 滑条 ----
             var sliderGo = new GameObject("Slider");
             sliderGo.transform.SetParent(rowGo.transform, false);
             var sliderRt = sliderGo.AddComponent<RectTransform>();
@@ -254,7 +254,7 @@ namespace OsuVR
             fineTuneHlg.childForceExpandWidth = false;
             fineTuneHlg.childForceExpandHeight = false;
 
-            // SpacerLeft (flexible)
+            // 左侧 Spacer（弹性宽度）
             CreateFineTuneSpacer(fineTuneGo.transform);
 
             // 按钮: -10, -5, -1, +1, +5, +10
@@ -262,7 +262,7 @@ namespace OsuVR
             foreach (int val in fineTuneValues)
                 CreateFineTuneButton(fineTuneGo.transform, val, onFineTune);
 
-            // SpacerRight (flexible)
+            // 右侧 Spacer（弹性宽度）
             CreateFineTuneSpacer(fineTuneGo.transform);
 
             return slider;

@@ -155,7 +155,7 @@ namespace OsuVR
 
         // 音符核心数据 (SoA 设计, Allocator.Persistent)
         NativeArray<double> _noteSpawnTimes;      // 每个音符的 spawn 时间
-        NativeArray<int> _noteTypes;               // 0=Circle, 1=Slider, 2=Spinner
+        NativeArray<int> _noteTypes;               // 0=Circle (圆圈), 1=Slider (滑条), 2=Spinner (转盘)
         NativeArray<double> _noteStartTimes;       // 每个音符的 StartTime
         bool _noteDataInitialized = false;
 
@@ -167,12 +167,12 @@ namespace OsuVR
 
             if (ar < 5)
             {
-                // AR 0 = 1800ms, AR 5 = 1200ms
+                // AR 0 时为 1800ms，AR 5 时为 1200ms
                 return 1200 + 120 * (5 - ar);
             }
             else
             {
-                // AR 5 = 1200ms, AR 10 = 450ms
+                // AR 5 时为 1200ms，AR 10 时为 450ms
                 return 1200 - 150 * (ar - 5);
             }
         }
@@ -1364,8 +1364,8 @@ namespace OsuVR
                 controlPoints: sliderPoints,    // 必须是 List<Vector2>
                 repeatCount: 1,
                 pixelLength: 100,
-                isNewCombo: true,               // bool
-                comboOffset: 0              // int
+                isNewCombo: true,               // bool (布尔)
+                comboOffset: 0              // int (整型)
             ));
 
             // 创建转盘

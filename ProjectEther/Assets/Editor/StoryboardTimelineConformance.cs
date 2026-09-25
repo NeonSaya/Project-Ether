@@ -7,7 +7,7 @@ using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
 
-/// <summary>Compare production Burst output with samples exported by installed osu!lazer.</summary>
+/// <summary>将生产环境的 Burst 输出与已安装的 osu!lazer 导出的采样进行比较。</summary>
 public static class StoryboardTimelineConformance
 {
     [Serializable] public class Oracle { public string input, gameVersion, frameworkVersion; public Sprite[] sprites; }

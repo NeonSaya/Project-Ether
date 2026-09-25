@@ -67,7 +67,7 @@ try
         var samples = new List<object>();
         foreach (var time in times)
         {
-            // Recreate each drawable so arbitrary/backwards sample order cannot lose completed transforms.
+            // 每个采样点都重新创建 drawable，无论采样顺序如何（任意或倒序），都不会丢失已完成的 transform。
             using var drawable = (IDisposable)Activator.CreateInstance(drawableType, element)!;
             retention.GetSetMethod(true)!.Invoke(drawable, new object[] { false });
             var manualClock = Activator.CreateInstance(manualClockType)!;
@@ -77,7 +77,7 @@ try
             apply.Invoke(element, new object?[] { drawable, null });
             applyAt.Invoke(drawable, new object[] { time, false });
             var alphaBeforeUpdate = Number(Get(drawable, "Alpha"));
-            // Invoke only this override (no dependency load, clock loop, host, GPU or UpdateSubTree).
+            // 只调用这个 override（不加载依赖、不运行时钟循环、不使用 host/GPU，也不调用 UpdateSubTree）。
             update.Invoke(drawable, null);
             var colour = Get(Get(Get(drawable, "Colour"), "TopLeft"), "SRGB");
             var blend = Get(drawable, "Blending");

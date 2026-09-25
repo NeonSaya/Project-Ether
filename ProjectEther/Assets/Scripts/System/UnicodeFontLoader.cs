@@ -80,8 +80,8 @@ namespace OsuVR
                         2048, 2048, 
                         AtlasPopulationMode.Dynamic);
                     
-                    // TMP_FontAsset.CreateFontAsset might return an empty/corrupted font asset if it fails
-                    // to load the OS font. We must check if atlasTextures is actually assigned.
+                    // 当加载 OS 字体失败时，TMP_FontAsset.CreateFontAsset 可能返回空的或损坏的字体资产。
+                    // 因此必须检查 atlasTextures 是否确实被赋值。
                     if (fontAsset != null && fontAsset.atlasTextures != null && fontAsset.atlasTextures.Length > 0 && fontAsset.atlasTextures[0] != null)
                     {
                         unicodeFont = fontAsset;
@@ -92,7 +92,7 @@ namespace OsuVR
                     }
                     else if (fontAsset != null)
                     {
-                        // Clean up the broken asset
+                        // 清理这个损坏的资产
                         Destroy(fontAsset);
                     }
                 }

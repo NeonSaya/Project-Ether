@@ -898,8 +898,8 @@ namespace OsuVR
             {
                 mirrorFloorMaterial = new Material(mirrorShader);
                 // 透明模式
-                mirrorFloorMaterial.SetFloat("_Surface", 1.0f); // Transparent
-                mirrorFloorMaterial.SetFloat("_Blend", 0.0f);    // Alpha
+                mirrorFloorMaterial.SetFloat("_Surface", 1.0f); // 透明模式（Transparent）
+                mirrorFloorMaterial.SetFloat("_Blend", 0.0f);    // Alpha 混合模式
                 mirrorFloorMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
                 mirrorFloorMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
                 mirrorFloorMaterial.SetInt("_ZWrite", 0);
@@ -2207,7 +2207,7 @@ namespace OsuVR
                                 // 中低频段：5%-17.5%粒子 → bin 16-35
                                 float t = (linearPosition - 0.05f) / 0.125f;
                                 // 使用三次曲线平滑过渡
-                                float curveT = t * t * (3f - 2f * t); // smoothstep
+                                float curveT = t * t * (3f - 2f * t); // 平滑插值（smoothstep）
                                 binFloat = 16f + 20f * curveT; // 结束时bin=36
                             }
                             else if (linearPosition < 0.425f)
@@ -2564,10 +2564,10 @@ namespace OsuVR
 
             // 使用8频段数据（如果可用）或三频段数据；数组长度按序列化 spectrumBands 分配，需防越界
             float Band(int i) => (spectrumBandSmoothed != null && i < spectrumBandSmoothed.Length) ? spectrumBandSmoothed[i] : 0f;
-            float bass = Band(0) + Band(1); // Band 0-1: Bass
-            float lowMid = Band(2) + Band(3); // Band 2-3: LowMid
-            float highMid = Band(4) + Band(5); // Band 4-5: HighMid
-            float treble = Band(6) + Band(7); // Band 6-7: Treble
+            float bass = Band(0) + Band(1); // 频段 0-1：低频（Bass）
+            float lowMid = Band(2) + Band(3); // 频段 2-3：中低频（LowMid）
+            float highMid = Band(4) + Band(5); // 频段 4-5：中高频（HighMid）
+            float treble = Band(6) + Band(7); // 频段 6-7：高频（Treble）
 
             // 如果AudioLink不可用，使用AudioVisualizationManager的数据
             if (!audioLinkAvailable)

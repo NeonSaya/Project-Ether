@@ -71,7 +71,7 @@ namespace OsuVR
 
         void PrepareResources()
         {
-            // 1. Mesh
+            // 1. 网格（Mesh）
             GameObject tempCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
             cubeMesh = tempCube.GetComponent<MeshFilter>().sharedMesh;
             Destroy(tempCube);

@@ -159,12 +159,12 @@ namespace OsuVR
                 GenerateDifficultyButtons(selectedSet);
             }
             
-            // Also update the list of songs if their titles/artists need updating
+            // 若歌名/艺术家文本需要更新，也一并刷新歌曲列表
             foreach (var view in songItemViews)
             {
                 if (view != null)
                 {
-                    // Force a UI refresh in the views
+                    // 强制刷新各列表项的 UI 显示
                     view.RefreshDisplay();
                 }
             }

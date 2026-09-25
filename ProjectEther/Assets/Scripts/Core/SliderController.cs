@@ -409,13 +409,13 @@ namespace OsuVR
             // 纯 2D 平面模式：所有滑条基准物理 Z 轴偏移为 0
             // 遮挡关系 100% 交由 RenderQueue 接管
             // 十步长画家算法：
-            // - Body = baseQueue + 1
-            // - Border = baseQueue + 2
-            // - Tick = baseQueue + 3
-            // - Halo = baseQueue + 4
-            // - Head/Body = baseQueue + 5
-            // - Overlay = baseQueue + 6
-            // - FollowBall = baseQueue + 7
+            // - Body = baseQueue + 1 (滑条本体)
+            // - Border = baseQueue + 2 (滑条边框)
+            // - Tick = baseQueue + 3 (滑条小点)
+            // - Halo = baseQueue + 4 (光晕)
+            // - Head/Body = baseQueue + 5 (头部本体)
+            // - Overlay = baseQueue + 6 (覆盖层)
+            // - FollowBall = baseQueue + 7 (跟随球)
             // - ApproachCircle = baseQueue + 8 (最高层，置顶)
             // ---------------------------------------------------------
             Vector3 startPos = CoordinateMapper.MapToWorld(sliderData.Position);
@@ -665,7 +665,7 @@ namespace OsuVR
             // 层级分配法则：
             // - 滑条本体 (Body) = baseQueue + 1 (垫底)
             // - 滑条边框 (Border) = baseQueue + 2 (盖在本体上)
-            // - Tick = baseQueue + 3
+            // - Tick = baseQueue + 3 (滑条小点)
             // - 头部圈圈 (Head) = baseQueue + 5 ~ +8
 
             var (borderMesh, bodyMesh, borderMat, bodyMat) = SliderMeshGenerator.GeneratePhysicalSlider(
@@ -776,10 +776,10 @@ namespace OsuVR
 
                 // 机制2: 十步长画家算法
                 // 头部圈圈子图层分配：
-                // - Halo = baseQueue + 4
-                // - Body/SliderHead = baseQueue + 5
-                // - Overlay = baseQueue + 6
-                // - FollowBall = baseQueue + 7
+                // - Halo = baseQueue + 4 (光晕)
+                // - Body/SliderHead = baseQueue + 5 (头部本体)
+                // - Overlay = baseQueue + 6 (覆盖层)
+                // - FollowBall = baseQueue + 7 (跟随球)
                 // - ApproachCircle = baseQueue + 8 (最高层，置顶)
                 int baseQueue = 3900 - (this.myRenderIndex * 10);
 

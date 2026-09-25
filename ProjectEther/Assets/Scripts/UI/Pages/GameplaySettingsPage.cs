@@ -21,7 +21,7 @@ namespace OsuVR
 
         public override void BuildContent(RectTransform parent, GameSettings tempSettings, float contentWidth)
         {
-            // Language dropdown
+            // 语言下拉框
             var languageNames = new List<string>(LocalizationManager.GetAllLanguageNames());
             int currentLangIndex = LocalizationManager.GetCurrentLanguageIndex();
             languageDropdown = CreateDropdown(parent, "Language", "ui_language",
@@ -33,7 +33,7 @@ namespace OsuVR
                     PlayClickSound();
                 });
 
-            // Display original language toggle
+            // 以原文显示歌名开关
             displayOriginalLanguageToggle = CreateToggle(parent,
                 "Display Song Names in Original Language", "ui_display_original_language",
                 tempSettings.displayOriginalLanguage,
@@ -46,7 +46,7 @@ namespace OsuVR
                     PlayClickSound();
                 });
 
-            // Haptic intensity slider
+            // 触觉强度滑条
             hapticIntensitySlider = CreateSlider(parent, "Haptic Intensity", "ui_haptic_intensity",
                 0f, 1f, tempSettings.hapticIntensity, PercentFormat,
                 v =>
@@ -55,7 +55,7 @@ namespace OsuVR
                     SettingsManager.Instance.SetHapticIntensity(v);
                 }, valueScale: 100f);
 
-            // Haptics toggle
+            // 触觉反馈开关
             hapticsToggle = CreateToggle(parent, "Enable Haptics", "ui_enable_haptics",
                 tempSettings.enableHaptics,
                 v =>

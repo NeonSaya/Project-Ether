@@ -49,7 +49,7 @@ Shader "OsuVR/FlashlightMask"
             float _Feather;
             float _PlaneZ;
 
-            // set by script
+            // 由脚本设置
             float3 _LeftRayOrigin;
             float3 _LeftRayDir;
             float3 _RightRayOrigin;
@@ -104,7 +104,7 @@ Shader "OsuVR/FlashlightMask"
 
                 float alpha = smoothstep(_Radius - _Feather, _Radius + _Feather, minDist);
 
-                // If viewDir doesn't point towards the plane
+                // 当 viewDir 不朝向该平面时
                 if (viewDir.z <= 0) alpha = 1.0;
 
                 fixed4 col = _Color;

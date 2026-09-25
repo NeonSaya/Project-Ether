@@ -39,10 +39,10 @@ public static class ShaderStrippingProtector
         // === UI ===
         ("UI/Default",                             new string[0],                               "Dummy_UI_Default"),
 
-        // === Sprite ===
+        // === 精灵（Sprite）===
         ("Sprites/Default",                        new string[0],                               "Dummy_SpritesDefault"),
 
-        // === Fallback ===
+        // === 兜底（Fallback）===
         ("Standard",                               new[]{"_EMISSION"},                          "Dummy_Standard"),
     };
 
@@ -121,8 +121,8 @@ public static class ShaderStrippingProtector
         // 透明模式 (用于 URP Unlit)
         if (mat.HasProperty("_Surface"))
         {
-            mat.SetFloat("_Surface", 1); // Transparent
-            mat.SetFloat("_Blend", 0);   // Alpha
+            mat.SetFloat("_Surface", 1); // 透明模式（Transparent）
+            mat.SetFloat("_Blend", 0);   // Alpha 混合模式
         }
         if (mat.HasProperty("_SrcBlend"))
         {

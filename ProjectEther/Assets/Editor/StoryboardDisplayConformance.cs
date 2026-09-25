@@ -25,7 +25,7 @@ public static class StoryboardDisplayConformance
         Color actual=rendered.GetPixel(640,360);
         UnityEngine.Object.DestroyImmediate(rendered);
         float setting=OsuVR.SettingsManager.Instance?.Settings.storyboardScreenAlpha ?? 0.5f;
-        float opacity=setting*setting; // preserve the existing video slider mapping
+        float opacity=setting*setting; // 沿用现有的视频滑条映射
         float expected=Mathf.LinearToGammaSpace(1-opacity);
         if(Mathf.Abs(actual.r-1)>2f/255 || Mathf.Abs(actual.g-expected)>2f/255 || Mathf.Abs(actual.b-expected)>2f/255)
             throw new Exception("Whole-plane opacity failed: "+actual+", expected (1,"+expected+","+expected+")");

@@ -13,8 +13,8 @@ namespace OsuVR
     /// 生成的对象结构：
     /// - HitCircle: Sphere(根) + Body + SolidBody + ApproachCircle + Halo + NoteController
     /// - SliderHead: Sphere(根) + Body + ApproachCircle + Halo + ApproachCircleScaler
-    /// - SliderTick: Quad + Material
-    /// - FollowBall: Sphere + SphereCollider
+    /// - SliderTick: Quad(面片) + Material(材质)
+    /// - FollowBall: Sphere(球体) + SphereCollider(球形碰撞体)
     /// </summary>
     public static class HitObjectFactory
     {
@@ -330,7 +330,7 @@ namespace OsuVR
                         {
                             // 内侧：平滑淡入
                             float t = (r - innerRadius) / (peakRadius - innerRadius);
-                            alpha = t * t * (3f - 2f * t); // SmoothStep
+                            alpha = t * t * (3f - 2f * t); // SmoothStep (平滑插值)
                         }
                         else
                         {
@@ -408,7 +408,7 @@ namespace OsuVR
         /// 结构层次：
         /// HitCircle_Procedural (根)
         /// ├── Sphere Mesh (主球体碰撞)
-        /// ├── NoteController + SphereCollider
+        /// ├── NoteController(音符控制器) + SphereCollider(球形碰撞体)
         /// ├── Body (Quad) - 主贴图层
         /// ├── SolidBody (Quad) - 实心层
         /// ├── ApproachCircle (Quad) - 缩圈
@@ -474,7 +474,7 @@ namespace OsuVR
 
             // 3. 强制设置为 Alpha 混合模式 (实心遮挡)
             // 针对 URP/Unlit 的设置
-            if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1.0f); // Transparent
+            if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1.0f); // Transparent (透明模式)
             if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 0.0f);     // Alpha (不是 Additive!)
             if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
             if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
@@ -771,8 +771,8 @@ namespace OsuVR
             // 如果是 URP/Unlit，需要设置透明模式
             if (mat.HasProperty("_Surface"))
             {
-                mat.SetInt("_Surface", 1); // 1 = Transparent
-                mat.SetInt("_Blend", 0);   // 0 = Alpha
+                mat.SetInt("_Surface", 1); // 1 = Transparent (透明模式)
+                mat.SetInt("_Blend", 0);   // 0 = Alpha 混合
             }
             if (mat.HasProperty("_SrcBlend"))
             {
@@ -802,8 +802,8 @@ namespace OsuVR
             // 如果是 URP/Unlit，需要设置透明模式
             if (mat.HasProperty("_Surface"))
             {
-                mat.SetInt("_Surface", 1); // 1 = Transparent
-                mat.SetInt("_Blend", 0);   // 0 = Alpha
+                mat.SetInt("_Surface", 1); // 1 = Transparent (透明模式)
+                mat.SetInt("_Blend", 0);   // 0 = Alpha 混合
             }
             if (mat.HasProperty("_SrcBlend"))
             {

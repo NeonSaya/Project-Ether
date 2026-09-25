@@ -8,7 +8,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-/// <summary>Production GPU conformance probes, independent of the VR display treatment.</summary>
+/// <summary>针对生产渲染的 GPU 一致性探针，与 VR 显示处理无关。</summary>
 public static class StoryboardRenderConformance
 {
     [MenuItem("Tools/Storyboard/Run GPU conformance")]

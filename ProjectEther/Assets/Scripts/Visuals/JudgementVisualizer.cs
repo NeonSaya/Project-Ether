@@ -376,7 +376,7 @@ namespace OsuVR
 
                 if (!isMiss)
                 {
-                    // --- HIT ---
+                    // --- 命中（HIT）---
                     float scaleT = EaseOutCubic(Mathf.Clamp01(t * 3f));
                     item.Root.transform.localScale = Vector3.one * (scaleT * scaleMult * globalScale);
 
@@ -396,7 +396,7 @@ namespace OsuVR
                 }
                 else
                 {
-                    // --- MISS ---
+                    // --- 未命中（MISS）---
                     float scaleT = EaseOutBack(Mathf.Clamp01(t * 5f));
                     item.Root.transform.localScale = Vector3.one * (scaleT * scaleMult * globalScale);
 

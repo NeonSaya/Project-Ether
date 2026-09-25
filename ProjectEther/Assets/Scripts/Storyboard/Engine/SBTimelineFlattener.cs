@@ -121,10 +121,10 @@ namespace OsuVR.Storyboard.Engine
                 order = (a.command.EndTime+a.offset).CompareTo(b.command.EndTime+b.offset);
                 return order != 0 ? order : a.command.Sequence.CompareTo(b.command.Sequence);
             });
-            // Framework AddTransform removes future transforms for the same property.
-            // Adding P's start inside a previous P window removes its queued reset;
-            // aborting that sequence also removes its as-yet unapplied loop starts.
-            // Keep the source times intact because sprite lifetime is still declarative.
+            // Framework 的 AddTransform 会移除同一属性上尚未生效的 transform。
+            // 在前一个 P 窗口内加入新 P 的起点，会移除它排队中的重置；
+            // 中止该序列同样会移除它尚未应用的循环起点。
+            // 保持源时间不变，因为 sprite 的生命周期仍由声明决定。
             for (int i = 0; i < parameters.Count; i++)
                 for (int j = 0; j < i; j++)
                 {
@@ -250,7 +250,7 @@ namespace OsuVR.Storyboard.Engine
             if (endTime <= double.MinValue) endTime = startTime;
 
             int originIdx = (int)element.Origin;
-            if ((uint)originIdx > 9) originIdx = 1; // fallback to Centre
+            if ((uint)originIdx > 9) originIdx = 1; // 回退到 Centre
 
             var sprite = new SBSpriteFlatData
             {
@@ -430,7 +430,7 @@ namespace OsuVR.Storyboard.Engine
                         break;
 
                     case SBBoolCommand bc:
-                        // A zero-duration parameter is a permanent initial value in lazer.
+                        // 在 lazer 中，零时长的参数命令是一个永久性的初始值。
                         if (bc.UseInitialValue)
                         {
                             byte value = bc.StartValue ? (byte)1 : (byte)0;

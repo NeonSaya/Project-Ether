@@ -1,6 +1,6 @@
-// Geometry adapter derived from ppy/osu DrawableStoryboardSprite.cs.
+// 几何适配器，源自 ppy/osu 的 DrawableStoryboardSprite.cs。
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
-// Full upstream notice is preserved in MIT-ppy.txt alongside this file.
+// 完整的上游声明保存在本文件同目录的 MIT-ppy.txt 中。
 using System.Drawing;
 using System.Globalization;
 using System.Text.Json;

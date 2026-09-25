@@ -61,7 +61,7 @@ namespace OsuVR.Storyboard
             || (overlayObject != null && overlayObject.activeSelf);
 
         // =========================================================
-        //  Lifecycle
+        //  生命周期
         // =========================================================
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -90,7 +90,7 @@ namespace OsuVR.Storyboard
         /// </summary>
         public void Setup(MediaAssetScanner.ScanResult scan, string beatmapFolder)
         {
-            // Reset only content bindings; preserve all screen geometry and settings.
+            // 只重置内容绑定; 保留幕布的全部几何参数与设置。
             _hideBackgroundForSB = false;
             _hasStoryboardTexture = false;
             if (overlayObject != null) overlayObject.SetActive(false);
@@ -296,7 +296,7 @@ namespace OsuVR.Storyboard
                 Texture underlay = _hasVideo ? videoOverlayMaterial?.mainTexture
                     : (_hideBackgroundForSB ? null : backgroundTexture);
                 StoryboardRenderer.Instance?.SetUnderlay(underlay, !_hasVideo);
-                // Compose encoded colours before the original screen dimming/edge fade.
+                // 在原有的幕布调暗/边缘羽化之前, 先合成编码色。
                 if (screenObject != null) screenObject.SetActive(false);
                 if (videoOverlayObject != null) videoOverlayObject.SetActive(false);
                 return;
@@ -398,8 +398,8 @@ namespace OsuVR.Storyboard
             screenMaterial = new Material(shader);
 
             // 确保材质支持透明 (自定义 shader 可能不需要, 但 fallback 必须设置)
-            if (screenMaterial.HasProperty("_Surface")) screenMaterial.SetFloat("_Surface", 1); // Transparent
-            if (screenMaterial.HasProperty("_Blend")) screenMaterial.SetFloat("_Blend", 0);     // Alpha
+            if (screenMaterial.HasProperty("_Surface")) screenMaterial.SetFloat("_Surface", 1); // Transparent（透明）
+            if (screenMaterial.HasProperty("_Blend")) screenMaterial.SetFloat("_Blend", 0);     // Alpha（Alpha 混合）
             if (screenMaterial.HasProperty("_SrcBlend")) screenMaterial.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
             if (screenMaterial.HasProperty("_DstBlend")) screenMaterial.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
             if (screenMaterial.HasProperty("_ZWrite")) screenMaterial.SetInt("_ZWrite", 0);

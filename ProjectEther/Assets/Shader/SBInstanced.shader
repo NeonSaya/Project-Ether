@@ -44,7 +44,7 @@ Shader "OsuVR/SBInstanced"
             }
             float4 frag(Varyings input) : SV_Target
             {
-                // Framework UNORM sampling: encoded RGB, LOD bias -0.9, maximum LOD 3.
+                // 框架的 UNORM 采样: 编码后的 RGB, LOD 偏置 -0.9, 最大 LOD 3。
                 float2 dx = ddx(input.uv) * _MainTex_TexelSize.zw;
                 float2 dy = ddy(input.uv) * _MainTex_TexelSize.zw;
                 float lod = clamp(0.5 * log2(max(max(dot(dx, dx), dot(dy, dy)), 1e-8)) - 0.9, 0.0, 3.0);
@@ -70,8 +70,8 @@ Shader "OsuVR/SBInstanced"
                 return float4(colour, 1);
             }
         ENDHLSL
-        // Explicit pass indices are submitted in declaration order by the renderer.
-        // RGB uses the same fixed-function factors as lazer; alpha stores coverage for VR.
+        // 显式 pass 索引由渲染器按声明顺序提交。
+        // RGB 使用与 lazer 相同的固定功能混合因子; alpha 存储覆盖率, 供 VR 使用。
         Pass
         {
             Name "SB_AlphaBlend"

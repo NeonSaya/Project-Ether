@@ -110,7 +110,7 @@ namespace OsuVR
             rootCanvas.transform.localPosition = new Vector3(0f, 0f, CanvasLocalZ);
             rootCanvas.transform.localScale = Vector3.one * CanvasScale;
 
-            // 复刻：anchoredPosition=(0,2.5), sizeDelta=(600,450), pivot=center
+            // 复刻：anchoredPosition=(0,2.5), sizeDelta=(600,450), pivot=居中
             var canvasRt = rootCanvas.GetComponent<RectTransform>();
             canvasRt.anchorMin = new Vector2(0.5f, 0.5f);
             canvasRt.anchorMax = new Vector2(0.5f, 0.5f);
@@ -185,7 +185,7 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 创建菜单按钮（复刻原 Prefab：sizeDelta=0x50, fontSize=20, stretch text）
+        /// 创建菜单按钮（复刻原 Prefab：sizeDelta=0x50, fontSize=20，文本拉伸填充）
         /// </summary>
         private void CreateMenuButton(Transform parent, string defaultText, string locKey,
             System.Action onClick, Color imageColor)

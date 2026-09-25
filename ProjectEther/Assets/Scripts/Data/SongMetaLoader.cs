@@ -88,7 +88,7 @@ namespace OsuVR
         private class SongIndexEntry
         {
             public string path;            // .osu 绝对路径
-            public long lastWriteTicks;    // LastWriteTimeUtc.Ticks
+            public long lastWriteTicks;    // LastWriteTimeUtc.Ticks (文件最后写入时间戳)
             public long fileSize;
             public BeatmapMetadata meta;   // null = 已知无效（坏谱/非 osu! 模式）
         }
@@ -364,7 +364,7 @@ namespace OsuVR
         /// </summary>
         private static double GetBeatLengthAt(List<(double time, double beatLength)> redLines, double time)
         {
-            double beat = 500.0; // 120 BPM
+            double beat = 500.0; // 即 120 BPM
             for (int i = 0; i < redLines.Count; i++)
             {
                 if (redLines[i].time <= time) beat = redLines[i].beatLength;

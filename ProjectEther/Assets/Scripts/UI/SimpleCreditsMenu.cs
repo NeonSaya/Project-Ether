@@ -14,10 +14,10 @@ namespace OsuVR
     ///        ├─ TitleBar (anchor 0,1->1,1, Title + Version)
     ///        ├─ ContentArea (ScrollRect + Mask 视口)
     ///        │  └─ ScrollContent (VLG + ContentSizeFitter)
-    ///        │     ├─ Section: Development（开发者 + 开发者的话）
-    ///        │     ├─ Section: Open Source Acknowledgments（分类鸣谢）
-    ///        │     ├─ Section: Open Source Licenses（许可全文）
-    ///        │     └─ Section: Copyright & Trademarks（版权与商标）
+    ///        │     ├─ 节：开发者 + 开发者的话
+    ///        │     ├─ 节：开源鸣谢（按分类鸣谢）
+    ///        │     ├─ 节：开源许可（含许可全文）
+    ///        │     └─ 节：版权与商标
     ///        └─ BottomButtons (Back)
     ///
     /// 内容组织为 节(Section) → 分组(Group) → 条目(Entry)。
@@ -246,7 +246,7 @@ namespace OsuVR
 
         private void BuildSections(RectTransform parent)
         {
-            // ============ Section 1: Development ============
+            // ============ 第 1 节：开发者 ============
             AddSectionTitle(parent, "Development", "ui_credits_section_dev");
             AddEntry(parent, "Project Ether — Design & Code — NyaonSaya><", 14f, EntryColor, FontStyles.Bold);
             AddSpacing(parent, 8f);
@@ -257,7 +257,7 @@ namespace OsuVR
             wordTmp.raycastTarget = false;
             AddSpacing(parent, 12f);
 
-            // ============ Section 2: Open Source Acknowledgments ============
+            // ============ 第 2 节：开源鸣谢 ============
             AddSectionTitle(parent, "Open Source Acknowledgments", "ui_credits_section_opensource");
 
             AddGroupTitle(parent, "Gameplay & Beatmap Format", null);
@@ -284,7 +284,7 @@ namespace OsuVR
             AddEntry(parent, "Source Han Sans (Adobe & Google) [SIL OFL 1.1] — CJK UI font (Simplified Chinese / Japanese)");
             AddSpacing(parent, 12f);
 
-            // ============ Section 3: Open Source Licenses ============
+            // ============ 第 3 节：开源许可 ============
             AddSectionTitle(parent, "Open Source Licenses", "ui_credits_section_licenses");
 
             AddEntry(parent, "MIT License — applies to: osu!lazer (c) ppy Pty Ltd & contributors, storybrew (c) Damnae, OsuParsers (c) mrflashstudio, AudioLink (c) llealloo, X-PostProcessing-Library (c) contributors, Effekseer (c) contributors", 12f, MutedColor);
@@ -306,7 +306,7 @@ namespace OsuVR
             AddEntry(parent, "Unity Editor & Engine components are subject to the Unity Companion License. See https://unity.com/legal", 12f, MutedColor);
             AddSpacing(parent, 12f);
 
-            // ============ Section 4: Copyright & Trademarks ============
+            // ============ 第 4 节：版权与商标 ============
             AddSectionTitle(parent, "Copyright & Trademarks", "ui_credits_section_disclaimer");
             AddEntry(parent, "Project Ether is a free, fan-made, non-commercial VR beatmap player. It is not affiliated with osu! or ppy Pty Ltd.");
             AddEntry(parent, "\"osu!\" is a trademark of ppy Pty Ltd.");

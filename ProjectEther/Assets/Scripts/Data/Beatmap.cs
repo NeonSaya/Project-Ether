@@ -22,10 +22,10 @@ namespace OsuVR
         // 默认 Combo 颜色 (osu! 默认值)
         public Beatmap()
         {
-            ComboColors.Add(new Color(1f, 0.75f, 0.80f)); // Pink
-            ComboColors.Add(new Color(0.61f, 0.83f, 0.30f)); // Green
-            ComboColors.Add(new Color(0.34f, 0.80f, 0.93f)); // Blue
-            ComboColors.Add(new Color(0.97f, 0.86f, 0.38f)); // Yellow
+            ComboColors.Add(new Color(1f, 0.75f, 0.80f)); // 粉色
+            ComboColors.Add(new Color(0.61f, 0.83f, 0.30f)); // 绿色
+            ComboColors.Add(new Color(0.34f, 0.80f, 0.93f)); // 蓝色
+            ComboColors.Add(new Color(0.97f, 0.86f, 0.38f)); // 黄色
         }
         /// <summary>
         /// 获取指定时间的红线 (BPM)
