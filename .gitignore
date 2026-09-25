@@ -3,5 +3,49 @@
 *.jks
 user.keystore
 
-# 本地聊天导出，不属于项目源码
-/dsh-tui-export-*.md
+# Local credentials and signing material
+*.p12
+*.pfx
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Local editor and agent state (at any project depth)
+.claude/
+.codex/
+.doge/
+.trae/
+.cursor/
+.vscode/
+.idea/
+.vs/
+.mcp.json
+AGENTS.local.md
+CLAUDE.local.md
+
+# Personal notes, chat exports, and generated validation artifacts
+.local/
+local-notes/
+dsh-tui-export-*
+*.laspguard_backup
+*.bak
+*.bak.meta
+*.orig
+/ProjectEther/Docs/StoryboardAuditReport.md
+/ProjectEther/Docs/StoryboardParityReport.md
+/ProjectEther/Assets/Editor/ForceReimport.cs
+/ProjectEther/Assets/Editor/ForceReimport.cs.meta
+/ProjectEther/Assets/TextMesh Pro/Resources/Fonts & Materials/SystemJapanese.ttf
+/ProjectEther/Assets/TextMesh Pro/Resources/Fonts & Materials/SystemJapanese.ttf.meta
+*.log
+ProjectEther_CrashLog.txt
+/Build/
+/Builds/
+/Logs/
+/Temp/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini

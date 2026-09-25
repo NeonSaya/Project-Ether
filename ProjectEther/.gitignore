@@ -117,8 +117,8 @@ InitTestScene*.unity*
 # AudioLink 本地管线配置 (自动生成)
 .audiolink_pipeline
 
-# AudioLink git URL 包 (manifest.json 声明, Unity 自动下载)
-Packages/com.llealloo.audiolink/
+# AudioLink is an embedded runtime dependency; keep its source tracked.
+# Backup shaders remain excluded by the *.shader.bak rules above.
 
 # LaspGuard 备份
 *.laspguard_backup
