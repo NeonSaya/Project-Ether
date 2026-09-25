@@ -81,6 +81,10 @@ namespace OsuVR
         private GameObject followBall;
         private Renderer followBallRenderer; // 缓存球体渲染器
         private Mesh combinedMesh;
+        private Mesh generatedBorderMesh;
+        private Material generatedBodyMaterial;
+        private Material generatedBorderMaterial;
+        private GameObject generatedBorderObject;
 
         // 记录球体的基础大小，防止吃Tick后变大回不去
         private float baseBallScale = 1.0f;
@@ -158,6 +162,7 @@ namespace OsuVR
         // 存储对象池引用
         private IObjectPool<GameObject> myPool;
         private IObjectPool<GameObject> tickPool;
+        private NotePoolManager tickPoolOwner;
 
         // 缓存 Combo 颜色给头部使用
         private Color currentComboColor;
@@ -176,6 +181,17 @@ namespace OsuVR
 
         // 在 SliderController 类中添加这个列表，用来记录所有生成的子物体（Tick, 箭头等）
         private List<GameObject> garbageList = new List<GameObject>();
+        private NotePoolManager headPoolOwner;
+        private NotePoolManager followBallPoolOwner;
+
+        private struct RendererMaterialRestore
+        {
+            public Renderer Renderer;
+            public Material Original;
+        }
+
+        private readonly List<RendererMaterialRestore> originalMaterials =
+            new List<RendererMaterialRestore>();
 
         // 通过 r.material 触发的材质实例克隆（渲染队列/ZWrite 定制）。
         // 这些克隆不会随 GameObject 销毁而释放，必须手动 Destroy，否则整局泄漏
@@ -385,6 +401,7 @@ namespace OsuVR
             Vector3? nextPos = null
         )
         {
+            StopTrackingAudio();
             CleanUpEverything();
 
             this.myRenderIndex = renderIndex;
@@ -416,6 +433,8 @@ namespace OsuVR
             // 存下池子引用
             this.myPool = pool;
             this.tickPool = tPool;
+            var owner = NotePoolManager.Instance;
+            tickPoolOwner = owner != null && ReferenceEquals(tPool, owner.TickPool) ? owner : null;
 
             // 彻底重置状态 (清理上一条滑条的残留数据)
             ResetState();
@@ -598,7 +617,7 @@ namespace OsuVR
         /// <summary>
         /// 回收所有 Tick (回池)
         /// </summary>
-        private void RecycleAllTicks()
+        private void RecycleAllTicks(bool returnToPool = true)
         {
             if (tickVisuals == null)
                 return;
@@ -608,11 +627,10 @@ namespace OsuVR
                 var obj = tickVisuals[i].gameObject;
                 if (obj != null)
                 {
-                    obj.SetActive(false);
-                    if (tickPool != null)
+                    if (returnToPool && CanReturnToPool(tickPoolOwner) && tickPool != null)
                         tickPool.Release(obj);
                     else
-                        Destroy(obj);
+                        ReleaseGeneratedObject(obj, returnToPool);
                 }
             }
             tickVisuals.Clear();
@@ -721,12 +739,18 @@ namespace OsuVR
                     currentStencilId
                 );
 
+            combinedMesh = bodyMesh;
+            generatedBorderMesh = borderMesh;
+            generatedBodyMaterial = bodyMat;
+            generatedBorderMaterial = borderMat;
+
             // Shader 全缺或路径为空时生成器返回 null 元组，必须判空否则 NRE
             if (borderMesh == null || bodyMesh == null || borderMat == null || bodyMat == null)
             {
                 Debug.LogError(
                     "[SliderController] 滑条网格/材质生成失败（Shader 缺失或路径为空），跳过本滑条视觉"
                 );
+                CleanUpMeshes();
                 return;
             }
 
@@ -751,6 +775,7 @@ namespace OsuVR
             // 4. 渲染边框网格
             // 滑条边框 = baseQueue + 2 (盖在本体上)
             GameObject borderObject = new GameObject("SliderBorder");
+            generatedBorderObject = borderObject;
             borderObject.transform.SetParent(transform, false);
             borderObject.transform.localPosition = Vector3.zero;
             borderObject.transform.localRotation = Quaternion.identity;
@@ -798,23 +823,18 @@ namespace OsuVR
             // 1. 创建滑条头 (Slider Head)
             // 优先从对象池获取，否则使用工厂类纯代码生成
             // =========================================================
+            headPoolOwner = usePool ? poolMgr : null;
             if (usePool)
             {
                 headInstance = poolMgr.GetSliderHead();
                 if (headInstance != null)
-                {
                     headInstance.transform.SetParent(transform);
-                    garbageList.Add(headInstance);
-                }
             }
             else
             {
                 headInstance = HitObjectFactory.CreateSliderHead();
                 if (headInstance != null)
-                {
                     headInstance.transform.SetParent(transform);
-                    garbageList.Add(headInstance);
-                }
             }
 
             // =========================================================
@@ -850,7 +870,7 @@ namespace OsuVR
                 );
 
                 // 应用 Combo 颜色到所有渲染器
-                Renderer[] headRenderers = headInstance.GetComponentsInChildren<Renderer>();
+                Renderer[] headRenderers = headInstance.GetComponentsInChildren<Renderer>(true);
                 MaterialPropertyBlock headMbp = new MaterialPropertyBlock();
 
                 foreach (var r in headRenderers)
@@ -869,11 +889,12 @@ namespace OsuVR
                     else if (objName.Contains("ApproachCircle"))
                         targetQueue = baseQueue + 8;
 
-                    // .material 首次访问会克隆共享材质（本滑条专属渲染队列），需登记待销毁
-                    Material headMat = r.material;
+                    // 回池前恢复原材质，避免复用引用了已销毁的材质副本。
+                    Material headMat = CreateOwnedMaterial(r);
+                    if (headMat == null)
+                        continue;
                     headMat.renderQueue = targetQueue;
                     headMat.SetInt("_ZWrite", 0);
-                    clonedMaterials.Add(headMat);
 
                     r.GetPropertyBlock(headMbp);
                     headMbp.SetColor(ColorPropertyId, hdrComboColor);
@@ -908,11 +929,10 @@ namespace OsuVR
 
                 // 使用工厂缓存的光晕材质（含程序化生成的空心光环贴图）
                 var dstMR = headHalo.AddComponent<MeshRenderer>();
-                dstMR.material = HitObjectFactory.GetHaloMaterial();
-                // 工厂材质是全滑条共享资产，改 renderQueue 前的 .material 访问会产生克隆
-                Material haloMat = dstMR.material;
-                haloMat.renderQueue = baseQueue + 4;
-                clonedMaterials.Add(haloMat);
+                dstMR.sharedMaterial = HitObjectFactory.GetHaloMaterial();
+                Material haloMat = CreateOwnedMaterial(dstMR);
+                if (haloMat != null)
+                    haloMat.renderQueue = baseQueue + 4;
 
                 // 光晕变换：1.25倍大小，纯 2D 平面模式
                 headHalo.transform.localPosition = Vector3.zero;
@@ -1243,14 +1263,13 @@ namespace OsuVR
             if (followBall == null)
             {
                 var poolMgr = NotePoolManager.Instance;
+                followBallPoolOwner = poolMgr;
 
                 if (poolMgr != null)
                 {
                     followBall = poolMgr.GetFollowBall();
                     if (followBall != null)
-                    {
                         followBall.transform.SetParent(transform);
-                    }
                 }
                 else
                 {
@@ -1261,11 +1280,6 @@ namespace OsuVR
                     }
                 }
 
-                if (followBall != null && garbageList != null)
-                {
-                    garbageList.Add(followBall);
-                }
-
                 baseBallScale = sliderWidth;
                 if (followBall != null)
                 {
@@ -1273,10 +1287,9 @@ namespace OsuVR
                     followBallRenderer = followBall.GetComponent<Renderer>();
                     if (followBallRenderer != null)
                     {
-                        // .material 克隆（专属渲染队列），登记待销毁
-                        Material ballMat = followBallRenderer.material;
-                        ballMat.renderQueue = this.cachedBaseQueue + 7;
-                        clonedMaterials.Add(ballMat);
+                        Material ballMat = CreateOwnedMaterial(followBallRenderer);
+                        if (ballMat != null)
+                            ballMat.renderQueue = this.cachedBaseQueue + 7;
                     }
                     ballCollider = followBall.GetComponent<SphereCollider>();
                     if (ballCollider == null)
@@ -1402,6 +1415,7 @@ namespace OsuVR
                 }
                 else
                 {
+                    PrepareForPoolRelease();
                     gameObject.SetActive(false); // 兜底
                     Destroy(gameObject);
                 }
@@ -1619,11 +1633,10 @@ namespace OsuVR
                 isLeftHandTracking = false;
         }
 
-        // 确保销毁时清理 Mesh 内存
         void OnDestroy()
         {
-            if (combinedMesh != null)
-                Destroy(combinedMesh);
+            // 场景卸载或父级销毁时不回池、不修改层级。
+            CleanUpEverything(false);
         }
 
         // =========================================================
@@ -1654,10 +1667,26 @@ namespace OsuVR
             }
         }
 
+        // 必须由池在父对象 SetActive(false) 之前调用，也可在已停用后显式回收。
+        public void PrepareForPoolRelease()
+        {
+            StopTrackingAudio();
+            CleanUpEverything();
+        }
+
+        void StopTrackingAudio()
+        {
+            if (isTrackingAudioPlaying && AudioManager.Instance != null)
+                AudioManager.Instance.ToggleSliderLoop(false);
+            isTrackingAudioPlaying = false;
+        }
+
         void OnDisable()
         {
-            // 当物体被隐藏/回收时，清理残留
-            CleanUpEverything();
+            StopTrackingAudio();
+            StopAllCoroutines();
+            // 此时父级可能正在激活/停用：禁止 SetParent 或释放任何子对象池。
+            // 外部禁用保留资源，下一次 Initialize/显式回池清理；销毁走 OnDestroy。
         }
 
         /// <summary>
@@ -2336,109 +2365,135 @@ namespace OsuVR
             );
         }
 
-        /// <summary>
-        /// 彻底清理上一轮留下的所有视觉残留
-        /// </summary>
-        private void CleanUpEverything()
+        static void DestroyRuntimeObject(UnityEngine.Object value)
         {
-            // 0. 首先清理动态 Mesh 和 Material，防止显存泄漏导致物体消失
-            CleanUpMeshes();
-
-            // 1. 清理垃圾桶 (Head, Arrow)
-            // 倒序遍历，方便移除
-            for (int i = garbageList.Count - 1; i >= 0; i--)
-            {
-                GameObject obj = garbageList[i];
-
-                if (obj != null)
-                {
-                    DestroyImmediate(obj);
-                }
-            }
-            garbageList.Clear(); // 清空列表，断开所有”尸体”引用
-
-            // 1.5 销毁本滑条定制渲染队列时产生的材质克隆（防显存泄漏）
-            for (int i = 0; i < clonedMaterials.Count; i++)
-            {
-                if (clonedMaterials[i] != null)
-                    DestroyImmediate(clonedMaterials[i]);
-            }
-            clonedMaterials.Clear();
-
-            // 清空折返粒子引用（GameObject 已被 Destroy，引用变成”假非空”）
-            headReversePS = null;
-            tailReversePS = null;
-
-            // 2. 清理 Tick (池化)
-            if (tickVisuals != null && tickPool != null)
-            {
-                // 使用 for 循环或 foreach 遍历 List
-                for (int i = 0; i < tickVisuals.Count; i++)
-                {
-                    GameObject obj = tickVisuals[i].gameObject;
-                    if (obj != null)
-                    {
-                        // 1. 隐藏物体
-                        obj.SetActive(false);
-
-                        // 2. 还给池子
-                        tickPool.Release(obj);
-                    }
-                }
-                // 3. 彻底清空列表
-                tickVisuals.Clear();
-            }
-
-            // 3. 重置变量 (防止 CreateVisuals 误用)
-            headInstance = null;
-            arrowInstance = null;
+            if (value == null)
+                return;
+            if (Application.isPlaying)
+                Destroy(value);
+            else
+                DestroyImmediate(value);
         }
 
-        /// <summary>
-        /// 彻底清理动态生成的 Mesh 和 Material，防止显存泄漏导致物体消失！
-        /// </summary>
-        private void CleanUpMeshes()
+        Material CreateOwnedMaterial(Renderer renderer)
         {
-            // 1. 清理本体的 Mesh 和 Material
-            if (combinedMesh != null)
+            Material original = renderer.sharedMaterial;
+            if (original == null)
+                return null;
+            var clone = new Material(original);
+            originalMaterials.Add(
+                new RendererMaterialRestore { Renderer = renderer, Original = original }
+            );
+            clonedMaterials.Add(clone);
+            renderer.sharedMaterial = clone;
+            return clone;
+        }
+
+        static bool CanReturnToPool(NotePoolManager owner) =>
+            owner != null && owner.isActiveAndEnabled && !owner.IsShuttingDown;
+
+        static void ReleaseGeneratedObject(GameObject obj, bool detach)
+        {
+            if (obj == null)
+                return;
+            if (detach)
             {
-                DestroyImmediate(combinedMesh);
-                combinedMesh = null;
+                obj.SetActive(false);
+                // Destroy 延迟到帧尾，同帧复用不得再次扫描旧的 Halo/Border。
+                obj.transform.SetParent(null, false);
             }
+            DestroyRuntimeObject(obj);
+        }
+
+        // 仅由 Initialize/池预清理调用可回池版本；OnDestroy 传 false 禁止层级操作。
+        private void CleanUpEverything(bool returnToPool = true)
+        {
+            StopAllCoroutines();
+            pulseCoroutine = null;
+            GameObject oldHead = headInstance;
+            GameObject oldBall = followBall;
+            NotePoolManager oldHeadPool = headPoolOwner;
+            NotePoolManager oldBallPool = followBallPoolOwner;
+            headInstance = null;
+            followBall = null;
+            headPoolOwner = null;
+            followBallPoolOwner = null;
+            followBallRenderer = null;
+            ballCollider = null;
+            arrowInstance = null;
+
+            // Renderer.material 不会保留可自动恢复的原材质，释放副本前显式还原。
+            foreach (var entry in originalMaterials)
+                if (entry.Renderer != null)
+                {
+                    entry.Renderer.sharedMaterial = entry.Original;
+                    entry.Renderer.SetPropertyBlock(null);
+                }
+            originalMaterials.Clear();
+            foreach (var material in clonedMaterials)
+                DestroyRuntimeObject(material);
+            clonedMaterials.Clear();
+
+            CleanUpMeshes(returnToPool);
+            for (int i = garbageList.Count - 1; i >= 0; i--)
+                ReleaseGeneratedObject(garbageList[i], returnToPool);
+            garbageList.Clear();
+            headReversePS = null;
+            tailReversePS = null;
+            RecycleAllTicks(returnToPool);
+
+            if (oldHead != null)
+            {
+                if (returnToPool && CanReturnToPool(oldHeadPool))
+                    oldHeadPool.ReleaseSliderHead(oldHead);
+                else
+                    ReleaseGeneratedObject(oldHead, returnToPool);
+            }
+            if (oldBall != null)
+            {
+                if (returnToPool && CanReturnToPool(oldBallPool))
+                    oldBallPool.ReleaseFollowBall(oldBall);
+                else
+                    ReleaseGeneratedObject(oldBall, returnToPool);
+            }
+        }
+
+        private void CleanUpMeshes(bool detach = true)
+        {
+            if (meshFilter != null)
+                meshFilter.sharedMesh = null;
+            if (meshCollider != null)
+                meshCollider.sharedMesh = null;
             if (meshRenderer != null)
             {
                 meshRenderer.SetPropertyBlock(null);
-
-                if (meshRenderer.sharedMaterial != null)
-                {
-                    if (meshRenderer.sharedMaterial != sharedMaterial)
-                    {
-                        DestroyImmediate(meshRenderer.sharedMaterial);
-                    }
-                    meshRenderer.sharedMaterial = null;
-                }
+                if (meshRenderer.sharedMaterial == generatedBodyMaterial)
+                    meshRenderer.sharedMaterial = sharedMaterial;
             }
-
-            // 2. 清理边框的 Mesh 和 Material
-            Transform oldBorder = transform.Find("SliderBorder");
-            if (oldBorder != null)
+            if (generatedBorderObject != null)
             {
-                MeshFilter mf = oldBorder.GetComponent<MeshFilter>();
-                if (mf != null && mf.sharedMesh != null)
-                    DestroyImmediate(mf.sharedMesh);
-
-                MeshRenderer mr = oldBorder.GetComponent<MeshRenderer>();
-                if (mr != null)
-                {
-                    // 清理边框材质属性
-                    mr.SetPropertyBlock(null);
-
-                    if (mr.sharedMaterial != null)
-                        DestroyImmediate(mr.sharedMaterial);
-                }
-
-                DestroyImmediate(oldBorder.gameObject);
+                var filter = generatedBorderObject.GetComponent<MeshFilter>();
+                if (filter != null)
+                    filter.sharedMesh = null;
             }
+            if (borderMeshRenderer != null)
+            {
+                borderMeshRenderer.SetPropertyBlock(null);
+                borderMeshRenderer.sharedMaterial = null;
+            }
+
+            DestroyRuntimeObject(combinedMesh);
+            DestroyRuntimeObject(generatedBorderMesh);
+            DestroyRuntimeObject(generatedBodyMaterial);
+            DestroyRuntimeObject(generatedBorderMaterial);
+            combinedMesh = null;
+            generatedBorderMesh = null;
+            generatedBodyMaterial = null;
+            generatedBorderMaterial = null;
+            GameObject border = generatedBorderObject;
+            generatedBorderObject = null;
+            borderMeshRenderer = null;
+            ReleaseGeneratedObject(border, detach);
         }
     }
 }

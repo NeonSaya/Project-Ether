@@ -13,6 +13,7 @@ namespace OsuVR
     public class NotePoolManager : MonoBehaviour
     {
         public static NotePoolManager Instance;
+        public bool IsShuttingDown { get; private set; }
 
         [Header("材质配置 (可选)")]
         [Tooltip("Note主体材质，不填则使用默认材质")]
@@ -124,6 +125,13 @@ namespace OsuVR
                 {
                     if (obj != null)
                     {
+                        // 已借出的滑条可能比池管理器活得更久，不能访问已销毁的 transform。
+                        if (this == null || IsShuttingDown)
+                        {
+                            Destroy(obj);
+                            return;
+                        }
+                        obj.GetComponent<SliderController>()?.PrepareForPoolRelease();
                         obj.SetActive(false);
                         obj.transform.SetParent(transform);
                     }
@@ -350,6 +358,7 @@ namespace OsuVR
 
         void OnDestroy()
         {
+            IsShuttingDown = true;
             // 静态 Instance 随场景卸载置空，防止残留“假非空”引用
             if (Instance == this)
                 Instance = null;
