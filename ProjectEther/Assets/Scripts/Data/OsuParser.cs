@@ -600,7 +600,7 @@ namespace OsuVR
         // 解析 [Events] (背景图、休息时间、视频、故事板)
         private static void ParseEvents(string line, Beatmap beatmap)
         {
-            var parts = line.Split(',');
+            var parts = OsuVR.Storyboard.StoryboardParser.SplitCsv(line).ToArray();
             if (parts.Length < 3) return;
 
             string type = parts[0].Trim();
@@ -630,7 +630,7 @@ namespace OsuVR
                 }
             }
             // 故事板主对象: Sprite, Animation, Sample (osu! v14+ 使用字符串名称)
-            else if (type.Equals("Sprite", StringComparison.OrdinalIgnoreCase)
+            else if (type == "4" || type == "6" || type.Equals("Sprite", StringComparison.OrdinalIgnoreCase)
                   || type.Equals("Animation", StringComparison.OrdinalIgnoreCase)
                   || type.Equals("Sample", StringComparison.OrdinalIgnoreCase))
             {

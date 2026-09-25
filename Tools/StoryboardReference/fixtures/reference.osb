@@ -1,0 +1,27 @@
+[General]
+WidescreenStoryboard: 1
+[Events]
+Sprite,Foreground,Centre,"grey.png",120,120
+ S,0,0,1000,100
+ F,0,0,1000,1
+Sprite,Foreground,Centre,"white.png",320,120
+ S,0,0,1000,100
+ F,0,0,1000,0.5
+Sprite,Foreground,Centre,"red.png",520,120
+ S,0,0,1000,100
+ F,0,0,1000,0.5
+ P,0,0,1000,A
+Sprite,Foreground,Centre,"blue.png",540,140
+ S,0,0,1000,100
+ F,0,0,1000,0.5
+Sprite,Foreground,Centre,"white.png",120,340
+ S,0,0,1000,100
+ F,0,0,1000,1
+ C,0,0,1000,0,0,0,255,255,255
+Sprite,Foreground,TopLeft,"pair.png",320,320
+ V,0,0,1000,-60,80
+ F,0,0,1000,1
+Sprite,Foreground,TopLeft,"pair.png",520,320
+ V,0,0,1000,-60,80
+ F,0,0,1000,1
+ P,0,0,1000,H

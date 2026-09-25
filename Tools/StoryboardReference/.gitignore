@@ -1,0 +1,7 @@
+bin/
+obj/
+Gpu/bin/
+Gpu/obj/
+Gpu/storage*/
+*.log
+*.unity-results.txt

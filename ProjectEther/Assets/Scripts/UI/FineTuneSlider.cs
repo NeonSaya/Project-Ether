@@ -1,3 +1,9 @@
+// =====================================================================
+// [封存代码 Archived for Reference]
+// FineTuneSlider 已被 SimpleVRSettingsMenu（内置微调逻辑） 取代，不再参与运行时流程。
+// 保留用于 GitHub 学习交流与结构参照（配套 VRSettingsMenu.prefab）。
+// 不要在新功能中引用本类。
+// =====================================================================
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;

@@ -152,6 +152,8 @@ namespace OsuVR.Storyboard
             var storyboard = new SBStoryboard();
             SBElement currentElement = null;
             SBLoop currentLoop = null;
+            SBTrigger currentTrigger = null;
+            int commandSequence = 0;
 
             foreach (var rawLine in lines)
             {
@@ -162,7 +164,7 @@ namespace OsuVR.Storyboard
                     // 判断是主对象行还是命令行
                     // 主对象行: 不以空格开头 (Sprite, Animation)
                     // 命令行: 以空格或下划线开头, 或者是 L,/T, 开头的循环/触发器
-                    string line = rawLine.Trim();
+                    string line = rawLine.Trim().TrimStart('_');
                     bool isCommand = rawLine.StartsWith(" ") || rawLine.StartsWith("_")
                         || line.StartsWith("L,") || line.StartsWith("l,")
                         || line.StartsWith("T,") || line.StartsWith("t,");
@@ -171,6 +173,7 @@ namespace OsuVR.Storyboard
                     {
                         // 主对象行
                         currentLoop = null;
+                        currentTrigger = null;
                         currentElement = ParseElement(line);
                         if (currentElement != null)
                             storyboard.AddElement(currentElement);
@@ -187,6 +190,7 @@ namespace OsuVR.Storyboard
                                 loopData = loopData.Substring(3);
                             else if (loopData.StartsWith("L,") || loopData.StartsWith("l,"))
                                 loopData = loopData.Substring(2);
+                            currentTrigger = null;
                             currentLoop = ParseLoop(loopData, currentElement);
                             if (currentLoop != null)
                                 currentElement.Loops.Add(currentLoop);
@@ -200,17 +204,21 @@ namespace OsuVR.Storyboard
                                 triggerData = triggerData.Substring(3);
                             else if (triggerData.StartsWith("T,") || triggerData.StartsWith("t,"))
                                 triggerData = triggerData.Substring(2);
-                            ParseTrigger(triggerData, currentElement);
+                            currentTrigger = ParseTrigger(triggerData, currentElement);
                         }
                         else
                         {
                             // 普通命令：按缩进层级决定归属（osu! 规范：1 级缩进=sprite 直接命令，2 级=Loop 内层）。
                             // 原实现 currentLoop 不随缩进闭合：Loop 块之后的直接命令会被错误吞进 Loop 内部，
                             // 导致 LoopDuration 被拉长、直接命令从直接窗口消失（t=5500 输出 2.0 而非 0.5 的根因之一）
-                            if (currentLoop != null && GetIndentLevel(rawLine) < 2)
+                            if (GetIndentLevel(rawLine) < 2)
+                            {
                                 currentLoop = null;
-                            var target = currentLoop != null ? (object)currentLoop : currentElement;
-                            ParseCommand(line, target);
+                                currentTrigger = null;
+                            }
+                            var target = currentTrigger != null ? (object)currentTrigger
+                                : (currentLoop != null ? (object)currentLoop : currentElement);
+                            ParseCommand(line, target, commandSequence++);
                         }
                     }
                 }
@@ -273,16 +281,16 @@ namespace OsuVR.Storyboard
 
             var pos = new Vector2(x, y);
 
-            if (type.Equals("Sprite", StringComparison.OrdinalIgnoreCase))
+            if (type == "4" || type.Equals("Sprite", StringComparison.OrdinalIgnoreCase))
             {
                 return new SBStoryboardSprite(layer, origin, imagePath, pos);
             }
-            else if (type.Equals("Animation", StringComparison.OrdinalIgnoreCase))
+            else if (type == "6" || type.Equals("Animation", StringComparison.OrdinalIgnoreCase))
             {
                 // Animation,layer,origin,"imagePath",x,y,frameCount,frameDelay,loopType
                 int frameCount = parts.Count > 6 ? ParseInt(parts[6]) : 1;
                 double frameDelay = parts.Count > 7 ? ParseDouble(parts[7]) : 0;
-                var loopType = parts.Count > 8 && ParseInt(parts[8]) == 1
+                var loopType = parts.Count > 8 && (parts[8].Trim() == "1" || parts[8].Trim().Equals("LoopOnce", StringComparison.OrdinalIgnoreCase))
                     ? SBAnimationLoopType.LoopOnce
                     : SBAnimationLoopType.LoopForever;
                 return new SBStoryboardAnimation(layer, origin, imagePath, pos, frameCount, frameDelay, loopType);
@@ -309,7 +317,7 @@ namespace OsuVR.Storyboard
         //  命令解析
         // =====================================================
 
-        static void ParseCommand(string line, object target)
+        static void ParseCommand(string line, object target, int sequence)
         {
             var parts = SplitCsv(line);
             if (parts.Count < 4) return;
@@ -336,7 +344,7 @@ namespace OsuVR.Storyboard
 
             // StartTime (parts[2]), EndTime (parts[3])
             double startTime = parts.Count > 2 ? ParseDouble(parts[2]) : 0;
-            double endTime = parts.Count > 3 ? ParseDouble(parts[3]) : startTime;
+            double endTime = parts.Count > 3 && !string.IsNullOrWhiteSpace(parts[3]) ? ParseDouble(parts[3]) : startTime;
 
             // 确保 endTime >= startTime
             if (endTime < startTime) endTime = startTime;
@@ -353,14 +361,14 @@ namespace OsuVR.Storyboard
 
                         float fadeStart = parts.Count > 4 ? ParseFloat(parts[4]) : 1f;
                         float fadeEnd = parts.Count > 5 ? ParseFloat(parts[5]) : fadeStart;
-                        AddFadeCommand(target, easing, startTime, endTime, fadeStart, fadeEnd);
+                        AddFadeCommand(target, sequence, easing, startTime, endTime, fadeStart, fadeEnd);
                     }
                     break;
 
                 case "M":
                     // M,easing,startTime,endTime,startX,startY[,endX,endY]
                     if (parts.Count < 6) break; // 至少需要 startX,startY
-                    AddMoveCommand(target, easing, startTime, endTime,
+                    AddMoveCommand(target, sequence, easing, startTime, endTime,
                         new Vector2(ParseFloat(parts[4]), ParseFloat(parts[5])),
                         parts.Count > 7
                             ? new Vector2(ParseFloat(parts[6]), ParseFloat(parts[7]))
@@ -369,21 +377,21 @@ namespace OsuVR.Storyboard
 
                 case "MX":
                     // MX,easing,startTime,endTime,startX[,endX]
-                    AddMoveXCommand(target, easing, startTime, endTime,
+                    AddMoveXCommand(target, sequence, easing, startTime, endTime,
                         parts.Count > 4 ? ParseFloat(parts[4]) : 0f,
                         parts.Count > 5 ? ParseFloat(parts[5]) : (parts.Count > 4 ? ParseFloat(parts[4]) : 0f));
                     break;
 
                 case "MY":
                     // MY,easing,startTime,endTime,startY[,endY]
-                    AddMoveYCommand(target, easing, startTime, endTime,
+                    AddMoveYCommand(target, sequence, easing, startTime, endTime,
                         parts.Count > 4 ? ParseFloat(parts[4]) : 0f,
                         parts.Count > 5 ? ParseFloat(parts[5]) : (parts.Count > 4 ? ParseFloat(parts[4]) : 0f));
                     break;
 
                 case "S":
                     // S,easing,startTime,endTime,startScale[,endScale]
-                    AddScaleCommand(target, easing, startTime, endTime,
+                    AddScaleCommand(target, sequence, easing, startTime, endTime,
                         parts.Count > 4 ? ParseFloat(parts[4]) : 1f,
                         parts.Count > 5 ? ParseFloat(parts[5]) : (parts.Count > 4 ? ParseFloat(parts[4]) : 1f));
                     break;
@@ -391,7 +399,7 @@ namespace OsuVR.Storyboard
                 case "V":
                     // V,easing,startTime,endTime,startScaleX,startScaleY,endScaleX,endScaleY
                     if (parts.Count < 6) break;
-                    AddScaleVectorCommand(target, easing, startTime, endTime,
+                    AddScaleVectorCommand(target, sequence, easing, startTime, endTime,
                         ParseFloat(parts[4]), ParseFloat(parts[5]),
                         parts.Count > 7 ? ParseFloat(parts[6]) : ParseFloat(parts[4]),
                         parts.Count > 7 ? ParseFloat(parts[7]) : ParseFloat(parts[5]));
@@ -399,139 +407,141 @@ namespace OsuVR.Storyboard
 
                 case "R":
                     // R,easing,startTime,endTime,startRotation[,endRotation]
-                    AddRotateCommand(target, easing, startTime, endTime,
+                    AddRotateCommand(target, sequence, easing, startTime, endTime,
                         parts.Count > 4 ? ParseFloat(parts[4]) : 0f,
                         parts.Count > 5 ? ParseFloat(parts[5]) : (parts.Count > 4 ? ParseFloat(parts[4]) : 0f));
                     break;
 
                 case "C":
-                    // C,easing,startTime,endTime,r,g,b[,r2,g2,b2]
-                    if (parts.Count < 7) break; // 至少需要 r,g,b
-                    AddColorCommand(target, easing, startTime, endTime,
-                        new Color32(
-                            (byte)ParseInt(parts[4]),
-                            (byte)ParseInt(parts[5]),
-                            (byte)ParseInt(parts[6]), 255),
-                        parts.Count > 9
-                            ? new Color32(
-                                (byte)ParseInt(parts[7]),
-                                (byte)ParseInt(parts[8]),
-                                (byte)ParseInt(parts[9]), 255)
-                            : new Color32(
-                                (byte)ParseInt(parts[4]),
-                                (byte)ParseInt(parts[5]),
-                                (byte)ParseInt(parts[6]), 255));
+                    if (parts.Count < 7) break;
+                    var startColor = new Color(ParseFloat(parts[4]) / 255f, ParseFloat(parts[5]) / 255f, ParseFloat(parts[6]) / 255f, 1);
+                    var endColor = new Color(parts.Count > 7 ? ParseFloat(parts[7]) / 255f : startColor.r,
+                        parts.Count > 8 ? ParseFloat(parts[8]) / 255f : startColor.g,
+                        parts.Count > 9 ? ParseFloat(parts[9]) / 255f : startColor.b, 1);
+                    AddColorCommand(target, sequence, easing, startTime, endTime, startColor, endColor);
                     break;
 
                 case "P":
                     // P,easing,startTime,endTime,parameter
                     string param = parts.Count > 4 ? parts[4].Trim() : "";
-                    AddParameterCommand(target, easing, startTime, endTime, param);
+                    AddParameterCommand(target, sequence, easing, startTime, endTime, param);
                     break;
             }
         }
 
         static SBLoop ParseLoop(string data, SBElement element)
         {
-            // data 已去掉前缀: "startTime,loopCount"
             var parts = SplitCsv(data);
             if (parts.Count < 2) return null;
-
-            double startTime = ParseDouble(parts[0]);
-            int repeatCount = ParseInt(parts[1]);
-            // osu! 格式: L,startTime,repeatCount
-            // repeatCount = 重复次数 (不含首次播放)
-            // osu!lazer: AddLoopingGroup(startTime, repeatCount - 1), TotalIterations = (repeatCount-1) + 1 = repeatCount
-            // 所以总迭代次数 = repeatCount (与文件中的值一致)
-            int totalIterations = repeatCount < 0 ? -1 : repeatCount;
-            return new SBLoop(startTime, totalIterations);
+            // LegacyStoryboardDecoder passes max(0, fileCount - 1) to lazer,
+            // whose internal repeat count excludes the initial playback.
+            return new SBLoop(ParseDouble(parts[0]), Math.Max(1, ParseInt(parts[1])));
         }
 
-        static void ParseTrigger(string data, SBElement element)
+        static SBTrigger ParseTrigger(string data, SBElement element)
         {
-            // data 已去掉前缀: "triggerName,startTime,endTime"
             var parts = SplitCsv(data);
-            if (parts.Count < 3) return;
-            string name = parts[0].Trim();
-            double start = ParseDouble(parts[1]);
-            double end = ParseDouble(parts[2]);
-            element.Triggers.Add(new SBTrigger(name, start, end));
+            if (parts.Count == 0) return null;
+            var trigger = new SBTrigger(parts[0].Trim(),
+                parts.Count > 1 && parts[1].Length > 0 ? ParseDouble(parts[1]) : double.MinValue,
+                parts.Count > 2 && parts[2].Length > 0 ? ParseDouble(parts[2]) : double.MaxValue);
+            trigger.GroupNumber = parts.Count > 3 ? -ParseInt(parts[3]) : 0;
+            element.Triggers.Add(trigger);
+            return trigger;
         }
 
         // =====================================================
         //  命令分发到正确的容器
         // =====================================================
 
-        static void AddFadeCommand(object target, SBEasing easing, double start, double end, float v1, float v2)
+        static void AddFadeCommand(object target, int sequence, SBEasing easing, double start, double end, float v1, float v2)
         {
             var cmd = new SBFadeCommand(easing, start, end, v1, v2);
+            cmd.Sequence = sequence;
             if (target is SBElement elem) elem.FadeCommands.Add(cmd);
             else if (target is SBLoop loop) loop.FadeCommands.Add(cmd);
+            else if (target is SBTrigger trigger) trigger.Commands.Add(cmd);
         }
 
-        static void AddMoveCommand(object target, SBEasing easing, double start, double end, Vector2 v1, Vector2 v2)
+        static void AddMoveCommand(object target, int sequence, SBEasing easing, double start, double end, Vector2 v1, Vector2 v2)
         {
             var cmd = new SBMoveCommand(easing, start, end, v1, v2);
+            cmd.Sequence = sequence;
             if (target is SBElement elem) elem.MoveCommands.Add(cmd);
             else if (target is SBLoop loop) loop.MoveCommands.Add(cmd);
+            else if (target is SBTrigger trigger) trigger.Commands.Add(cmd);
         }
 
-        static void AddMoveXCommand(object target, SBEasing easing, double start, double end, float v1, float v2)
+        static void AddMoveXCommand(object target, int sequence, SBEasing easing, double start, double end, float v1, float v2)
         {
             var cmd = new SBMoveAxisCommand(SBCommandType.MX, easing, start, end, v1, v2);
+            cmd.Sequence = sequence;
             if (target is SBElement elem) elem.MoveXCommands.Add(cmd);
             else if (target is SBLoop loop) loop.MoveXCommands.Add(cmd);
+            else if (target is SBTrigger trigger) trigger.Commands.Add(cmd);
         }
 
-        static void AddMoveYCommand(object target, SBEasing easing, double start, double end, float v1, float v2)
+        static void AddMoveYCommand(object target, int sequence, SBEasing easing, double start, double end, float v1, float v2)
         {
             var cmd = new SBMoveAxisCommand(SBCommandType.MY, easing, start, end, v1, v2);
+            cmd.Sequence = sequence;
             if (target is SBElement elem) elem.MoveYCommands.Add(cmd);
             else if (target is SBLoop loop) loop.MoveYCommands.Add(cmd);
+            else if (target is SBTrigger trigger) trigger.Commands.Add(cmd);
         }
 
-        static void AddScaleCommand(object target, SBEasing easing, double start, double end, float v1, float v2)
+        static void AddScaleCommand(object target, int sequence, SBEasing easing, double start, double end, float v1, float v2)
         {
             var cmd = new SBScaleCommand(easing, start, end, v1, v2);
+            cmd.Sequence = sequence;
             if (target is SBElement elem) elem.ScaleCommands.Add(cmd);
             else if (target is SBLoop loop) loop.ScaleCommands.Add(cmd);
+            else if (target is SBTrigger trigger) trigger.Commands.Add(cmd);
         }
 
-        static void AddScaleVectorCommand(object target, SBEasing easing, double start, double end,
+        static void AddScaleVectorCommand(object target, int sequence, SBEasing easing, double start, double end,
             float startX, float startY, float endX, float endY)
         {
             // V 命令: 非均匀缩放
             var cmd = new SBScaleVectorCommand(easing, start, end, startX, startY, endX, endY);
+            cmd.Sequence = sequence;
             if (target is SBElement elem) elem.ScaleVectorCommands.Add(cmd);
             else if (target is SBLoop loop) loop.ScaleVectorCommands.Add(cmd);
+            else if (target is SBTrigger trigger) trigger.Commands.Add(cmd);
         }
 
-        static void AddRotateCommand(object target, SBEasing easing, double start, double end, float v1, float v2)
+        static void AddRotateCommand(object target, int sequence, SBEasing easing, double start, double end, float v1, float v2)
         {
             var cmd = new SBRotateCommand(easing, start, end, v1, v2);
+            cmd.Sequence = sequence;
             if (target is SBElement elem) elem.RotateCommands.Add(cmd);
             else if (target is SBLoop loop) loop.RotateCommands.Add(cmd);
+            else if (target is SBTrigger trigger) trigger.Commands.Add(cmd);
         }
 
-        static void AddColorCommand(object target, SBEasing easing, double start, double end, Color32 v1, Color32 v2)
+        static void AddColorCommand(object target, int sequence, SBEasing easing, double start, double end, Color v1, Color v2)
         {
             var cmd = new SBColorCommand(easing, start, end, v1, v2);
+            cmd.Sequence = sequence;
             if (target is SBElement elem) elem.ColorCommands.Add(cmd);
             else if (target is SBLoop loop) loop.ColorCommands.Add(cmd);
+            else if (target is SBTrigger trigger) trigger.Commands.Add(cmd);
         }
 
-        static void AddParameterCommand(object target, SBEasing easing, double start, double end, string param)
+        static void AddParameterCommand(object target, int sequence, SBEasing easing, double start, double end, string param)
         {
             var cmd = new SBParameterCommand(easing, start, end, param);
+            cmd.Sequence = sequence;
             if (target is SBElement elem) elem.ParameterCommands.Add(cmd);
             else if (target is SBLoop loop) loop.ParameterCommands.Add(cmd);
+            else if (target is SBTrigger trigger) trigger.Commands.Add(cmd);
         }
 
         // =====================================================
         //  工具方法
         // =====================================================
 
-        static List<string> SplitCsv(string line)
+        internal static List<string> SplitCsv(string line)
         {
             var result = new List<string>();
             bool inQuotes = false;

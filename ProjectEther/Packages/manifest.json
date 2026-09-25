@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "com.ivanmurzak.unity.mcp": "0.90.0",
+    "com.ivanmurzak.unity.mcp": "0.93.0",
     "com.llealloo.audiolink": "https://github.com/llealloo/vrc-udon-audio-link.git?path=/Packages/com.llealloo.audiolink",
     "com.unity.2d.sprite": "1.0.0",
     "com.unity.collab-proxy": "2.11.2",

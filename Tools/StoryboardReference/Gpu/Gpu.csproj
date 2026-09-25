@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+    <LazerDirectory Condition="'$(LazerDirectory)' == ''">$(LocalAppData)/osulazer/current</LazerDirectory>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="osu.Framework"><HintPath>$(LazerDirectory)/osu.Framework.dll</HintPath></Reference>
+    <Reference Include="osu.Game"><HintPath>$(LazerDirectory)/osu.Game.dll</HintPath></Reference>
+    <Reference Include="osuTK"><HintPath>$(LazerDirectory)/osuTK.dll</HintPath></Reference>
+    <Reference Include="SixLabors.ImageSharp"><HintPath>$(LazerDirectory)/SixLabors.ImageSharp.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

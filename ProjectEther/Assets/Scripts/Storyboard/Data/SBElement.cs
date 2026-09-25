@@ -466,6 +466,7 @@ namespace OsuVR.Storyboard.Data
     /// </summary>
     public class SBTrigger
     {
+        public int GroupNumber;
         public string TriggerName;
         public double StartTime;
         public double EndTime;

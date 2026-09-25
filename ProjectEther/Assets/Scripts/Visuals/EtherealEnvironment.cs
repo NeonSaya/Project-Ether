@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
@@ -208,6 +209,7 @@ namespace OsuVR
         // 镜面地板
         private GameObject mirrorFloorObj;
         private Material mirrorFloorMaterial;
+        private Material mirrorFallbackMaterial; // URP Lit 不可用时的兜底材质
 
         // 粒子系统
         private ParticleSystem stardustPS;
@@ -484,6 +486,27 @@ namespace OsuVR
             DetectPhase(newScene);
             // 场景切换时重新检测AudioLink
             CheckAudioLinkAvailability();
+        }
+
+        void OnDestroy()
+        {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.activeSceneChanged -= OnActiveSceneChanged;
+
+            // 释放运行时生成的材质与贴图（此前仅进程退出才回收）
+            Destroy(nebulaMaterial);      Destroy(particleMaterial);
+            Destroy(fallingStarMaterial); Destroy(bokehMaterial);
+            Destroy(crystalMaterial);     Destroy(ringMaterial);
+            Destroy(auroraMaterial);      Destroy(pulseMaterial);
+            Destroy(bubbleMaterial);      Destroy(mirrorFloorMaterial);
+            Destroy(spectrumBarMaterial); Destroy(mirrorFallbackMaterial);
+
+            Destroy(glowTexture);
+            Destroy(spectrumTexture);
+            Destroy(bokehTexture);
+            Destroy(nebulaTexture);
+
+            _nearbyOriginals.Clear();
         }
 
         void DetectPhase(Scene scene)
@@ -940,8 +963,9 @@ namespace OsuVR
                 var fallbackShader = Shader.Find("Sprites/Default") ?? Shader.Find("Standard");
                 if (fallbackShader != null)
                 {
-                    mr.material = new Material(fallbackShader);
-                    mr.material.color = new Color(0.6f, 0.7f, 0.8f, mirrorFloorAlpha);
+                    mirrorFallbackMaterial = new Material(fallbackShader);
+                    mirrorFallbackMaterial.color = new Color(0.6f, 0.7f, 0.8f, mirrorFloorAlpha);
+                    mr.material = mirrorFallbackMaterial;
                 }
             }
 
@@ -1903,6 +1927,12 @@ namespace OsuVR
         private ParticleSystem.Particle[] nearbyParticleBuffer;
         private int nearbyParticleBufferCapacity = 0;
 
+        // 近头粒子原始尺寸/颜色记录（防止复利缩小：按原始值计算，离开范围恢复）
+        private struct NearbyParticleOriginal { public float Size; public Color Color; }
+        private readonly Dictionary<ParticleSystem, Dictionary<uint, NearbyParticleOriginal>> _nearbyOriginals = new Dictionary<ParticleSystem, Dictionary<uint, NearbyParticleOriginal>>();
+        private readonly HashSet<uint> _nearbySeenSeeds = new HashSet<uint>();
+        private readonly List<uint> _nearbyStaleSeeds = new List<uint>();
+
         /// <summary>
         /// 降低0.5m内粒子的大小和透明度，确保不影响读谱
         /// </summary>
@@ -1935,14 +1965,24 @@ namespace OsuVR
             int count = ps.particleCount;
             if (count == 0) return;
 
+            if (!_nearbyOriginals.TryGetValue(ps, out var originals))
+            {
+                originals = new Dictionary<uint, NearbyParticleOriginal>();
+                _nearbyOriginals[ps] = originals;
+            }
+
             EnsureNearbyParticleBuffer(count);
             count = ps.GetParticles(nearbyParticleBuffer);
 
             bool modified = false;
             float radiusSqr = radius * radius;
+            _nearbySeenSeeds.Clear();
 
             for (int i = 0; i < count; i++)
             {
+                uint seed = nearbyParticleBuffer[i].randomSeed;
+                _nearbySeenSeeds.Add(seed);
+
                 Vector3 particlePos = ps.main.simulationSpace == ParticleSystemSimulationSpace.World
                     ? nearbyParticleBuffer[i].position
                     : ps.transform.TransformPoint(nearbyParticleBuffer[i].position);
@@ -1951,17 +1991,45 @@ namespace OsuVR
 
                 if (distSqr < radiusSqr)
                 {
-                    // 在近距离范围内，降低大小和透明度
+                    // 在近距离范围内，按"原始值 × factor"计算（而非连乘），防止复利缩小到消失
                     float dist = Mathf.Sqrt(distSqr);
                     float t = dist / radius; // 0到1，0表示在中心
                     float factor = Mathf.Lerp(reduceFactor, 1f, t); // 越近越小
 
-                    nearbyParticleBuffer[i].startSize *= factor;
-                    Color color = nearbyParticleBuffer[i].startColor;
-                    color.a *= factor;
+                    if (!originals.TryGetValue(seed, out var orig))
+                    {
+                        orig = new NearbyParticleOriginal
+                        {
+                            Size = nearbyParticleBuffer[i].startSize,
+                            Color = nearbyParticleBuffer[i].startColor
+                        };
+                        originals[seed] = orig;
+                    }
+
+                    nearbyParticleBuffer[i].startSize = orig.Size * factor;
+                    Color color = orig.Color;
+                    color.a = orig.Color.a * factor;
                     nearbyParticleBuffer[i].startColor = color;
                     modified = true;
                 }
+                else if (originals.TryGetValue(seed, out var orig))
+                {
+                    // 离开范围：恢复原始大小与颜色
+                    nearbyParticleBuffer[i].startSize = orig.Size;
+                    nearbyParticleBuffer[i].startColor = orig.Color;
+                    originals.Remove(seed);
+                    modified = true;
+                }
+            }
+
+            // 清理已死亡粒子的残留记录（当前存活集合中不存在的 seed）
+            if (originals.Count > 0)
+            {
+                _nearbyStaleSeeds.Clear();
+                foreach (uint k in originals.Keys)
+                    if (!_nearbySeenSeeds.Contains(k)) _nearbyStaleSeeds.Add(k);
+                for (int i = 0; i < _nearbyStaleSeeds.Count; i++)
+                    originals.Remove(_nearbyStaleSeeds[i]);
             }
 
             if (modified)

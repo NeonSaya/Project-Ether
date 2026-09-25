@@ -12,6 +12,10 @@ namespace OsuVR.Storyboard.Data
         /// </summary>
         public List<SBElement>[] Layers = new List<SBElement>[5];
 
+        // Project Ether has no HP/fail state. Keep lazer state selection explicit
+        // so Fail and Pass are never composited together.
+        public bool IsFailState { get; set; }
+
         public SBStoryboard()
         {
             for (int i = 0; i < 5; i++)
@@ -45,6 +49,8 @@ namespace OsuVR.Storyboard.Data
         {
             for (int i = 0; i < 5; i++)
             {
+                if (i == (int)SBLayer.Fail && !IsFailState) continue;
+                if (i == (int)SBLayer.Pass && IsFailState) continue;
                 foreach (var element in Layers[i])
                     yield return element;
             }

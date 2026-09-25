@@ -9,6 +9,7 @@ namespace OsuVR.Storyboard.Engine
     /// </summary>
     public abstract class SBSpriteCommand
     {
+        public int Sequence;
         public double StartTime;
         public double EndTime;
         public SBEasing Easing;
@@ -19,7 +20,7 @@ namespace OsuVR.Storyboard.Engine
             Target = target;
             Easing = easing;
             StartTime = startTime;
-            EndTime = endTime;
+            EndTime = System.Math.Max(startTime, endTime);
         }
 
         /// <summary>
@@ -64,7 +65,7 @@ namespace OsuVR.Storyboard.Engine
 
         public override SBSpriteCommand CreateOffsetCommand(double offset)
         {
-            return new SBFloatCommand(Target, Easing, StartTime + offset, EndTime + offset, StartValue, EndValue);
+            return new SBFloatCommand(Target, Easing, StartTime + offset, EndTime + offset, StartValue, EndValue) { Sequence = Sequence };
         }
 
         public override SBSpriteCommand CreateHoldCommand(double holdStart, double holdEnd)
@@ -78,11 +79,11 @@ namespace OsuVR.Storyboard.Engine
     /// </summary>
     public class SBColorCommand : SBSpriteCommand
     {
-        public Color32 StartValue;
-        public Color32 EndValue;
+        public Color StartValue;
+        public Color EndValue;
 
         public SBColorCommand(SBCommandTarget target, SBEasing easing, double startTime, double endTime,
-            Color32 startValue, Color32 endValue)
+            Color startValue, Color endValue)
             : base(target, easing, startTime, endTime)
         {
             StartValue = startValue;
@@ -91,7 +92,7 @@ namespace OsuVR.Storyboard.Engine
 
         public override SBSpriteCommand CreateOffsetCommand(double offset)
         {
-            return new SBColorCommand(Target, Easing, StartTime + offset, EndTime + offset, StartValue, EndValue);
+            return new SBColorCommand(Target, Easing, StartTime + offset, EndTime + offset, StartValue, EndValue) { Sequence = Sequence };
         }
 
         public override SBSpriteCommand CreateHoldCommand(double holdStart, double holdEnd)
@@ -105,6 +106,8 @@ namespace OsuVR.Storyboard.Engine
     /// </summary>
     public class SBBoolCommand : SBSpriteCommand
     {
+        public bool UseInitialValue;
+        public bool Suppressed, ResetSuppressed;
         public bool StartValue;
         public bool EndValue;
 
@@ -112,13 +115,14 @@ namespace OsuVR.Storyboard.Engine
             bool startValue, bool endValue)
             : base(target, easing, startTime, endTime)
         {
+            UseInitialValue = startTime == endTime;
             StartValue = startValue;
             EndValue = endValue;
         }
 
         public override SBSpriteCommand CreateOffsetCommand(double offset)
         {
-            return new SBBoolCommand(Target, Easing, StartTime + offset, EndTime + offset, StartValue, EndValue);
+            return new SBBoolCommand(Target, Easing, StartTime + offset, EndTime + offset, StartValue, EndValue) { Sequence = Sequence, UseInitialValue = UseInitialValue, Suppressed = Suppressed, ResetSuppressed = ResetSuppressed };
         }
 
         public override SBSpriteCommand CreateHoldCommand(double holdStart, double holdEnd)
@@ -140,13 +144,13 @@ namespace OsuVR.Storyboard.Engine
         public SBLoopCommand(double startTime, int loopCount, SBCommandGroup innerGroup)
             : base(SBCommandTarget.Alpha, SBEasing.Linear, startTime, 0)
         {
-            LoopCount = loopCount;
+            // The parser stores total iterations (the file repeat count). A zero
+            // repeat count is normalized by lazer to one playback.
+            LoopCount = loopCount <= 0 ? 1 : loopCount;
             InnerGroup = innerGroup;
-            // 计算内层命令的时间跨度
-            LoopDuration = innerGroup.EndTime() - innerGroup.StartTime();
-            if (LoopDuration <= 0) LoopDuration = 1;
-            // 设置 EndTime 为循环结束时间（用于 Schedule）
-            EndTime = StartTime + LoopCount * LoopDuration;
+            double first = innerGroup.Commands.Count == 0 ? 0 : innerGroup.StartTime();
+            LoopDuration = innerGroup.Commands.Count == 0 ? 0 : System.Math.Max(0, innerGroup.EndTime() - first);
+            EndTime = StartTime + first + LoopCount * LoopDuration;
         }
 
         public override SBSpriteCommand CreateOffsetCommand(double offset)

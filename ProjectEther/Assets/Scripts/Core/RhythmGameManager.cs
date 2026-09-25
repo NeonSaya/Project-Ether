@@ -659,10 +659,10 @@ namespace OsuVR
                         // 合并: .osb 为共享素材，.osu 为难度专属
                         if (osbData != null && inlineData != null)
                         {
-                            sbData = osbData;
+                            sbData = inlineData;
                             for (int i = 0; i < 5; i++)
                             {
-                                foreach (var elem in inlineData.Layers[i])
+                                foreach (var elem in osbData.Layers[i])
                                     sbData.Layers[i].Add(elem);
                             }
                             SBDebugLog.Log($"[RhythmGame] 合并后: {sbData.TotalElementCount} 元素 (.osb={osbData.TotalElementCount}, inline={inlineData.TotalElementCount})");
@@ -691,18 +691,19 @@ namespace OsuVR
                         else if (hasValidSB && !string.IsNullOrEmpty(videoPath))
                         {
                             // 复合模式: Video + Storyboard
-                            renderer.LoadVideoAndStoryboard(videoPath, mediaScan.VideoOffset, sbData, beatmapFolder, widescreen);
+                            renderer.LoadVideoAndStoryboard(videoPath, mediaScan.VideoOffset, sbData, beatmapFolder, widescreen, currentBeatmap.Events.BackgroundFilename);
                         }
                         else if (hasValidSB)
                         {
                             // 纯 Storyboard
-                            renderer.LoadStoryboard(sbData, beatmapFolder, widescreen);
+                            renderer.LoadStoryboard(sbData, beatmapFolder, widescreen, currentBeatmap.Events.BackgroundFilename);
                         }
                         else if (!string.IsNullOrEmpty(videoPath))
                         {
-                            // 纯 Video
+                            renderer.UnloadAll();
                             renderer.LoadVideo(videoPath, mediaScan.VideoOffset);
                         }
+                        else renderer.UnloadAll();
 
                         // 4. 光纤对接：视频 RT 和 SB RT 分别注入幕布
                         var videoRT = renderer.GetVideoRenderTexture();
@@ -710,7 +711,7 @@ namespace OsuVR
                             HolographicScreenManager.Instance?.SetVideoTexture(videoRT);
 
                         var sbRT = renderer.GetRenderTexture();
-                        if (sbRT != null)
+                        if (hasValidSB && sbPlaybackEnabled && sbRT != null)
                             HolographicScreenManager.Instance?.SetRenderTexture(sbRT);
                     }
                 }
@@ -1691,6 +1692,7 @@ namespace OsuVR
 
                     // 现在传入的是正确的 0~1 值，可以正确计分了
                     int scoreValue = CalculateScoreFromAccuracy(accuracy01);
+                    if (scoreValue > 0) StoryboardRenderer.Instance?.NotifyTrigger("HitObjectHit", currentMusicTimeMs);
                     if (scoreManager != null)
                     {
                         scoreManager.RegisterHit(scoreValue);

@@ -539,12 +539,7 @@ namespace OsuVR
                 // 应用 Quote 样式 (TMP 样式表定义: <i><size=75%><margin=10%>)
                 string titleText = title ?? LocalizationManager.GetText("ui_unknown_title");
                 textTitle.text = $"<i><size=75%><margin=10%>{titleText}</i></size></margin>";
-                textTitle.enableWordWrapping = true;
-                textTitle.overflowMode = TextOverflowModes.Ellipsis;
-                textTitle.raycastTarget = false;
-                textTitle.ForceMeshUpdate();
-                var titleRt = textTitle.rectTransform;
-                titleRt.sizeDelta = new Vector2(800f, titleRt.sizeDelta.y);
+                ApplySingleLineStyle(textTitle);
             }
             else Debug.LogWarning("[Result] textTitle 未绑定且未找到子对象, 歌名无法显示");
 
@@ -553,28 +548,50 @@ namespace OsuVR
                 ApplyCJKFont(textArtist);
                 string artistText = artist ?? LocalizationManager.GetText("ui_unknown_artist");
                 textArtist.text = $"<i><size=75%><margin=10%>{artistText}</i></size></margin>";
-                textArtist.enableWordWrapping = true;
-                textArtist.overflowMode = TextOverflowModes.Ellipsis;
-                textArtist.raycastTarget = false;
-                textArtist.ForceMeshUpdate();
-                var artistRt = textArtist.rectTransform;
-                artistRt.sizeDelta = new Vector2(800f, artistRt.sizeDelta.y);
+                ApplySingleLineStyle(textArtist);
             }
 
             if (textDifficulty != null)
             {
+                ApplyCJKFont(textDifficulty);
                 string diffName = string.IsNullOrEmpty(result.difficultyName) ? LocalizationManager.GetText("ui_normal") : result.difficultyName;
                 textDifficulty.text = $"[{diffName}]";
+                ApplySingleLineStyle(textDifficulty);
             }
 
             if (textMapper != null)
             {
+                ApplyCJKFont(textMapper);
                 string mapperName = string.IsNullOrEmpty(result.mapperName) ? LocalizationManager.GetText("ui_unknown_mapper") : result.mapperName;
                 string mappedByTemplate = LocalizationManager.GetText("ui_mapped_by");
                 textMapper.text = string.Format(mappedByTemplate, mapperName);
+                ApplySingleLineStyle(textMapper);
             }
 
             Debug.Log($"[Result] 歌曲信息: title={title}, artist={artist}, diff={result.difficultyName}");
+        }
+
+        /// <summary>
+        /// 歌曲信息行统一单行样式：禁用换行（长文本不再折行）、超宽省略号截断、宽度铺满结算面板（左右留边）
+        /// </summary>
+        void ApplySingleLineStyle(TextMeshProUGUI tmp)
+        {
+            tmp.enableWordWrapping = false;
+            tmp.overflowMode = TextOverflowModes.Ellipsis;
+            tmp.raycastTarget = false;
+
+            var rt = tmp.rectTransform;
+            var panelRt = rt.parent as RectTransform;
+            // 面板为全拉伸矩形，宽度 = 画布宽；留 80 边距，布局异常时兜底 1120
+            float width = panelRt != null ? panelRt.rect.width - 80f : 1120f;
+            if (width < 200f) width = 1120f;
+
+            // TMP 省略号模式要求"单行行高"能放进矩形（CJK 字体行高约 1.55×字号），
+            // 行高不足时 TMP 判定整行放不下会直接不渲染（实测 22 号字在 30 高矩形下为空）。
+            // 保证最小高度；文本垂直居中，加高不改变视觉位置。
+            float minH = tmp.fontSize * 1.6f + 4f;
+            float h = Mathf.Max(rt.sizeDelta.y, minH);
+            rt.sizeDelta = new Vector2(width, h);
         }
 
         TextMeshProUGUI FindChildText(params string[] names)

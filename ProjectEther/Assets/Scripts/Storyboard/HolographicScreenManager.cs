@@ -1,4 +1,3 @@
-using System.IO;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -9,10 +8,11 @@ namespace OsuVR.Storyboard
     /// 纯代码驱动，不依赖 Prefab。遵循 EtherealEnvironment 的 Singleton 模式。
     /// 支持通过设置面板调整距离、透明度和开关。
     ///
-    /// 两层互斥 + 顶层独立架构:
+    /// 背景/视频保留独立加载与回退；播放 SB 时先合成完整画面，再统一应用视频式透明度。
+    /// 场景对象:
     ///   - 底层: 静态背景图 (screenMaterial) — 仅在无视频且有背景图时显示
     ///   - 中层: 视频 (videoOverlayMaterial) — 有视频时覆盖背景, 与背景互斥
-    ///   - 顶层: SB Overlay (overlayMaterial) — 始终独立叠加在最上方
+    ///   - 顶层: SB Overlay (overlayMaterial) — 显示背景/视频/SB 合成后的完整画面
     /// </summary>
     public class HolographicScreenManager : MonoBehaviour
     {
@@ -54,8 +54,11 @@ namespace OsuVR.Storyboard
         bool _hasContent;
         bool _hasVideo;
         bool _hideBackgroundForSB;
+        bool _hasStoryboardTexture;
 
-        public bool IsActive => screenObject != null && screenObject.activeSelf;
+        public bool IsActive => (screenObject != null && screenObject.activeSelf)
+            || (videoOverlayObject != null && videoOverlayObject.activeSelf)
+            || (overlayObject != null && overlayObject.activeSelf);
 
         // =========================================================
         //  Lifecycle
@@ -87,14 +90,11 @@ namespace OsuVR.Storyboard
         /// </summary>
         public void Setup(MediaAssetScanner.ScanResult scan, string beatmapFolder)
         {
-            if (!IsStoryboardEnabled())
-            {
-                Hide();
-                return;
-            }
-
-            // 重置 SB 背景覆盖标志 (新谱面)
+            // Reset only content bindings; preserve all screen geometry and settings.
             _hideBackgroundForSB = false;
+            _hasStoryboardTexture = false;
+            if (overlayObject != null) overlayObject.SetActive(false);
+            if (backgroundTexture != null) { Destroy(backgroundTexture); backgroundTexture = null; }
 
             // 始终加载背景图 (即使有视频): 作为视频加载失败的回退, 避免纯黑屏
             // ApplyVisibility 仍保证 视频/背景 互斥显示, 不影响正确情况下的渲染
@@ -115,6 +115,7 @@ namespace OsuVR.Storyboard
         public void Hide()
         {
             _hasContent = false;
+            _hasStoryboardTexture = false;
             _hasVideo = false;
             _hideBackgroundForSB = false;
             if (screenObject != null) screenObject.SetActive(false);
@@ -152,10 +153,11 @@ namespace OsuVR.Storyboard
             if (rt == null) return;
 
             // 背景板/故事板播放任一关闭时，不显示 SB Overlay（防止绕过 Setup/ApplyVisibility 的隐藏）
-            if (!IsStoryboardEnabled() || !IsStoryboardPlaybackEnabled()) return;
+
 
             // 确保 Overlay 层存在
             EnsureOverlayCreated();
+            _hasStoryboardTexture = true;
 
             if (overlayMaterial != null)
             {
@@ -181,6 +183,7 @@ namespace OsuVR.Storyboard
         /// </summary>
         public void RestoreBackgroundTexture()
         {
+            _hasStoryboardTexture = false;
             if (videoOverlayObject != null)
                 videoOverlayObject.SetActive(false);
             if (overlayObject != null)
@@ -196,7 +199,7 @@ namespace OsuVR.Storyboard
             }
 
             // 背景板/故事板播放任一关闭时，不注入视频层（否则取消勾选后视频仍会显示）
-            if (!IsStoryboardEnabled() || !IsStoryboardPlaybackEnabled()) return;
+
 
             EnsureEdgeFadeTexture();
             EnsureVideoOverlayCreated();
@@ -224,12 +227,6 @@ namespace OsuVR.Storyboard
 
         public void OnSettingsChanged()
         {
-            if (!IsStoryboardEnabled())
-            {
-                Hide();
-                return;
-            }
-
             if (_hasContent)
             {
                 ApplySettings();
@@ -289,7 +286,19 @@ namespace OsuVR.Storyboard
             {
                 if (videoOverlayObject != null) videoOverlayObject.SetActive(false);
                 if (overlayObject != null) overlayObject.SetActive(false);
-                if (screenObject != null) screenObject.SetActive(_hasContent);
+                if (screenObject != null) screenObject.SetActive(_hasContent && backgroundTexture != null);
+                return;
+            }
+
+            if (overlayObject != null) overlayObject.SetActive(_hasContent && _hasStoryboardTexture);
+            if (_hasContent && _hasStoryboardTexture && overlayMaterial != null)
+            {
+                Texture underlay = _hasVideo ? videoOverlayMaterial?.mainTexture
+                    : (_hideBackgroundForSB ? null : backgroundTexture);
+                StoryboardRenderer.Instance?.SetUnderlay(underlay, !_hasVideo);
+                // Compose encoded colours before the original screen dimming/edge fade.
+                if (screenObject != null) screenObject.SetActive(false);
+                if (videoOverlayObject != null) videoOverlayObject.SetActive(false);
                 return;
             }
 
@@ -307,7 +316,7 @@ namespace OsuVR.Storyboard
             }
             else
             {
-                if (screenObject != null) screenObject.SetActive(_hasContent);
+                if (screenObject != null) screenObject.SetActive(_hasContent && backgroundTexture != null);
                 if (videoOverlayObject != null) videoOverlayObject.SetActive(false);
             }
             // SB Overlay 独立, 不受 BG/视频互斥影响
@@ -330,7 +339,7 @@ namespace OsuVR.Storyboard
             }
 
             // 视频 Overlay: 位置 (保留 Z 偏移) + 亮度/透明度
-            if (videoOverlayObject != null && videoOverlayObject.activeSelf)
+            if (videoOverlayObject != null)
             {
                 var vpos = videoOverlayObject.transform.localPosition;
                 vpos.z = baseZ + VideoZOffset;
@@ -341,7 +350,7 @@ namespace OsuVR.Storyboard
             }
 
             // SB Overlay: 位置 (保留 Z 偏移) + 屏幕透明度 (通过 shader 参数, 不污染 sprite alpha)
-            if (overlayObject != null && overlayObject.activeSelf)
+            if (overlayObject != null)
             {
                 var opos = overlayObject.transform.localPosition;
                 opos.z = baseZ + SBZOffset;
@@ -592,25 +601,8 @@ namespace OsuVR.Storyboard
 
         void LoadBackgroundTexture(string path)
         {
-            try
-            {
-                byte[] data = File.ReadAllBytes(path);
-                var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-                if (tex.LoadImage(data))
-                {
-                    if (backgroundTexture != null) Destroy(backgroundTexture);
-                    backgroundTexture = tex;
-                    screenMaterial.mainTexture = tex;
-                }
-                else
-                {
-                    Debug.LogWarning($"[HolographicScreen] 背景图解码失败: {path}");
-                }
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogWarning($"[HolographicScreen] 背景图加载异常: {e.Message}");
-            }
+            backgroundTexture = StoryboardRenderer.LoadTexture(path);
+            if (backgroundTexture != null) screenMaterial.mainTexture = backgroundTexture;
         }
 
         void OnDestroy()

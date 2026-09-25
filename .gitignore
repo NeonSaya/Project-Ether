@@ -2,3 +2,6 @@
 *.keystore
 *.jks
 user.keystore
+
+# 本地聊天导出，不属于项目源码
+/dsh-tui-export-*.md

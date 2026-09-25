@@ -12,11 +12,13 @@ namespace OsuVR.Storyboard.Engine
         public float InitX, InitY;
         public float InitAlpha;
         public float InitScaleX, InitScaleY;
+        public float InitUniformScale, InitVectorScaleX, InitVectorScaleY;
         public float InitRotation;
         public float InitR, InitG, InitB;
         public byte InitFlipH, InitFlipV, InitAdditive;
 
         // ---- 直接命令范围 (索引 into NativeArray<SBCommandFlatData>) ----
+        public int TriggerHead; // linked history of fired commands, -1 when none
         public int CmdOffset;
         public int CmdCount;
 
@@ -46,6 +48,7 @@ namespace OsuVR.Storyboard.Engine
     /// </summary>
     public struct SBCommandFlatData
     {
+        public int Sequence;
         public double StartTime;
         public double EndTime;
         public int Easing;         // (int)SBEasing, 用于 Burst 内 switch 分发
@@ -68,6 +71,12 @@ namespace OsuVR.Storyboard.Engine
     /// 扁平化 Loop 元数据 (Burst 兼容 blittable struct)
     /// Loop 的内层命令存储在 SBCommandFlatData 的连续区段中
     /// </summary>
+    public struct SBTriggeredCommand
+    {
+        public SBCommandFlatData Command;
+        public int Next;
+    }
+
     public struct SBLoopFlatData
     {
         public double StartTime;
@@ -85,6 +94,7 @@ namespace OsuVR.Storyboard.Engine
     {
         public float X, Y;
         public float ScaleX, ScaleY;
+        public float VectorScaleX, VectorScaleY;
         public float Rotation;
         public float Alpha;
         public float R, G, B;

@@ -15,6 +15,9 @@ namespace OsuVR.Storyboard.Engine
         BlendingMode = 7,
         FlipH = 8,
         FlipV = 9,
+        UniformScale = 10,
+        VectorScaleX = 11,
+        VectorScaleY = 12,
     }
 
     /// <summary>
@@ -41,6 +44,9 @@ namespace OsuVR.Storyboard.Engine
             SBCommandValueType.Bool,    // BlendingMode
             SBCommandValueType.Bool,    // FlipH
             SBCommandValueType.Bool,    // FlipV
+            SBCommandValueType.Float,   // UniformScale
+            SBCommandValueType.Float,   // VectorScaleX
+            SBCommandValueType.Float,   // VectorScaleY
         };
 
         public static SBCommandValueType GetValueType(this SBCommandTarget target)
