@@ -527,6 +527,10 @@ namespace OsuVR
             CreateFollowBall();
             CreateVisuals(); // 内部会处理 Tick 的池化生成
 
+            // 先设置基色，再交给淡入组件缓存并归零；不能在初始化末尾覆盖首帧透明度。
+            currentAlpha = 1f;
+            UpdateMaterialAlpha();
+
             // 初始化淡入效果（必须在所有视觉元素创建和颜色设置之后）
             if (fadeInComponent == null)
             {
@@ -552,8 +556,6 @@ namespace OsuVR
             headHit = false;
             lastHeadCheckDiff = double.NaN;
             finished = false;
-            currentAlpha = 1f;
-            UpdateMaterialAlpha();
             if (combinedMesh != null)
                 combinedMesh.RecalculateBounds();
             // 更新视觉
@@ -995,8 +997,10 @@ namespace OsuVR
                             // 根据 Tick 时间计算在路径上的位置
                             Vector3 tickPos = GetPositionAtTime(nested.Time);
                             tickObj.transform.localPosition = tickPos;
-                            tickObj.GetComponent<Renderer>().material.renderQueue =
-                                this.cachedBaseQueue + 3;
+                            var tickRenderer = tickObj.GetComponent<Renderer>();
+                            // 只重置本次借出的 Tick，避免将上一轮淡出的 alpha 缓存为新基色。
+                            tickRenderer.SetPropertyBlock(null);
+                            tickRenderer.material.renderQueue = this.cachedBaseQueue + 3;
 
                             tickVisuals.Add(
                                 new TickVisualInfo { data = nested, gameObject = tickObj }
@@ -1283,6 +1287,8 @@ namespace OsuVR
                 baseBallScale = sliderWidth;
                 if (followBall != null)
                 {
+                    // 出池时就清除上一条滑条的世界位置，提前命中也不能露出旧位置。
+                    followBall.transform.localPosition = worldPathPoints[0];
                     followBall.transform.localScale = Vector3.one * baseBallScale;
                     followBallRenderer = followBall.GetComponent<Renderer>();
                     if (followBallRenderer != null)
@@ -1320,11 +1326,11 @@ namespace OsuVR
 
             if (currentTime >= startTime && currentTime <= endTime)
             {
-                if (!followBall.activeSelf)
-                    followBall.SetActive(true);
-
                 Vector3 targetPos = GetPositionAtTime(currentTime);
                 followBall.transform.localPosition = targetPos;
+
+                if (!followBall.activeSelf)
+                    followBall.SetActive(true);
             }
             else if (currentTime > endTime)
             {
@@ -1761,6 +1767,8 @@ namespace OsuVR
                 // 2. 视觉与触觉反馈
                 if (followBall)
                 {
+                    // 射线命中可能晚于本帧位置更新；显示前按本次采样定位，提前命中钳制在起点。
+                    followBall.transform.localPosition = GetPositionAtTime(currentMusicTimeCache);
                     followBall.SetActive(true);
                     StartCoroutine(FollowBallPulse());
                 }
@@ -2425,6 +2433,9 @@ namespace OsuVR
         // 仅由 Initialize/池预清理调用可回池版本；OnDestroy 传 false 禁止层级操作。
         private void CleanUpEverything(bool returnToPool = true)
         {
+            // Tick 回池后可能立刻归另一条滑条所有，旧淡入组件不能再修改它们。
+            if (fadeInComponent != null)
+                fadeInComponent.ClearCache();
             StopAllCoroutines();
             pulseCoroutine = null;
             GameObject oldHead = headInstance;

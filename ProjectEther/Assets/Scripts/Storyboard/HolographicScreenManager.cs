@@ -443,6 +443,7 @@ namespace OsuVR.Storyboard
                 return;
             }
             screenMaterial = new Material(shader);
+            screenMaterial.renderQueue = (int)RenderQueue.Transparent - 100;
 
             // 确保材质支持透明 (自定义 shader 可能不需要, 但 fallback 必须设置)
             if (screenMaterial.HasProperty("_Surface"))
@@ -500,8 +501,9 @@ namespace OsuVR.Storyboard
                 return;
             }
             videoOverlayMaterial = new Material(videoShader);
-            // 分层队列: 背景 2900 / 视频 3000 / SB 3001, 保证背景→视频→SB 绘制顺序
-            videoOverlayMaterial.renderQueue = (int)RenderQueue.Transparent;
+            // 幕布层统一先于默认 UI (3000) 绘制，避免远处幕布覆盖分数与性能面板。
+            // 保留内部顺序: 背景 2900 → 视频 2901 → SB 2902。
+            videoOverlayMaterial.renderQueue = (int)RenderQueue.Transparent - 99;
 
             if (edgeFadeTexture != null)
                 videoOverlayMaterial.SetTexture("_EdgeFadeTex", edgeFadeTexture);
@@ -556,7 +558,7 @@ namespace OsuVR.Storyboard
                 return;
             }
             overlayMaterial = new Material(overlayShader);
-            overlayMaterial.renderQueue = (int)RenderQueue.Transparent + 1;
+            overlayMaterial.renderQueue = (int)RenderQueue.Transparent - 98;
 
             // 传入边缘羽化纹理
             if (edgeFadeTexture != null)
