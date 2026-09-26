@@ -1131,7 +1131,7 @@ namespace OsuVR
                 noteObject.GetComponent<SliderController>()?.OnGamePaused();
                 noteObject.GetComponent<SpinnerController>()?.OnGamePaused();
             }
-            AudioManager.Instance?.ToggleSliderLoop(false);
+            AudioManager.Instance?.StopAllSliderLoops();
             AudioManager.Instance?.UpdateSpinnerLoop(false, 0f);
             HapticManager.Instance?.PlayContinuous(true, 0f);
             HapticManager.Instance?.PlayContinuous(false, 0f);
@@ -1184,6 +1184,7 @@ namespace OsuVR
         public void RestartGame()
         {
             StopGame();
+            StoryboardRenderer.Instance?.ResetForRetry();
 
             // Auto 模式重试：重置 AutoPlayManager 状态
             if (useAutoPlay && autoPlayManager != null)
@@ -2080,6 +2081,7 @@ namespace OsuVR
             }
 
             ClearAllNotes();
+            AudioManager.Instance?.StopAllSliderLoops();
 
             Debug.Log("游戏已停止");
         }

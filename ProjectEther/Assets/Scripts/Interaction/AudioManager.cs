@@ -29,11 +29,6 @@ namespace OsuVR
         [Range(0, 1)]
         public float sfxVolume = 1.0f;
 
-        [Header("音频延迟补偿")]
-        [Tooltip("音效延迟补偿（毫秒）：正值延迟播放，负值提前播放。osu!默认约20-30ms")]
-        [Range(-100, 100)]
-        public float audioLatencyCompensation = 20f;
-
         // =========================================================
         // 运行时状态
         // =========================================================
@@ -42,7 +37,10 @@ namespace OsuVR
             new Dictionary<string, AudioClip>();
         private AudioSource sliderLoopSource;
         private AudioSource spinnerLoopSource;
-        private List<AudioSource> oneShotPool = new List<AudioSource>();
+        private readonly HashSet<SliderController> sliderLoopOwners =
+            new HashSet<SliderController>();
+        private readonly List<AudioSource> oneShotPool = new List<AudioSource>();
+        private int nextBusyOneShotSource;
         private double audioSystemLatency = 0;
 
         // =========================================================
@@ -78,9 +76,7 @@ namespace OsuVR
             int numBuffers;
             AudioSettings.GetDSPBufferSize(out bufferLength, out numBuffers);
             audioSystemLatency = (double)bufferLength / AudioSettings.outputSampleRate;
-            Debug.Log(
-                $"[Audio] 系统硬件延迟: {audioSystemLatency * 1000:F2} ms, 音效补偿: {audioLatencyCompensation} ms"
-            );
+            Debug.Log($"[Audio] 系统 DSP 缓冲时长: {audioSystemLatency * 1000:F2} ms");
 
             for (int i = 0; i < 20; i++)
             {
@@ -89,6 +85,7 @@ namespace OsuVR
                 var src = go.AddComponent<AudioSource>();
                 src.playOnAwake = false;
                 src.spatialBlend = 0;
+                src.volume = 1f;
                 oneShotPool.Add(src);
             }
 
@@ -345,32 +342,35 @@ namespace OsuVR
                 PlayOneShot(clip, finalVol);
         }
 
-        /// <summary>
-        /// 切换滑条滑动循环音效
-        /// </summary>
-        public void ToggleSliderLoop(
-            bool isPlaying,
-            SampleSet set = SampleSet.Normal,
-            int index = 0
-        )
+        /// <summary>登记正在跟踪的滑条；共享循环音源只在最后一条退出时停止。</summary>
+        public void StartSliderLoop(SliderController owner, SampleSet set, int index)
         {
-            if (isPlaying)
+            if (owner == null || !sliderLoopOwners.Add(owner) || sliderLoopSource.isPlaying)
+                return;
+
+            AudioClip clip = GetClip(set, HitSoundType.Normal, index, true, false);
+            if (clip != null)
             {
-                if (!sliderLoopSource.isPlaying)
-                {
-                    AudioClip clip = GetClip(set, HitSoundType.Normal, index, true, false);
-                    if (clip)
-                    {
-                        sliderLoopSource.clip = clip;
-                        sliderLoopSource.volume = 0.5f * masterVolume * sfxVolume;
-                        sliderLoopSource.Play();
-                    }
-                }
+                sliderLoopSource.clip = clip;
+                sliderLoopSource.volume = 0.5f * masterVolume * sfxVolume;
+                sliderLoopSource.Play();
             }
-            else
-            {
+        }
+
+        public void StopSliderLoop(SliderController owner)
+        {
+            if (
+                !ReferenceEquals(owner, null)
+                && sliderLoopOwners.Remove(owner)
+                && sliderLoopOwners.Count == 0
+            )
                 sliderLoopSource.Stop();
-            }
+        }
+
+        public void StopAllSliderLoops()
+        {
+            sliderLoopOwners.Clear();
+            sliderLoopSource.Stop();
         }
 
         // =========================================================
@@ -489,11 +489,8 @@ namespace OsuVR
             return key;
         }
 
-        private bool _poolOverflowLogged;
-
         private void PlayOneShot(AudioClip clip, float vol)
         {
-            // 找一个空闲的 AudioSource（for 循环替代 Lambda，消除 GC 分配）
             AudioSource src = null;
             for (int i = 0; i < oneShotPool.Count; i++)
             {
@@ -505,24 +502,11 @@ namespace OsuVR
             }
             if (src == null)
             {
-                // 池用完了，动态创建新的 AudioSource
-                var go = new GameObject("SFX_OneShot_Dynamic_" + oneShotPool.Count);
-                go.transform.SetParent(transform);
-                src = go.AddComponent<AudioSource>();
-                src.playOnAwake = false;
-                src.spatialBlend = 0;
-                oneShotPool.Add(src);
-                // 命中热路径只警告一次，避免每帧日志 I/O 造成额外卡顿
-                if (!_poolOverflowLogged)
-                {
-                    _poolOverflowLogged = true;
-                    Debug.LogWarning(
-                        $"[Audio] 音效池已满，已动态扩容至 {oneShotPool.Count}，后续不再重复警告"
-                    );
-                }
+                // PlayOneShot 可在同一 AudioSource 上叠加，不必在命中热路径创建物体。
+                src = oneShotPool[nextBusyOneShotSource];
+                nextBusyOneShotSource = (nextBusyOneShotSource + 1) % oneShotPool.Count;
             }
-            src.volume = vol;
-            src.PlayOneShot(clip);
+            src.PlayOneShot(clip, vol);
         }
 
         // =========================================================

@@ -620,16 +620,7 @@ namespace OsuVR
             }
 
             // --- HIT 判定 ---
-            // 音效延迟补偿：osu!默认约20-30ms
-            // 正值表示延迟判定，负值表示提前判定
-            double audioLatencyCompensation = 20.0;
-            if (AudioManager.Instance != null)
-            {
-                audioLatencyCompensation = AudioManager.Instance.audioLatencyCompensation;
-            }
-
-            // 提前 13ms 即可判定 (osu! 标准)
-            // 音效延迟补偿单独处理，不侵入判定窗口
+            // 提前 13ms 即可判定（AutoPlay 提前 16ms）
             bool isAutoPlay = gameManager.useAutoPlay;
             double earlyWindow = isAutoPlay ? -16 : -13;
 

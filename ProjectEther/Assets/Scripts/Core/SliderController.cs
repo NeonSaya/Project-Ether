@@ -1534,11 +1534,11 @@ namespace OsuVR
                         );
                 }
 
-                // 2. 音效 (保持不变，音效通常不分左右声道，或者由 AudioSource 3D 设置决定)
+                // 2. 音效：每条滑条独立登记，共享循环音源由 AudioManager 管理。
                 if (!isTrackingAudioPlaying && AudioManager.Instance != null)
                 {
-                    AudioManager.Instance.ToggleSliderLoop(
-                        true,
+                    AudioManager.Instance.StartSliderLoop(
+                        this,
                         sliderData.SampleSet,
                         sliderData.CustomIndex
                     );
@@ -1547,12 +1547,7 @@ namespace OsuVR
             }
             else
             {
-                // 停止音效
-                if (isTrackingAudioPlaying && AudioManager.Instance != null)
-                {
-                    AudioManager.Instance.ToggleSliderLoop(false);
-                    isTrackingAudioPlaying = false;
-                }
+                StopTrackingAudio();
             }
 
             // 5. 时间驱动折返标记（独立于判定事件，0延迟）
@@ -1700,7 +1695,7 @@ namespace OsuVR
         void StopTrackingAudio()
         {
             if (isTrackingAudioPlaying && AudioManager.Instance != null)
-                AudioManager.Instance.ToggleSliderLoop(false);
+                AudioManager.Instance.StopSliderLoop(this);
             isTrackingAudioPlaying = false;
         }
 
@@ -1720,9 +1715,9 @@ namespace OsuVR
             if (headHit || (gameManager != null && gameManager.IsPaused))
                 return;
 
-            // 计算偏移量：当前时间 - 预期时间
-            // 负数 = 提前 (Early), 正数 = 延迟 (Late)
-            double offset = currentMusicTimeCache - sliderData.StartTime;
+            // 射线回调可能晚于 Slider.Update，头判定使用回调时的实时音乐时间。
+            double hitTimeMs = gameManager.GetCurrentMusicTimeMs();
+            double offset = hitTimeMs - sliderData.StartTime;
 
             // [核心修复] 计算击中点到 "滑条头中心" 的距离
             // 注意：这里不能用 followBall，因为头判定时球可能还没生成或位置不对
@@ -1741,14 +1736,7 @@ namespace OsuVR
             double prevHeadCheckDiff = lastHeadCheckDiff;
             lastHeadCheckDiff = offset;
 
-            // AutoPlay 模式：允许最多提前 16ms 判定（约一帧），确保精确同步
-            // 正常模式：最早判定区间为 -13ms (osu! 标准的提前判定窗口)
-            // 加上音效延迟补偿，使音效与视觉打击同步
-            double audioLatencyCompensation = 20.0;
-            if (AudioManager.Instance != null)
-            {
-                audioLatencyCompensation = AudioManager.Instance.audioLatencyCompensation;
-            }
+            // AutoPlay 最早提前 16ms，手动最早提前 13ms。
 
             bool isAutoPlay = gameManager != null && gameManager.useAutoPlay;
             double earlyWindow = isAutoPlay ? -16 : -13;
@@ -1768,7 +1756,7 @@ namespace OsuVR
                 if (followBall)
                 {
                     // 射线命中可能晚于本帧位置更新；显示前按本次采样定位，提前命中钳制在起点。
-                    followBall.transform.localPosition = GetPositionAtTime(currentMusicTimeCache);
+                    followBall.transform.localPosition = GetPositionAtTime(hitTimeMs);
                     followBall.SetActive(true);
                     StartCoroutine(FollowBallPulse());
                 }
@@ -1865,13 +1853,6 @@ namespace OsuVR
                 return;
 
             // AutoPlay 模式判定窗口
-            // 加上音效延迟补偿，使音效与视觉打击同步
-            double audioLatencyCompensation = 20.0;
-            if (AudioManager.Instance != null)
-            {
-                audioLatencyCompensation = AudioManager.Instance.audioLatencyCompensation;
-            }
-
             bool isAutoPlay = gameManager != null && gameManager.useAutoPlay;
             double earlyWindow = isAutoPlay ? 0 : -13;
 
