@@ -510,6 +510,38 @@ namespace OsuVR.Storyboard
             UnloadVideo();
         }
 
+        public void ResetForRetry()
+        {
+            if (_jobScheduled)
+            {
+                _jobHandle.Complete();
+                _jobScheduled = false;
+            }
+
+            pendingTriggers.Clear();
+            SBTriggerRuntime.ClearHistory(ref _flatTimeline);
+            _jobActiveCount = 0;
+            drawCommands?.Clear();
+            ClearRenderTexture();
+
+            _lastMusicTimeMs = -1;
+            _musicFrozenTimer = 0f;
+            if (videoPlayer != null)
+            {
+                if (videoPlayer.isPlaying)
+                    videoPlayer.Pause();
+                if (videoPlayer.isPrepared)
+                    videoPlayer.time = 0;
+            }
+            if (videoRT != null)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = videoRT;
+                GL.Clear(false, true, Color.clear);
+                RenderTexture.active = previous;
+            }
+        }
+
         void QueueTrigger(PendingTrigger trigger)
         {
             if (isRendering && triggerRuntime != null && triggerRuntime.HasTriggers)
@@ -554,6 +586,7 @@ namespace OsuVR.Storyboard
                 }
             }
             pendingTriggers.Clear();
+            SBTriggerRuntime.CompactInvalidated(ref _flatTimeline);
         }
 
         public void NotifyTrigger(string name, double time)

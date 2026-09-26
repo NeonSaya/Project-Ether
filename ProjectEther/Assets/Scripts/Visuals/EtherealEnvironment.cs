@@ -574,6 +574,8 @@ namespace OsuVR
         void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
             SetupCamera();
+            if (fpsDisplay != null && fpsDisplay.activeSelf)
+                PositionFpsDisplay();
             DetectPhase(scene);
             // 每次加载场景时重新检测AudioLink（因为AudioLink预制体可能只在特定场景存在）
             CheckAudioLinkAvailability();
@@ -1182,7 +1184,28 @@ namespace OsuVR
             }
 
             if (fpsDisplay != null)
+            {
+                if (visible)
+                    PositionFpsDisplay();
                 fpsDisplay.SetActive(visible);
+            }
+        }
+
+        private void PositionFpsDisplay()
+        {
+            if (_cachedCam == null)
+                _cachedCam = Camera.main;
+            if (_cachedCam == null || fpsDisplay == null)
+                return;
+
+            // 保留原先的前下方布局；1.75m 是头显到面板中心的世界距离，
+            // 而不是父节点的 local Z。打开时定位，不随转头晃动。
+            Vector3 playerPosition = _cachedCam.transform.position;
+            Vector3 direction =
+                mirrorFloorObj.transform.TransformPoint(new Vector3(0f, 1.2f, 2f)) - playerPosition;
+            if (direction.sqrMagnitude < 0.0001f)
+                direction = mirrorFloorObj.transform.forward;
+            fpsDisplay.transform.position = playerPosition + direction.normalized * 1.75f;
         }
 
         // ---- 星云层 ----
@@ -3071,7 +3094,18 @@ namespace OsuVR
                 Color bandColor = SpectrumBandToColor(band, bandIntensity);
                 bandColor.a = 0.35f + bandIntensity * 0.3f;
 
-                crystalBuffer[i].startColor = bandColor;
+                Color32 nextColor = bandColor;
+                Color32 currentColor = crystalBuffer[i].startColor;
+                if (
+                    currentColor.r != nextColor.r
+                    || currentColor.g != nextColor.g
+                    || currentColor.b != nextColor.b
+                    || currentColor.a != nextColor.a
+                )
+                {
+                    crystalBuffer[i].startColor = nextColor;
+                    modified = true;
+                }
 
                 // Bass频段的晶体在节拍时放大
                 if (band < 2 && beatBrightnessPulse > 0.5f)

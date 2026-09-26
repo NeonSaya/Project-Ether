@@ -15,7 +15,7 @@ Shader "OsuVR/SBVideoOverlay"
         Tags
         {
             "RenderType" = "Transparent"
-            "Queue" = "Transparent"
+            "Queue" = "Transparent-99"
             "RenderPipeline" = "UniversalPipeline"
         }
 

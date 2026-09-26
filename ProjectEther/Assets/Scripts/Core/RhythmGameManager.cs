@@ -118,6 +118,9 @@ namespace OsuVR
 
         private double pauseStartDspTime = 0; // 暂停时的 DSP 时间
 
+        // 恢复倒计时结束前仍处于暂停；不要把开局缓冲期当作暂停。
+        public bool IsPaused => pauseStartDspTime > 0;
+
         [Header("校准设置")]
         [Tooltip("全局偏移 (毫秒)：调整音画同步。正数表示Note出现得更晚，负数表示Note出现得更早")]
         public float universalOffsetMs = 0f;
@@ -1119,6 +1122,20 @@ namespace OsuVR
                 musicSource.Pause();
             }
 
+            // 同步清掉旧射线状态，快速暂停/恢复也不能跨暂停累计判定。
+            foreach (var noteObject in activeNoteObjects.Values)
+            {
+                if (noteObject == null)
+                    continue;
+                noteObject.GetComponent<NoteController>()?.OnRayExit();
+                noteObject.GetComponent<SliderController>()?.OnGamePaused();
+                noteObject.GetComponent<SpinnerController>()?.OnGamePaused();
+            }
+            AudioManager.Instance?.StopAllSliderLoops();
+            AudioManager.Instance?.UpdateSpinnerLoop(false, 0f);
+            HapticManager.Instance?.PlayContinuous(true, 0f);
+            HapticManager.Instance?.PlayContinuous(false, 0f);
+
             // Auto 模式暂停时：把手柄还给玩家，让玩家能操作暂停菜单
             if (useAutoPlay && autoPlayManager != null)
             {
@@ -1167,6 +1184,7 @@ namespace OsuVR
         public void RestartGame()
         {
             StopGame();
+            StoryboardRenderer.Instance?.ResetForRetry();
 
             // Auto 模式重试：重置 AutoPlayManager 状态
             if (useAutoPlay && autoPlayManager != null)
@@ -2063,6 +2081,7 @@ namespace OsuVR
             }
 
             ClearAllNotes();
+            AudioManager.Instance?.StopAllSliderLoops();
 
             Debug.Log("游戏已停止");
         }

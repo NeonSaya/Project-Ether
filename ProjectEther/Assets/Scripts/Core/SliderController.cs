@@ -527,6 +527,10 @@ namespace OsuVR
             CreateFollowBall();
             CreateVisuals(); // 内部会处理 Tick 的池化生成
 
+            // 先设置基色，再交给淡入组件缓存并归零；不能在初始化末尾覆盖首帧透明度。
+            currentAlpha = 1f;
+            UpdateMaterialAlpha();
+
             // 初始化淡入效果（必须在所有视觉元素创建和颜色设置之后）
             if (fadeInComponent == null)
             {
@@ -552,8 +556,6 @@ namespace OsuVR
             headHit = false;
             lastHeadCheckDiff = double.NaN;
             finished = false;
-            currentAlpha = 1f;
-            UpdateMaterialAlpha();
             if (combinedMesh != null)
                 combinedMesh.RecalculateBounds();
             // 更新视觉
@@ -995,8 +997,10 @@ namespace OsuVR
                             // 根据 Tick 时间计算在路径上的位置
                             Vector3 tickPos = GetPositionAtTime(nested.Time);
                             tickObj.transform.localPosition = tickPos;
-                            tickObj.GetComponent<Renderer>().material.renderQueue =
-                                this.cachedBaseQueue + 3;
+                            var tickRenderer = tickObj.GetComponent<Renderer>();
+                            // 只重置本次借出的 Tick，避免将上一轮淡出的 alpha 缓存为新基色。
+                            tickRenderer.SetPropertyBlock(null);
+                            tickRenderer.material.renderQueue = this.cachedBaseQueue + 3;
 
                             tickVisuals.Add(
                                 new TickVisualInfo { data = nested, gameObject = tickObj }
@@ -1283,6 +1287,8 @@ namespace OsuVR
                 baseBallScale = sliderWidth;
                 if (followBall != null)
                 {
+                    // 出池时就清除上一条滑条的世界位置，提前命中也不能露出旧位置。
+                    followBall.transform.localPosition = worldPathPoints[0];
                     followBall.transform.localScale = Vector3.one * baseBallScale;
                     followBallRenderer = followBall.GetComponent<Renderer>();
                     if (followBallRenderer != null)
@@ -1320,11 +1326,11 @@ namespace OsuVR
 
             if (currentTime >= startTime && currentTime <= endTime)
             {
-                if (!followBall.activeSelf)
-                    followBall.SetActive(true);
-
                 Vector3 targetPos = GetPositionAtTime(currentTime);
                 followBall.transform.localPosition = targetPos;
+
+                if (!followBall.activeSelf)
+                    followBall.SetActive(true);
             }
             else if (currentTime > endTime)
             {
@@ -1472,6 +1478,12 @@ namespace OsuVR
 
         void Update()
         {
+            if (gameManager != null && gameManager.IsPaused)
+            {
+                OnGamePaused();
+                return;
+            }
+
             // 优先处理渐隐逻辑
             // 如果正在渐隐，我们需要继续更新 Alpha 值，直到完全消失
             if (isFadingOut)
@@ -1522,11 +1534,11 @@ namespace OsuVR
                         );
                 }
 
-                // 2. 音效 (保持不变，音效通常不分左右声道，或者由 AudioSource 3D 设置决定)
+                // 2. 音效：每条滑条独立登记，共享循环音源由 AudioManager 管理。
                 if (!isTrackingAudioPlaying && AudioManager.Instance != null)
                 {
-                    AudioManager.Instance.ToggleSliderLoop(
-                        true,
+                    AudioManager.Instance.StartSliderLoop(
+                        this,
                         sliderData.SampleSet,
                         sliderData.CustomIndex
                     );
@@ -1535,12 +1547,7 @@ namespace OsuVR
             }
             else
             {
-                // 停止音效
-                if (isTrackingAudioPlaying && AudioManager.Instance != null)
-                {
-                    AudioManager.Instance.ToggleSliderLoop(false);
-                    isTrackingAudioPlaying = false;
-                }
+                StopTrackingAudio();
             }
 
             // 5. 时间驱动折返标记（独立于判定事件，0延迟）
@@ -1648,6 +1655,9 @@ namespace OsuVR
         /// </summary>
         public void OnRayStay(bool isRightHand, Vector3 hitPosition)
         {
+            if (gameManager != null && gameManager.IsPaused)
+                return;
+
             // 独立记录每只手的位置和状态
             if (isRightHand)
             {
@@ -1674,10 +1684,18 @@ namespace OsuVR
             CleanUpEverything();
         }
 
+        public void OnGamePaused()
+        {
+            isLeftHandTracking = false;
+            isRightHandTracking = false;
+            // 保留暂停前的容错余量和得分，恢复后由新射线重新建立跟踪。
+            StopTrackingAudio();
+        }
+
         void StopTrackingAudio()
         {
             if (isTrackingAudioPlaying && AudioManager.Instance != null)
-                AudioManager.Instance.ToggleSliderLoop(false);
+                AudioManager.Instance.StopSliderLoop(this);
             isTrackingAudioPlaying = false;
         }
 
@@ -1694,12 +1712,12 @@ namespace OsuVR
         /// </summary>
         public void TryHitHead(bool isRightHand, Vector3 hitPos)
         {
-            if (headHit)
+            if (headHit || (gameManager != null && gameManager.IsPaused))
                 return;
 
-            // 计算偏移量：当前时间 - 预期时间
-            // 负数 = 提前 (Early), 正数 = 延迟 (Late)
-            double offset = currentMusicTimeCache - sliderData.StartTime;
+            // 射线回调可能晚于 Slider.Update，头判定使用回调时的实时音乐时间。
+            double hitTimeMs = gameManager.GetCurrentMusicTimeMs();
+            double offset = hitTimeMs - sliderData.StartTime;
 
             // [核心修复] 计算击中点到 "滑条头中心" 的距离
             // 注意：这里不能用 followBall，因为头判定时球可能还没生成或位置不对
@@ -1718,14 +1736,7 @@ namespace OsuVR
             double prevHeadCheckDiff = lastHeadCheckDiff;
             lastHeadCheckDiff = offset;
 
-            // AutoPlay 模式：允许最多提前 16ms 判定（约一帧），确保精确同步
-            // 正常模式：最早判定区间为 -13ms (osu! 标准的提前判定窗口)
-            // 加上音效延迟补偿，使音效与视觉打击同步
-            double audioLatencyCompensation = 20.0;
-            if (AudioManager.Instance != null)
-            {
-                audioLatencyCompensation = AudioManager.Instance.audioLatencyCompensation;
-            }
+            // AutoPlay 最早提前 16ms，手动最早提前 13ms。
 
             bool isAutoPlay = gameManager != null && gameManager.useAutoPlay;
             double earlyWindow = isAutoPlay ? -16 : -13;
@@ -1744,6 +1755,8 @@ namespace OsuVR
                 // 2. 视觉与触觉反馈
                 if (followBall)
                 {
+                    // 射线命中可能晚于本帧位置更新；显示前按本次采样定位，提前命中钳制在起点。
+                    followBall.transform.localPosition = GetPositionAtTime(hitTimeMs);
                     followBall.SetActive(true);
                     StartCoroutine(FollowBallPulse());
                 }
@@ -1840,13 +1853,6 @@ namespace OsuVR
                 return;
 
             // AutoPlay 模式判定窗口
-            // 加上音效延迟补偿，使音效与视觉打击同步
-            double audioLatencyCompensation = 20.0;
-            if (AudioManager.Instance != null)
-            {
-                audioLatencyCompensation = AudioManager.Instance.audioLatencyCompensation;
-            }
-
             bool isAutoPlay = gameManager != null && gameManager.useAutoPlay;
             double earlyWindow = isAutoPlay ? 0 : -13;
 
@@ -2408,6 +2414,9 @@ namespace OsuVR
         // 仅由 Initialize/池预清理调用可回池版本；OnDestroy 传 false 禁止层级操作。
         private void CleanUpEverything(bool returnToPool = true)
         {
+            // Tick 回池后可能立刻归另一条滑条所有，旧淡入组件不能再修改它们。
+            if (fadeInComponent != null)
+                fadeInComponent.ClearCache();
             StopAllCoroutines();
             pulseCoroutine = null;
             GameObject oldHead = headInstance;

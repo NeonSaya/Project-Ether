@@ -332,6 +332,17 @@ namespace OsuVR
             }
         }
 
+        // 在子物体回池前解除引用，不再写入可能已被其他物体复用的 Renderer。
+        public void ClearCache()
+        {
+            isInitialized = false;
+            hasFinishedFadeIn = false;
+            gameManager = null;
+            cachedRenderers = null;
+            cachedColors = null;
+            cachedEmissions = null;
+        }
+
         public void ResetState()
         {
             isInitialized = false;

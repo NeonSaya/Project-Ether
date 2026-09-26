@@ -69,6 +69,7 @@ namespace OsuVR
         private PointerEventData pointerData;
         private PointerEventData hoverPointerData; // 预分配，避免每帧 GC
         private GameObject pointerPressTarget;
+        private GameObject pointerClickTarget;
         private bool isPointerDown;
         private Canvas pointerPressCanvas;
         private Camera pointerPressCamera;
@@ -86,9 +87,8 @@ namespace OsuVR
 
         private EventSystem eventSystem;
         private Camera cachedMainCam;
+        private RhythmGameManager cachedGameManager;
 
-        private List<Canvas> cachedCanvases = new List<Canvas>();
-        private List<TMP_Dropdown> cachedDropdowns = new List<TMP_Dropdown>();
         private List<ScrollRect> cachedScrollRects = new List<ScrollRect>();
         private float cacheRefreshTimer;
         private const float CACHE_REFRESH_INTERVAL = 0.2f;
@@ -111,11 +111,14 @@ namespace OsuVR
             if (triggerAction != null)
                 triggerAction.Disable();
             DisableAction(rightStickAction);
-            isPointerDown = false;
-            pointerPressTarget = null;
+            ReleasePointer(false);
+            previousUIHoverObject = currentUIHoverObject;
+            currentUIHoverObject = null;
+            HandleUIHover();
+            previousUIHoverObject = null;
+            IsHittingUI = false;
             pointerData = null;
-            pointerPressCanvas = null;
-            pointerPressCamera = null;
+            hoverPointerData = null;
         }
 
         void Start()
@@ -133,11 +136,17 @@ namespace OsuVR
             }
 
             string handPath = isRightHand
-                ? "<XRController>{RightHand}/triggerButton"
-                : "<XRController>{LeftHand}/triggerButton";
+                ? "<XRController>{RightHand}/{TriggerButton}"
+                : "<XRController>{LeftHand}/{TriggerButton}";
             triggerAction = new InputAction(
                 "Trigger_" + (isRightHand ? "R" : "L"),
+                InputActionType.Button,
                 binding: handPath
+            );
+            triggerAction.AddBinding(
+                isRightHand
+                    ? "<XRController>{RightHand}/triggerButton"
+                    : "<XRController>{LeftHand}/triggerButton"
             );
             triggerAction.AddBinding(
                 isRightHand
@@ -208,7 +217,7 @@ namespace OsuVR
             cachedMainCam = FindAnyCamera();
             RefreshAllCaches();
             // 启动密集刷新: UI 在 Start() 中动态构建，OnSceneLoaded 时还不存在
-            // 连续刷新 10 帧确保 Canvas 缓存及时捕获新 UI
+            // 连续刷新 10 帧捕获动态构建的滚动区域
             postLoadRefreshFrames = 10;
             LoadControllerOffset();
             Debug.Log($"[RayController] 场景 {scene.name} 加载完成，缓存已刷新，偏移已重载");
@@ -235,7 +244,7 @@ namespace OsuVR
             else
                 ApplyDirectMapping();
 
-            // Canvas 缓存刷新: 场景加载后密集刷新 (每帧), 平时低频轮询
+            // 滚动区域缓存：场景加载后密集刷新，UI 射线直接使用活动注册表
             if (postLoadRefreshFrames > 0)
             {
                 postLoadRefreshFrames--;
@@ -243,7 +252,7 @@ namespace OsuVR
             }
             else
             {
-                cacheRefreshTimer += Time.deltaTime;
+                cacheRefreshTimer += Time.unscaledDeltaTime;
                 if (cacheRefreshTimer >= CACHE_REFRESH_INTERVAL)
                 {
                     cacheRefreshTimer = 0f;
@@ -275,12 +284,11 @@ namespace OsuVR
 
         private void RefreshHeavyCaches()
         {
-            cachedCanvases.Clear();
-            cachedCanvases.AddRange(FindObjectsOfType<Canvas>());
-            cachedDropdowns.Clear();
-            cachedDropdowns.AddRange(FindObjectsOfType<TMP_Dropdown>());
+            cachedGameManager = FindFirstObjectByType<RhythmGameManager>();
             cachedScrollRects.Clear();
-            cachedScrollRects.AddRange(FindObjectsOfType<ScrollRect>());
+            cachedScrollRects.AddRange(
+                FindObjectsByType<ScrollRect>(FindObjectsInactive.Include, FindObjectsSortMode.None)
+            );
         }
 
         // ============================================================
@@ -327,7 +335,7 @@ namespace OsuVR
 
         private bool IsTriggerHeld()
         {
-            if (triggerAction != null && triggerAction.ReadValue<float>() > 0.5f)
+            if (triggerAction != null && triggerAction.IsPressed())
                 return true;
             if (!isRightHand)
                 return false;
@@ -388,6 +396,21 @@ namespace OsuVR
 
         private void PerformRaycastAll()
         {
+            // 只屏蔽谱面交互，后续 UI 射线和暂停菜单输入继续执行。
+            if (cachedGameManager != null && cachedGameManager.IsPaused)
+            {
+                foreach (var old in previousHitObjects)
+                    if (old != null)
+                        NotifyHoverState(old, false, Vector3.zero);
+                previousHitObjects.Clear();
+                currentHitObjects.Clear();
+                currentHitMap.Clear();
+                IsHitting = false;
+                CurrentHitPoint = Vector3.zero;
+                lastHitObject = null;
+                return;
+            }
+
             if (visualRay == null)
                 return;
             Vector3 origin = visualRay.position,
@@ -444,102 +467,59 @@ namespace OsuVR
         }
 
         // ============================================================
-        //  Dropdown 模态拦截 — 使用缓存，不每帧 FindObjectsOfType
+        //  Dropdown 模态拦截 — 使用活动注册表
         // ============================================================
 
         private void UpdateDropdownState()
         {
-            TMP_Dropdown prevDropdown = activeDropdown;
             activeDropdown = null;
             dropdownListClone = null;
-
-            bool needsRefresh = false;
-
-            for (int i = 0; i < cachedCanvases.Count; i++)
+            var raycasters = RaycasterManager.GetRaycasters();
+            for (int i = 0; i < raycasters.Count; i++)
             {
-                var canvas = cachedCanvases[i];
-                // Unity fake null check：已销毁对象 != null 但比较运算符返回 true
-                if (canvas == null || canvas.Equals(null))
-                {
-                    needsRefresh = true;
-                    continue;
-                }
-                if (!canvas.gameObject.activeInHierarchy)
+                var raycaster = raycasters[i] as GraphicRaycaster;
+                if (
+                    raycaster == null
+                    || !raycaster.isActiveAndEnabled
+                    || raycaster.name != "Dropdown List"
+                )
                     continue;
 
-                for (int j = 0; j < canvas.transform.childCount; j++)
-                {
-                    Transform child = canvas.transform.GetChild(j);
-                    if (child.gameObject.activeInHierarchy && child.name == "Dropdown List")
-                    {
-                        dropdownListClone = child.gameObject;
+                // TMP 列表嵌在 Dropdown 下，自带已注册的 Canvas/Raycaster；两只手都能立即发现。
+                var dropdown = raycaster.GetComponentInParent<TMP_Dropdown>();
+                if (dropdown == null || !dropdown.IsActive() || !dropdown.IsExpanded)
+                    continue;
+                var group = raycaster.GetComponent<CanvasGroup>();
+                if (group != null && !group.blocksRaycasts)
+                    continue;
 
-                        for (int k = 0; k < cachedDropdowns.Count; k++)
-                        {
-                            var dd = cachedDropdowns[k];
-                            if (dd == null || dd.Equals(null))
-                            {
-                                needsRefresh = true;
-                                continue;
-                            }
-                            if (dd.IsActive() && dd.IsInteractable())
-                            {
-                                Canvas ddCanvas = dd.GetComponentInParent<Canvas>();
-                                if (ddCanvas == canvas)
-                                {
-                                    activeDropdown = dd;
-                                    break;
-                                }
-                            }
-                        }
-                        break;
-                    }
-                }
-                if (dropdownListClone != null)
-                    break;
-            }
-
-            if (needsRefresh)
-                RefreshAllCaches();
-
-            if (activeDropdown != null && prevDropdown == null)
-            {
-                RefreshAllCaches(); // Dropdown 打开需要刷新缓存（新增 Canvas/Raycaster）
-                DisableBlocker();
-            }
-
-            if (prevDropdown != null && activeDropdown == null)
-            {
-                RefreshAllCaches();
+                activeDropdown = dropdown;
+                dropdownListClone = raycaster.gameObject;
+                break;
             }
         }
 
-        private void DisableBlocker()
+        private void CloseActiveDropdown()
         {
-            for (int i = 0; i < cachedCanvases.Count; i++)
+            // Hide 的淡出动画尚未结束时，列表也应立即停止拦截其他控件。
+            if (dropdownListClone != null)
             {
-                var canvas = cachedCanvases[i];
-                if (canvas == null || canvas.Equals(null))
-                    continue;
-                if (!canvas.gameObject.activeInHierarchy)
-                    continue;
-
-                for (int j = 0; j < canvas.transform.childCount; j++)
+                var group = dropdownListClone.GetComponent<CanvasGroup>();
+                if (group != null)
                 {
-                    Transform child = canvas.transform.GetChild(j);
-                    if (child.gameObject.activeInHierarchy && child.name == "Blocker")
-                    {
-                        child.gameObject.SetActive(false);
-                        Debug.Log("[RayController] 已禁用 Dropdown Blocker");
-                        return;
-                    }
+                    group.blocksRaycasts = false;
+                    group.interactable = false;
                 }
             }
+            if (activeDropdown != null)
+                activeDropdown.Hide();
+            activeDropdown = null;
+            dropdownListClone = null;
         }
 
         private bool IsInDropdownList(GameObject uiObj)
         {
-            if (dropdownListClone == null)
+            if (uiObj == null || dropdownListClone == null)
                 return false;
             Transform t = uiObj.transform;
             while (t != null)
@@ -565,113 +545,94 @@ namespace OsuVR
 
         private void PerformUIRaycast()
         {
-            if (visualRay == null)
-                return;
-
-            // 如果缓存为空，立即刷新（确保新场景/新 UI 立即可检测）
-            if (cachedCanvases.Count == 0)
-                RefreshHeavyCaches();
-
             IsHittingUI = false;
             previousUIHoverObject = currentUIHoverObject;
             currentUIHoverObject = null;
+            if (pointerData == null)
+                pointerData = new PointerEventData(eventSystem);
+            pointerData.pointerCurrentRaycast = default;
+            if (visualRay == null)
+                return;
 
-            Vector3 origin = visualRay.position,
-                direction = visualRay.forward;
+            var ray = new Ray(visualRay.position, visualRay.forward);
             float closestDistance = float.MaxValue;
-            Vector3 closestUIHitPoint = Vector3.zero;
-            GameObject closestUIObject = null;
+            Canvas closestCanvas = null;
+            RaycastResult closestResult = default;
+            Vector3 closestHitPoint = Vector3.zero;
 
-            // 直接遍历所有 Canvas，从 Canvas 获取 GraphicRaycaster
-            // 不依赖 GraphicRaycaster 缓存，确保新出现的 UI 立即可检测
-            foreach (var canvas in cachedCanvases)
+            // 使用 uGUI 的活动注册表，新创建/启用的 Canvas 无需等待 0.2 秒缓存轮询。
+            var raycasters = RaycasterManager.GetRaycasters();
+            for (int i = 0; i < raycasters.Count; i++)
             {
-                if (canvas == null || canvas.Equals(null))
+                var raycaster = raycasters[i] as GraphicRaycaster;
+                if (raycaster == null || !raycaster.isActiveAndEnabled)
                     continue;
-                if (canvas.renderMode != RenderMode.WorldSpace)
+                var canvas = raycaster.GetComponent<Canvas>();
+                if (
+                    canvas == null
+                    || !canvas.isActiveAndEnabled
+                    || canvas.renderMode != RenderMode.WorldSpace
+                )
                     continue;
-                if (!canvas.gameObject.activeInHierarchy)
-                    continue;
-
-                GraphicRaycaster raycaster = canvas.GetComponent<GraphicRaycaster>();
-                if (raycaster == null)
-                    continue;
-
-                Camera eventCam = canvas.worldCamera != null ? canvas.worldCamera : cachedMainCam;
+                var eventCam = raycaster.eventCamera;
                 if (eventCam == null)
                     continue;
 
-                Plane canvasPlane = new Plane(canvas.transform.forward, canvas.transform.position);
-                float enter;
-                if (!canvasPlane.Raycast(new Ray(origin, direction), out enter))
+                var plane = new Plane(canvas.transform.forward, canvas.transform.position);
+                if (!plane.Raycast(ray, out float distance) || distance > rayLength)
                     continue;
-
-                Vector3 hitPoint = origin + direction * enter;
-
-                if (pointerData == null)
-                    pointerData = new PointerEventData(eventSystem);
-                pointerData.position = eventCam.WorldToScreenPoint(hitPoint);
-
+                var hitPoint = ray.GetPoint(distance);
+                var screenPoint = eventCam.WorldToScreenPoint(hitPoint);
+                if (screenPoint.z <= 0)
+                    continue;
+                pointerData.position = screenPoint;
                 raycastResults.Clear();
                 raycaster.Raycast(pointerData, raycastResults);
-
-                if (raycastResults.Count > 0)
+                foreach (var result in raycastResults)
                 {
-                    if (activeDropdown != null && dropdownListClone != null)
-                    {
-                        foreach (var result in raycastResults)
-                        {
-                            GameObject obj = result.gameObject;
-                            if (obj.name == "Blocker")
-                                continue;
+                    var obj = result.gameObject;
+                    if (obj.name == "Blocker")
+                        continue;
+                    if (activeDropdown != null && !IsInDropdownList(obj) && !IsDropdownBody(obj))
+                        continue;
 
-                            if (IsInDropdownList(obj))
-                            {
-                                if (enter < closestDistance)
-                                {
-                                    closestDistance = enter;
-                                    closestUIObject = obj;
-                                    closestUIHitPoint = hitPoint;
-                                    IsHittingUI = true;
-                                }
-                                break;
-                            }
-                            if (IsDropdownBody(obj))
-                            {
-                                if (enter < closestDistance)
-                                {
-                                    closestDistance = enter;
-                                    closestUIObject = obj;
-                                    closestUIHitPoint = hitPoint;
-                                    IsHittingUI = true;
-                                }
-                                break;
-                            }
-                        }
-                    }
-                    else
+                    bool preferred = closestCanvas == null || distance < closestDistance;
+                    if (
+                        closestCanvas != null
+                        && (
+                            canvas.rootCanvas == closestCanvas.rootCanvas
+                            || Mathf.Abs(distance - closestDistance) < 0.001f
+                        )
+                    )
                     {
-                        foreach (var result in raycastResults)
-                        {
-                            if (result.gameObject.name == "Blocker")
-                                continue;
-                            if (enter < closestDistance)
-                            {
-                                closestDistance = enter;
-                                closestUIObject = result.gameObject;
-                                closestUIHitPoint = hitPoint;
-                                IsHittingUI = true;
-                            }
-                            break;
-                        }
+                        int layer = SortingLayer.GetLayerValueFromID(result.sortingLayer);
+                        int closestLayer = SortingLayer.GetLayerValueFromID(
+                            closestResult.sortingLayer
+                        );
+                        if (layer != closestLayer)
+                            preferred = layer > closestLayer;
+                        else if (result.sortingOrder != closestResult.sortingOrder)
+                            preferred = result.sortingOrder > closestResult.sortingOrder;
                     }
+                    if (preferred)
+                    {
+                        closestDistance = distance;
+                        closestCanvas = canvas;
+                        closestResult = result;
+                        closestResult.screenPosition = screenPoint;
+                        closestHitPoint = hitPoint;
+                    }
+                    break;
                 }
             }
 
-            if (IsHittingUI)
+            pointerData.pointerCurrentRaycast = closestResult;
+            if (closestResult.gameObject != null)
             {
-                currentUIHoverObject = closestUIObject;
-                CurrentHitPoint = closestUIHitPoint;
+                IsHittingUI = true;
+                currentUIHoverObject = closestResult.gameObject;
+                CurrentHitPoint = closestHitPoint;
+                pointerData.position = closestResult.screenPosition;
             }
         }
 
@@ -756,232 +717,184 @@ namespace OsuVR
 
         private void HandleUIClickAndDrag()
         {
-            if (activeDropdown != null && WasClickedThisFrame() && !isPointerDown)
-            {
-                if (currentUIHoverObject == null)
-                {
-                    Debug.Log("[RayController] Dropdown 空白处点击 → 关闭");
-                    activeDropdown.Hide();
-                    activeDropdown = null;
-                    dropdownListClone = null;
-                    return;
-                }
+            bool pressed = WasClickedThisFrame();
+            bool released = WasReleasedThisFrame();
+            bool held = IsTriggerHeld();
 
-                if (IsDropdownBody(currentUIHoverObject))
-                {
-                    var clickedDropdown = currentUIHoverObject.GetComponentInParent<TMP_Dropdown>();
-                    if (clickedDropdown == activeDropdown)
-                    {
-                        Debug.Log("[RayController] 同一个 Dropdown 本体点击 → 关闭");
-                        activeDropdown.Hide();
-                        activeDropdown = null;
-                        dropdownListClone = null;
-                        return;
-                    }
-                    else
-                    {
-                        Debug.Log("[RayController] 不同 Dropdown 本体点击 → 关闭旧的，让新的打开");
-                        activeDropdown.Hide();
-                        activeDropdown = null;
-                        dropdownListClone = null;
-                    }
-                }
-
-                if (!IsInDropdownList(currentUIHoverObject))
-                {
-                    var anotherDropdown = currentUIHoverObject.GetComponentInParent<TMP_Dropdown>();
-                    TMP_Dropdown oldDropdown = activeDropdown;
-                    activeDropdown.Hide();
-                    activeDropdown = null;
-                    dropdownListClone = null;
-
-                    if (anotherDropdown != null && anotherDropdown != oldDropdown)
-                    {
-                        Debug.Log("[RayController] 不同 Dropdown 点击 → 关闭旧的，让新的打开");
-                    }
-                    else
-                    {
-                        Debug.Log("[RayController] Dropdown 打开时点击其他 UI → 关闭并屏蔽");
-                        return;
-                    }
-                }
-
-                if (IsInDropdownList(currentUIHoverObject))
-                {
-                    var toggle = currentUIHoverObject.GetComponentInParent<Toggle>();
-                    if (toggle != null)
-                    {
-                        Debug.Log(
-                            $"[RayController] Dropdown 选项点击: {currentUIHoverObject.name}, Toggle: {toggle.gameObject.name}"
-                        );
-                        toggle.isOn = true;
-                    }
-                    else
-                    {
-                        Debug.Log("[RayController] Dropdown 列表空白处点击 → 关闭");
-                        activeDropdown.Hide();
-                        activeDropdown = null;
-                        dropdownListClone = null;
-                    }
-                    return;
-                }
-            }
-
-            if (WasClickedThisFrame() && currentUIHoverObject != null && !isPointerDown)
-            {
-                isPointerDown = true;
-
-                Canvas pressCanvas = currentUIHoverObject.GetComponentInParent<Canvas>();
-                GraphicRaycaster pressRaycaster =
-                    pressCanvas != null ? pressCanvas.GetComponent<GraphicRaycaster>() : null;
-                Camera pressCam =
-                    pressCanvas != null && pressCanvas.worldCamera != null
-                        ? pressCanvas.worldCamera
-                        : cachedMainCam;
-
-                RaycastResult pressRaycast = new RaycastResult();
-                pressRaycast.module = pressRaycaster;
-                pressRaycast.gameObject = currentUIHoverObject;
-                pressRaycast.screenPosition = pointerData.position;
-                pointerData.pointerPressRaycast = pressRaycast;
-                pointerData.pointerCurrentRaycast = pressRaycast;
-
-                pointerData.pressPosition = pointerData.position;
-
-                var pressObj = ExecuteEvents.ExecuteHierarchy<IPointerDownHandler>(
-                    currentUIHoverObject,
-                    pointerData,
-                    ExecuteEvents.pointerDownHandler
-                );
-                pointerPressTarget = pressObj ?? currentUIHoverObject;
-                pointerData.pointerPress = pointerPressTarget;
-
-                var clickHandler = ExecuteEvents.GetEventHandler<IPointerClickHandler>(
-                    currentUIHoverObject
-                );
-                var dragObj = ExecuteEvents.GetEventHandler<IDragHandler>(currentUIHoverObject);
-
-                if (
-                    dragObj != null
-                    && (clickHandler == null || dragObj.gameObject == clickHandler.gameObject)
+            // 丢失松开事件或控件被关闭时也必须结束交互，否则下一次按下会一直被拦截。
+            if (
+                isPointerDown
+                && (
+                    pointerData == null
+                    || pointerData.rawPointerPress == null
+                    || !pointerData.rawPointerPress.activeInHierarchy
                 )
-                {
-                    pointerData.pointerDrag = dragObj;
-                    pointerData.useDragThreshold =
-                        (dragObj.GetComponentInParent<Slider>() != null) ? false : true;
-                }
-                else
-                {
-                    pointerData.pointerDrag = null;
-                    pointerData.useDragThreshold = true;
-                }
-
-                pointerData.dragging = false;
-                pointerPressCanvas = pressCanvas;
-                pointerPressCamera = pressCam;
-
-                Debug.Log(
-                    $"[RayController] PointerDown: press={pointerPressTarget.name}, click={clickHandler?.name ?? "null"}, drag={dragObj?.name ?? "null"}, pointerDrag={pointerData.pointerDrag?.name ?? "null"}"
-                );
+            )
+                ReleasePointer(false);
+            if (isPointerDown && (released || !held))
+            {
+                ReleasePointer(released);
+                return;
             }
 
-            if (isPointerDown && pointerData.pointerDrag != null && IsTriggerHeld())
+            if (pressed && !isPointerDown)
+            {
+                if (activeDropdown != null && !IsInDropdownList(currentUIHoverObject))
+                {
+                    CloseActiveDropdown();
+                    return;
+                }
+
+                if (currentUIHoverObject != null)
+                    PressPointer();
+            }
+
+            // 点击回调可能关闭菜单或禁用本组件。
+            if (!isPointerDown || pointerData == null)
+                return;
+
+            if (pointerData.pointerDrag != null && held)
             {
                 UpdatePointerData();
-
-                if (!pointerData.dragging)
-                {
-                    if (
+                if (
+                    !pointerData.dragging
+                    && (
                         !pointerData.useDragThreshold
-                        || Vector2.Distance(pointerData.position, pointerData.pressPosition)
-                            > EventSystem.current.pixelDragThreshold
+                        || (pointerData.position - pointerData.pressPosition).sqrMagnitude
+                            >= eventSystem.pixelDragThreshold * eventSystem.pixelDragThreshold
                     )
-                    {
-                        pointerData.dragging = true;
-                        ExecuteEvents.Execute<IBeginDragHandler>(
-                            pointerData.pointerDrag,
-                            pointerData,
-                            ExecuteEvents.beginDragHandler
-                        );
-                    }
+                )
+                {
+                    pointerData.dragging = true;
+                    pointerData.eligibleForClick = false;
+                    ExecuteEvents.Execute(
+                        pointerData.pointerDrag,
+                        pointerData,
+                        ExecuteEvents.beginDragHandler
+                    );
                 }
 
-                if (pointerData.dragging)
-                {
-                    ExecuteEvents.Execute<IDragHandler>(
+                if (pointerData != null && pointerData.dragging)
+                    ExecuteEvents.Execute(
                         pointerData.pointerDrag,
                         pointerData,
                         ExecuteEvents.dragHandler
                     );
-                }
             }
 
-            if (isPointerDown && WasReleasedThisFrame())
+            // 一次输入更新里同时收到按下和松开时，也完成这次点击周期。
+            if (isPointerDown && (released || !held))
+                ReleasePointer(released);
+        }
+
+        private void PressPointer()
+        {
+            var data = pointerData;
+            var hitObject = currentUIHoverObject;
+            pointerClickTarget = ExecuteEvents.GetEventHandler<IPointerClickHandler>(hitObject);
+            var selectable =
+                pointerClickTarget != null ? pointerClickTarget.GetComponent<Selectable>() : null;
+            bool clickOnPress =
+                selectable is Button || selectable is Toggle || selectable is TMP_Dropdown;
+
+            pointerPressTarget =
+                ExecuteEvents.GetEventHandler<IPointerDownHandler>(hitObject) ?? pointerClickTarget;
+            pointerPressCanvas = hitObject.GetComponentInParent<Canvas>();
+            pointerPressCamera =
+                pointerPressCanvas != null && pointerPressCanvas.worldCamera != null
+                    ? pointerPressCanvas.worldCamera
+                    : cachedMainCam;
+            data.pointerPressRaycast = new RaycastResult
             {
-                if (pointerPressTarget != null)
-                {
-                    ExecuteEvents.Execute<IPointerUpHandler>(
-                        pointerPressTarget,
-                        pointerData,
-                        ExecuteEvents.pointerUpHandler
-                    );
+                module =
+                    pointerPressCanvas != null
+                        ? pointerPressCanvas.GetComponent<GraphicRaycaster>()
+                        : null,
+                gameObject = hitObject,
+                screenPosition = data.position,
+            };
+            data.pointerPress = pointerPressTarget;
+            data.rawPointerPress = hitObject;
+            data.pressPosition = data.position;
+            data.eligibleForClick = true;
+            data.dragging = false;
+            data.useDragThreshold = true;
+            data.clickCount = 1;
+            data.clickTime = Time.unscaledTime;
+            isPointerDown = true;
 
-                    if (!pointerData.dragging)
-                    {
-                        if (currentUIHoverObject != null)
-                        {
-                            var clickHandlerOnCurrent =
-                                ExecuteEvents.GetEventHandler<IPointerClickHandler>(
-                                    currentUIHoverObject
-                                );
-                            var clickHandlerOnPress =
-                                ExecuteEvents.GetEventHandler<IPointerClickHandler>(
-                                    pointerPressTarget
-                                );
-                            if (
-                                clickHandlerOnCurrent != null
-                                && clickHandlerOnCurrent == clickHandlerOnPress
-                            )
-                            {
-                                ExecuteEvents.Execute<IPointerClickHandler>(
-                                    pointerPressTarget,
-                                    pointerData,
-                                    ExecuteEvents.pointerClickHandler
-                                );
-                            }
-                        }
-                        else if (pointerPressTarget != null)
-                        {
-                            ExecuteEvents.Execute<IPointerClickHandler>(
-                                pointerPressTarget,
-                                pointerData,
-                                ExecuteEvents.pointerClickHandler
-                            );
-                        }
-                    }
+            // 悬停用的 EventTrigger 也实现 IDragHandler；按钮/开关不能因此进入拖拽并丢掉点击。
+            var dragObject = clickOnPress
+                ? null
+                : ExecuteEvents.GetEventHandler<IDragHandler>(hitObject);
+            data.pointerDrag =
+                dragObject != null
+                && (pointerClickTarget == null || dragObject == pointerClickTarget)
+                    ? dragObject
+                    : null;
+            if (data.pointerDrag != null)
+                ExecuteEvents.Execute(
+                    data.pointerDrag,
+                    data,
+                    ExecuteEvents.initializePotentialDrag
+                );
 
-                    if (pointerData.dragging && pointerData.pointerDrag != null)
-                    {
-                        ExecuteEvents.Execute<IEndDragHandler>(
-                            pointerData.pointerDrag,
-                            pointerData,
-                            ExecuteEvents.endDragHandler
-                        );
-                    }
+            if (!isPointerDown || pointerData != data)
+                return;
+            ExecuteEvents.Execute(pointerPressTarget, data, ExecuteEvents.pointerDownHandler);
+            if (!isPointerDown || pointerData != data)
+                return;
 
-                    Debug.Log(
-                        $"[RayController] PointerUp: {pointerPressTarget.name}, dragged={pointerData.dragging}"
-                    );
-                }
-
-                isPointerDown = false;
-                pointerPressTarget = null;
-                pointerData.pointerPress = null;
-                pointerData.pointerDrag = null;
-                pointerData.dragging = false;
-                pointerPressCanvas = null;
-                pointerPressCamera = null;
+            if (clickOnPress && pointerClickTarget != null)
+            {
+                // 先消费点击，避免回调切换 UI 后在松开时再次触发。
+                data.eligibleForClick = false;
+                bool selectingDropdownItem = selectable is Toggle && IsInDropdownList(hitObject);
+                ExecuteEvents.Execute(pointerClickTarget, data, ExecuteEvents.pointerClickHandler);
+                if (selectingDropdownItem)
+                    CloseActiveDropdown();
             }
+        }
+
+        private void ReleasePointer(bool allowClick)
+        {
+            if (!isPointerDown)
+                return;
+
+            var data = pointerData;
+            var pressTarget = pointerPressTarget;
+            var clickTarget = pointerClickTarget;
+            var dragTarget = data != null ? data.pointerDrag : null;
+            bool wasDragging = data != null && data.dragging;
+            bool shouldClick =
+                allowClick
+                && data != null
+                && data.eligibleForClick
+                && !wasDragging
+                && clickTarget != null
+                && ExecuteEvents.GetEventHandler<IPointerClickHandler>(currentUIHoverObject)
+                    == clickTarget;
+
+            // 回调可能禁用/销毁当前对象，先解除内部锁定，再发送收尾事件。
+            isPointerDown = false;
+            pointerPressTarget = null;
+            pointerClickTarget = null;
+            pointerPressCanvas = null;
+            pointerPressCamera = null;
+            if (data == null)
+                return;
+
+            ExecuteEvents.Execute(pressTarget, data, ExecuteEvents.pointerUpHandler);
+            if (shouldClick && pointerData == data)
+                ExecuteEvents.Execute(clickTarget, data, ExecuteEvents.pointerClickHandler);
+            if (wasDragging)
+                ExecuteEvents.Execute(dragTarget, data, ExecuteEvents.endDragHandler);
+
+            data.pointerPress = null;
+            data.rawPointerPress = null;
+            data.pointerDrag = null;
+            data.dragging = false;
+            data.eligibleForClick = false;
         }
 
         // ============================================================
@@ -1010,7 +923,7 @@ namespace OsuVR
 
             var spinner = obj.GetComponentInParent<SpinnerController>();
             if (spinner != null)
-                spinner.isHovered = true;
+                spinner.isHovered = state;
         }
 
         // ============================================================

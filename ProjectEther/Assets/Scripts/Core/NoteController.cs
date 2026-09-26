@@ -592,7 +592,7 @@ namespace OsuVR
             if (hasBeenHit)
                 return;
 
-            if (gameManager == null || hitObject == null)
+            if (gameManager == null || gameManager.IsPaused || hitObject == null)
                 return;
 
             double now = gameManager.GetCurrentMusicTimeMs();
@@ -620,16 +620,7 @@ namespace OsuVR
             }
 
             // --- HIT 判定 ---
-            // 音效延迟补偿：osu!默认约20-30ms
-            // 正值表示延迟判定，负值表示提前判定
-            double audioLatencyCompensation = 20.0;
-            if (AudioManager.Instance != null)
-            {
-                audioLatencyCompensation = AudioManager.Instance.audioLatencyCompensation;
-            }
-
-            // 提前 13ms 即可判定 (osu! 标准)
-            // 音效延迟补偿单独处理，不侵入判定窗口
+            // 提前 13ms 即可判定（AutoPlay 提前 16ms）
             bool isAutoPlay = gameManager.useAutoPlay;
             double earlyWindow = isAutoPlay ? -16 : -13;
 
@@ -690,6 +681,11 @@ namespace OsuVR
         /// </summary>
         public void OnRayHover(bool isRightHand)
         {
+            if (gameManager != null && gameManager.IsPaused)
+            {
+                OnRayExit();
+                return;
+            }
             isHovered = true;
             hoveringHandIsRight = isRightHand;
             CheckHitOrMiss();
@@ -700,7 +696,7 @@ namespace OsuVR
         /// </summary>
         public void OnHit(double accuracy, bool isRightHand)
         {
-            if (hasBeenHit || !isActive)
+            if (hasBeenHit || !isActive || (gameManager != null && gameManager.IsPaused))
                 return;
             hasBeenHit = true;
             isActive = false;
