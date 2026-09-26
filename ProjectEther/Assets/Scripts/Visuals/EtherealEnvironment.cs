@@ -3094,7 +3094,18 @@ namespace OsuVR
                 Color bandColor = SpectrumBandToColor(band, bandIntensity);
                 bandColor.a = 0.35f + bandIntensity * 0.3f;
 
-                crystalBuffer[i].startColor = bandColor;
+                Color32 nextColor = bandColor;
+                Color32 currentColor = crystalBuffer[i].startColor;
+                if (
+                    currentColor.r != nextColor.r
+                    || currentColor.g != nextColor.g
+                    || currentColor.b != nextColor.b
+                    || currentColor.a != nextColor.a
+                )
+                {
+                    crystalBuffer[i].startColor = nextColor;
+                    modified = true;
+                }
 
                 // Bass频段的晶体在节拍时放大
                 if (band < 2 && beatBrightnessPulse > 0.5f)
