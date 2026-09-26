@@ -78,6 +78,105 @@ namespace OsuVR.Storyboard.Engine
         static SampleSet Bank(string name) =>
             Enum.TryParse(name, true, out SampleSet bank) ? bank : SampleSet.None;
 
+        public static void ClearHistory(ref SBFlatTimelineData timeline)
+        {
+            if (timeline.Sprites.IsCreated)
+            {
+                for (int i = 0; i < timeline.SpriteCount; i++)
+                {
+                    var sprite = timeline.Sprites[i];
+                    sprite.TriggerHead = -1;
+                    timeline.Sprites[i] = sprite;
+                }
+            }
+            timeline.TriggerCommandCount = 0;
+            if (timeline.TriggerCommands.IsCreated && timeline.TriggerCommands.Length > 256)
+            {
+                timeline.TriggerCommands.Dispose();
+                timeline.TriggerCommands = new NativeArray<SBTriggeredCommand>(
+                    0,
+                    Allocator.Persistent
+                );
+            }
+        }
+
+        // 仅已撤销命令不会复活；未来触发仍可能让较早的有效命令重新胜出。
+        public static void CompactInvalidated(ref SBFlatTimelineData timeline)
+        {
+            int count = timeline.TriggerCommandCount;
+            if (count < 128)
+                return;
+
+            int invalid = 0;
+            for (int i = 0; i < count; i++)
+                if (timeline.TriggerCommands[i].Command.Target == -1)
+                    invalid++;
+            if (invalid < 64 || invalid * 4 < count)
+                return;
+
+            int retained = count - invalid;
+            var remap = new NativeArray<int>(count, Allocator.Temp);
+            var compacted = new NativeArray<SBTriggeredCommand>(retained, Allocator.Temp);
+            try
+            {
+                for (int i = 0; i < count; i++)
+                    remap[i] = -1;
+                int write = 0;
+                for (int i = 0; i < count; i++)
+                {
+                    var entry = timeline.TriggerCommands[i];
+                    if (entry.Command.Target == -1)
+                        continue;
+                    remap[i] = write;
+                    compacted[write++] = entry;
+                }
+
+                for (int i = 0; i < retained; i++)
+                {
+                    var entry = compacted[i];
+                    int next = entry.Next;
+                    while (next >= 0 && remap[next] < 0)
+                        next = timeline.TriggerCommands[next].Next;
+                    entry.Next = next >= 0 ? remap[next] : -1;
+                    compacted[i] = entry;
+                }
+                for (int i = 0; i < timeline.SpriteCount; i++)
+                {
+                    var sprite = timeline.Sprites[i];
+                    int head = sprite.TriggerHead;
+                    while (head >= 0 && remap[head] < 0)
+                        head = timeline.TriggerCommands[head].Next;
+                    sprite.TriggerHead = head >= 0 ? remap[head] : -1;
+                    timeline.Sprites[i] = sprite;
+                }
+
+                int capacity = timeline.TriggerCommands.Length;
+                if (capacity > 256 && retained * 4 < capacity)
+                {
+                    var smaller = new NativeArray<SBTriggeredCommand>(
+                        Mathf.NextPowerOfTwo(Math.Max(32, retained * 2)),
+                        Allocator.Persistent
+                    );
+                    if (retained > 0)
+                        NativeArray<SBTriggeredCommand>.Copy(compacted, smaller, retained);
+                    timeline.TriggerCommands.Dispose();
+                    timeline.TriggerCommands = smaller;
+                }
+                else if (retained > 0)
+                    NativeArray<SBTriggeredCommand>.Copy(
+                        compacted,
+                        timeline.TriggerCommands,
+                        retained
+                    );
+                timeline.TriggerCommandCount = retained;
+            }
+            finally
+            {
+                compacted.Dispose();
+                remap.Dispose();
+            }
+        }
+
         public bool HasTriggers => definitions.Count > 0;
 
         public void FireNamed(ref SBFlatTimelineData timeline, string name, double time)
