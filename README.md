@@ -13,7 +13,7 @@
 
 **Project Ether** 的诞生，就是为了在这两个世界之间架起一座桥梁。我们的终极目标，是打造一款基于 Unity 引擎的**沉浸式 VR 版 osu! 谱面播放器**。
 
-我们的野心，从来不止于把 2D 音符搬进 3D 空间——而是**让《Beat Saber》般爽快至极的打击手感，与 VRChat 中 MMD 舞台级别的顶级视听盛宴，在同一个世界里相遇。**
+我们的野心不止于把 2D 音符搬进 3D 空间——而是**让《Beat Saber》般爽快至极的打击手感，与 VRChat 中 MMD 舞台级别的顶级视听盛宴，在同一个世界里相遇。**
 
 你只需举起手中的虚拟射线，在纯粹的音波起伏与绚丽的光影交错之间，便能轻松惬意地沉浸于每一首高质量 osu! 谱面带来的视听震撼。
 
@@ -51,7 +51,7 @@
 
 * **原生解析与精准判定**: 内置纯 C# 高性能谱面解析器 (`OsuParser`)，直接读取 `.osu` 文件无需转换；对照 `osu! Lazer` 实现判定逻辑，从滑条节点 (Tick)、折返点 (Repeat) 到转盘转速都参与结算。悬停命中可提前 13ms 判定，缩短输入到反馈的延迟。
 * **Storyboard 全指令引擎**: 完整解析 `.osb` / `.osu` 内联故事板，支持 Sprite、Animation、Loop、Trigger 全部指令类型。精灵走 GPU 实例化绘制、不占场景层级，参考 osu!lazer 与 storybrew 的评估逻辑，时间轴求值与矩阵计算交给 Burst Job，尽可能还原原版 SB 的视觉呈现；实际开销随谱面复杂度与设备而变化，我们会在真实场景中持续观测与优化。
-* **多线程架构 (Unity Jobs + Burst)**: Storyboard 矩阵计算与粒子颜色更新已剥离至 Worker Thread，`IJobParallelFor` + `[BurstCompile]` 负责批量计算；音符坐标仍在生成时由主线程处理。收益随谱面与设备而不同，每一次 profiling 都在为它写下新的注脚。
+* **多线程架构 (Unity Jobs + Burst)**: Storyboard 矩阵计算与粒子颜色更新已剥离至 Worker Thread，`IJobParallelFor` + `[BurstCompile]` 负责批量计算；音符坐标仍在生成时由主线程处理。收益随谱面与设备而不同。
 * **三层合成渲染**: 背景图 / 视频 / SB 三层独立合成，SB Background 层可自动替代谱面背景图，设置面板统一控制全局亮度与透明度。
 * **沉浸式 VR 交互体验**: 射线悬停交互机制实现“指哪打哪”；手柄震动反馈 (`HapticProfile`) 根据谱面音量与判定结果动态调整；常用面板通过 `CurvedUIEffect` 物理弯折与 `HUDFollower` 弹簧跟随缓解边缘畸变与眩晕，是否弯曲按面板距离与视角决定。
 * **完整的游戏系统**: 集成 AutoPlay / HR / FL 等经典 Mod，内置自动本地化系统 (`LocalizationManager`) 支持多语言 Unicode 渲染，音效与震动采用 `TimingPoint × SampleVolume × 设置` 的完整乘法链路，精准可控。
@@ -155,7 +155,7 @@ Android 本地构建默认使用开发签名。正式发布请在 Player Setting
 
 ## 🕹️ 核心操作与玩法指南 (How to Play)
 
-为了让游戏数据完整流动、顺利初始化，**请务必永远从主菜单 (MainMenuScene) 开始你的旅程**——这能让一切空引用报错无处遁形。
+为了让游戏数据完整流动、顺利初始化，**请务必永远从主菜单 (MainMenuScene) 开始你的旅程**，避开不可预知的空引用报错。
 
 游戏的场景流转顺序非常清晰：
 1. `MainMenuScene` (主界面): 调整语言、画面亮度，最重要的是可以在这里根据你的 VR 串流情况微调音频延迟。
@@ -202,7 +202,7 @@ A: 我们的 SB 引擎参考了 osu!lazer 和 storybrew 的开源实现，力求
 - [x] **物件渐入动画**: 游玩物件（音符、滑条等）已实现淡入与淡出效果，提升视觉流畅度与沉浸感；这里的范围是演出物件，不包括场景里的所有对象。
 - [x] **打击反馈大换血**: 已实现纯代码驱动的高性能粒子特效系统 (`CodeOnlyVFX`)，支持对象池复用与 HDR 高亮爆发效果。
 - [x] **精细化判定表现**: 已实现判定可视化器 (`JudgementVisualizer`)，为 300/100/50/Miss 四种判定结果配置独立颜色编码与弹出渐隐动画。
-- [ ] **后期处理深度定制**: `X-PostProcessing-Library` 已在工程里整装待发——它的程序集面向 Editor、运行旧版 PPv2 栈，因此将作为滤镜宝库而非现成管线使用；下一步是挑出真正需要的滤镜（径向模糊、色差、胶片颗粒等），逐一移植到 URP 路径上。
+- [ ] **后期处理深度定制**: `X-PostProcessing-Library` 已经在工程里——它的程序集面向 Editor、运行旧版 PPv2 栈，将作为滤镜宝库而非现成管线使用；下一步是挑出真正需要的滤镜（径向模糊、色差、胶片颗粒等），逐一移植到 URP 路径上。
 
 ### 阶段二：数据驱动的音频可视化舞台 (Audio $\rightarrow$ Visual) — 🟢 视听闭环已达成
 这是本项目的杀手锏。核心逻辑：`音频数据化 (FFT 快速傅里叶变换) -> 数据流全面驱动视觉 (Shader 参数 & 粒子速率)`。
@@ -217,14 +217,14 @@ A: 我们的 SB 引擎参考了 osu!lazer 和 storybrew 的开源实现，力求
 ### 阶段三：osu! 经典特性 VR 重塑 — 🟢 Storyboard 引擎已上线
 - [x] **Storyboard 全指令解析**: 完整支持 Sprite、Animation、Loop、Trigger 及 Fade/Move/Scale/Rotate/Color/Parameter 全部指令。
 - [x] **GPU 实例化渲染**: 精灵不进场景层级，一次程序化实例绘制提交，Alpha Blend 与 Additive 双通道渲染。
-- [x] **多线程时间轴求值**: 参考 osu!lazer 与 storybrew 的命令评估逻辑，时间轴求值与矩阵计算交给 Burst Job；主线程负责批次组织与绘制提交，两端分工明确、开销透明。
+- [x] **多线程时间轴求值**: 参考 osu!lazer 与 storybrew 的命令评估逻辑，时间轴求值与矩阵计算交给 Burst Job；主线程负责批次组织与绘制提交。
 - [x] **视频背景播放**: 支持 `.mp4` / `.webm` / `.mov` 视频作为背景，通过 `VideoPlayer` + `Graphics.Blit` 渲染到全息幕布；遇到 `.avi` 等格式会优雅跳过并回退背景图。Android 视频播放已验证可用，更多编码与设备的验证正按实际环境持续推进。
 - [x] **三层合成渲染**: 背景图 / 视频 / SB 三层独立合成，SB Background 层可自动替代谱面背景图，设置面板统一控制全局亮度与透明度。
 - [x] **重试与触发局态**: 暂停菜单 Retry 会清空触发链、待处理触发与视频同步状态，无需重新解码纹理；已撤销的触发记录会在渲染前稳定回收。
 - [ ] **有效触发历史的长期上界**: 长期游玩时可能积累有效触发记录——只要约定好未来触发时间的下界，就能安全裁剪，这项收口工作已提上日程。
 - [ ] **Effekseer 特效演出**: 利用 `Effekseer` 制作与 Storyboard 联动的华丽粒子特效。
 
-> **关于 Storyboard 还原度：** 本引擎参考 osu!lazer 与 storybrew 的开源实现，在 Unity URP 管线下尽可能还原 osu! 原版 Storyboard 的视觉风格与合成逻辑。受引擎架构差异影响，极少数场景会与原版存在像素级出入，但绝大多数谱面都能获得贴合原版的观赏体验。我们将持续对齐上游更新，一步步把还原精度推向极致。
+> **关于 Storyboard 还原度：** 本引擎参考 osu!lazer 与 storybrew 的开源实现，在 Unity URP 管线下尽可能还原 osu! 原版 Storyboard 的视觉风格与合成逻辑。受引擎架构差异影响，极少数场景会与原版存在像素级出入，但绝大多数谱面都能获得贴合原版的观赏体验。我们将持续对齐上游更新，逐步提升还原精度。
 
 ### 阶段四：多平台设备全面适配 (PC / Quest / Pico) — 🟢 双平台构建已打通
 - [x] **跨平台文件系统**: 所有文件 I/O 统一使用 `Application.persistentDataPath`，支持 .osz 拖放导入 (PC) 与 Android 原生文件选择器。
@@ -234,7 +234,7 @@ A: 我们的 SB 引擎参考了 osu!lazer 和 storybrew 的开源实现，力求
 - [ ] **国产设备专属调优**: 针对 Pico 4 等国内主流头显设备，适配专属的控制器高模显示与契合其振动马达特性的精准触觉反馈。
 
 ### 阶段五：多线程全局优化 — 🟢 核心管线已上线
-- [x] **Storyboard 时间轴多线程化**: 时间轴求值与矩阵计算走 Burst 并行，结果写入 Persistent NativeArray；绘制前通过 `ComputeBuffer.SetData` 上传实例数据，传输路径清晰可控。
+- [x] **Storyboard 时间轴多线程化**: 时间轴求值与矩阵计算走 Burst 并行，结果写入 Persistent NativeArray；绘制前通过 `ComputeBuffer.SetData` 上传实例数据。
 - [x] **粒子颜色计算 Job 化**: `CodeDrivenAmbientParticles` 的 12000 粒子 HSV + 闪烁计算剥离至 Burst Job。
 - [x] **音符 SoA 扁平化**: `NativeArray<double>` spawnTimes / startTimes 与类型数组由主线程填充，生成时用二分查找框定区间；架构保持轻量，`worldPositions` 数组与加载期 Burst 坐标预计算均在评估清单中按需引入。
 - [x] **二分搜索替代线性扫描**: `SpawnNotes` 中 O(log N) 上界查找替代 while 循环。
@@ -242,9 +242,9 @@ A: 我们的 SB 引擎参考了 osu!lazer 和 storybrew 的开源实现，力求
 
 ### 阶段？？？：星河彼岸 — 🔭 远眺 Unity 6
 
-> 这不是路线图上的必选项，更像一个放在远处的念想。从 Unity 2022 LTS 到 Unity 6，意味着 Render Graph、GPU Resident Drawer 等新一代渲染栈的全面就绪。我们有计划将 Project Ether 迁入新引擎，在保持现有风格与体验的前提下，走进下一个技术世代。启程之日尚未写进日历，但方向，早已标注在星图之上。
+> 这不是路线图上的必选项，更像一个放在远处的念想。从 Unity 2022 LTS 到 Unity 6，意味着 Render Graph、GPU Resident Drawer 等新一代渲染栈的全面就绪。我们有计划将 Project Ether 迁入新引擎，在保持现有风格与体验的前提下，走进下一个技术世代。启程之日尚未写进日历，但方向已经在星图上。
 
-- [ ] **引擎升级至 Unity 6**：从 Unity 2022.3.22f1 LTS 迁移，完成 API 适配、包依赖更新与废弃接口替换。动身前先在独立分支留下 Unity 2022 双平台构建、判定、媒体播放与帧时间的可复测基线，升级版本号也将在验证通过后郑重揭晓。
+- [ ] **引擎升级至 Unity 6**：从 Unity 2022.3.22f1 LTS 迁移，完成 API 适配、包依赖更新与废弃接口替换。动身前先在独立分支留下 Unity 2022 双平台构建、判定、媒体播放与帧时间的可复测基线，版本号也等验证通过后再定。
 - [ ] **URP Render Graph 适配**：把全息幕布、SB 实例化渲染与后处理逐步迁入 Render Graph。目前 SB 走的是图外 `Graphics.ExecuteCommandBuffer` + 自有 RT，全息幕布是 MeshRenderer 加材质——工作量远不止改几个 API 名，回退开销也将以实测数据说话。
 - [ ] **GPU Resident Drawer 与 STP**：GPU Resident Drawer 服务于符合条件的普通场景 MeshRenderer，Storyboard 的程序化实例绘制将继续走自己的专属通道；STP 的版本与 XR 支持单独评估——Unity 6.0 的兼容表中它标注为不支持，我们将等待合适的时机再让它与 MSAA 同台竞技。
 - [ ] **全链路回归与双平台验证**：升级后覆盖核心玩法判定、谱面解析、Storyboard 全指令渲染及 PC VR / Standalone VR 双平台构建，确保功能无退化、性能不低于当前基线。

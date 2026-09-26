@@ -15,13 +15,13 @@ Today's VR ecosystem is overflowing with brilliant rhythm games — yet nearly a
 
 Our ambition goes far beyond porting 2D notes into 3D space — we aim to **fuse the exhilarating hit feedback of Beat Saber with the top-tier audiovisual spectacle of MMD stages in VRChat.**
 
-With virtual ray pointers resting in your hands, every high-quality osu! beatmap becomes an audiovisual feast of pure sound waves and dazzling light, waiting for you to dive in.
+With virtual ray pointers resting in your hands, every high-quality osu! beatmap becomes an audiovisual feast of pure sound waves and dazzling light.
 
 > 🟢 **Current Status: v0.7.7**
 
 > The core loop (Launch -> Song Select -> Play -> Result) is fully connected, and Circle, Slider and Spinner all take part in play. Storyboard command parsing and GPU instanced rendering are live, with background / video / SB three-layer compositing and brightness plus opacity steered from the settings panel. Unity Jobs + Burst have taken over part of the timeline evaluation, matrix maths and particle colour updates, while the main thread keeps object management and draw submission. We are inching toward the audiovisual feast we picture, with the MMD-style dynamic stage next on the engineering list.
 >
-> **Platform Support**: Built for PC VR (Windows) and Standalone VR (Android). The six target devices — Pico Neo 3 / Pico 4 / Pico 4 Ultra / Quest 2 / Quest 3 / Quest 3S — receive per-device verification of input, video decoding and performance — every build configuration gets paired with real hardware testing for each headset.
+> **Platform Support**: Built for PC VR (Windows) and Standalone VR (Android). The six target devices — Pico Neo 3 / Pico 4 / Pico 4 Ultra / Quest 2 / Quest 3 / Quest 3S — receive per-device verification of input, video decoding and performance.
 
 ---
 
@@ -52,7 +52,7 @@ This project is built on the latest Unity technology stack, laying a solid found
 
 * **Native Parsing & Precision Judgement**: Built-in pure C# high-performance beatmap parser (`OsuParser`), directly reading `.osu` files without conversion; judgement follows `osu! Lazer`, with Slider Ticks, Repeat points and Spinner RPM all taking part in scoring. Hover hits can register 13ms early, shortening the gap between input and feedback.
 * **Storyboard Full-Command Engine**: Complete parsing of `.osb` / `.osu` inline storyboards, supporting Sprite, Animation, Loop, and all Trigger command types. Sprites are drawn through GPU instancing without occupying scene hierarchy; referencing osu!lazer and storybrew's evaluation logic, timeline evaluation and matrix maths run in Burst jobs, restoring the original SB look as faithfully as we can. Actual cost scales gracefully with beatmap complexity and hardware.
-* **Multithreading Architecture (Unity Jobs + Burst)**: Storyboard matrix computation and particle colour updates are offloaded to Worker Threads, with `IJobParallelFor` + `[BurstCompile]` handling the batch maths; note coordinates are still produced on the main thread at spawn time. Gains scale with beatmap and hardware, rewarding heavier maps and stronger machines.
+* **Multithreading Architecture (Unity Jobs + Burst)**: Storyboard matrix computation and particle colour updates are offloaded to Worker Threads, with `IJobParallelFor` + `[BurstCompile]` handling the batch maths; note coordinates are still produced on the main thread at spawn time. Gains scale with beatmap and hardware.
 * **Three-Layer Compositing**: Background image / video / SB three-layer independent compositing, SB Background layer can automatically replace the beatmap background, settings panel controls global brightness and opacity uniformly.
 * **Immersive VR Interaction**: Ray hover interaction mechanism achieves "point and hit"; controller haptic feedback (`HapticProfile`) dynamically adjusts based on beatmap volume and judgement results; frequently used panels use `CurvedUIEffect` physical curvature and `HUDFollower` spring following to ease edge distortion and motion sickness, and whether to curve a panel depends on its distance and viewing angle.
 * **Complete Game System**: Integrates AutoPlay / HR / FL and other classic Mods, built-in automatic localization system (`LocalizationManager`) supporting multilingual Unicode rendering, sound effects and haptics use `TimingPoint × SampleVolume × Settings` complete multiplication chain, precisely controllable.
@@ -113,7 +113,7 @@ Understanding the data flow is absolutely key to understanding this project's ar
 
 ### 3. Project Development Iron Rules (Untouchable Red Lines)
 1. **Absolute Data Layer Purity**: All classes under the `Data/` directory, such as `Beatmap` and `HitObject`, are merely containers for holding parameters. It is **absolutely forbidden** to introduce Unity `GameObject` or `Transform` references within them, ensuring purity for future logic extraction.
-2. **The Zero Garbage Collection (0 GC) Goal**: In the `Update` loop during music playback, never reach for `Instantiate` and `Destroy` on a whim! Whether it's flying notes or dissipating particles, go through `NotePoolManager` and reuse pooled objects, otherwise a momentary GC hitch will wreck the whole run. Existing pools cover notes and some sound effects, and the allocation-free chain continues to grow — keep an eye on GC Alloc in the Profiler when you add code.
+2. **The Zero Garbage Collection (0 GC) Goal**: In the `Update` loop during music playback, never reach for `Instantiate` and `Destroy` on a whim! Whether it's flying notes or dissipating particles, go through `NotePoolManager` and reuse pooled objects, otherwise a momentary GC hitch will wreck the whole run. Existing pools cover notes and some sound effects, and coverage keeps growing — keep an eye on GC Alloc in the Profiler when you add code.
 3. **VR UI Ergonomics**: When you add an interactive panel, decide whether to mount the custom `CurvedUIEffect` script and give it concave physical curvature based on its distance from the player and its viewing angle. A flat panel parked at the edge of the VR field of view causes obvious distortion and eye fatigue.
 
 ---
@@ -218,11 +218,11 @@ This is the project's killer feature. Core logic: `Audio digitization (FFT) -> D
 ### Phase 3: osu! Classic Features VR Revamp — 🟢 Storyboard Engine Live
 - [x] **Storyboard Full-Command Parsing**: Complete support for Sprite, Animation, Loop, Trigger and all Fade/Move/Scale/Rotate/Color/Parameter commands.
 - [x] **GPU Instanced Rendering**: Sprites stay out of the scene hierarchy and are submitted as instanced draws, with Alpha Blend and Additive dual-channel rendering.
-- [x] **Multithreaded Timeline Evaluation**: Referencing osu!lazer and storybrew's command evaluation logic, timeline evaluation and matrix computation run in Burst jobs; the main thread still organises batches and submits draws, and the pipeline keeps getting leaner with each pass.
+- [x] **Multithreaded Timeline Evaluation**: Referencing osu!lazer and storybrew's command evaluation logic, timeline evaluation and matrix computation run in Burst jobs; the main thread still organises batches and submits draws.
 - [x] **Video Background Playback**: Supports `.mp4` / `.webm` / `.mov` background video, rendered to the holographic screen via `VideoPlayer` + `Graphics.Blit`; unsupported extensions such as `.avi` are skipped and fall back to the background image. Android video playback verified working; other codecs and devices continue to be validated in their own environments.
 - [x] **Three-Layer Compositing**: Background image / video / SB three-layer independent compositing, SB Background layer can automatically replace the beatmap background, settings panel controls global brightness and opacity uniformly.
 - [x] **Retry and Trigger State**: Retrying from the pause menu clears the trigger chains, pending triggers and video sync state without re-decoding textures, and revoked trigger records are reclaimed before rendering.
-- [ ] **Long-Term Bound on Live Trigger History**: Long sessions can still accumulate live trigger records; the next step is establishing a lower bound on future trigger times so pruning becomes safe — work already mapped out on the roadmap.
+- [ ] **Long-Term Bound on Live Trigger History**: Long sessions can still accumulate live trigger records; the next step is establishing a lower bound on future trigger times so pruning becomes safe.
 - [ ] **Effekseer Effect Performance**: Utilize `Effekseer` to create spectacular particle effects linked with Storyboard.
 
 > **Regarding Storyboard Fidelity:** This engine references osu!lazer and storybrew's open-source implementations, restoring osu!'s original Storyboard visual style and compositing logic as faithfully as possible under Unity URP pipeline. Due to engine architecture differences, pixel-perfect consistency is not guaranteed, but for the vast majority of beatmaps, a viewing experience closely matching the original can be provided. We will continue to align with upstream updates, progressively improving restoration accuracy.
@@ -235,9 +235,9 @@ This is the project's killer feature. Core logic: `Audio digitization (FFT) -> D
 - [ ] **Domestic Device-Specific Optimization**: Dedicated controller high-poly display and precision haptic feedback tailored to the vibration motor characteristics of mainstream domestic headsets like Pico 4.
 
 ### Phase 5: Global Multithreading Optimization — 🟢 Core Pipeline Live
-- [x] **Storyboard Timeline Multithreading**: Timeline evaluation and matrix computation are Burst-parallelized and written into Persistent NativeArrays; the draw path still calls `ComputeBuffer.SetData` to upload instance data, and further CPU-to-GPU copy reduction stays on the roadmap.
+- [x] **Storyboard Timeline Multithreading**: Timeline evaluation and matrix computation are Burst-parallelized and written into Persistent NativeArrays; the draw path still calls `ComputeBuffer.SetData` to upload instance data.
 - [x] **Particle Color Calculation Job-ified**: `CodeDrivenAmbientParticles` 12000 particle HSV + flicker calculation offloaded to Burst Job.
-- [x] **Note SoA Flattening**: `NativeArray<double>` spawnTimes / startTimes plus a type array are filled on the main thread, and spawning narrows the range with a binary search; Burst precomputation of note positions at load time remains an exciting avenue to explore.
+- [x] **Note SoA Flattening**: `NativeArray<double>` spawnTimes / startTimes plus a type array are filled on the main thread, and spawning narrows the range with a binary search; Burst precomputation of note positions at load time stays on the evaluation list.
 - [x] **Binary Search Replaces Linear Scan**: `SpawnNotes` uses O(log N) upper bound search replacing while loops.
 - [ ] **Custom Collision Detection**: Today each hand fires one `SphereCastNonAlloc` per frame, with no measurement showing PhysX queries are the bottleneck; "swap it out past 500 active notes" is only a candidate threshold, so the next step is gathering reproducible performance data.
 
