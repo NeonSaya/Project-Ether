@@ -9,55 +9,55 @@
 
 ## 📖 Overview
 
-In the current VR ecosystem, excellent music rhythm games emerge in endless succession, yet they often share a fatal pain point: **a severe lack of high-quality community-made beatmaps**. Meanwhile, the classic PC rhythm game `osu!`, with over a decade of history, boasts a massive, stunning, and challenging beatmap library.
+Today's VR ecosystem is overflowing with brilliant rhythm games — yet nearly all of them share one painful bottleneck: **a severe shortage of high-quality community-made beatmaps**. Meanwhile, the classic PC rhythm game `osu!` has spent over a decade cultivating a beatmap library that is massive, gorgeous, and endlessly challenging.
 
 **Project Ether** was born to bridge these two worlds. Our ultimate goal is to build an **immersive VR osu! beatmap player** powered by the Unity engine.
 
-Our ambition goes beyond simply porting 2D notes into 3D space — we aim to **combine the exhilarating hit feedback of Beat Saber with the top-tier audiovisual spectacle of MMD stages in VRChat.**
+Our ambition goes far beyond porting 2D notes into 3D space — we aim to **fuse the exhilarating hit feedback of Beat Saber with the top-tier audiovisual spectacle of MMD stages in VRChat.**
 
-Using virtual ray pointers in your hands, you can effortlessly enjoy the audiovisual thrill of every high-quality osu! beatmap amidst pure sound waves and dazzling light effects.
+With virtual ray pointers resting in your hands, every high-quality osu! beatmap becomes an audiovisual feast of pure sound waves and dazzling light, waiting for you to dive in.
 
 > 🟢 **Current Status: v0.7.7**
 
-> The core loop (Launch -> Song Select -> Play -> Result) is fully functional. Generation and scoring systems for Circle, Slider, and Spinner are all complete. Storyboard full-command parsing + GPU instanced rendering is live, fully aligned with osu!lazer's command evaluation logic, with video background playback, three-layer compositing rendering, and unified whole-screen opacity. The underlying architecture has fully adopted Unity Jobs + Burst multithreading, with the entire Storyboard pipeline multithreaded. Brightness and opacity are controlled via a unified settings panel, with three-layer premultiplied alpha blending ensuring consistent visual output.
+> The core loop (Launch -> Song Select -> Play -> Result) is fully connected, and Circle, Slider and Spinner all take part in play. Storyboard command parsing and GPU instanced rendering are live, with background / video / SB three-layer compositing and brightness plus opacity steered from the settings panel. Unity Jobs + Burst have taken over part of the timeline evaluation, matrix maths and particle colour updates, while the main thread keeps object management and draw submission. We are inching toward the audiovisual feast we picture, with the MMD-style dynamic stage next on the engineering list.
 >
-> **Platform Support**: Dual platform support for PC VR (Windows) and Standalone VR (Android), compatible with mainstream headsets including Pico Neo 3 / Pico 4 / Pico 4 Ultra / Quest 2 / Quest 3.
+> **Platform Support**: Built for PC VR (Windows) and Standalone VR (Android). The six target devices — Pico Neo 3 / Pico 4 / Pico 4 Ultra / Quest 2 / Quest 3 / Quest 3S — receive per-device verification of input, video decoding and performance — every build configuration gets paired with real hardware testing for each headset.
 
 ---
 
 ### 🎮 Core Concept
 
-* **Relax**: Completely abandon traditional physical button presses, mouse clicks, and intense physical swinging. We employ an innovative 3D spatial ray hover interaction mechanism, achieving a "point and hit" smooth experience that keeps you relaxed even after extended play sessions.
-* **Precision**: While the gameplay is casual, the underlying mechanics are anything but lax. We have perfectly replicated the extremely rigorous hardcore judgement logic of `osu! Lazer` at the code level. From millisecond-level timing window calculations to combo weight multipliers, the core gameplay satisfaction of a top-tier rhythm game is fully preserved.
-* **Flow**: The game UI and environment adopt a visual style blending minimalism with cyberpunk aesthetics. All flashy, distracting elements are eliminated, allowing the player's consciousness to dissolve entirely into pure music and rhythm.
+* **Relax**: Say goodbye to button mashing, mouse clicks, and full-body swinging. An innovative 3D spatial ray hover interaction mechanism delivers a smooth "point and hit" experience that keeps you comfortable even after hours of play.
+* **Precision**: Casual on the surface, rigorous underneath. We follow `osu! Lazer` for millisecond-level timing windows and combo weight multipliers, preserving as much of that top-tier rhythm-game feel as we can; sliders, spinners and speed Mods settle according to this project's own implementation, growing ever closer to upstream with each release.
+* **Flow**: The UI and environment blend minimalism with cyberpunk aesthetics. Every flashy, distracting element is stripped away, letting your consciousness dissolve entirely into pure music and rhythm.
 
 ---
 
 ## 💻 Tech Stack
 
-This project is built with the latest Unity technology stack, laying a solid foundation for future cross-platform support and high-performance rendering:
+This project is built on the latest Unity technology stack, laying a solid foundation for future cross-platform support and high-performance rendering:
 
 * **Game Engine**: Unity 2022.3.22f1 LTS — providing long-term, stable architectural support.
 * **Rendering**: Universal Render Pipeline (URP 14.0.10) — delivering excellent visual quality while ensuring high rendering efficiency and frame rate for mobile VR devices (such as Quest).
 * **VR Interaction Layer**: XR Interaction Toolkit (XRI 3.3.1) — the official powerful XR wrapper library, stably handling headset spatial tracking, controller 6DoF movement, and complex ray interaction logic.
 * **Underlying XR Plugin**: Uses the highly compatible OpenXR 1.10.0 protocol standard, with embedded Oculus XR Plugin 4.2.0.
 * **Visual & Text Solutions**: TextMeshPro (TMP 3.0.6) ensures crisp font rendering even under close VR inspection; combined with Visual Effect Graph (VFX 14.0.10) driving GPU-level large-scale particle effects.
-* **Audio Visualization Stack**: `Lasp` (Keijiro) provides PC-side system-level low-latency FFT audio capture (`#if LASP` macro isolated, Standalone platform only), `AudioLink` provides DFT fine-grained frequency data through reflective integration (cross-platform compatible), `AudioVisualizationManager` unified management of three-band global Shader parameter injection and spectrum analysis pipeline.
-* **Multithreading Architecture**: Unity Jobs System + Burst Compiler — Storyboard full pipeline, particle systems, note pre-computation and other core logic are all offloaded to Worker Threads for parallel execution, keeping the main thread lightweight.
+* **Audio Visualization Stack**: `Lasp` (Keijiro) provides PC-side system-level low-latency FFT audio capture (guarded by the `#if LASP` macro, which is only defined for Standalone, and it also needs an analyser component set up in the scene before it does anything), `AudioLink` provides DFT fine-grained frequency data through reflective integration (cross-platform compatible), and `AudioVisualizationManager` unifies three-band global Shader parameter injection and the spectrum analysis pipeline.
+* **Multithreading Architecture**: Unity Jobs System + Burst Compiler — Storyboard timeline evaluation and matrix maths plus ambient particle colour updates are offloaded to Worker Threads; object management, draw submission and note spawn preparation still run on the main thread.
 * **Architecture**: C# object-oriented design — strictly following modular architecture with data-view separation, providing an extremely friendly environment for open-source community secondary development and large-scale customization.
 
 ---
 
 ## ✨ Features
 
-* **Native Parsing & Precision Judgement**: Built-in pure C# high-performance beatmap parser (`OsuParser`), directly reading `.osu` files without conversion; strictly replicating `osu! Lazer`'s judgement logic, with precise settlement across the entire chain from Slider Ticks, Repeat points to Spinner RPM. Pre-hit detection at 13ms eliminates frame delay.
-* **Storyboard Full-Command Engine**: Complete parsing of `.osb` / `.osu` inline storyboards, supporting Sprite, Animation, Loop, and all Trigger command types. Pure GPU instanced rendering, 50K sprites with zero GameObjects. Referencing osu!lazer and storybrew's evaluation logic, command evaluation and rendering are fully multithreaded, restoring original SB visual presentation as faithfully as possible.
-* **Multithreading Architecture (Unity Jobs + Burst)**: Storyboard matrix computation, particle color updates, note coordinate pre-calculation — all offloaded to Worker Threads. `IJobParallelFor` + `[BurstCompile]` SIMD vectorization, main thread load reduced by 30%+.
+* **Native Parsing & Precision Judgement**: Built-in pure C# high-performance beatmap parser (`OsuParser`), directly reading `.osu` files without conversion; judgement follows `osu! Lazer`, with Slider Ticks, Repeat points and Spinner RPM all taking part in scoring. Hover hits can register 13ms early, shortening the gap between input and feedback.
+* **Storyboard Full-Command Engine**: Complete parsing of `.osb` / `.osu` inline storyboards, supporting Sprite, Animation, Loop, and all Trigger command types. Sprites are drawn through GPU instancing without occupying scene hierarchy; referencing osu!lazer and storybrew's evaluation logic, timeline evaluation and matrix maths run in Burst jobs, restoring the original SB look as faithfully as we can. Actual cost scales gracefully with beatmap complexity and hardware.
+* **Multithreading Architecture (Unity Jobs + Burst)**: Storyboard matrix computation and particle colour updates are offloaded to Worker Threads, with `IJobParallelFor` + `[BurstCompile]` handling the batch maths; note coordinates are still produced on the main thread at spawn time. Gains scale with beatmap and hardware, rewarding heavier maps and stronger machines.
 * **Three-Layer Compositing**: Background image / video / SB three-layer independent compositing, SB Background layer can automatically replace the beatmap background, settings panel controls global brightness and opacity uniformly.
-* **Immersive VR Interaction**: Ray hover interaction mechanism achieves "point and hit"; controller haptic feedback (`HapticProfile`) dynamically adjusts based on beatmap volume and judgement results; UI panels use `CurvedUIEffect` physical curvature and `HUDFollower` spring following, completely eliminating VR motion sickness.
+* **Immersive VR Interaction**: Ray hover interaction mechanism achieves "point and hit"; controller haptic feedback (`HapticProfile`) dynamically adjusts based on beatmap volume and judgement results; frequently used panels use `CurvedUIEffect` physical curvature and `HUDFollower` spring following to ease edge distortion and motion sickness, and whether to curve a panel depends on its distance and viewing angle.
 * **Complete Game System**: Integrates AutoPlay / HR / FL and other classic Mods, built-in automatic localization system (`LocalizationManager`) supporting multilingual Unicode rendering, sound effects and haptics use `TimingPoint × SampleVolume × Settings` complete multiplication chain, precisely controllable.
 * **Data-Driven Audiovisual Performance**: Integrates `AudioLink` and `Lasp` for an audio data closed loop, 128-bar spectrum rendering and 11-layer environment particles responding in real-time to BPM beats and Kiai sections; pure code particle engine (`CodeOnlyVFX`) provides smooth fallback for low-end devices.
-* **Cross-Platform Build**: Supports PC VR (Windows OpenXR) and Standalone VR (Android / Pico / Quest) dual platforms. Vulkan Graphics API + IL2CPP + ARM64, Dummy Material anti-culling mechanism ensures Shaders are not stripped. PC and standalone headsets each have four quality presets, standalone headsets run unlocked at the device's maximum refresh rate.
+* **Cross-Platform Build**: Supports PC VR (Windows OpenXR) and Standalone VR (Android / Pico / Quest) dual platforms. Vulkan Graphics API + IL2CPP + ARM64, Dummy Material anti-culling mechanism ensures Shaders are not stripped. PC and standalone headsets each have four quality presets, standalone headsets run unlocked, and the actual refresh rate is up to the device and workload.
 * **Floor Performance Monitor**: Uses Graphy to provide FPS, memory, and audio monitoring with charts and an optional toggle.
 
 ---
@@ -103,25 +103,25 @@ Understanding the data flow is absolutely key to understanding this project's ar
 
 ### 2. I Want to Change Something — Which File Should I Open?
 * **I want to add a new game Mod (e.g., Hidden)**:
-  1. First, go to `Data/Enums.cs` and add a name to the `ModType` enum.
+  1. First, go to `System/ModSystem.cs` and add a name to the `ModType` enum.
   2. Then go to `UI/ModSelectionUI.cs` and add your UI toggle switch.
   3. Finally, write your specific penalty/reward logic in `System/ModEffectsApplier.cs`, and read it during corresponding note generation (e.g., controlling MeshRenderer fade-out).
 * **I think the current judgement is too strict**:
-  Walk straight into `Rulesets/ScoreManager.cs`. All Hit Windows (timing window milliseconds) and Combo multiplier formulas are defined here uniformly.
+  Timing windows (scaled by OD) live in `Core/Judgement/JudgementConfig.cs`, while score tiers and Combo multipliers live in `Rulesets/ScoreManager.cs`; each note controller decides when to submit a judgement.
 * **I want the hit effects to be insanely flashy**:
   Please browse `Visuals/JudgementVisualizer.cs`. To ensure maximum frame rate, current hit effects are entirely generated through pure code meshes. If you want to introduce screen-filling spark particles, it's recommended to call pre-made VFX Graph instances here through the event system.
 
 ### 3. Project Development Iron Rules (Untouchable Red Lines)
 1. **Absolute Data Layer Purity**: All classes under the `Data/` directory, such as `Beatmap` and `HitObject`, are merely containers for holding parameters. It is **absolutely forbidden** to introduce Unity `GameObject` or `Transform` references within them, ensuring purity for future logic extraction.
-2. **Zero Garbage Collection (0 GC) Principle**: In the `Update` loop during music playback, using `Instantiate` and `Destroy` is **strictly prohibited**! Whether it's flying notes or dissipating particles, you must request object pool reuse from `NotePoolManager`. Otherwise, momentary GC stuttering will destroy the player's entire experience.
-3. **VR UI Ergonomics**: Any new interactive panel you add must forcibly mount the custom `CurvedUIEffect` script to create concave physical curvature. Flat UI at the edges of VR field of view causes severe visual distortion and eye fatigue.
+2. **The Zero Garbage Collection (0 GC) Goal**: In the `Update` loop during music playback, never reach for `Instantiate` and `Destroy` on a whim! Whether it's flying notes or dissipating particles, go through `NotePoolManager` and reuse pooled objects, otherwise a momentary GC hitch will wreck the whole run. Existing pools cover notes and some sound effects, and the allocation-free chain continues to grow — keep an eye on GC Alloc in the Profiler when you add code.
+3. **VR UI Ergonomics**: When you add an interactive panel, decide whether to mount the custom `CurvedUIEffect` script and give it concave physical curvature based on its distance from the player and its viewing angle. A flat panel parked at the edge of the VR field of view causes obvious distortion and eye fatigue.
 
 ---
 
 ## 🚀 Getting Started
 
 ### 1. Hardware & Software Requirements
-* **Operating System**: Windows 10/11 (native Mac VR debugging not currently supported).
+* **Operating System**: Windows 10/11.
 * **Development Environment**: Strictly align with **Unity 2022.3.22f1 LTS** or higher versions in the 2022.3 series.
 * **Hardware**: PC VR headsets supporting the OpenXR standard (e.g., Valve Index, Meta Quest via Link, Pico 4 via Streaming Assistant). If you don't have a headset on hand, you can also enable Unity's built-in `XR Device Simulator` in the project to simulate controller experience with keyboard and mouse.
 
@@ -162,8 +162,7 @@ The scene flow order is very clear:
 1. `MainMenuScene` (Main Interface): Adjust language, screen brightness, and most importantly, fine-tune audio latency based on your VR streaming situation.
 2. `SongSelectScene` (Song Selection): Ray scrolls through the list, right panel enables AutoPlay to watch pros play, or enables other high-difficulty Mods.
 3. `GameScene` (Gameplay Core): Fully enjoy the audiovisual feast. Need a bathroom break? Press the `Menu` button on the left controller or `Options` on the right controller to bring up the immersive pause panel.
-4. `GameScene` (Gameplay Core): Fully enjoy the audiovisual feast. Need a bathroom break? Press the `Menu` button on the left controller or `Options` on the right controller to bring up the immersive pause panel.
-5. `ResultScene` (Results Lobby): Review your highlight moments, statistical charts will show you where you hit early and where you hit late, and claim your well-deserved S rating.
+4. `ResultScene` (Results Lobby): Review your highlight moments, statistical charts will show you where you hit early and where you hit late, and claim your well-deserved S rating.
 
 **Tips for the Innovative Relax Interaction Mechanism**:
 * Throughout the entire gameplay, **you never need to press any physical buttons on the controllers** (trigger pulling is only needed for menu selection).
@@ -184,14 +183,14 @@ A: Press `Ctrl+Shift+C` to check the console. If there are red error messages, i
 **Q3: Why do I feel like I'm hitting accurately, but there's always a maddening delay in the sound?**
 A: This blame usually falls on the VR streaming software. Whether it's Quest Link, Air Link, or Virtual Desktop, wireless network transmission inevitably introduces 20ms to 60ms of audio latency. Please go to `Settings` in the main menu and repeatedly adjust the `Audio Offset` based on your feel until the hit feedback perfectly aligns with the beat.
 
-**Q4: I'm a broke college student without a VR device — am I unworthy of contributing code?**
-A: Absolutely not! Unity officially provides the `XR Device Simulator` plugin. After enabling it, you can simulate headset rotation and hand movement space on your computer screen using WASD and mouse. Of course, if you want to debug millisecond-level feel, it's ultimately recommended to borrow a headset for real device testing.
+**Q4: Can I contribute code even without a VR device?**
+A: Absolutely! Unity officially provides the `XR Device Simulator` plugin. After enabling it, you can simulate headset rotation and hand movement space on your computer screen using WASD and mouse — every contribution is welcome. Of course, if you want to debug millisecond-level feel, it's ultimately recommended to borrow a headset for real device testing.
 
 **Q5: Which devices does the standalone headset version support?**
-A: Since v0.7.1, Standalone VR (Android) platform is officially supported, compatible with mainstream headsets including Pico Neo 3 / Pico 4 / Pico 4 Ultra / Meta Quest 2 / Quest 3. Quality presets are optimized for each device, standalone headsets run unlocked at the device's maximum refresh rate. Default is medium quality on first launch, switchable in settings.
+A: Since v0.7.1 there is a Standalone VR (Android) build, targeting six mainstream headsets: Pico Neo 3 / Pico 4 / Pico 4 Ultra / Meta Quest 2 / Quest 3 / Quest 3S. Android video playback verified working; input and frame times continue to receive device-by-device checks, and controller profiles on the Android OpenXR path are slated for a future update. Quality presets are split into four tiers per platform, standalone headsets run unlocked, and the default on first launch is medium quality, switchable in settings.
 
 **Q6: Why doesn't the Storyboard effect look exactly the same as in osu!?**
-A: Our SB engine references osu!lazer and storybrew's open-source implementations, striving to restore the original visual style and compositing logic as faithfully as possible. However, due to architectural differences between Unity engine and osu!'s native rendering (such as floating-point precision, blending modes, texture sampling, etc.), subtle visual differences may exist in rare cases. This is an objective limitation of the current tech stack, and we will continue to optimize in future versions to gradually narrow the gap with the original.
+A: Our SB engine references osu!lazer and storybrew's open-source implementations, striving to restore the original visual style and compositing logic as faithfully as possible. Due to architectural differences between Unity engine and osu!'s native rendering (such as floating-point precision, blending modes, texture sampling, etc.), subtle visual differences may appear in rare cases. We continue to optimize with each release, steadily narrowing the gap with the original.
 
 ---
 
@@ -200,15 +199,15 @@ A: Our SB engine references osu!lazer and storybrew's open-source implementation
 The current UI, effects, and global backgrounds are still in a "raw concrete" stage. With the core gameplay mechanics now established, our future focus will shift entirely to **ultimate VR audiovisual performance** and **multi-platform adaptation**. To bring this grand vision to life, we've broken down the development plan into the following achievable milestones:
 
 ### Phase 1: Visual Effects Refactoring & Visual Impact Enhancement
-- [x] **URP Post-Processing Pipeline Configuration**: Completed URP High Fidelity render pipeline configuration (HDR, MSAA 4x, 4096 shadow resolution), with built-in Tonemapping (ACES), Bloom, and Vignette.
-- [x] **Object Fade-In Animation**: All notes and game objects now have physics-based fade-in effects, enhancing visual fluidity and immersion.
+- [x] **URP Post-Processing Pipeline Configuration**: Completed the URP High Fidelity configuration (HDR, MSAA 4x, 4096 shadow resolution) with Bloom and Vignette enabled; Tonemapping currently sits on Neutral, with ACES reserved as a future toggle.
+- [x] **Object Fade-In Animation**: Playable objects (notes, sliders and friends) have fade-in and fade-out effects for visual fluidity and immersion; the scope is performance objects, not every object in the scene.
 - [x] **Hit Feedback Overhaul**: Implemented a pure code-driven high-performance particle effects system (`CodeOnlyVFX`), supporting object pool reuse and HDR highlight burst effects.
 - [x] **Refined Judgement Visualization**: Implemented `JudgementVisualizer` with independent color coding and pop-up fade animations for 300/100/50/Miss judgement results.
-- [ ] **Advanced Post-Processing Customization**: Integrate `X-PostProcessing-Library` for more advanced visual filter effects (such as radial blur, chromatic aberration, film grain, etc.), further enhancing cinematic visual quality.
+- [ ] **Advanced Post-Processing Customization**: `X-PostProcessing-Library` is already in the project, but its assembly is Editor-only and runs on the legacy PPv2 stack, so it cannot be treated as a shipped URP filter; the next step is picking the filters we actually want (radial blur, chromatic aberration, film grain) and porting them onto the URP path.
 
 ### Phase 2: Data-Driven Audio Visualization Stage (Audio $\rightarrow$ Visual) — 🟢 Audiovisual Loop Achieved
 This is the project's killer feature. Core logic: `Audio digitization (FFT) -> Data stream fully drives visuals (Shader parameters & particle velocity)`.
-- [x] **Precise Audio Band Capture**: Integrated Keijiro's `Lasp` for real-time, ultra-low-latency multi-band FFT audio data streaming. (`#if LASP` macro officially enabled)
+- [x] **Precise Audio Band Capture**: Integrated Keijiro's `Lasp` for real-time, ultra-low-latency multi-band FFT audio data streaming. (The `#if LASP` macro is defined for Standalone, and system capture additionally needs an analyser component configured in the scene.)
 - [x] **Established Global Visual Channel**: Integrated VRChat community's powerful `AudioLink`, establishing a fundamental channel for audio data to control global Shader material transitions and ambient lighting through reflective integration.
 - [x] **128-Bar Spectrum Visualization**: `EtherealEnvironment` drives 128 spectrum bar rendering, supporting AudioLink DFT fine-grained frequency bands with automatic fallback to three-band (Bass/Mid/Treble) dual channel.
 - [x] **BPM Precise Sync & Kiai Detection**: Implemented precise beat synchronization based on beatmap BPM (binary search TimingPoints), parsing and responding to Kiai sections for more impactful light and shadow bursts during Kiai.
@@ -218,35 +217,37 @@ This is the project's killer feature. Core logic: `Audio digitization (FFT) -> D
 
 ### Phase 3: osu! Classic Features VR Revamp — 🟢 Storyboard Engine Live
 - [x] **Storyboard Full-Command Parsing**: Complete support for Sprite, Animation, Loop, Trigger and all Fade/Move/Scale/Rotate/Color/Parameter commands.
-- [x] **GPU Instanced Rendering**: 50K sprites with zero GameObjects, Alpha Blend and Additive dual-channel rendering.
-- [x] **Multithreaded Timeline Evaluation**: Referencing osu!lazer and storybrew's command evaluation logic, timeline evaluation and matrix computation fully Burst-multithreaded, zero main thread overhead.
-- [x] **Video Background Playback**: Supports `.mp4` / `.avi` / `.webm` video as background, rendered to holographic screen via `VideoPlayer` + `Graphics.Blit`.
+- [x] **GPU Instanced Rendering**: Sprites stay out of the scene hierarchy and are submitted as instanced draws, with Alpha Blend and Additive dual-channel rendering.
+- [x] **Multithreaded Timeline Evaluation**: Referencing osu!lazer and storybrew's command evaluation logic, timeline evaluation and matrix computation run in Burst jobs; the main thread still organises batches and submits draws, and the pipeline keeps getting leaner with each pass.
+- [x] **Video Background Playback**: Supports `.mp4` / `.webm` / `.mov` background video, rendered to the holographic screen via `VideoPlayer` + `Graphics.Blit`; unsupported extensions such as `.avi` are skipped and fall back to the background image. Android video playback verified working; other codecs and devices continue to be validated in their own environments.
 - [x] **Three-Layer Compositing**: Background image / video / SB three-layer independent compositing, SB Background layer can automatically replace the beatmap background, settings panel controls global brightness and opacity uniformly.
+- [x] **Retry and Trigger State**: Retrying from the pause menu clears the trigger chains, pending triggers and video sync state without re-decoding textures, and revoked trigger records are reclaimed before rendering.
+- [ ] **Long-Term Bound on Live Trigger History**: Long sessions can still accumulate live trigger records; the next step is establishing a lower bound on future trigger times so pruning becomes safe — work already mapped out on the roadmap.
 - [ ] **Effekseer Effect Performance**: Utilize `Effekseer` to create spectacular particle effects linked with Storyboard.
 
 > **Regarding Storyboard Fidelity:** This engine references osu!lazer and storybrew's open-source implementations, restoring osu!'s original Storyboard visual style and compositing logic as faithfully as possible under Unity URP pipeline. Due to engine architecture differences, pixel-perfect consistency is not guaranteed, but for the vast majority of beatmaps, a viewing experience closely matching the original can be provided. We will continue to align with upstream updates, progressively improving restoration accuracy.
 
 ### Phase 4: Multi-Platform Device Adaptation (PC / Quest / Pico) — 🟢 Dual-Platform Build Ready
 - [x] **Cross-Platform File System**: All file I/O unified using `Application.persistentDataPath`, supporting .osz drag-and-drop import (PC) and Android native file picker.
-- [x] **Android Graphics API**: Vulkan priority enforced + IL2CPP + ARM64, ComputeBuffer / GPU Instancing fully compatible.
+- [x] **Android Graphics API**: Configured around Vulkan priority + IL2CPP + ARM64, with ComputeBuffer / GPU Instancing riding that path; driver differences on individual devices are being ironed out through real hardware testing.
 - [x] **Shader Anti-Culling**: Dummy Material resource smuggling + Always Included Shaders dual protection, ensuring custom Shaders are not stripped from builds.
-- [x] **OpenXR Dual Platform**: PC (OpenXR) + Android (Oculus + OpenXR) dual Loader configuration, controller tracking without loss.
+- [x] **OpenXR Dual Platform**: PC (OpenXR) + Android (Oculus + OpenXR) dual Loader configuration is in place; per-device controller mapping continues to be verified, and controller profiles on the Android OpenXR path are slated for a future update.
 - [ ] **Domestic Device-Specific Optimization**: Dedicated controller high-poly display and precision haptic feedback tailored to the vibration motor characteristics of mainstream domestic headsets like Pico 4.
 
 ### Phase 5: Global Multithreading Optimization — 🟢 Core Pipeline Live
-- [x] **Storyboard Full Pipeline Multithreading**: Timeline evaluation + matrix computation fully Burst-parallelized, NativeArray zero-copy direct to GPU.
+- [x] **Storyboard Timeline Multithreading**: Timeline evaluation and matrix computation are Burst-parallelized and written into Persistent NativeArrays; the draw path still calls `ComputeBuffer.SetData` to upload instance data, and further CPU-to-GPU copy reduction stays on the roadmap.
 - [x] **Particle Color Calculation Job-ified**: `CodeDrivenAmbientParticles` 12000 particle HSV + flicker calculation offloaded to Burst Job.
-- [x] **Note SoA Flattening**: `NativeArray<double>` spawnTimes + `NativeArray<float3>` worldPositions, Burst pre-computation during loading.
+- [x] **Note SoA Flattening**: `NativeArray<double>` spawnTimes / startTimes plus a type array are filled on the main thread, and spawning narrows the range with a binary search; Burst precomputation of note positions at load time remains an exciting avenue to explore.
 - [x] **Binary Search Replaces Linear Scan**: `SpawnNotes` uses O(log N) upper bound search replacing while loops.
-- [ ] **Custom Collision Detection**: Consider Burst spatial hash ray detection to replace PhysX when active notes > 500.
+- [ ] **Custom Collision Detection**: Today each hand fires one `SphereCastNonAlloc` per frame, with no measurement showing PhysX queries are the bottleneck; "swap it out past 500 active notes" is only a candidate threshold, so the next step is gathering reproducible performance data.
 
 ### Phase ???: Beyond the Stars — 🔭 Looking Toward Unity 6
 
-> This is not a mandatory item on the roadmap, more like a distant aspiration. From Unity 2022 LTS to Unity 6 means the full readiness of next-generation rendering stacks like Render Graph and GPU Resident Drawer. We plan to migrate Project Ether to the new engine, maintaining the existing style and experience while stepping into the next technological generation. When exactly we'll embark is uncertain, but the direction is already on the star map.
+> This is not a mandatory item on the roadmap, more like a distant aspiration. From Unity 2022 LTS to Unity 6 means the full readiness of next-generation rendering stacks like Render Graph and GPU Resident Drawer. We plan to migrate Project Ether to the new engine, maintaining the existing style and experience while stepping into the next technological generation. When exactly we'll embark is still being charted, but the direction is already on the star map.
 
-- [ ] **Engine Upgrade to Unity 6 (6000.0.60f1)**: Migrate from Unity 2022.3.22f1 LTS to Unity 6, complete API adaptation, package dependency updates, and deprecated API replacements, ensuring dual-platform (Windows + Android) build pipeline integrity.
-- [ ] **URP Render Graph Adaptation**: Fully migrate holographic screen, SB instanced rendering, post-processing and other custom pipelines into Render Graph architecture, eliminating Compatibility Mode fallback overhead and leveraging next-gen URP's scheduling and bandwidth advantages.
-- [ ] **GPU Resident Drawer & STP**: Enable GPU Resident Drawer to offload scene static culling and instanced drawing to GPU-driven rendering, evaluate STP (Spatial-Temporal Post-Processing) as a replacement for traditional anti-aliasing solutions.
+- [ ] **Engine Upgrade to Unity 6**: Migrate from Unity 2022.3.22f1 LTS, completing API adaptation, package dependency updates and deprecated API replacement. Before setting off, capture a reproducible Unity 2022 baseline for both platform builds, judgement, media playback and frame times on a separate branch, and settle the target version only after it passes.
+- [ ] **URP Render Graph Adaptation**: Move the holographic screen, SB instanced rendering and post-processing into Render Graph step by step. SB currently records its own RT work outside the graph through `Graphics.ExecuteCommandBuffer`, and the holographic screen is a MeshRenderer with shared materials, so this is far more than renaming a few APIs — and the first step is measuring whether there is real fallback overhead.
+- [ ] **GPU Resident Drawer & STP**: GPU Resident Drawer only helps eligible ordinary scene MeshRenderers — Storyboard draws through procedural instancing and will chart its own path. STP needs its own version and XR support assessment: the Unity 6.0 compatibility table marks it unsupported, so it stays on the watch list rather than the MSAA replacement slot.
 - [ ] **Full Pipeline Regression & Dual-Platform Verification**: After upgrade, cover core gameplay judgement, beatmap parsing, Storyboard full-command rendering, and PC VR / Standalone VR dual-platform builds, ensuring no functionality regression and performance no lower than current baseline.
 
 ---
@@ -283,6 +284,6 @@ This project's transformation from cocoon to butterfly would not be possible wit
 ---
 
 ## 📄 License
-This project always embraces the open-source spirit, released under the **GNU General Public License v3.0 (GPL-3.0)**. You are free to use, modify, and redistribute this project, but any derivative work must also be open-sourced under GPL-3.0, and closed-source commercial use is prohibited. For details, please refer to the [LICENSE](LICENSE) file in the repository root directory.
+This project proudly embraces the open-source spirit, released under the **GNU General Public License v3.0 (GPL-3.0)**. The GPL-3.0 **permits commercial use**: you are free to use, modify and redistribute this project, but copying, modification and distribution come with licence obligations — distributing a derivative work requires keeping the appropriate notices and providing the corresponding source under GPL-3.0, among other conditions. See the [LICENSE](LICENSE) file in the repository root directory for details; third-party assets may carry their own licences that need separate review.
 
 Graphy is licensed under the **MIT License**, with the notice `Copyright (c) 2018 Martín Pane`. Its complete upstream license is preserved in [Resources/ThirdPartyLicenses/Graphy.txt](ProjectEther/Assets/Resources/ThirdPartyLicenses/Graphy.txt) and included in builds; the in-game Credits also display this copyright notice and the full MIT terms.

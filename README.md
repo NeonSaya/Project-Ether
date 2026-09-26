@@ -9,27 +9,27 @@
 
 ## 📖 项目概述 (Overview)
 
-在当前的虚拟现实生态中，优秀的音乐节奏游戏层出不穷，但它们往往面临着同一个致命痛点：**高质量的社区自制谱面极度匮乏**。而与此同时，有着十余年历史的经典 PC 音游 `osu!` 却坐拥着海量、惊艳且充满挑战的谱面库。
+在如今的虚拟现实生态里，优秀的音乐节奏游戏层出不穷，却始终绕不开同一个遗憾：**高质量的社区自制谱面极度匮乏**。而另一边，走过十余年的经典 PC 音游 `osu!`，恰好坐拥着一片海量、惊艳、充满挑战的谱面海洋。
 
-**Project Ether** 的诞生，正是为了架起这两大世界之间的桥梁。我们的终极目标，是打造一个基于 Unity 引擎构建的**沉浸式 VR 版 osu! 谱面播放器**。
+**Project Ether** 的诞生，就是为了在这两个世界之间架起一座桥梁。我们的终极目标，是打造一款基于 Unity 引擎的**沉浸式 VR 版 osu! 谱面播放器**。
 
-我们的野心不仅仅是简单地将 2D 音符搬进 3D 空间，而是**将《Beat Saber》般爽快至极的打击手感，与 VRChat 中 MMD 舞台级别的顶级视听盛宴完美结合。**
+我们的野心，从来不止于把 2D 音符搬进 3D 空间——而是**让《Beat Saber》般爽快至极的打击手感，与 VRChat 中 MMD 舞台级别的顶级视听盛宴，在同一个世界里相遇。**
 
-你可以利用手中的虚拟射线，在纯粹的音波起伏与绚丽的光影交错中，轻松惬意地享受每一首高质量 osu! 谱面带来的视听震撼。
+你只需举起手中的虚拟射线，在纯粹的音波起伏与绚丽的光影交错之间，便能轻松惬意地沉浸于每一首高质量 osu! 谱面带来的视听震撼。
 
 > 🟢 **当前状态：v0.7.7**
 
-> 核心链路（启动 -> 选曲 -> 游玩 -> 结算）完全打通。单点 (Circle)、滑条 (Slider)、转盘 (Spinner) 的生成与计分系统均已完备。Storyboard 全指令解析 + GPU 实例化渲染已上线，命令评估与画面表现全面对齐 osu!lazer，支持视频背景播放、三层独立合成渲染与整屏统一透明度。底层已全面引入 Unity Jobs + Burst 多线程架构，Storyboard 全链路多线程化。亮度与不透明度通过设置面板统一控制，三层管线预乘 alpha 混合保证一致的视觉表现。
+> 核心链路（启动 -> 选曲 -> 游玩 -> 结算）已经打通，单点 (Circle)、滑条 (Slider)、转盘 (Spinner) 都已加入演奏。Storyboard 常见指令解析与 GPU 实例化渲染已上线，背景图、视频、SB 三层合成，亮度与透明度交给设置面板统一掌舵。Unity Jobs + Burst 已接手部分时间轴求值、矩阵计算与粒子颜色更新；主线程仍负责对象管理和绘制提交。我们正一步步靠近心中的视听盛宴，MMD 风格大型动态舞台也已写进后续工程清单。
 >
-> **平台支持**: PC VR (Windows) 与 Standalone VR (Android) 双平台，兼容 Pico Neo 3 / Pico 4 / Pico 4 Ultra / Quest 2 / Quest 3 等主流一体机。
+> **平台支持**: 面向 PC VR (Windows) 与 Standalone VR (Android) 双平台。构建配置已就绪，Pico Neo 3 / Pico 4 / Pico 4 Ultra / Quest 2 / Quest 3 / Quest 3S 六款目标设备正按计划逐台验证输入、视频解码与性能——每点亮一台设备，通行证上就多一枚印章。
 
 ---
 
 ### 🎮 核心理念 (Core Concept)
 
-* **Relax (轻松与释放)**: 彻底抛弃传统的物理按键、鼠标点击，以及高强度的肢体挥动。我们采用独创的 3D 空间射线悬停交互机制，实现“指哪打哪”的顺畅体验，让你在长时间游玩后依然保持轻松。
-* **Precision (绝对精准)**: 虽然玩法休闲，但底层机制绝不含糊。我们从代码层面完美复刻了 `osu! Lazer` 极其严苛的硬核判定逻辑。从判定窗口的毫秒级计算到连击权重，完全保留了顶级音游的核心操作快感。
-* **Flow (沉浸心流)**: 游戏 UI 与环境采用极简主义与赛博朋克交织的视觉风格。摒弃一切花里胡哨、喧宾夺主的干扰元素，让玩家的意识完全溶解在单纯的音乐与节奏节拍之中。
+* **Relax (轻松与释放)**: 告别物理按键，告别鼠标点击，告别高强度的肢体挥动。独创的 3D 空间射线悬停交互机制，实现“指哪打哪”的顺畅体验——长时间游玩，依然一身轻松。
+* **Precision (绝对精准)**: 玩法可以休闲，底层绝不含糊。对照 `osu! Lazer` 复刻判定窗口的毫秒级计算与连击权重折算，留住顶级音游的核心操作快感；滑条、转盘与速度 Mod 按本项目实现结算，与上游逐项对齐的工作将持续推进。
+* **Flow (沉浸心流)**: 极简主义与赛博朋克交织的视觉风格，摒弃一切喧宾夺主的干扰元素——让意识彻底溶解在纯粹的音乐与节拍之中。
 
 ---
 
@@ -41,22 +41,22 @@
 * **VR 交互层**: XR Interaction Toolkit (XRI 3.3.1) —— 官方强大的 XR 封装库，稳定处理头显空间定位、手柄 6DoF 移动以及复杂的射线触发逻辑。
 * **底层 XR 插件**: 采用高度兼容的 OpenXR 1.10.0 协议标准，并内嵌 Oculus XR Plugin 4.2.0。
 * **视觉与文本方案**: 使用 TextMeshPro (TMP 3.0.6) 保证在 VR 近距离观察下依然锐利的字体渲染；结合 Visual Effect Graph (VFX 14.0.10) 驱动 GPU 级别的大规模绚丽粒子特效。
-* **音频可视化栈**: `Lasp` (Keijiro) 提供 PC 端系统级低延迟 FFT 音频捕获（`#if LASP` 宏隔离，仅 Standalone 平台），`AudioLink` 通过反射式集成提供 DFT 精细频段数据（跨平台兼容），`AudioVisualizationManager` 统一管理三频段全局 Shader 参数注入与频谱分析管线。
-* **多线程架构**: Unity Jobs System + Burst Compiler —— Storyboard 全链路、粒子系统、音符预计算等核心逻辑全部剥离至 Worker Thread 并行执行，主线程保持轻量。
+* **音频可视化栈**: `Lasp` (Keijiro) 提供 PC 端系统级低延迟 FFT 音频捕获（`#if LASP` 宏隔离，仅 Standalone 定义，且需要在场景里配置分析组件才会启用），`AudioLink` 通过反射式集成提供 DFT 精细频段数据（跨平台兼容），`AudioVisualizationManager` 统一管理三频段全局 Shader 参数注入与频谱分析管线。
+* **多线程架构**: Unity Jobs System + Burst Compiler —— Storyboard 的时间轴求值与矩阵计算、环境粒子颜色更新等重活已剥离至 Worker Thread 并行执行；对象管理、绘制提交与音符生成准备仍在主线程完成。
 * **编程架构**: C# 面向对象设计 —— 严格遵循数据与视图分离的模块化架构，为开源社区的二次开发与大规模魔改提供了极其友好的土壤。
 
 ---
 
 ## ✨ 核心游戏特色 (Features)
 
-* **原生解析与精准判定**: 内置纯 C# 高性能谱面解析器 (`OsuParser`)，直接读取 `.osu` 文件无需转换；严格复刻 `osu! Lazer` 的判定逻辑，从滑条节点 (Tick)、折返点 (Repeat) 到转盘转速，全链路精确结算。提前 13ms 即可判定，消除帧延迟。
-* **Storyboard 全指令引擎**: 完整解析 `.osb` / `.osu` 内联故事板，支持 Sprite、Animation、Loop、Trigger 全部指令类型。纯 GPU 实例化渲染，5 万精灵零 GameObject。参考 osu!lazer 与 storybrew 的评估逻辑，命令求值与渲染全链路多线程化，尽可能还原原版 SB 的视觉呈现。
-* **多线程架构 (Unity Jobs + Burst)**: Storyboard 矩阵计算、粒子颜色更新、音符坐标预计算全部剥离至 Worker Thread。`IJobParallelFor` + `[BurstCompile]` SIMD 向量化，主线程负载降低 30%+。
+* **原生解析与精准判定**: 内置纯 C# 高性能谱面解析器 (`OsuParser`)，直接读取 `.osu` 文件无需转换；对照 `osu! Lazer` 实现判定逻辑，从滑条节点 (Tick)、折返点 (Repeat) 到转盘转速都参与结算。悬停命中可提前 13ms 判定，缩短输入到反馈的延迟。
+* **Storyboard 全指令引擎**: 完整解析 `.osb` / `.osu` 内联故事板，支持 Sprite、Animation、Loop、Trigger 全部指令类型。精灵走 GPU 实例化绘制、不占场景层级，参考 osu!lazer 与 storybrew 的评估逻辑，时间轴求值与矩阵计算交给 Burst Job，尽可能还原原版 SB 的视觉呈现；实际开销随谱面复杂度与设备而变化，我们会在真实场景中持续观测与优化。
+* **多线程架构 (Unity Jobs + Burst)**: Storyboard 矩阵计算与粒子颜色更新已剥离至 Worker Thread，`IJobParallelFor` + `[BurstCompile]` 负责批量计算；音符坐标仍在生成时由主线程处理。收益随谱面与设备而不同，每一次 profiling 都在为它写下新的注脚。
 * **三层合成渲染**: 背景图 / 视频 / SB 三层独立合成，SB Background 层可自动替代谱面背景图，设置面板统一控制全局亮度与透明度。
-* **沉浸式 VR 交互体验**: 射线悬停交互机制实现”指哪打哪”；手柄震动反馈 (`HapticProfile`) 根据谱面音量与判定结果动态调整；UI 面板通过 `CurvedUIEffect` 物理弯折与 `HUDFollower` 弹簧跟随，彻底告别 VR 眩晕。
+* **沉浸式 VR 交互体验**: 射线悬停交互机制实现“指哪打哪”；手柄震动反馈 (`HapticProfile`) 根据谱面音量与判定结果动态调整；常用面板通过 `CurvedUIEffect` 物理弯折与 `HUDFollower` 弹簧跟随缓解边缘畸变与眩晕，是否弯曲按面板距离与视角决定。
 * **完整的游戏系统**: 集成 AutoPlay / HR / FL 等经典 Mod，内置自动本地化系统 (`LocalizationManager`) 支持多语言 Unicode 渲染，音效与震动采用 `TimingPoint × SampleVolume × 设置` 的完整乘法链路，精准可控。
 * **数据驱动的视听演出**: 接入 `AudioLink` 与 `Lasp` 建立音频数据闭环，128 柱频谱渲染与 11 层环境粒子实时响应 BPM 节拍与 Kiai 时段；纯代码粒子引擎 (`CodeOnlyVFX`) 为低配设备提供流畅兜底方案。
-* **跨平台构建**: 支持 PC VR (Windows OpenXR) 与 Standalone VR (Android / Pico / Quest) 双平台。Vulkan 图形 API + IL2CPP + ARM64，Dummy Material 反剔除机制确保 Shader 不被 Stripping。PC 与一体机各定制四档画质预设，一体机不锁帧跑满设备最高刷新率。
+* **跨平台构建**: 支持 PC VR (Windows OpenXR) 与 Standalone VR (Android / Pico / Quest) 双平台。Vulkan 图形 API + IL2CPP + ARM64，Dummy Material 反剔除机制确保 Shader 不被 Stripping。PC 与一体机各定制四档画质预设，一体机不锁帧、实际刷新率由设备与负载决定。
 * **地面性能监视器**: 使用 Graphy 提供 FPS、内存和音频监控，支持图表显示与开关控制。
 
 ---
@@ -91,38 +91,38 @@ Assets/
 
 ## 💡 开发者快速上手指南 (Developer Onboarding)
 
-想克隆 (Fork) 我们的项目进行深度定制或自己魔改？热烈欢迎！为了避免你在庞大的代码库中迷失，以下是为你准备的“寻路指南”：
+想克隆 (Fork) 我们的项目进行深度定制或自己魔改？热烈欢迎！为了避免你在庞大的代码库中迷失，我们准备了一份“寻路指南”：
 
 ### 1. 一首歌是怎么在屏幕上跑起来的？(核心数据流向)
-理解数据流是理解本项目架构的绝对关键：
+理解数据流，就是理解本项目架构的钥匙：
 * **解析阶段 (Parsing)**: 当玩家在选歌界面 (`SongSelectScene`) 选中一首心仪的曲目后，跨场景单例 `GameContext` 会将其路径默默记下。场景切换至 `GameScene` 后，`OsuParser` 瞬间介入，将复杂的 `.osu` 文本按行拆解，精准翻译为内存中结构化的 `Beatmap` 数据模型。
 * **映射阶段 (Mapping)**: 紧接着，`CoordinateMapper` 开始工作。它提取每一个音符的 2D 坐标，将 osu! 的 512×384 游玩区域等比映射到玩家前方约 2 米、视线高度处一块 1.5 米 × 1.1 米的竖直打击平面上，忠实还原原版 osu! 的平面游玩体验。
-* **生成阶段 (Spawning)**: 引擎总指挥 `RhythmGameManager` 开始监听极其底层的硬件音频时间 (DSP Time)。它会根据谱面的缩圈速度 (AR)，提前计算好提前量，并呼叫后勤部长 `NotePoolManager`，从对象池中将沉睡的音符一个接一个地唤醒 (Spawn) 到玩家面前。
-* **判定阶段 (Judgement)**: 当玩家的射线触碰到音符时，铁血裁判 `ScoreManager` 会在一毫秒内算出你的操作误差，决定你是 Great 还是 Miss。随后，它立即向视觉部门 `JudgementVisualizer` 发送信号，在对应的 3D 坐标引爆绚丽的命中文字与光晕。
+* **生成阶段 (Spawning)**: 引擎总指挥 `RhythmGameManager` 开始监听极其底层的硬件音频时间 (DSP Time)。它会根据谱面的缩圈速度 (AR) 提前算好提前量，再呼叫后勤部长 `NotePoolManager`，把沉睡在对象池里的音符一个接一个地唤醒 (Spawn) 到玩家面前。
+* **判定阶段 (Judgement)**: 当玩家的射线触碰到音符时，铁面无私的裁判 `ScoreManager` 会在一毫秒内算出你的操作误差，裁定 Great 还是 Miss。随后，它立即向视觉部门 `JudgementVisualizer` 发送信号，在对应的 3D 坐标引爆绚丽的命中文字与光晕。
 
 ### 2. 我想改点东西，该去哪个文件开刀？
 * **我想加个全新的游戏 Mod (比如 Hidden)**：
-  1. 首先去 `Data/Enums.cs` 的 `ModType` 枚举里加个名字。
+  1. 首先去 `System/ModSystem.cs` 的 `ModType` 枚举里加个名字。
   2. 然后去 `UI/ModSelectionUI.cs` 加上你的 UI 拨动开关。
   3. 最后在 `System/ModEffectsApplier.cs` 写入你的具体惩罚/奖励逻辑，并在对应音符生成时读取它（比如控制 MeshRenderer 渐隐）。
 * **我觉得现有的判定太严苛**：
-  直接推门进入 `Rulesets/ScoreManager.cs`。所有的 Hit Window（判定窗口毫秒数）以及 Combo 连击折算公式都在此统一定义。
+  判定窗口（按 OD 换算）在 `Core/Judgement/JudgementConfig.cs`，分数档位与 Combo 折算在 `Rulesets/ScoreManager.cs`，具体何时提交判定由各物件控制器决定。
 * **我想让打击特效狂拽酷炫炸天**：
-  请翻阅 `Visuals/JudgementVisualizer.cs`。为了保证极限帧率，目前的打击特效全是依靠纯代码实时生成的网格 (Mesh)。如果你想引入满屏的火花粒子，建议在这里通过事件系统调用预先做好的 VFX Graph 实例。
+  请翻阅 `Visuals/JudgementVisualizer.cs`。为了守住极限帧率，目前的打击特效全部依靠纯代码实时生成网格 (Mesh)。如果你想引入满屏的火花粒子，建议在这里通过事件系统调用预先做好的 VFX Graph 实例。
 
 ### 3. 项目开发铁律 (不可触碰的红线)
 1. **数据层绝对纯净**: `Data/` 目录下的所有类，如 `Beatmap` 和 `HitObject`，仅仅是装载参数的容器。**绝对禁止**在其中引入 Unity 的 `GameObject` 或 `Transform` 引用，以确保未来剥离逻辑时的纯粹性。
-2. **零垃圾回收 (0 GC) 原则**: 在音乐播放的 `Update` 循环中，**严禁**使用 `Instantiate` 和 `Destroy`！无论是飞驰的音符还是消散的粒子，必须老老实实向 `NotePoolManager` 申请对象池重用，否则瞬间的 GC 卡顿将毁掉玩家的全盘体验。
-3. **VR UI 的人体工学**: 任何由你新增的交互面板，必须强制挂载自定义的 `CurvedUIEffect` 脚本让其产生内凹的物理弯折。平面的 UI 在 VR 视野边缘会导致严重的视觉畸变与眼球疲劳。
+2. **零垃圾回收 (0 GC) 的目标**: 在音乐播放的 `Update` 循环中，**严禁**随手使用 `Instantiate` 和 `Destroy`！无论是飞驰的音符还是消散的粒子，都老老实实向 `NotePoolManager` 申请对象池重用，否则瞬间的 GC 卡顿会毁掉玩家的全盘体验。目前已有池覆盖音符与部分音效，整条链路正朝着零分配的目标稳步迈进——新增代码时，也请顺手用 Profiler 看一眼 GC Alloc。
+3. **VR UI 的人体工学**: 新增交互面板时，按它与玩家的距离和视角决定是否挂自定义的 `CurvedUIEffect` 产生内凹的物理弯折。平面的 UI 放在视野边缘会导致明显的视觉畸变与眼球疲劳。
 
 ---
 
 ## 🚀 安装与游玩指南 (Getting Started)
 
 ### 1. 硬件与软件环境要求
-* **操作系统**: Windows 10/11 (暂不支持 Mac 系统的原生 VR 调试)。
+* **操作系统**: Windows 10/11。
 * **开发环境**: 请严格对齐使用 **Unity 2022.3.22f1 LTS** 或 2022.3 系列更高版本。
-* **硬件设备**: 支持 OpenXR 标准的 PC VR 头显 (如 Valve Index, Meta Quest via Link, Pico 4 via Streaming Assistant)。如果你手头暂时没有头显，也可以在项目中开启 Unity 自带的 `XR Device Simulator`，用键鼠模拟手柄体验流程。
+* **硬件设备**: 支持 OpenXR 标准的 PC VR 头显 (如 Valve Index, Meta Quest via Link, Pico 4 via Streaming Assistant)。手头暂时没有头显也没关系——项目中开启 Unity 自带的 `XR Device Simulator`，即可用键鼠模拟手柄体验完整流程。
 
 ### 2. 手把手教你跑起项目
 1. **拉取源码**:
@@ -130,7 +130,7 @@ Assets/
    ```bash
    git clone https://github.com/NeonSaya/Project-Ether.git
    ```
-2. **导入 Unity Hub**: 打开 Unity Hub，点击 `Add` 按钮，选中刚刚克隆下来的 `Project-Ether/ProjectEther` 子目录。首次打开项目时，Unity 会疯狂下载 URP 和 XR 相关的依赖包并编译全项目 Shader，泡杯咖啡耐心等待几分钟。
+2. **导入 Unity Hub**: 打开 Unity Hub，点击 `Add` 按钮，选中刚刚克隆下来的 `Project-Ether/ProjectEther` 子目录。首次打开项目时，Unity 会疯狂下载 URP 和 XR 相关的依赖包并编译全项目 Shader——泡杯咖啡，耐心等待几分钟。
 3. **准备谱面资源**:
 
    > ⚠️ **注意**：项目运行时扫描的不是 `Assets/Songs`（那个目录仅用于测试），而是系统用户目录下的运行时文件夹。
@@ -155,19 +155,19 @@ Android 本地构建默认使用开发签名。正式发布请在 Player Setting
 
 ## 🕹️ 核心操作与玩法指南 (How to Play)
 
-为了保证游戏数据的完整流动与初始化，**请务必永远从主菜单 (MainMenuScene) 开始你的旅程**，否则会引发不可预知的空引用报错。
+为了让游戏数据完整流动、顺利初始化，**请务必永远从主菜单 (MainMenuScene) 开始你的旅程**——这能让一切空引用报错无处遁形。
 
 游戏的场景流转顺序非常清晰：
 1. `MainMenuScene` (主界面): 调整语言、画面亮度，最重要的是可以在这里根据你的 VR 串流情况微调音频延迟。
 2. `SongSelectScene` (选歌界面): 射线上下滑动列表，右侧面板可开启 AutoPlay 看神仙打架，或开启其他高难 Mod。
-3. `GameScene` (演奏核心): 尽情享受视听盛宴。想临时上厕所？按下左手柄的 `Menu` 键或右手柄的 `Options` 键即可呼出包含沉浸式视角的暂停面板。
+3. `GameScene` (演奏核心): 尽情享受视听盛宴。想临时上厕所？按下左手柄的 `Menu` 键或右手柄的 `Options` 键，即可呼出包含沉浸式视角的暂停面板。
 4. `ResultScene` (结算大厅): 看看你的高光时刻，统计图表会告诉你哪里打早了、哪里打晚了，最终拿走属于你的 S 评价。
 
 **独创的 Relax 交互机制诀窍**：
 * 整个打歌过程中，**你完全不需要按下手柄上的任何物理按键**（仅在菜单点选时需要扣动扳机 Trigger）。
 * **全靠“空间悬停”**：当飞驰而来的音符外侧那个不断缩小的光圈（Approach Circle）与音符本体完美重合的一瞬间，只要你手中的红蓝射线正好指在音符区域内，系统就会自动触发极其精准的完美判定！
-* **对付滑条 (Slider)**：用射线指着滑条头触发后，不要移开！射线紧紧跟着那颗不断滚动的滑条球 (Slider Ball) 一路滑到底。
-* **对付转盘 (Spinner)**：出现大转盘时，用射线在转盘范围内像搅拌咖啡一样疯狂画圈即可飙升分数！
+* **对付滑条 (Slider)**：用射线指着滑条头触发后，不要移开！让射线紧紧跟着那颗不断滚动的滑条球 (Slider Ball)，一路滑到底。
+* **对付转盘 (Spinner)**：出现大转盘时，用射线在转盘范围内像搅拌咖啡一样疯狂画圈，分数便会一路飙升！
 
 ---
 
@@ -182,31 +182,31 @@ A: 可以按 `Ctrl+Shift+C` 看一眼控制台，如果有红色报错，可能�
 **Q3: 为什么我感觉我打得明明很准，听起来却总有令人抓狂的延迟？**
 A: 这口锅通常要由 VR 串流软件来背。无论是 Quest Link、Air Link 还是 Virtual Desktop，无线网络传输不可避免地会带来 20ms 到 60ms 不等的音频链路延迟。请在主菜单的 `Settings` 中，根据体感反复调整 `Audio Offset`（音频偏移值），直到打击回馈与重音完美重合。
 
-**Q4: 我是个穷苦大学生，没有 VR 设备，难道就不配帮你们写代码了吗？**
-A: 绝对配！Unity 官方非常贴心地提供了 `XR Device Simulator` 插件。开启它后，你就能在电脑屏幕前，靠着风骚的 WASD 和鼠标走位，在屏幕上模拟出头显旋转和双手的移动空间。当然，如果你要调试毫秒级的手感，最终还是建议借个头显实机测试。
+**Q4: 我还是在校开发者 / 预算有限，没有 VR 设备，难道就没资格一起写代码了吗？**
+A: 当然够格！Unity 官方贴心地提供了 `XR Device Simulator` 插件。开启它后，你就能坐在电脑屏幕前，靠着风骚的 WASD 和鼠标走位，在屏幕上模拟出头显旋转和双手的移动空间。等你需要打磨毫秒级手感时，再借一台头显实机验证即可。
 
 **Q5: 一体机版本支持哪些设备？**
-A: 自 v0.7.1 起正式支持 Standalone VR (Android) 平台，兼容 Pico Neo 3 / Pico 4 / Pico 4 Ultra / Meta Quest 2 / Quest 3 等主流一体机。画质预设已针对各设备优化，一体机不锁帧跑满设备最高刷新率。首次启动默认中画质，可在设置中切换档位。
+A: 自 v0.7.1 起提供 Standalone VR (Android) 平台构建，目标覆盖 Pico Neo 3 / Pico 4 / Pico 4 Ultra / Meta Quest 2 / Quest 3 / Quest 3S 六款主流一体机。Android 视频播放已验证可用；输入与帧时间正在逐台实测中，Android OpenXR 路径的控制器 Profile 也将在后续版本启用。画质预设按平台分为四档，一体机不锁帧，首次启动默认中画质，可在设置中切换档位。
 
 **Q6: 为什么 Storyboard 的效果和 osu! 里看到的不完全一样？**
-A: 我们的 SB 引擎参考了 osu!lazer 和 storybrew 的开源实现，力求尽可能还原原版的视觉风格与合成逻辑。但受限于 Unity 引擎与 osu! 原生渲染之间的架构差异（如浮点精度、混合模式、纹理采样等），在极少数情况下可能存在细微的视觉差异。这是当前技术栈下的客观限制，我们会在后续版本中持续优化，逐步缩小与原版的差距。
+A: 我们的 SB 引擎参考了 osu!lazer 和 storybrew 的开源实现，力求尽可能还原原版的视觉风格与合成逻辑。受 Unity 引擎与 osu! 原生渲染之间的架构差异影响（如浮点精度、混合模式、纹理采样等），极少数情况下会存在细微的视觉差异。这是当前技术栈下的客观边界，也是我们持续打磨的方向——后续版本将不断缩小与原版的差距。
 
 ---
 
 ## 📅 未来开发蓝图 (To-Do List)
 
-目前的 UI、特效以及全局背景仍处于“毛胚房”阶段。在基础游戏打歌玩法已经定型的前提下，我们未来的重心将完全转移到**视听演出的极致 VR 化**与**多端适配**上。为了让庞大的愿景落地，我们将开发计划拆解为了以下可行的小步目标：
+目前的 UI、特效以及全局背景仍处于“毛坯房”阶段。在基础打歌玩法已经定型的前提下，我们未来的重心将完全转向**视听演出的极致 VR 化**与**多端适配**。为了让庞大的愿景落地，我们把开发计划拆解成了以下可行的小步目标：
 
 ### 阶段一：视觉特效重构与画面张力提升
-- [x] **URP 后期管线基础配置**: 已完成 URP High Fidelity 渲染管线配置（HDR, MSAA 4x, 4096 阴影分辨率），内置 Tonemapping (ACES)、Bloom 泛光与 Vignette 暗角。
-- [x] **物件渐入动画**: 所有音符与游戏物件已实现物理级淡入效果，提升视觉流畅度与沉浸感。
+- [x] **URP 后期管线基础配置**: 已完成 URP High Fidelity 渲染管线配置（HDR, MSAA 4x, 4096 阴影分辨率），启用 Bloom 泛光与 Vignette 暗角；Tonemapping 当前档位是 Neutral，更进一步的 ACES 调色已列入候选。
+- [x] **物件渐入动画**: 游玩物件（音符、滑条等）已实现淡入与淡出效果，提升视觉流畅度与沉浸感；这里的范围是演出物件，不包括场景里的所有对象。
 - [x] **打击反馈大换血**: 已实现纯代码驱动的高性能粒子特效系统 (`CodeOnlyVFX`)，支持对象池复用与 HDR 高亮爆发效果。
 - [x] **精细化判定表现**: 已实现判定可视化器 (`JudgementVisualizer`)，为 300/100/50/Miss 四种判定结果配置独立颜色编码与弹出渐隐动画。
-- [ ] **后期处理深度定制**: 引入 `X-PostProcessing-Library`，实现更高级的视觉滤镜效果（如径向模糊、色差、胶片颗粒等），进一步提升画面电影感。
+- [ ] **后期处理深度定制**: `X-PostProcessing-Library` 已在工程里整装待发——它的程序集面向 Editor、运行旧版 PPv2 栈，因此将作为滤镜宝库而非现成管线使用；下一步是挑出真正需要的滤镜（径向模糊、色差、胶片颗粒等），逐一移植到 URP 路径上。
 
 ### 阶段二：数据驱动的音频可视化舞台 (Audio $\rightarrow$ Visual) — 🟢 视听闭环已达成
 这是本项目的杀手锏。核心逻辑：`音频数据化 (FFT 快速傅里叶变换) -> 数据流全面驱动视觉 (Shader 参数 & 粒子速率)`。
-- [x] **精准音频频段捕获**: 接入 Keijiro 大神的 `Lasp`，实时获取极其低延迟的多频段 FFT 音频数据流。(`#if LASP` 宏已正式启用)
+- [x] **精准音频频段捕获**: 接入 Keijiro 大神的 `Lasp`，实时获取极其低延迟的多频段 FFT 音频数据流。（`#if LASP` 宏已在 Standalone 启用，要真正吃到系统捕获还需在场景里配置分析组件）
 - [x] **建立全局视觉通道**: 引入 VRChat 社区的神器 `AudioLink`，通过反射式集成建立音频数据控制全局 Shader 材质变幻与环境光照的基础通道。
 - [x] **128 柱频谱可视化**: `EtherealEnvironment` 驱动 128 根频谱柱渲染，支持 AudioLink DFT 精细频段与三频段 (Bass/Mid/Treble) 自动降级双通道。
 - [x] **BPM 精准同步与 Kiai 检测**: 实现基于谱面 BPM 的精准节拍同步（二分查找 TimingPoints），解析并响应 Kiai 时段，让 Kiai 时光影爆发更具冲击力。
@@ -216,35 +216,37 @@ A: 我们的 SB 引擎参考了 osu!lazer 和 storybrew 的开源实现，力求
 
 ### 阶段三：osu! 经典特性 VR 重塑 — 🟢 Storyboard 引擎已上线
 - [x] **Storyboard 全指令解析**: 完整支持 Sprite、Animation、Loop、Trigger 及 Fade/Move/Scale/Rotate/Color/Parameter 全部指令。
-- [x] **GPU 实例化渲染**: 5 万精灵零 GameObject，Alpha Blend 与 Additive 双通道渲染。
-- [x] **多线程时间轴求值**: 参考 osu!lazer 与 storybrew 的命令评估逻辑，时间轴求值与矩阵计算全链路 Burst 多线程化，主线程零开销。
-- [x] **视频背景播放**: 支持 `.mp4` / `.avi` / `.webm` 视频作为背景，通过 `VideoPlayer` + `Graphics.Blit` 渲染到全息幕布。
+- [x] **GPU 实例化渲染**: 精灵不进场景层级，一次程序化实例绘制提交，Alpha Blend 与 Additive 双通道渲染。
+- [x] **多线程时间轴求值**: 参考 osu!lazer 与 storybrew 的命令评估逻辑，时间轴求值与矩阵计算交给 Burst Job；主线程负责批次组织与绘制提交，两端分工明确、开销透明。
+- [x] **视频背景播放**: 支持 `.mp4` / `.webm` / `.mov` 视频作为背景，通过 `VideoPlayer` + `Graphics.Blit` 渲染到全息幕布；遇到 `.avi` 等格式会优雅跳过并回退背景图。Android 视频播放已验证可用，更多编码与设备的验证正按实际环境持续推进。
 - [x] **三层合成渲染**: 背景图 / 视频 / SB 三层独立合成，SB Background 层可自动替代谱面背景图，设置面板统一控制全局亮度与透明度。
+- [x] **重试与触发局态**: 暂停菜单 Retry 会清空触发链、待处理触发与视频同步状态，无需重新解码纹理；已撤销的触发记录会在渲染前稳定回收。
+- [ ] **有效触发历史的长期上界**: 长期游玩时可能积累有效触发记录——只要约定好未来触发时间的下界，就能安全裁剪，这项收口工作已提上日程。
 - [ ] **Effekseer 特效演出**: 利用 `Effekseer` 制作与 Storyboard 联动的华丽粒子特效。
 
-> **关于 Storyboard 还原度：** 本引擎参考 osu!lazer 与 storybrew 的开源实现，在 Unity URP 管线下尽可能还原 osu! 原版 Storyboard 的视觉风格与合成逻辑。受限于引擎架构差异，不保证逐像素一致，但对绝大多数谱面可提供贴合原版的观赏体验。未来将持续对齐上游更新，逐步提升还原精度。
+> **关于 Storyboard 还原度：** 本引擎参考 osu!lazer 与 storybrew 的开源实现，在 Unity URP 管线下尽可能还原 osu! 原版 Storyboard 的视觉风格与合成逻辑。受引擎架构差异影响，极少数场景会与原版存在像素级出入，但绝大多数谱面都能获得贴合原版的观赏体验。我们将持续对齐上游更新，一步步把还原精度推向极致。
 
 ### 阶段四：多平台设备全面适配 (PC / Quest / Pico) — 🟢 双平台构建已打通
 - [x] **跨平台文件系统**: 所有文件 I/O 统一使用 `Application.persistentDataPath`，支持 .osz 拖放导入 (PC) 与 Android 原生文件选择器。
-- [x] **Android 图形 API**: 强制 Vulkan 优先 + IL2CPP + ARM64，ComputeBuffer / GPU Instancing 全面兼容。
+- [x] **Android 图形 API**: 按 Vulkan 优先 + IL2CPP + ARM64 配置，ComputeBuffer / GPU Instancing 走这条路径；具体设备上的驱动差异将随实测逐一适配。
 - [x] **Shader 反剔除**: Dummy Material 资源偷渡法 + Always Included Shaders 双重保护，确保自定义 Shader 不被构建剔除。
-- [x] **OpenXR 双平台**: PC (OpenXR) + Android (Oculus + OpenXR) 双 Loader 配置，手柄追踪不丢失。
+- [x] **OpenXR 双平台**: PC (OpenXR) + Android (Oculus + OpenXR) 双 Loader 配置齐全；各机型的控制器映射正逐台确认中，Android OpenXR 路径的控制器 Profile 也将在适配完成时开启。
 - [ ] **国产设备专属调优**: 针对 Pico 4 等国内主流头显设备，适配专属的控制器高模显示与契合其振动马达特性的精准触觉反馈。
 
 ### 阶段五：多线程全局优化 — 🟢 核心管线已上线
-- [x] **Storyboard 全链路多线程化**: 时间轴求值 + 矩阵计算全 Burst 并行，NativeArray 零拷贝直达 GPU。
+- [x] **Storyboard 时间轴多线程化**: 时间轴求值与矩阵计算走 Burst 并行，结果写入 Persistent NativeArray；绘制前通过 `ComputeBuffer.SetData` 上传实例数据，传输路径清晰可控。
 - [x] **粒子颜色计算 Job 化**: `CodeDrivenAmbientParticles` 的 12000 粒子 HSV + 闪烁计算剥离至 Burst Job。
-- [x] **音符 SoA 扁平化**: `NativeArray<double>` spawnTimes + `NativeArray<float3>` worldPositions，加载期 Burst 预计算。
+- [x] **音符 SoA 扁平化**: `NativeArray<double>` spawnTimes / startTimes 与类型数组由主线程填充，生成时用二分查找框定区间；架构保持轻量，`worldPositions` 数组与加载期 Burst 坐标预计算均在评估清单中按需引入。
 - [x] **二分搜索替代线性扫描**: `SpawnNotes` 中 O(log N) 上界查找替代 while 循环。
-- [ ] **碰撞检测自定义化**: 活跃音符 > 500 时考虑 Burst 空间哈射线检测替代 PhysX。
+- [ ] **碰撞检测自定义化**: 当前每只手每帧一次 `SphereCastNonAlloc`，PhysX 查询是否构成瓶颈将交由性能测量回答；“活跃音符 > 500 就替换”是候选阈值，拿到可复现的性能数据后即动手。
 
 ### 阶段？？？：星河彼岸 — 🔭 远眺 Unity 6
 
-> 这不是路线图上的必选项，更像一个放在远处的念想。从 Unity 2022 LTS 到 Unity 6，意味着 Render Graph、GPU Resident Drawer 等新一代渲染栈的全面就绪。我们有计划将 Project Ether 迁入新引擎，在保持现有风格与体验的前提下，走进下一个技术世代。什么时候启程还不确定，但方向已经在星图上了。
+> 这不是路线图上的必选项，更像一个放在远处的念想。从 Unity 2022 LTS 到 Unity 6，意味着 Render Graph、GPU Resident Drawer 等新一代渲染栈的全面就绪。我们有计划将 Project Ether 迁入新引擎，在保持现有风格与体验的前提下，走进下一个技术世代。启程之日尚未写进日历，但方向，早已标注在星图之上。
 
-- [ ] **引擎升级至 Unity 6 (6000.0.60f1)**：从 Unity 2022.3.22f1 LTS 迁移至 Unity 6，完成 API 适配、包依赖更新与废弃接口替换，确保双平台（Windows + Android）构建链路完整。
-- [ ] **URP Render Graph 适配**：将全息幕布、SB 实例化渲染、后处理等自定义管线全面迁入 Render Graph 架构，消除 Compatibility Mode 回退开销，发挥新一代 URP 的调度与带宽优势。
-- [ ] **GPU Resident Drawer 与 STP**：启用 GPU Resident Drawer 将场景静态剔除与实例化绘制交由 GPU 驱动，评估 STP (Spatial-Temporal Post-Processing) 替代传统抗锯齿方案的可行性。
+- [ ] **引擎升级至 Unity 6**：从 Unity 2022.3.22f1 LTS 迁移，完成 API 适配、包依赖更新与废弃接口替换。动身前先在独立分支留下 Unity 2022 双平台构建、判定、媒体播放与帧时间的可复测基线，升级版本号也将在验证通过后郑重揭晓。
+- [ ] **URP Render Graph 适配**：把全息幕布、SB 实例化渲染与后处理逐步迁入 Render Graph。目前 SB 走的是图外 `Graphics.ExecuteCommandBuffer` + 自有 RT，全息幕布是 MeshRenderer 加材质——工作量远不止改几个 API 名，回退开销也将以实测数据说话。
+- [ ] **GPU Resident Drawer 与 STP**：GPU Resident Drawer 服务于符合条件的普通场景 MeshRenderer，Storyboard 的程序化实例绘制将继续走自己的专属通道；STP 的版本与 XR 支持单独评估——Unity 6.0 的兼容表中它标注为不支持，我们将等待合适的时机再让它与 MSAA 同台竞技。
 - [ ] **全链路回归与双平台验证**：升级后覆盖核心玩法判定、谱面解析、Storyboard 全指令渲染及 PC VR / Standalone VR 双平台构建，确保功能无退化、性能不低于当前基线。
 
 ---
@@ -281,6 +283,6 @@ A: 我们的 SB 引擎参考了 osu!lazer 和 storybrew 的开源实现，力求
 ---
 
 ## 📄 开源协议 (License)
-本项目始终拥抱开源精神，基于 **GNU General Public License v3.0 (GPL-3.0)** 协议开源。你可以自由使用、修改、分发本项目，但任何衍生作品的源码也必须以 GPL-3.0 协议开放，禁止闭源商用。详情请参阅仓库根目录里的 [LICENSE](LICENSE) 文件。
+本项目始终拥抱开源精神，基于 **GNU General Public License v3.0 (GPL-3.0)** 协议开源。GPL-3.0 **允许商业使用**——你可以自由使用、修改、分发本项目；相应地，复制、修改与分发也请遵循许可证的义务：分发衍生作品时保留相应声明，并以 GPL-3.0 提供对应源码等。详情请参阅仓库根目录里的 [LICENSE](LICENSE) 文件；第三方资源可能另有各自的许可，请分别确认。
 
 Graphy 采用 **MIT License**，版权声明为 `Copyright (c) 2018 Martín Pane`。上游完整许可保留在 [Resources/ThirdPartyLicenses/Graphy.txt](ProjectEther/Assets/Resources/ThirdPartyLicenses/Graphy.txt) 中，并随构建包含；游戏内制作人员页面也显示该版权声明与 MIT 许可全文。
