@@ -592,7 +592,7 @@ namespace OsuVR
             if (hasBeenHit)
                 return;
 
-            if (gameManager == null || hitObject == null)
+            if (gameManager == null || gameManager.IsPaused || hitObject == null)
                 return;
 
             double now = gameManager.GetCurrentMusicTimeMs();
@@ -690,6 +690,11 @@ namespace OsuVR
         /// </summary>
         public void OnRayHover(bool isRightHand)
         {
+            if (gameManager != null && gameManager.IsPaused)
+            {
+                OnRayExit();
+                return;
+            }
             isHovered = true;
             hoveringHandIsRight = isRightHand;
             CheckHitOrMiss();
@@ -700,7 +705,7 @@ namespace OsuVR
         /// </summary>
         public void OnHit(double accuracy, bool isRightHand)
         {
-            if (hasBeenHit || !isActive)
+            if (hasBeenHit || !isActive || (gameManager != null && gameManager.IsPaused))
                 return;
             hasBeenHit = true;
             isActive = false;

@@ -1472,6 +1472,12 @@ namespace OsuVR
 
         void Update()
         {
+            if (gameManager != null && gameManager.IsPaused)
+            {
+                OnGamePaused();
+                return;
+            }
+
             // 优先处理渐隐逻辑
             // 如果正在渐隐，我们需要继续更新 Alpha 值，直到完全消失
             if (isFadingOut)
@@ -1648,6 +1654,9 @@ namespace OsuVR
         /// </summary>
         public void OnRayStay(bool isRightHand, Vector3 hitPosition)
         {
+            if (gameManager != null && gameManager.IsPaused)
+                return;
+
             // 独立记录每只手的位置和状态
             if (isRightHand)
             {
@@ -1674,6 +1683,14 @@ namespace OsuVR
             CleanUpEverything();
         }
 
+        public void OnGamePaused()
+        {
+            isLeftHandTracking = false;
+            isRightHandTracking = false;
+            // 保留暂停前的容错余量和得分，恢复后由新射线重新建立跟踪。
+            StopTrackingAudio();
+        }
+
         void StopTrackingAudio()
         {
             if (isTrackingAudioPlaying && AudioManager.Instance != null)
@@ -1694,7 +1711,7 @@ namespace OsuVR
         /// </summary>
         public void TryHitHead(bool isRightHand, Vector3 hitPos)
         {
-            if (headHit)
+            if (headHit || (gameManager != null && gameManager.IsPaused))
                 return;
 
             // 计算偏移量：当前时间 - 预期时间

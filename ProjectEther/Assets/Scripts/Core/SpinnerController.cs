@@ -320,6 +320,11 @@ namespace OsuVR
         {
             if (!IsActive || gameManager == null)
                 return;
+            if (gameManager.IsPaused)
+            {
+                OnGamePaused();
+                return;
+            }
 
             double currentTime = gameManager.GetCurrentMusicTimeMs();
 
@@ -410,6 +415,9 @@ namespace OsuVR
         // =================================================================================
         public void UpdateRotation(Vector3 hitPoint, RayController source)
         {
+            if (!IsActive || (gameManager != null && gameManager.IsPaused))
+                return;
+
             // 1. 转为本地坐标 (Z轴由HitPoint决定，这里只取XY平面)
             Vector3 localPoint3D = transform.InverseTransformPoint(hitPoint);
             Vector2 currentPos = new Vector2(localPoint3D.x, localPoint3D.y);
@@ -527,6 +535,29 @@ namespace OsuVR
             // 7. 更新状态供下一帧使用
             state.lastAngle = currentAngle;
             state.lastTime = currentTime;
+        }
+
+        public void OnGamePaused()
+        {
+            // 保留已累计角度，只丢弃暂停前的输入轨迹和瞬时转速。
+            foreach (var state in handStates.Values)
+            {
+                if (state.trail != null)
+                {
+                    state.trail.emitting = false;
+                    state.trail.Clear();
+                }
+                if (state.ringInstance != null)
+                {
+                    state.ringInstance.gameObject.SetActive(false);
+                    ringPool.Enqueue(state.ringInstance);
+                }
+            }
+            handStates.Clear();
+            isHovered = false;
+            rotationDeltaAccumulator = 0f;
+            CurrentRPM = 0f;
+            AudioManager.Instance?.UpdateSpinnerLoop(false, 0f);
         }
 
         private void CleanUpInactiveHands()

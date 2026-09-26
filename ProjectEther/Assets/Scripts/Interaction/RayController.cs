@@ -87,6 +87,7 @@ namespace OsuVR
 
         private EventSystem eventSystem;
         private Camera cachedMainCam;
+        private RhythmGameManager cachedGameManager;
 
         private List<ScrollRect> cachedScrollRects = new List<ScrollRect>();
         private float cacheRefreshTimer;
@@ -283,6 +284,7 @@ namespace OsuVR
 
         private void RefreshHeavyCaches()
         {
+            cachedGameManager = FindFirstObjectByType<RhythmGameManager>();
             cachedScrollRects.Clear();
             cachedScrollRects.AddRange(
                 FindObjectsByType<ScrollRect>(FindObjectsInactive.Include, FindObjectsSortMode.None)
@@ -394,6 +396,21 @@ namespace OsuVR
 
         private void PerformRaycastAll()
         {
+            // 只屏蔽谱面交互，后续 UI 射线和暂停菜单输入继续执行。
+            if (cachedGameManager != null && cachedGameManager.IsPaused)
+            {
+                foreach (var old in previousHitObjects)
+                    if (old != null)
+                        NotifyHoverState(old, false, Vector3.zero);
+                previousHitObjects.Clear();
+                currentHitObjects.Clear();
+                currentHitMap.Clear();
+                IsHitting = false;
+                CurrentHitPoint = Vector3.zero;
+                lastHitObject = null;
+                return;
+            }
+
             if (visualRay == null)
                 return;
             Vector3 origin = visualRay.position,
@@ -906,7 +923,7 @@ namespace OsuVR
 
             var spinner = obj.GetComponentInParent<SpinnerController>();
             if (spinner != null)
-                spinner.isHovered = true;
+                spinner.isHovered = state;
         }
 
         // ============================================================
