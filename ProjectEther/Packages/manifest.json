@@ -51,7 +51,17 @@
     "com.unity.modules.video": "1.0.0",
     "com.unity.modules.vr": "1.0.0",
     "com.unity.modules.wind": "1.0.0",
-    "com.unity.modules.xr": "1.0.0"
+    "com.unity.modules.xr": "1.0.0",
+    "com.ivanmurzak.unity.mcp.cinemachine": "2.0.0",
+    "com.ivanmurzak.unity.mcp.animation": "2.0.0",
+    "com.ivanmurzak.unity.mcp.inputsystem": "2.0.0",
+    "com.ivanmurzak.unity.mcp.particlesystem": "2.0.0",
+    "com.ivanmurzak.unity.mcp.navigation": "2.0.0",
+    "com.ivanmurzak.unity.mcp.probuilder": "2.0.0",
+    "com.ivanmurzak.unity.mcp.splines": "2.0.0",
+    "com.ivanmurzak.unity.mcp.terrain": "2.0.0",
+    "com.ivanmurzak.unity.mcp.tilemap": "2.0.0",
+    "com.ivanmurzak.unity.mcp.timeline": "2.0.0"
   },
   "scopedRegistries": [
     {
