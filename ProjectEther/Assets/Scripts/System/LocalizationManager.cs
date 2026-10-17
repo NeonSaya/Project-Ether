@@ -129,6 +129,7 @@ namespace OsuVR
                     new[] { "Restricted visibility area", "有限的可见区域", "視界が制限される" }
                 },
                 { "ui_retry", new[] { "RETRY", "重试", "リトライ" } },
+                { "ui_skip_intro", new[] { "SKIP INTRO", "跳过前奏", "イントロをスキップ" } },
                 { "ui_watch_replay", new[] { "WATCH REPLAY", "观看回放", "リプレイを見る" } },
                 { "ui_score", new[] { "Score", "分数", "スコア" } },
                 { "ui_accuracy", new[] { "Accuracy", "准确率", "精度" } },

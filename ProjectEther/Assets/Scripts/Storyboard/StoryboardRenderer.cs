@@ -219,6 +219,7 @@ namespace OsuVR.Storyboard
         // 音乐时间冻结检测（暂停时视频同步暂停，防止视频继续播放又被 drift seek 反复回跳）
         double _lastMusicTimeMs = -1;
         float _musicFrozenTimer = 0f;
+        bool _videoSeekPending;
 
         // ---- 原尺寸纹理 ----
         readonly List<Texture2D> storyboardTextures = new List<Texture2D>();
@@ -488,6 +489,7 @@ namespace OsuVR.Storyboard
             videoOffsetMs = 0;
             _lastMusicTimeMs = -1;
             _musicFrozenTimer = 0;
+            _videoSeekPending = false;
 
             if (videoPlayer != null)
             {
@@ -526,6 +528,7 @@ namespace OsuVR.Storyboard
 
             _lastMusicTimeMs = -1;
             _musicFrozenTimer = 0f;
+            _videoSeekPending = false;
             if (videoPlayer != null)
             {
                 if (videoPlayer.isPlaying)
@@ -540,6 +543,23 @@ namespace OsuVR.Storyboard
                 GL.Clear(false, true, Color.clear);
                 RenderTexture.active = previous;
             }
+        }
+
+        /// <summary>
+        /// 前奏跳过后直接求目标帧，并让已准备或稍后准备的视频执行一次精确跳转。
+        /// </summary>
+        public void SeekToMusicTime(double musicTimeMs)
+        {
+            if (!isRendering)
+                return;
+            _lastMusicTimeMs = -1;
+            _musicFrozenTimer = 0f;
+            _videoSeekPending = true;
+            if (hasVideo && videoPlayer != null && videoPlayer.isPrepared)
+                SyncVideoTime(musicTimeMs);
+            ProcessPendingTriggers();
+            if (renderCamera != null)
+                ScheduleStoryboardFrame(musicTimeMs);
         }
 
         void QueueTrigger(PendingTrigger trigger)
@@ -974,6 +994,9 @@ namespace OsuVR.Storyboard
             {
                 if (videoPlayer.isPlaying)
                     videoPlayer.Pause();
+                if (_videoSeekPending)
+                    videoPlayer.time = 0;
+                _videoSeekPending = false;
                 return;
             }
 
@@ -983,6 +1006,10 @@ namespace OsuVR.Storyboard
             {
                 if (videoPlayer.isPlaying)
                     videoPlayer.Pause();
+                // 显式跳过可能直接越过整个视频，不能把前奏的旧帧留到末尾。
+                if (_videoSeekPending)
+                    videoPlayer.time = math.max(0, videoLength - 0.05);
+                _videoSeekPending = false;
                 return;
             }
 
@@ -991,10 +1018,14 @@ namespace OsuVR.Storyboard
 
             // 阈值 0.3s: skipOnDrop 下 videoPlayer.time 有抖动, 过小阈值会导致频繁 seek 卡顿
             double drift = videoPlayer.time - targetVideoTime;
-            if (drift > 0.3 || drift < -0.3)
+            if (_videoSeekPending || drift > 0.3 || drift < -0.3)
             {
-                videoPlayer.time = math.clamp(targetVideoTime, 0, math.max(0, videoLength - 0.05));
+                videoPlayer.time =
+                    videoLength > 0
+                        ? math.clamp(targetVideoTime, 0, math.max(0, videoLength - 0.05))
+                        : math.max(0, targetVideoTime);
             }
+            _videoSeekPending = false;
         }
 
         // =========================================================
