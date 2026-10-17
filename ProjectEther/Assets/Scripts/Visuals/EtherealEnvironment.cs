@@ -344,6 +344,38 @@ namespace OsuVR
         private float beatBrightnessPulse = 0f; // 节拍亮度脉冲值
         private bool isKiaiActive = false;
 
+        /// <summary>当前节拍脉冲（只读）。舞台灯等外部系统复用它，避免各算一套。</summary>
+        public float BeatPulse
+        {
+            get { return beatBrightnessPulse; }
+        }
+
+        /// <summary>当前是否处于 Kiai 段（只读）。</summary>
+        public bool IsKiaiActive
+        {
+            get { return isKiaiActive; }
+        }
+
+        /// <summary>取某个频段的平滑值（只读，0~1）。舞台灯等外部系统复用它。</summary>
+        public float GetSpectrumBand(int index)
+        {
+            if (spectrumBandSmoothed == null || index < 0 || index >= spectrumBandSmoothed.Length)
+                return 0f;
+            return spectrumBandSmoothed[index];
+        }
+
+        /// <summary>频段数量（只读）。</summary>
+        public int SpectrumBandCount
+        {
+            get { return spectrumBandSmoothed != null ? spectrumBandSmoothed.Length : 0; }
+        }
+
+        /// <summary>当前阶段（只读）。</summary>
+        public GamePhase CurrentPhase
+        {
+            get { return currentPhase; }
+        }
+
         void Awake()
         {
             if (Instance == null)
