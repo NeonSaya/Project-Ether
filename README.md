@@ -3,7 +3,7 @@
 ![Unity](https://img.shields.io/badge/Made%20with-Unity%202022.3%20LTS-black?style=flat&logo=unity)
 ![C#](https://img.shields.io/badge/Language-C%23-blue)
 ![Platform](https://img.shields.io/badge/Platform-PC%20VR%20%2F%20Standalone%20VR%20(OpenXR)-green)
-![Status](https://img.shields.io/badge/Status-v0.7.7-brightgreen)
+![Status](https://img.shields.io/badge/Status-v0.7.8-brightgreen)
 
 **中文** | [English](README_EN.md)
 
@@ -17,9 +17,9 @@
 
 你只需举起手中的虚拟射线，在纯粹的音波起伏与绚丽的光影交错之间，便能轻松惬意地沉浸于每一首高质量 osu! 谱面带来的视听震撼。
 
-> 🟢 **当前状态：v0.7.7**
+> 🟢 **当前状态：v0.7.8**
 
-> 核心链路（启动 -> 选曲 -> 游玩 -> 结算）已经打通，单点 (Circle)、滑条 (Slider)、转盘 (Spinner) 都已加入演奏。Storyboard 常见指令解析与 GPU 实例化渲染已上线，背景图、视频、SB 三层合成，亮度与透明度交给设置面板统一掌舵。Unity Jobs + Burst 已接手部分时间轴求值、矩阵计算与粒子颜色更新；主线程仍负责对象管理和绘制提交。我们正一步步靠近心中的视听盛宴，MMD 风格大型动态舞台也已写进后续工程清单。
+> 核心链路（启动 -> 选曲 -> 游玩 -> 结算）已经打通，单点 (Circle)、滑条 (Slider)、转盘 (Spinner) 都已加入演奏。Storyboard 常见指令解析与 GPU 实例化渲染已上线，背景图、视频、SB 三层合成，亮度与透明度交给设置面板统一掌舵。Unity Jobs + Burst 已接手部分时间轴求值、矩阵计算与粒子颜色更新；主线程仍负责对象管理和绘制提交。打歌场景新增了一版场景舞台，会跟着 AudioLink 频谱与 BPM 起伏，再叠一层轻微的命中反馈；菜单、选歌与结算这些非打歌场景用的是柔和常亮的光。这版还比较粗糙，后续会接到 Effekseer 上继续优化，离心里那个 MMD 风格大型动态舞台也还有段距离。
 >
 > **平台支持**: 面向 PC VR (Windows) 与 Standalone VR (Android) 双平台。构建配置已就绪，Pico Neo 3 / Pico 4 / Pico 4 Ultra / Quest 2 / Quest 3 / Quest 3S 六款目标设备正按计划逐台验证输入、视频解码与性能——每点亮一台设备，通行证上就多一枚印章。
 
@@ -151,7 +151,7 @@ Assets/
 
 ---
 
-Android 本地构建默认使用开发签名。正式发布请在 Player Settings → Publishing Settings 中选择自己的 keystore 和别名；更新已安装的正式版必须沿用原签名。签名文件、密码、本机路径、个人笔记和验证输出不应提交到仓库。
+Android 构建已配置为使用自定义签名：keystore 放在 Unity 的用户级目录（Publishing Settings 里选择 Dedicated 位置），签名文件与密码留在本机，仓库里只保留它的名称和别名。正式发布时换成你自己的 keystore 与别名；更新已安装的正式版必须沿用原签名。
 
 ## 🕹️ 核心操作与玩法指南 (How to Play)
 

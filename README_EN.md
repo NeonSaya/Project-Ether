@@ -3,7 +3,7 @@
 ![Unity](https://img.shields.io/badge/Made%20with-Unity%202022.3%20LTS-black?style=flat&logo=unity)
 ![C#](https://img.shields.io/badge/Language-C%23-blue)
 ![Platform](https://img.shields.io/badge/Platform-PC%20VR%20%2F%20Standalone%20VR%20(OpenXR)-green)
-![Status](https://img.shields.io/badge/Status-v0.7.7-brightgreen)
+![Status](https://img.shields.io/badge/Status-v0.7.8-brightgreen)
 
 [中文](README.md) | **English**
 
@@ -17,9 +17,9 @@ Our ambition goes beyond porting 2D notes into 3D space: we want to **fuse the e
 
 With virtual ray pointers resting in your hands, every high-quality osu! beatmap becomes an audiovisual feast of pure sound waves and dazzling light.
 
-> 🟢 **Current Status: v0.7.7**
+> 🟢 **Current Status: v0.7.8**
 
-> The core loop (Launch -> Song Select -> Play -> Result) is fully connected, and Circle, Slider and Spinner all take part in play. Storyboard command parsing and GPU instanced rendering are live, with background / video / SB three-layer compositing and brightness plus opacity steered from the settings panel. Unity Jobs + Burst have taken over part of the timeline evaluation, matrix maths and particle colour updates, while the main thread keeps object management and draw submission. We are still inching toward the show we picture, and the MMD-style dynamic stage is next on the engineering list.
+> The core loop (Launch -> Song Select -> Play -> Result) is fully connected, and Circle, Slider and Spinner all take part in play. Storyboard command parsing and GPU instanced rendering are live, with background / video / SB three-layer compositing and brightness plus opacity steered from the settings panel. Unity Jobs + Burst have taken over part of the timeline evaluation, matrix maths and particle colour updates, while the main thread keeps object management and draw submission. There is a first pass of a scene stage: it drifts with the AudioLink spectrum and BPM and adds a light touch of hit feedback, while menus and song select stay on a soft steady glow. It is still rough, with an Effekseer integration lined up as the next step, and the larger MMD-style dynamic stage is a way off yet.
 >
 > **Platform Support**: Built for PC VR (Windows) and Standalone VR (Android). The six target devices (Pico Neo 3 / Pico 4 / Pico 4 Ultra / Quest 2 / Quest 3 / Quest 3S) each get their input, video decoding and performance checked on real hardware.
 
@@ -152,7 +152,7 @@ Start with the data flow; it explains how the rest of the project fits together:
 
 ---
 
-Local Android builds use the development signing key by default. For releases, select your own keystore and alias in Player Settings → Publishing Settings; updates to an installed release must use its original signing key. Keep signing files, passwords, machine-specific paths, personal notes, and validation outputs out of version control.
+Android builds are configured for custom signing. The keystore file and its password stay on your machine, and the repository holds only its name and alias; the file itself lives in Unity's user-level directory (choose the Dedicated location in Publishing Settings). For a release of your own, swap in your own keystore and alias. Updates to an installed release must use its original signing key.
 
 ## 🕹️ How to Play
 
