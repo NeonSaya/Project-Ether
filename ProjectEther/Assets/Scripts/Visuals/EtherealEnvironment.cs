@@ -1202,7 +1202,7 @@ namespace OsuVR
             // 而不是父节点的 local Z。打开时定位，不随转头晃动。
             Vector3 playerPosition = _cachedCam.transform.position;
             Vector3 direction =
-                mirrorFloorObj.transform.TransformPoint(new Vector3(0f, 1.2f, 2f)) - playerPosition;
+                mirrorFloorObj.transform.TransformPoint(new Vector3(0f, 1f, 2f)) - playerPosition;
             if (direction.sqrMagnitude < 0.0001f)
                 direction = mirrorFloorObj.transform.forward;
             fpsDisplay.transform.position = playerPosition + direction.normalized * 1.75f;
