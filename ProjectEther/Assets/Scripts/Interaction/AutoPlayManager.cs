@@ -63,6 +63,10 @@ namespace OsuVR
             public List<MonoBehaviour> disabledComponents = new List<MonoBehaviour>();
 
             public HashSet<HitObject> triggeredNotes = new HashSet<HitObject>();
+
+            /// <summary>被拒绝触发时计数的目标（与 attemptCount 配套，只跟踪当前任务，不随局面增长）。</summary>
+            public HitObject attemptTask;
+            public int attemptCount;
         }
 
         private AutoHand leftHand;
@@ -160,6 +164,8 @@ namespace OsuVR
                 leftHand.taskQueue.Clear();
                 leftHand.currentTask = null;
                 leftHand.triggeredNotes.Clear();
+                leftHand.attemptTask = null;
+                leftHand.attemptCount = 0;
                 leftHand.lastHitEndTime = 0;
                 leftHand.lastValidAimPos = Vector3.zero;
                 leftHand.restAnchor = Vector3.zero;
@@ -169,6 +175,8 @@ namespace OsuVR
                 rightHand.taskQueue.Clear();
                 rightHand.currentTask = null;
                 rightHand.triggeredNotes.Clear();
+                rightHand.attemptTask = null;
+                rightHand.attemptCount = 0;
                 rightHand.lastHitEndTime = 0;
                 rightHand.lastValidAimPos = Vector3.zero;
                 rightHand.restAnchor = Vector3.zero;
@@ -841,8 +849,12 @@ namespace OsuVR
                     var noteCtrl = obj.GetComponent<NoteController>();
                     if (noteCtrl != null && !noteCtrl.hasBeenHit && noteCtrl.isActive)
                     {
-                        hand.triggeredNotes.Add(hand.currentTask);
                         noteCtrl.OnHit(0, isRightHand); // 0 = 完美判定
+                        // 只有真的判中才登记为已触发；被拒时留到下一帧重试（判定窗口内）
+                        if (noteCtrl.hasBeenHit)
+                            MarkTriggered(hand);
+                        else
+                            RegisterFailedAttempt(hand);
                     }
                 }
                 // Slider：直接调用 TryHitHead
@@ -851,11 +863,38 @@ namespace OsuVR
                     var sliderCtrl = obj.GetComponent<SliderController>();
                     if (sliderCtrl != null && !sliderCtrl.IsHeadHit)
                     {
-                        hand.triggeredNotes.Add(hand.currentTask);
                         sliderCtrl.TryHitHead(isRightHand, Vector3.zero); // 参数：(isRightHand, hitPos)
+                        // IsHeadHit 在「判中」和「超时锁定」两种情况下都会置位，两者都不该再重试
+                        if (sliderCtrl.IsHeadHit)
+                            MarkTriggered(hand);
+                        else
+                            RegisterFailedAttempt(hand);
                     }
                 }
             }
+        }
+
+        /// <summary>判定被拒的尝试上限：到顶就登记为已触发，避免在窗口内无意义地反复尝试。窗口约 [-100ms, +16ms]，60fps 下至多 7 帧。</summary>
+        const int MaxTriggerAttempts = 8;
+
+        static void MarkTriggered(AutoHand hand)
+        {
+            hand.triggeredNotes.Add(hand.currentTask);
+            hand.attemptTask = null;
+            hand.attemptCount = 0;
+        }
+
+        static void RegisterFailedAttempt(AutoHand hand)
+        {
+            if (!ReferenceEquals(hand.attemptTask, hand.currentTask))
+            {
+                hand.attemptTask = hand.currentTask;
+                hand.attemptCount = 0;
+            }
+            hand.attemptCount++;
+            // 到顶就放弃这个音符，避免在窗口内反复空试（它随后会自然判 Miss）
+            if (hand.attemptCount >= MaxTriggerAttempts)
+                MarkTriggered(hand);
         }
 
         /// <summary>

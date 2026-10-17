@@ -56,7 +56,7 @@
 * **沉浸式 VR 交互体验**: 射线悬停交互机制实现“指哪打哪”；手柄震动反馈 (`HapticProfile`) 根据谱面音量与判定结果动态调整；常用面板通过 `CurvedUIEffect` 物理弯折与 `HUDFollower` 弹簧跟随缓解边缘畸变与眩晕，是否弯曲按面板距离与视角决定。
 * **完整的游戏系统**: 集成 AutoPlay / HR / FL 等经典 Mod，内置自动本地化系统 (`LocalizationManager`) 支持多语言 Unicode 渲染，音效与震动采用 `TimingPoint × SampleVolume × 设置` 的完整乘法链路，精准可控。
 * **数据驱动的视听演出**: 接入 `AudioLink` 与 `Lasp` 建立音频数据闭环，128 柱频谱渲染与 11 层环境粒子实时响应 BPM 节拍与 Kiai 时段；纯代码粒子引擎 (`CodeOnlyVFX`) 为低配设备提供流畅兜底方案。
-* **跨平台构建**: 支持 PC VR (Windows OpenXR) 与 Standalone VR (Android / Pico / Quest) 双平台。Vulkan 图形 API + IL2CPP + ARM64，Dummy Material 反剔除机制确保 Shader 不被 Stripping。PC 与一体机各定制四档画质预设，一体机不锁帧、实际刷新率由设备与负载决定。
+* **跨平台构建**: 支持 PC VR (Windows OpenXR) 与 Standalone VR (Android / Pico / Quest) 双平台。Vulkan 图形 API + IL2CPP + ARM64，Dummy Material 反剔除机制确保自定义 Shader 不会被剔除（Stripping）。PC 与一体机各定制四档画质预设，一体机不锁帧、实际刷新率由设备与负载决定。
 * **地面性能监视器**: 使用 Graphy 提供 FPS、内存和音频监控，支持图表显示与开关控制。
 
 ---
@@ -97,7 +97,7 @@ Assets/
 理解数据流，就是理解本项目架构的钥匙：
 * **解析阶段 (Parsing)**: 当玩家在选歌界面 (`SongSelectScene`) 选中一首心仪的曲目后，跨场景单例 `GameContext` 会将其路径默默记下。场景切换至 `GameScene` 后，`OsuParser` 瞬间介入，将复杂的 `.osu` 文本按行拆解，精准翻译为内存中结构化的 `Beatmap` 数据模型。
 * **映射阶段 (Mapping)**: 紧接着，`CoordinateMapper` 开始工作。它提取每一个音符的 2D 坐标，将 osu! 的 512×384 游玩区域等比映射到玩家前方约 2 米、视线高度处一块 1.5 米 × 1.1 米的竖直打击平面上，忠实还原原版 osu! 的平面游玩体验。
-* **生成阶段 (Spawning)**: 引擎总指挥 `RhythmGameManager` 开始监听极其底层的硬件音频时间 (DSP Time)。它会根据谱面的缩圈速度 (AR) 提前算好提前量，再呼叫后勤部长 `NotePoolManager`，把沉睡在对象池里的音符一个接一个地唤醒 (Spawn) 到玩家面前。
+* **生成阶段 (Spawning)**: 引擎总指挥 `RhythmGameManager` 开始监听最底层的硬件音频时间 (DSP Time)。它会根据谱面的缩圈速度 (AR) 提前算好提前量，再呼叫后勤部长 `NotePoolManager`，把沉睡在对象池里的音符一个接一个地唤醒 (Spawn) 到玩家面前。
 * **判定阶段 (Judgement)**: 当玩家的射线触碰到音符时，铁面无私的裁判 `ScoreManager` 会在一毫秒内算出你的操作误差，裁定 Great 还是 Miss。随后，它立即向视觉部门 `JudgementVisualizer` 发送信号，在对应的 3D 坐标引爆绚丽的命中文字与光晕。
 
 ### 2. 我想改点东西，该去哪个文件开刀？
@@ -121,7 +121,7 @@ Assets/
 
 ### 1. 硬件与软件环境要求
 * **操作系统**: Windows 10/11。
-* **开发环境**: 请严格对齐使用 **Unity 2022.3.22f1 LTS** 或 2022.3 系列更高版本。
+* **开发环境**: 请务必使用 **Unity 2022.3.22f1 LTS** 或 2022.3 系列的更高版本。
 * **硬件设备**: 支持 OpenXR 标准的 PC VR 头显 (如 Valve Index, Meta Quest via Link, Pico 4 via Streaming Assistant)。手头暂时没有头显也没关系——项目中开启 Unity 自带的 `XR Device Simulator`，即可用键鼠模拟手柄体验完整流程。
 
 ### 2. 手把手教你跑起项目
@@ -155,7 +155,7 @@ Android 本地构建默认使用开发签名。正式发布请在 Player Setting
 
 ## 🕹️ 核心操作与玩法指南 (How to Play)
 
-为了让游戏数据完整流动、顺利初始化，**请务必永远从主菜单 (MainMenuScene) 开始你的旅程**，避开不可预知的空引用报错。
+为了让游戏数据完整流动、顺利初始化，**请永远从主菜单 (MainMenuScene) 开始你的旅程**，避开不可预知的空引用报错。
 
 游戏的场景流转顺序非常清晰：
 1. `MainMenuScene` (主界面): 调整语言、画面亮度，最重要的是可以在这里根据你的 VR 串流情况微调音频延迟。
@@ -165,7 +165,7 @@ Android 本地构建默认使用开发签名。正式发布请在 Player Setting
 
 **独创的 Relax 交互机制诀窍**：
 * 整个打歌过程中，**你完全不需要按下手柄上的任何物理按键**（仅在菜单点选时需要扣动扳机 Trigger）。
-* **全靠“空间悬停”**：当飞驰而来的音符外侧那个不断缩小的光圈（Approach Circle）与音符本体完美重合的一瞬间，只要你手中的红蓝射线正好指在音符区域内，系统就会自动触发极其精准的完美判定！
+* **全靠“空间悬停”**：当飞驰而来的音符外侧那个不断缩小的光圈（Approach Circle）与音符本体完美重合的一瞬间，只要你手中的红蓝射线正好指在音符区域内，系统就会自动触发完美判定！
 * **对付滑条 (Slider)**：用射线指着滑条头触发后，不要移开！让射线紧紧跟着那颗不断滚动的滑条球 (Slider Ball)，一路滑到底。
 * **对付转盘 (Spinner)**：出现大转盘时，用射线在转盘范围内像搅拌咖啡一样疯狂画圈，分数便会一路飙升！
 
@@ -202,12 +202,12 @@ A: 我们的 SB 引擎参考了 osu!lazer 和 storybrew 的开源实现，力求
 - [x] **物件渐入动画**: 游玩物件（音符、滑条等）已实现淡入与淡出效果，提升视觉流畅度与沉浸感；这里的范围是演出物件，不包括场景里的所有对象。
 - [x] **打击反馈大换血**: 已实现纯代码驱动的高性能粒子特效系统 (`CodeOnlyVFX`)，支持对象池复用与 HDR 高亮爆发效果。
 - [x] **精细化判定表现**: 已实现判定可视化器 (`JudgementVisualizer`)，为 300/100/50/Miss 四种判定结果配置独立颜色编码与弹出渐隐动画。
-- [ ] **后期处理深度定制**: `X-PostProcessing-Library` 已经在工程里——它的程序集面向 Editor、运行旧版 PPv2 栈，将作为滤镜宝库而非现成管线使用；下一步是挑出真正需要的滤镜（径向模糊、色差、胶片颗粒等），逐一移植到 URP 路径上。
+- [x] **后期处理深度定制**: 目前保持现状。`X-PostProcessing-Library` 只作为效果与参数的参考——它面向 Editor、跑在旧版 PPv2 栈上；将来需要新的后处理时，按 URP 管线自行实现，不整体搬入第三方滤镜包。
 
 ### 阶段二：数据驱动的音频可视化舞台 (Audio $\rightarrow$ Visual) — 🟢 视听闭环已达成
 这是本项目的杀手锏。核心逻辑：`音频数据化 (FFT 快速傅里叶变换) -> 数据流全面驱动视觉 (Shader 参数 & 粒子速率)`。
-- [x] **精准音频频段捕获**: 接入 Keijiro 大神的 `Lasp`，实时获取极其低延迟的多频段 FFT 音频数据流。（`#if LASP` 宏已在 Standalone 启用，要真正吃到系统捕获还需在场景里配置分析组件）
-- [x] **建立全局视觉通道**: 引入 VRChat 社区的神器 `AudioLink`，通过反射式集成建立音频数据控制全局 Shader 材质变幻与环境光照的基础通道。
+- [x] **精准音频频段捕获**: 接入 Keijiro 的 `Lasp`，实时获取低延迟的多频段 FFT 音频数据流。（`#if LASP` 宏已在 Standalone 启用，要真正吃到系统捕获还需在场景里配置分析组件）
+- [x] **建立全局视觉通道**: 引入 VRChat 社区的 `AudioLink`，通过反射式集成建立音频数据控制全局 Shader 材质变幻与环境光照的基础通道。
 - [x] **128 柱频谱可视化**: `EtherealEnvironment` 驱动 128 根频谱柱渲染，支持 AudioLink DFT 精细频段与三频段 (Bass/Mid/Treble) 自动降级双通道。
 - [x] **BPM 精准同步与 Kiai 检测**: 实现基于谱面 BPM 的精准节拍同步（二分查找 TimingPoints），解析并响应 Kiai 时段，让 Kiai 时光影爆发更具冲击力。
 - [x] **代码驱动环境粒子**: 实现纯代码运算的环境粒子系统（11 层粒子），为后续 GPU 粒子方案提供低配兜底。
@@ -221,7 +221,7 @@ A: 我们的 SB 引擎参考了 osu!lazer 和 storybrew 的开源实现，力求
 - [x] **视频背景播放**: 支持 `.mp4` / `.webm` / `.mov` 视频作为背景，通过 `VideoPlayer` + `Graphics.Blit` 渲染到全息幕布；遇到 `.avi` 等格式会优雅跳过并回退背景图。Android 视频播放已验证可用，更多编码与设备的验证正按实际环境持续推进。
 - [x] **三层合成渲染**: 背景图 / 视频 / SB 三层独立合成，SB Background 层可自动替代谱面背景图，设置面板统一控制全局亮度与透明度。
 - [x] **重试与触发局态**: 暂停菜单 Retry 会清空触发链、待处理触发与视频同步状态，无需重新解码纹理；已撤销的触发记录会在渲染前稳定回收。
-- [ ] **有效触发历史的长期上界**: 长期游玩时可能积累有效触发记录——只要约定好未来触发时间的下界，就能安全裁剪，这项收口工作已提上日程。
+- [x] **有效触发历史的长期上界**: 目前保持现状。触发记录会随命中持续累积，不过在正常游玩长度下增长可以忽略；将来在长谱面上观察到卡顿或内存增长时，再处理裁剪。
 - [ ] **Effekseer 特效演出**: 利用 `Effekseer` 制作与 Storyboard 联动的华丽粒子特效。
 
 > **关于 Storyboard 还原度：** 本引擎参考 osu!lazer 与 storybrew 的开源实现，在 Unity URP 管线下尽可能还原 osu! 原版 Storyboard 的视觉风格与合成逻辑。受引擎架构差异影响，极少数场景会与原版存在像素级出入，但绝大多数谱面都能获得贴合原版的观赏体验。我们将持续对齐上游更新，逐步提升还原精度。
@@ -238,7 +238,7 @@ A: 我们的 SB 引擎参考了 osu!lazer 和 storybrew 的开源实现，力求
 - [x] **粒子颜色计算 Job 化**: `CodeDrivenAmbientParticles` 的 12000 粒子 HSV + 闪烁计算剥离至 Burst Job。
 - [x] **音符 SoA 扁平化**: `NativeArray<double>` spawnTimes / startTimes 与类型数组由主线程填充，生成时用二分查找框定区间；架构保持轻量，`worldPositions` 数组与加载期 Burst 坐标预计算均在评估清单中按需引入。
 - [x] **二分搜索替代线性扫描**: `SpawnNotes` 中 O(log N) 上界查找替代 while 循环。
-- [ ] **碰撞检测自定义化**: 当前每只手每帧一次 `SphereCastNonAlloc`，PhysX 查询是否构成瓶颈将交由性能测量回答；“活跃音符 > 500 就替换”是候选阈值，拿到可复现的性能数据后即动手。
+- [x] **碰撞检测自定义化**: 目前保持现状。每只手每帧一次 `SphereCastNonAlloc`；实测在现有谱面规模下不构成瓶颈，等真的出现性能问题再换实现。
 
 ### 阶段？？？：星河彼岸 — 🔭 远眺 Unity 6
 
@@ -274,7 +274,7 @@ A: 我们的 SB 引擎参考了 osu!lazer 和 storybrew 的开源实现，力求
 * **[osu-droid](https://github.com/osudroid/osu-droid)**: 其久经考验的 C# 开源解析代码，为我们独立手写并实现零误差的顶级谱面解析器 (`OsuParser`) 提供了极其关键且无可替代的参考。
 * **[OsuParsers](https://github.com/mrflashstudio/OsuParsers)**: 轻量级 .osu/.osb 文件格式解析库。其清晰的解码器架构与数据模型设计，为我们的谱面解析器补全与校验提供了重要的对照参考。
 * **[Lasp](https://github.com/keijiro/Lasp) (by Keijiro Takahashi)**: 大神出品的极低延迟音频分析库，是我们实时捕获高精度 FFT 数据流的终极基石。
-* **[AudioLink](https://github.com/llealloo/vrc-udon-audio-link)**: 源自 VRChat 极客社区的革命性系统，为本项目的“音频数据驱动视觉”（Audio-Reactive Visuals）带来了前所未有的无限可能。
+* **[AudioLink](https://github.com/llealloo/vrc-udon-audio-link)**: 源自 VRChat 极客社区的革命性系统，为本项目的“音频数据驱动视觉”（Audio-Reactive Visuals）提供了核心数据通道。
 * **[X-PostProcessing-Library](https://github.com/QianMo/X-PostProcessing-Library) (by 浅墨)**: 提供了无比惊艳的 URP 定制化后期处理大片级滤镜库，极大拔高了项目的画面张力上限。在此深切缅怀 浅墨 大神。
 * **[Effekseer](https://effekseer.github.io/)**: 极其强大且跨平台的开源粒子特效编辑工具，是我们构建二次元风格动感交互舞台的核心武器库。
 * **[Graphy](https://github.com/Tayx94/graphy) (Tayx94 / Martín Pane) [MIT]**: 为地面性能监视器提供 FPS、内存和音频统计与图表，使用 v4.0.0，固定提交为 [`1068f3de2bc9f1e4a905150abd59f31e6dead679`](https://github.com/Tayx94/graphy/commit/1068f3de2bc9f1e4a905150abd59f31e6dead679)。
