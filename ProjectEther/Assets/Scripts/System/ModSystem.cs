@@ -23,7 +23,7 @@ namespace OsuVR
         DoubleTime = 30,
         HalfTime = 31,
 
-        // 视觉效果 (待实现)
+        // 视觉效果
         Hidden = 40,
         Flashlight = 42,
     }

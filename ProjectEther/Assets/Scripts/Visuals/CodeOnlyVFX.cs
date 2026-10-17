@@ -39,6 +39,9 @@ namespace OsuVR
         [Header("🎨 视觉设置")]
         public float hdrIntensity = 6.0f; // 适配圈圈亮度
 
+        [Tooltip("池预热数量：避免游玩热路径上第一次命中时现场创建粒子系统")]
+        public int poolPrewarmCount = 8;
+
         // ======================= 🔧 内部资源 =======================
 
         private ObjectPool<ParticleSystem> pool;
@@ -72,6 +75,18 @@ namespace OsuVR
                 defaultCapacity: 50,
                 maxSize: 300
             );
+
+            // 预热：命中特效首次触发通常发生在游玩热路径上，提前建好对象，避免当场 Instantiate。
+            // UnityEngine.Pool.ObjectPool 没有 Prewarm API，用「取出再放回」达到同样效果。
+            if (poolPrewarmCount > 0)
+            {
+                var warm = new ParticleSystem[poolPrewarmCount];
+                for (int i = 0; i < poolPrewarmCount; i++)
+                    warm[i] = pool.Get();
+                for (int i = 0; i < poolPrewarmCount; i++)
+                    if (warm[i] != null)
+                        pool.Release(warm[i]);
+            }
         }
 
         void OnDestroy()
