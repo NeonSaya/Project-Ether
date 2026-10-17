@@ -24,6 +24,9 @@ user.keystore
 AGENTS.local.md
 CLAUDE.local.md
 
+# 本机 AI 交接说明（含本机 MCP 端点与绝对路径），仅留本地；共享版另议
+/AGENTS.md
+
 # Personal notes, chat exports, and generated validation artifacts
 .local/
 local-notes/

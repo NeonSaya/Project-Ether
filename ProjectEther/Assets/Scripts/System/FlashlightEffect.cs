@@ -81,24 +81,7 @@ namespace OsuVR
                 return;
             }
 
-            // [新增优化] 让 ScoreManager 的 UI 在 FL 模式下自发光，使其能在黯淡的背景下易于看清
-            var scoreManager = FindFirstObjectByType<ScoreManager>();
-            if (scoreManager != null && scoreManager.boardController != null)
-            {
-                var texts =
-                    scoreManager.boardController.GetComponentsInChildren<TMPro.TextMeshProUGUI>(
-                        true
-                    );
-                foreach (var t in texts)
-                {
-                    t.color = new Color(
-                        t.color.r * 2.5f,
-                        t.color.g * 2.5f,
-                        t.color.b * 2.5f,
-                        t.color.a
-                    );
-                }
-            }
+            EnsureHudVisibility();
 
             // 创建遮罩 Quad
             maskQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -125,6 +108,26 @@ namespace OsuVR
 
             // 寻找左右手射线控制器
             FindRayControllers();
+        }
+
+        private void EnsureHudVisibility()
+        {
+            // World Space Canvas 默认与遮罩同排序；提高颜色亮度仍会被覆盖。
+            // 只把游戏 HUD 排到遮罩之后，仍低于暂停菜单、Toast 和场景过渡。
+            LiftHudCanvas(rhythmGameManager.scoreManager?.boardController?.GetComponent<Canvas>());
+
+            foreach (var overlay in FindObjectsOfType<BreakOverlayController>(true))
+                LiftHudCanvas(overlay.GetComponent<Canvas>());
+
+            foreach (var overlay in FindObjectsOfType<IntroSkipOverlay>(true))
+                LiftHudCanvas(overlay.GetComponent<Canvas>());
+        }
+
+        private void LiftHudCanvas(Canvas canvas)
+        {
+            if (canvas == null || canvas.gameObject.scene != rhythmGameManager.gameObject.scene)
+                return;
+            canvas.sortingOrder = Mathf.Max(canvas.sortingOrder, 10);
         }
 
         private void FindRayControllers()

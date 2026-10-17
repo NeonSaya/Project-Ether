@@ -152,6 +152,7 @@ namespace OsuVR
 
         private ModEffectsApplier modEffects;
         private float speedMultiplier = 1f;
+        private bool introSkipped;
 
         // =========================================================
         //  Phase 3: SoA 扁平化数据
@@ -458,7 +459,7 @@ namespace OsuVR
             else
             {
                 // 游戏已开始，使用DSP时间计算精确的音乐时间
-                if (dspStartTime > 0)
+                if (dspStartTime > 0 || introSkipped)
                 {
                     double currentDspTime = AudioSettings.dspTime;
 
@@ -578,6 +579,79 @@ namespace OsuVR
                 autoPlayManager.enabled = true;
                 Debug.Log("<color=cyan>[AutoPlay] AI 已接管控制权（缓冲期）</color>");
             }
+        }
+
+        /// <summary>
+        /// 前奏跳到首个物件开始出现前一秒，保留 lazer 的至少两秒准备余量。
+        /// </summary>
+        public bool TryGetIntroSkipTarget(out double targetTimeMs)
+        {
+            targetTimeMs = 0;
+            if (
+                introSkipped
+                || isGameEnded
+                || IsPaused
+                || (!isPlaying && !isBufferPhase)
+                || hitObjects == null
+                || hitObjects.Count == 0
+                || nextNoteIndex != 0
+                || activeNoteObjects.Count != 0
+                || musicSource == null
+                || musicSource.clip == null
+                || musicSource.clip.loadState != AudioDataLoadState.Loaded
+                || speedMultiplier <= 0f
+            )
+                return false;
+
+            var first = hitObjects[0];
+            double target = first.StartTime - System.Math.Max(2000.0, first.TimePreempt) - 1000.0;
+            double audioTimeMs = target + universalOffsetMs + INHERENT_AUDIO_LATENCY_MS;
+            if (
+                double.IsNaN(target)
+                || double.IsInfinity(target)
+                || target <= 0
+                || GetCurrentMusicTimeMs() >= target
+                || audioTimeMs < 0
+                || audioTimeMs >= musicSource.clip.length * 1000.0
+            )
+                return false;
+
+            targetTimeMs = target;
+            return true;
+        }
+
+        /// <summary>
+        /// 仅向前跳过尚未生成任何音符的前奏；不重置计分、物件游标或背景板资源。
+        /// </summary>
+        public bool TrySkipIntro()
+        {
+            if (!TryGetIntroSkipTarget(out double targetTimeMs))
+                return false;
+
+            var clip = musicSource.clip;
+            double audioTimeMs = targetTimeMs + universalOffsetMs + INHERENT_AUDIO_LATENCY_MS;
+            int sample = (int)System.Math.Ceiling(audioTimeMs * clip.frequency / 1000.0);
+            if (sample < 0 || sample >= clip.samples)
+                return false;
+
+            // Stop 取消尚未到时的 PlayScheduled，避免跳过后旧计划再次从头播放。
+            musicSource.Stop();
+            musicSource.pitch = speedMultiplier;
+            musicSource.timeSamples = sample;
+            musicSource.Play();
+            double now = AudioSettings.dspTime;
+            double audioSeconds = (double)sample / clip.frequency;
+            dspStartTime = now - audioSeconds / speedMultiplier;
+            gameStartDspTime = dspStartTime - spawnOffsetMs / (1000.0 * speedMultiplier);
+            currentMusicTimeMs =
+                audioSeconds * 1000.0 - universalOffsetMs - INHERENT_AUDIO_LATENCY_MS;
+            bufferStartDspTime = 0;
+            countdownTime = 0;
+            isPlaying = true;
+            isMusicPlaying = true;
+            introSkipped = true;
+            StoryboardRenderer.Instance?.SeekToMusicTime(currentMusicTimeMs);
+            return true;
         }
 
         /// <summary>
@@ -1047,6 +1121,7 @@ namespace OsuVR
             isMusicPlaying = false;
             isGameEnded = false;
             pauseStartDspTime = 0;
+            introSkipped = false;
 
             // 倒计时 = 缓冲总时长(2倍准备时间 + spawnOffset)
             countdownTime =
@@ -2131,7 +2206,7 @@ namespace OsuVR
                 return -spawnOffsetMs;
             }
 
-            if (dspStartTime > 0)
+            if (dspStartTime > 0 || introSkipped)
             {
                 double currentDspTime = AudioSettings.dspTime;
                 return (((currentDspTime - dspStartTime) * 1000.0) * speedMultiplier)

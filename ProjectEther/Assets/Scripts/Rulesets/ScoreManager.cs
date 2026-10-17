@@ -485,7 +485,7 @@ namespace OsuVR
                 && _hit100 == 0
                 && _hit50 == 0;
 
-            string rank = ResultData.CalculateRank(accuracy, isPerfectPlay, isFullCombo);
+            string rank = GetCurrentRank();
 
             string modString = BuildModString();
 
@@ -560,6 +560,15 @@ namespace OsuVR
             if (_currentMaxBaseScore > 0)
                 return _currentBaseScore / _currentMaxBaseScore;
             return 1.0;
+        }
+
+        /// <summary>
+        /// 当前进度的评级；休息提示与最终结算共用规则，滑条内部断连也会阻断全连评级。
+        /// </summary>
+        public string GetCurrentRank()
+        {
+            bool isFullCombo = _hitMiss == 0 && !_comboEverBroken;
+            return ResultData.CalculateRank(GetAccuracy(), false, isFullCombo);
         }
 
         /// <summary>

@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "com.ivanmurzak.unity.mcp": "0.93.0",
+    "com.ivanmurzak.unity.mcp": "1.1.0",
     "com.llealloo.audiolink": "https://github.com/llealloo/vrc-udon-audio-link.git?path=/Packages/com.llealloo.audiolink",
     "com.tayx.graphy": "https://github.com/Tayx94/graphy.git#1068f3de2bc9f1e4a905150abd59f31e6dead679",
     "com.unity.2d.sprite": "1.0.0",
@@ -51,7 +51,17 @@
     "com.unity.modules.video": "1.0.0",
     "com.unity.modules.vr": "1.0.0",
     "com.unity.modules.wind": "1.0.0",
-    "com.unity.modules.xr": "1.0.0"
+    "com.unity.modules.xr": "1.0.0",
+    "com.ivanmurzak.unity.mcp.cinemachine": "2.0.0",
+    "com.ivanmurzak.unity.mcp.animation": "2.0.0",
+    "com.ivanmurzak.unity.mcp.inputsystem": "2.0.0",
+    "com.ivanmurzak.unity.mcp.particlesystem": "2.0.0",
+    "com.ivanmurzak.unity.mcp.navigation": "2.0.0",
+    "com.ivanmurzak.unity.mcp.probuilder": "2.0.0",
+    "com.ivanmurzak.unity.mcp.splines": "2.0.0",
+    "com.ivanmurzak.unity.mcp.terrain": "2.0.0",
+    "com.ivanmurzak.unity.mcp.tilemap": "2.0.0",
+    "com.ivanmurzak.unity.mcp.timeline": "2.0.0"
   },
   "scopedRegistries": [
     {
