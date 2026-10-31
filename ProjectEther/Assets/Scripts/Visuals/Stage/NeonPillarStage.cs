@@ -11,15 +11,23 @@ namespace OsuVR
     public class NeonPillarStage : StageVariantBase
     {
         [Header("光柱环")]
-        [Range(4, 40)] public int pillarCount = 12;
+        [Range(4, 40)]
+        public int pillarCount = 12;
         public float pillarHeight = 3.4f;
+
         [Tooltip("高度起伏幅度：0 = 全部等高")]
-        [Range(0f, 0.6f)] public float heightVariation = 0.32f;
+        [Range(0f, 0.6f)]
+        public float heightVariation = 0.32f;
         public float pillarBaseWidth = 0.16f;
         public float pillarTopWidth = 0.30f;
-        [Range(-90f, 90f)] public float startYaw = -78f;
-        [Range(-90f, 90f)] public float endYaw = 78f;
+
+        [Range(-90f, 90f)]
+        public float startYaw = -78f;
+
+        [Range(-90f, 90f)]
+        public float endYaw = 78f;
         public float ringRadius = 6.0f;
+
         [Tooltip("整圈环绕速度（度/秒）")]
         public float ringYawSpeed = 1.2f;
 
@@ -30,7 +38,9 @@ namespace OsuVR
 
         [Header("外圈")]
         public bool showOuterRing = true;
-        [Range(2, 20)] public int outerRingCount = 10;
+
+        [Range(2, 20)]
+        public int outerRingCount = 10;
         public float outerRingRadius = 11.5f;
         public float outerRingHeight = 1.6f;
 
@@ -65,9 +75,16 @@ namespace OsuVR
 
             _ring = AddEmpty("PillarRing", Vector3.zero, Quaternion.identity).transform;
 
-            Mesh beamMesh = NewMesh(NeonStageKit.CreateColumn(pillarBaseWidth, pillarTopWidth, pillarHeight, 4));
+            Mesh beamMesh = NewMesh(
+                NeonStageKit.CreateColumn(pillarBaseWidth, pillarTopWidth, pillarHeight, 4)
+            );
             Mesh haloMesh = NewMesh(
-                NeonStageKit.CreateColumn(pillarBaseWidth * haloWidthScale, pillarTopWidth * haloWidthScale, pillarHeight * 1.06f, 4)
+                NeonStageKit.CreateColumn(
+                    pillarBaseWidth * haloWidthScale,
+                    pillarTopWidth * haloWidthScale,
+                    pillarHeight * 1.06f,
+                    4
+                )
             );
 
             for (int i = 0; i < pillarCount; i++)
@@ -138,11 +155,14 @@ namespace OsuVR
             if (showOuterRing && outerRingCount > 0)
             {
                 _outerRing = AddEmpty("OuterRing", Vector3.zero, Quaternion.identity).transform;
-                Mesh outerMesh = NewMesh(NeonStageKit.CreateColumn(0.14f, 0.42f, outerRingHeight, 4));
+                Mesh outerMesh = NewMesh(
+                    NeonStageKit.CreateColumn(0.14f, 0.42f, outerRingHeight, 4)
+                );
                 for (int i = 0; i < outerRingCount; i++)
                 {
                     float yaw = 360f / outerRingCount * i + 18f;
-                    Vector3 position = Quaternion.Euler(0f, yaw, 0f) * new Vector3(0f, 0f, outerRingRadius);
+                    Vector3 position =
+                        Quaternion.Euler(0f, yaw, 0f) * new Vector3(0f, 0f, outerRingRadius);
                     AddMesh(
                         "OuterPillar_" + i,
                         outerMesh,
@@ -169,10 +189,14 @@ namespace OsuVR
             NeonStageKit.SetMaterialLevel(_matBeamB, GlowB, levelB);
             NeonStageKit.SetMaterialLevel(_matHaloA, GlowA, levelA * haloLevelScale);
             NeonStageKit.SetMaterialLevel(_matHaloB, GlowB, levelB * haloLevelScale);
-            NeonStageKit.SetMaterialLevel(_matBaseRing, GlowC, idleLevel * 0.4f + low * accentGain * 0.3f);
+            NeonStageKit.SetMaterialLevel(
+                _matBaseRing,
+                GlowC,
+                idleLevel * 0.4f + low * accentGain * 0.3f
+            );
             NeonStageKit.SetMaterialLevel(_matTopBand, GlowC, idleLevel * 0.3f + low * 0.25f);
 
-            float now = Time.realtimeSinceStartup;
+            float now = AnimationTime;
             if (_ring != null && ringYawSpeed != 0f)
             {
                 _ring.localRotation = Quaternion.Euler(0f, now * ringYawSpeed, 0f);

@@ -1,4 +1,6 @@
+using System;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace OsuVR
 {
@@ -14,6 +16,24 @@ namespace OsuVR
     {
         public static StageLightingSystem Instance { get; private set; }
 
+        /// <summary>所有舞台风格共用的只读输入；音乐时间已经包含速度 Mod。</summary>
+        public struct StageResponse
+        {
+            public float Beat,
+                Low,
+                Mid,
+                High,
+                HitFlash,
+                LevelMultiplier,
+                AnimationTime;
+            public long BeatIndex;
+            public bool InGameplay,
+                IsPaused,
+                IsKiai;
+        }
+
+        public StageResponse Response { get; private set; }
+
         /// <summary>全局舞台风格。BuiltinStage 为照 Beat Saber 做的极简舞台（平台 + 背墙 + 灯条），
         /// 其余三个为可插拔风格变体，复用同一套程序化几何与辉光材质。</summary>
         /// <summary>灯光模式。参考 Beat Saber 的 MenuLightsPreset / LightColorGroupEffect / OneTimeLightColorEffect 那一族：
@@ -25,7 +45,7 @@ namespace OsuVR
             Pulse,
             Alternate,
             KiaiBurst,
-            Reactive,   // 游戏内默认：AudioLink 频谱 + BPM 节拍 + Kiai 三层叠加
+            Reactive, // 游戏内默认：AudioLink 频谱 + BPM 节拍 + Kiai 三层叠加
         }
 
         public enum StageStyle
@@ -47,11 +67,15 @@ namespace OsuVR
 
         [Header("舞台尺寸")]
         [Tooltip("远处灯环的分段数")]
-        [Range(0, 32)] public int stripCount = 10;
+        [Range(0, 32)]
+        public int stripCount = 10;
+
         [Tooltip("左右暗色建筑体块的偏移距离")]
         public float platformRadius = 18f;
+
         [Tooltip("远处灯环半径（BS 里在 150m 外）")]
         public float wallRadius = 55f;
+
         [Tooltip("背后灯柱高度（BS 的 BoxLight 是 50m）")]
         public float wallHeight = 45f;
         public float lightWidth = 0.16f;
@@ -59,53 +83,78 @@ namespace OsuVR
         [Header("节拍")]
         [Tooltip("没有外部推送时按这个 BPM 自己跑脉冲")]
         public float bpm = 128f;
+
         [Tooltip("脉冲衰减时间常数，越小越干脆")]
         public float pulseDecay = 0.22f;
+
         [Tooltip("勾上后只认 SetBeat() 推来的值（游戏侧驱动）")]
         public bool externalBeat = false;
 
         [Header("融合")]
         [Tooltip("颜色跟随 EtherealEnvironment 当前的背景色（只读它的公有字段，不改它）")]
         public bool followEnvironmentColors = true;
+
         [Tooltip("把背景色提亮成灯光色的倍率")]
         public float environmentColorBoost = 2.4f;
 
         [Header("模式")]
         [Tooltip("菜单/结算：柔和常亮，不做节拍闪")]
         public bool steadyOutsideGameplay = true;
+
         [Tooltip("常亮时的亮度")]
-        [Range(0f, 2f)] public float steadyIntensity = 0.55f;
+        [Range(0f, 2f)]
+        public float steadyIntensity = 0.55f;
 
         [Header("游玩响应（AudioLink / 节拍）")]
         [Tooltip("游玩时按 AudioLink 频段驱动灯光")]
         public bool audioLinkReactive = true;
-        [Range(0f, 3f)] public float spectrumResponse = 1.4f;
+
+        [Range(0f, 3f)]
+        public float spectrumResponse = 1.4f;
+
         [Tooltip("瞬态增益：声音突然变响时额外提亮，让画面更跟手")]
-        [Range(0f, 4f)] public float spectrumTransient = 2.2f;
+        [Range(0f, 4f)]
+        public float spectrumTransient = 2.2f;
+
         [Tooltip("低/中/高频段索引（EtherealEnvironment 有 8 段）")]
         public int lowBand = 0;
         public int midBand = 3;
         public int highBand = 5;
-        [Range(0f, 1f)] public float beatResponse = 0.35f;
-        [Range(1f, 2f)] public float kiaiBoost = 1.5f;
+
+        [Range(0f, 1f)]
+        public float beatResponse = 0.35f;
+
+        [Range(1f, 2f)]
+        public float kiaiBoost = 1.5f;
 
         [Header("osu 手感反馈（很小）")]
         [Tooltip("连击变化时给灯柱/车道线一点点亮，不进入读谱区")]
-        [Range(0f, 1f)] public float hitFlashGain = 0.45f;
+        [Range(0f, 1f)]
+        public float hitFlashGain = 0.45f;
         public float hitFlashDecay = 7f;
 
         [Header("灯光事件（对应 Beat Saber 的 On/Off/Flash/Fade/Transition/Strobe）")]
         [Tooltip("颜色切换的平滑速度，越小越像 Fade 事件")]
-        [Range(0.5f, 12f)] public float colorFadeSpeed = 3f;
+        [Range(0.5f, 12f)]
+        public float colorFadeSpeed = 3f;
+
         [Tooltip("Kiai 段的频闪频率（Hz），0 = 不闪")]
-        [Range(0f, 12f)] public float strobeHz = 3.5f;
+        [Range(0f, 12f)]
+        public float strobeHz = 3.5f;
+
         [Tooltip("频闪深度 0~1")]
-        [Range(0f, 1f)] public float strobeDepth = 0.22f;
+        [Range(0f, 1f)]
+        public float strobeDepth = 0.22f;
 
         [Header("灯光")]
-        [ColorUsage(false, true)] public Color colorA = new Color(0.18f, 0.85f, 1.15f);
-        [ColorUsage(false, true)] public Color colorB = new Color(1.05f, 0.28f, 0.78f);
-        [Range(0f, 2f)] public float intensity = 0.5f;
+        [ColorUsage(false, true)]
+        public Color colorA = new Color(0.18f, 0.85f, 1.15f);
+
+        [ColorUsage(false, true)]
+        public Color colorB = new Color(1.05f, 0.28f, 0.78f);
+
+        [Range(0f, 2f)]
+        public float intensity = 0.5f;
 
         EnvironmentLightRig _rig;
         GameObject _styleRoot;
@@ -122,6 +171,11 @@ namespace OsuVR
         Color _fadeA = Color.white;
         Color _fadeB = Color.white;
         bool _fadeInit;
+        RhythmGameManager _gameManager;
+        ScoreManager _lastScoreManager;
+        Beatmap _lastBeatmap;
+        double _lastMusicTime;
+        bool _hasHitSample;
 
         /// <summary>由游戏侧推节拍（0~1），配合 externalBeat 使用。</summary>
         public void SetBeat(float value)
@@ -155,12 +209,15 @@ namespace OsuVR
 
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            BindGameManager();
 
             BuildRig();
         }
 
         void OnDestroy()
         {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
             if (_rig != null)
             {
                 _rig.Dispose();
@@ -177,6 +234,156 @@ namespace OsuVR
 
             if (Instance == this)
                 Instance = null;
+        }
+
+        void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            BindGameManager();
+        }
+
+        void BindGameManager()
+        {
+            // 仅在场景装载时查找；实际计分组件可在该管理器的 Start 中稍后接线。
+            _gameManager = FindFirstObjectByType<RhythmGameManager>();
+            _hasHitSample = false;
+            _hitFlash = 0f;
+            _prevSpectrum = 0f;
+            _specTransient = 0f;
+            Response = default;
+        }
+
+        static long GetBeatIndex(Beatmap map, double musicTimeMs)
+        {
+            var timing = map?.ControlPoints?.Timing;
+            if (timing == null || timing.Count == 0)
+                return 0;
+
+            int low = 0;
+            int high = timing.Count - 1;
+            while (low < high)
+            {
+                int middle = (low + high + 1) / 2;
+                if (timing[middle].Time <= musicTimeMs)
+                    low = middle;
+                else
+                    high = middle - 1;
+            }
+            var point = timing[low];
+            if (
+                point.MsPerBeat <= 0
+                || double.IsNaN(point.MsPerBeat)
+                || double.IsInfinity(point.MsPerBeat)
+            )
+                return 0;
+            // 红线切换后重新计拍；直接求目标位置，不在跳过前奏或 Retry 时补发旧拍。
+            return (long)Math.Floor((musicTimeMs - point.Time) / point.MsPerBeat);
+        }
+
+        void SampleResponse(EtherealEnvironment env)
+        {
+            bool inGameplay =
+                env != null
+                && env.CurrentPhase == EtherealEnvironment.GamePhase.Playing
+                && _gameManager != null
+                && !_gameManager.isGameEnded
+                && (_gameManager.isPlaying || _gameManager.IsPaused);
+            bool paused = inGameplay && _gameManager.IsPaused;
+            var map = _gameManager != null ? _gameManager.GetCurrentBeatmap() : null;
+            var scoreManager = _gameManager != null ? _gameManager.scoreManager : null;
+            double musicTime = _gameManager != null ? _gameManager.currentMusicTimeMs : 0d;
+            int combo = scoreManager != null ? scoreManager.GetCurrentCombo() : 0;
+            long score = scoreManager != null ? scoreManager.GetCurrentScore() : 0;
+            bool reset =
+                !_hasHitSample
+                || !inGameplay
+                || !Response.InGameplay
+                || Response.IsPaused
+                || map != _lastBeatmap
+                || scoreManager != _lastScoreManager
+                || musicTime < _lastMusicTime;
+
+            if (paused && Response.InGameplay && map == _lastBeatmap)
+            {
+                var frozen = Response;
+                frozen.IsPaused = true;
+                frozen.HitFlash = 0f;
+                Response = frozen;
+                _hitFlash = 0f;
+            }
+            else
+            {
+                if (reset || paused)
+                    _hitFlash = 0f;
+                else if (score > _lastScore)
+                    _hitFlash = 1f;
+                else if (_lastCombo > 0 && combo < _lastCombo)
+                    _hitFlash = 0.55f;
+                else
+                    _hitFlash = Mathf.Max(
+                        0f,
+                        _hitFlash - Time.unscaledDeltaTime * Mathf.Max(0.5f, hitFlashDecay)
+                    );
+
+                bool reactive = inGameplay || !steadyOutsideGameplay;
+                bool kiai =
+                    reactive && (externalBeat ? _externalKiai : env != null && env.IsKiaiActive);
+                float beat = 0f;
+                if (reactive)
+                {
+                    if (externalBeat)
+                        beat = _externalBeat;
+                    else if (env != null)
+                        beat = env.StageBeatPulse;
+                    else
+                    {
+                        float sinceBeat = Time.realtimeSinceStartup % (60f / Mathf.Max(1f, bpm));
+                        beat = Mathf.Exp(-sinceBeat / Mathf.Max(0.01f, pulseDecay));
+                    }
+                }
+                Response = new StageResponse
+                {
+                    Beat = Mathf.Clamp01(beat),
+                    Low =
+                        reactive && audioLinkReactive && env != null
+                            ? env.GetSpectrumBand(lowBand)
+                            : 0f,
+                    Mid =
+                        reactive && audioLinkReactive && env != null
+                            ? env.GetSpectrumBand(midBand)
+                            : 0f,
+                    High =
+                        reactive && audioLinkReactive && env != null
+                            ? env.GetSpectrumBand(highBand)
+                            : 0f,
+                    BeatIndex = inGameplay ? GetBeatIndex(map, musicTime) : 0L,
+                    AnimationTime = inGameplay
+                        ? (float)(musicTime / 1000d)
+                        : Time.realtimeSinceStartup,
+                    InGameplay = inGameplay,
+                    IsPaused = paused,
+                    IsKiai = kiai,
+                    HitFlash = _hitFlash * hitFlashGain,
+                    LevelMultiplier =
+                        !reactive ? steadyIntensity
+                        : kiai ? kiaiBoost
+                        : 1f,
+                };
+            }
+
+            _lowLevel = Response.Low;
+            float spectrum =
+                (Response.Low * 0.55f + Response.Mid * 0.30f + Response.High * 0.15f)
+                * spectrumResponse;
+            _specTransient =
+                reset || paused ? 0f : Mathf.Max(0f, spectrum - _prevSpectrum) * spectrumTransient;
+            _spectrumLevel = Mathf.Clamp(spectrum, 0f, 2f);
+            _prevSpectrum = spectrum;
+            _lastScore = score;
+            _lastCombo = combo;
+            _lastBeatmap = map;
+            _lastScoreManager = scoreManager;
+            _lastMusicTime = musicTime;
+            _hasHitSample = inGameplay;
         }
 
         /// <summary>运行时切换舞台风格（会重建几何）。</summary>
@@ -213,7 +420,16 @@ namespace OsuVR
 
             if (style == StageStyle.BuiltinStage)
             {
-                _rig.Build(transform, stripCount, platformRadius, wallHeight, wallRadius, lightWidth, colorA, colorB);
+                _rig.Build(
+                    transform,
+                    stripCount,
+                    platformRadius,
+                    wallHeight,
+                    wallRadius,
+                    lightWidth,
+                    colorA,
+                    colorB
+                );
                 _built = true;
                 return;
             }
@@ -253,6 +469,8 @@ namespace OsuVR
 
         void Update()
         {
+            EtherealEnvironment env = EtherealEnvironment.Instance;
+            SampleResponse(env);
             if (!_built)
             {
                 if (enableStage)
@@ -261,97 +479,19 @@ namespace OsuVR
             }
 
             if (style != StageStyle.BuiltinStage)
-                return;   // 可插拔风格自己读节拍，不需要这里再驱动
+                return; // 变体在本帧稍后读取同一份输入。
 
-            float beat;
-            bool kiai;
-
-            EtherealEnvironment env = EtherealEnvironment.Instance;
-
-            if (externalBeat)
-            {
-                beat = _externalBeat;
-                kiai = _externalKiai;
-            }
-            else if (env != null)
-            {
-                // 复用环境系统已经在跑的节拍与 Kiai，两边永远同步
-                beat = Mathf.Clamp01(env.BeatPulse);
-                kiai = env.IsKiaiActive;
-            }
-            else
-            {
-                // 自己按 BPM 跑一个节拍包络：不依赖任何环境系统
-                float secondsPerBeat = 60f / Mathf.Max(1f, bpm);
-                float now = Time.realtimeSinceStartup;
-                long index = (long)(now / secondsPerBeat);
-                float sinceBeat = now - index * secondsPerBeat;
-                beat = Mathf.Exp(-sinceBeat / Mathf.Max(0.01f, pulseDecay));
-                kiai = false;
-            }
-
-            // ---- 分模式：菜单/结算柔和常亮，游戏内才做响应 ----
-            bool inGameplay = env != null && env.CurrentPhase == EtherealEnvironment.GamePhase.Playing;
-            float level = intensity;
-            bool useKiai = false;
-
-            if (steadyOutsideGameplay && !inGameplay)
-            {
-                level = steadyIntensity;
-                beat = 0f;
-                kiai = false;
-                _hitFlash = 0f;
-            }
-            else
-            {
-                float spectrum = 0f;
-                if (audioLinkReactive && env != null)
-                {
-                    float low = env.GetSpectrumBand(lowBand);
-                    float mid = env.GetSpectrumBand(midBand);
-                    float high = env.GetSpectrumBand(highBand);
-                    _lowLevel = low;
-                    spectrum = (low * 0.55f + mid * 0.30f + high * 0.15f) * spectrumResponse;
-
-                    // 瞬态：谱值往上跳的瞬间额外加一点，画面更"跟手"
-                    float rise = Mathf.Max(0f, spectrum - _prevSpectrum);
-                    _specTransient = rise * spectrumTransient;
-                    _prevSpectrum = spectrum;
-                }
-
-                _spectrumLevel = Mathf.Clamp(spectrum, 0f, 2f);
-                level = intensity * (0.75f + spectrum) + beat * beatResponse;
-                useKiai = kiai;
-                if (kiai)
-                    level *= kiaiBoost;
-
-                // 连击变化 → 一次很小的闪，只作用于灯柱与车道线
-                int combo = 0;
-                long score = 0;
-                OsuVR.ScoreManager scoreManager = UnityEngine.Object.FindObjectOfType<OsuVR.ScoreManager>();
-                if (scoreManager != null)
-                {
-                    combo = scoreManager.GetCurrentCombo();
-                    score = scoreManager.GetCurrentScore();
-                }
-
-                bool hit = _lastScore >= 0 && score > _lastScore;
-                bool miss = _lastCombo > 0 && combo < _lastCombo && !hit;
-
-                if (hit)
-                    _hitFlash = 1f;          // 命中：一次小闪
-                else if (miss)
-                    _hitFlash = 0.55f;       // Miss：更淡
-
-                _lastScore = score;
-                _lastCombo = combo;
-            }
-
-            _hitFlash = Mathf.Max(0f, _hitFlash - Time.unscaledDeltaTime * Mathf.Max(0.5f, hitFlashDecay));
+            float beat = Response.Beat;
+            bool kiai = Response.IsKiai;
+            float level =
+                steadyOutsideGameplay && !Response.InGameplay
+                    ? steadyIntensity
+                    : (intensity * (0.75f + _spectrumLevel) + beat * beatResponse)
+                        * Response.LevelMultiplier;
 
             // ---- 按模式算出四路亮度 ----
-            float t = Time.realtimeSinceStartup;
-            long beatIndex = (long)(t * Mathf.Max(1f, bpm) / 60f);
+            float t = Response.AnimationTime;
+            long beatIndex = Response.BeatIndex;
             bool oddBeat = beatIndex % 2 == 1;
             float baseLevel = Mathf.Max(0f, level);
             float breathe = 0.85f + Mathf.Sin(t * 0.55f) * 0.15f;
@@ -394,20 +534,26 @@ namespace OsuVR
                 case LightingPattern.Reactive:
                 {
                     // AudioLink 频谱打底（画面随低频起伏），BPM 只做轻微推波，Kiai 整体抬升
-                    float spec = _spectrumLevel + _specTransient;   // 频谱 + 瞬态：AudioLink 是主驱动
+                    float spec = _spectrumLevel + _specTransient; // 频谱 + 瞬态：AudioLink 是主驱动
                     float specSlow = spec * 0.75f + _lowLevel * 0.45f;
-                    float kiaiLift = (kiai || useKiai) ? 1.5f : 1f;
+                    float kiaiLift = 1f; // 共享输入已应用一次 Kiai 增益。
 
                     // 三重叠加：AudioLink(主) + BPM(轻推) + 判定(在下方 judgeBoost 里加)
                     lightLevel = baseLevel * (0.46f + specSlow * 0.95f + beat * 0.05f) * kiaiLift;
                     haloLevel = baseLevel * (0.05f + specSlow * 0.16f) * kiaiLift;
-                    groupALevel = baseLevel * (0.34f + specSlow * 1.0f + (oddBeat ? beat * 0.06f : 0f)) * kiaiLift;
-                    groupBLevel = baseLevel * (0.34f + specSlow * 1.0f + (oddBeat ? 0f : beat * 0.06f)) * kiaiLift;
+                    groupALevel =
+                        baseLevel
+                        * (0.34f + specSlow * 1.0f + (oddBeat ? beat * 0.06f : 0f))
+                        * kiaiLift;
+                    groupBLevel =
+                        baseLevel
+                        * (0.34f + specSlow * 1.0f + (oddBeat ? 0f : beat * 0.06f))
+                        * kiaiLift;
                     break;
                 }
 
                 default: // KiaiBurst
-                    bool burst = kiai || useKiai;
+                    bool burst = kiai;
                     lightLevel = baseLevel * (burst ? 1.5f : 0.85f);
                     haloLevel = baseLevel * (burst ? 0.2f : 0.1f);
                     groupALevel = baseLevel * (burst ? 1.4f + beat * 0.5f : 0.55f);
@@ -438,7 +584,9 @@ namespace OsuVR
                 if (env != null)
                 {
                     // 直接取环境当前阶段的背景色做灯色，保证同一套色相
-                    string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+                    string sceneName = UnityEngine
+                        .SceneManagement.SceneManager.GetActiveScene()
+                        .name;
                     Color bg = env.menuBackgroundColor;
                     if (sceneName.Contains("Game"))
                         bg = env.gameBackgroundColor;

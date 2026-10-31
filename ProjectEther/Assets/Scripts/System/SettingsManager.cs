@@ -1,6 +1,9 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Audio;
+using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.SceneManagement;
 
 namespace OsuVR
 {
@@ -17,6 +20,12 @@ namespace OsuVR
         private AudioMixer audioMixer;
 
         public GameSettings Settings => settings;
+
+        // 高与超高共享 High Fidelity 管线，AA、渲染比例和粒子密度仍由四档预设决定。
+        private static readonly int[] UNITY_QUALITY_LEVELS = { 0, 1, 2, 2 };
+        private readonly Dictionary<int, RenderPipelineAsset> originalPipelines = new();
+        private readonly Dictionary<int, UniversalRenderPipelineAsset> runtimePipelines = new();
+        private int initialQualityLevel;
 
         private const string PREF_KEY_AUDIO_OFFSET = "Settings_AudioOffset";
         private const string PREF_KEY_MASTER_VOLUME = "Settings_MasterVolume";
@@ -112,6 +121,8 @@ namespace OsuVR
             {
                 Instance = this;
                 DontDestroyOnLoad(gameObject);
+                initialQualityLevel = QualitySettings.GetQualityLevel();
+                SceneManager.sceneLoaded += OnSceneLoaded;
                 InitializeSettings();
             }
             else
@@ -122,13 +133,46 @@ namespace OsuVR
 
         private void InitializeSettings()
         {
-            if (settings == null)
-            {
-                settings = ScriptableObject.CreateInstance<GameSettings>();
-            }
+            // 运行时设置不直接写回 Inspector 引用的源资产。
+            settings =
+                settings != null
+                    ? settings.Clone()
+                    : ScriptableObject.CreateInstance<GameSettings>();
 
             LoadSettings();
             ApplyAllSettings();
+        }
+
+        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            // 场景内消费者已完成 Awake，补上启动时尚未存在的音频、震动与环境组件。
+            ApplyAllSettings();
+        }
+
+        private void OnDestroy()
+        {
+            if (Instance != this)
+                return;
+
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            int currentQuality = QualitySettings.GetQualityLevel();
+            foreach (var pair in runtimePipelines)
+            {
+                if (QualitySettings.GetRenderPipelineAssetAt(pair.Key) == pair.Value)
+                {
+                    QualitySettings.SetQualityLevel(pair.Key, false);
+                    QualitySettings.renderPipeline = originalPipelines[pair.Key];
+                }
+                Destroy(pair.Value);
+            }
+            QualitySettings.SetQualityLevel(
+                runtimePipelines.Count > 0 ? initialQualityLevel : currentQuality,
+                false
+            );
+            runtimePipelines.Clear();
+            originalPipelines.Clear();
+            Destroy(settings);
+            Instance = null;
         }
 
         #region Load/Save
@@ -268,31 +312,32 @@ namespace OsuVR
 
         public void ApplyGraphicsSettings()
         {
-            QualitySettings.SetQualityLevel(settings.qualityLevel, true);
+            settings.qualityLevel = Mathf.Clamp(
+                settings.qualityLevel,
+                0,
+                UNITY_QUALITY_LEVELS.Length - 1
+            );
+            int unityQuality = Mathf.Clamp(
+                UNITY_QUALITY_LEVELS[settings.qualityLevel],
+                0,
+                QualitySettings.names.Length - 1
+            );
+            QualitySettings.SetQualityLevel(unityQuality, true);
             // 不锁帧：PC 由 VR SDK 控制，Android 由 FrameRateUnlocker 跑满设备刷新率
             Application.targetFrameRate = -1;
             QualitySettings.vSyncCount = settings.enableVSync ? 1 : 0;
 
-            int aaValue = settings.antiAliasing;
-            if (aaValue == 0)
-                aaValue = 1;
-            else if (aaValue > 0 && (aaValue & (aaValue - 1)) != 0)
-            {
-                if (aaValue < 2)
-                    aaValue = 2;
-                else if (aaValue < 4)
-                    aaValue = 2;
-                else if (aaValue < 8)
-                    aaValue = 4;
-                else
-                    aaValue = 8;
-            }
-            QualitySettings.antiAliasing = aaValue;
+            int aaValue =
+                settings.antiAliasing >= 8 ? 8
+                : settings.antiAliasing >= 4 ? 4
+                : settings.antiAliasing >= 2 ? 2
+                : 1;
+            QualitySettings.antiAliasing = aaValue == 1 ? 0 : aaValue;
 
-            // 应用 URP Render Scale
-            var urpAsset = QualitySettings.renderPipeline as UniversalRenderPipelineAsset;
+            var urpAsset = GetRuntimePipeline(unityQuality);
             if (urpAsset != null)
             {
+                urpAsset.msaaSampleCount = aaValue;
                 urpAsset.renderScale = Mathf.Clamp(settings.renderScale, 0.5f, 1.0f);
             }
 
@@ -305,6 +350,29 @@ namespace OsuVR
             Debug.Log(
                 $"[SettingsManager] Graphics: Q={settings.qualityLevel}, AA={settings.antiAliasing}, RS={settings.renderScale:F2}, PD={settings.particleDensity:F2}, FPS={Application.targetFrameRate}"
             );
+        }
+
+        private UniversalRenderPipelineAsset GetRuntimePipeline(int unityQuality)
+        {
+            if (!Application.isPlaying)
+                return null;
+            if (runtimePipelines.TryGetValue(unityQuality, out var runtime))
+                return runtime;
+
+            var original = QualitySettings.renderPipeline;
+            var source =
+                (original != null ? original : GraphicsSettings.defaultRenderPipeline)
+                as UniversalRenderPipelineAsset;
+            if (source == null)
+                return null;
+
+            runtime = Instantiate(source);
+            runtime.name = source.name + " (Runtime)";
+            runtime.hideFlags = HideFlags.DontSave;
+            originalPipelines.Add(unityQuality, original);
+            runtimePipelines.Add(unityQuality, runtime);
+            QualitySettings.renderPipeline = runtime;
+            return runtime;
         }
 
         public void ApplyVRSettings()

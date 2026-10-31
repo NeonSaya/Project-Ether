@@ -54,6 +54,7 @@ namespace OsuVR
         private readonly System.Collections.Generic.List<UnityEngine.XR.InputDevice> _rightHandDevices =
             new System.Collections.Generic.List<UnityEngine.XR.InputDevice>(2);
         private BeatmapMetadata selectedDifficulty;
+        private SongPreviewPlayer songPreviewPlayer;
 
         private bool isModPanelActive = false;
         private readonly Dictionary<ModType, Image> generatedModImages =
@@ -103,6 +104,8 @@ namespace OsuVR
         void OnEnable()
         {
             LocalizationManager.OnLanguageChanged += OnLanguageChanged;
+            if (selectedDifficulty != null)
+                PlaySelectedPreview();
 
             // 从设置返回时，检测是否有新歌曲导入并刷新列表
             if (BeatmapImporter.HasNewImport)
@@ -117,6 +120,19 @@ namespace OsuVR
         void OnDisable()
         {
             LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
+            if (songPreviewPlayer != null)
+                songPreviewPlayer.StopPreview();
+        }
+
+        private void PlaySelectedPreview()
+        {
+            if (songPreviewPlayer == null)
+            {
+                songPreviewPlayer = GetComponent<SongPreviewPlayer>();
+                if (songPreviewPlayer == null)
+                    songPreviewPlayer = gameObject.AddComponent<SongPreviewPlayer>();
+            }
+            songPreviewPlayer.RequestPreview(selectedDifficulty);
         }
 
         private void AutoAttachLocalizedTexts()
@@ -356,6 +372,7 @@ namespace OsuVR
         {
             selectedSet = set;
             selectedDifficulty = set.GetDefaultDifficulty();
+            PlaySelectedPreview();
 
             UpdateSelectionHighlight(set);
 
@@ -479,6 +496,7 @@ namespace OsuVR
         void OnDifficultySelected(BeatmapMetadata diff)
         {
             selectedDifficulty = diff;
+            PlaySelectedPreview();
             Debug.Log($"[SimpleSongSelection] 切换难度: {diff.Version}");
             UpdateInfoPanel(diff);
             UpdateStatsWithMods();
@@ -830,6 +848,8 @@ namespace OsuVR
 
             if (Application.CanStreamedLevelBeLoaded(gameSceneName))
             {
+                if (songPreviewPlayer != null)
+                    songPreviewPlayer.StopPreview();
                 VRSceneTransitionManager.Instance.TransitionToScene(gameSceneName);
             }
             else
@@ -842,6 +862,8 @@ namespace OsuVR
 
         public void GoBack()
         {
+            if (songPreviewPlayer != null)
+                songPreviewPlayer.StopPreview();
             VRSceneTransitionManager.Instance.TransitionToScene("MainMenuScene");
         }
 

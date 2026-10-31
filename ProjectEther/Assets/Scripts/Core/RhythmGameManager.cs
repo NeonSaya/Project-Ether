@@ -650,6 +650,7 @@ namespace OsuVR
             isPlaying = true;
             isMusicPlaying = true;
             introSkipped = true;
+            EtherealEnvironment.Instance?.ResetBeatTiming(this);
             StoryboardRenderer.Instance?.SeekToMusicTime(currentMusicTimeMs);
             return true;
         }
@@ -1122,6 +1123,7 @@ namespace OsuVR
             isGameEnded = false;
             pauseStartDspTime = 0;
             introSkipped = false;
+            EtherealEnvironment.Instance?.ResetBeatTiming(this);
 
             // 倒计时 = 缓冲总时长(2倍准备时间 + spawnOffset)
             countdownTime =

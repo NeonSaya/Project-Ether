@@ -342,12 +342,32 @@ namespace OsuVR
         private Camera _cachedCam;
         private RhythmGameManager rhythmGameManager;
         private float beatBrightnessPulse = 0f; // 节拍亮度脉冲值
+        private float stageBeatBrightnessPulse;
+        private double lastBeatMusicTimeMs = double.NaN;
         private bool isKiaiActive = false;
 
         /// <summary>当前节拍脉冲（只读）。舞台灯等外部系统复用它，避免各算一套。</summary>
         public float BeatPulse
         {
             get { return beatBrightnessPulse; }
+        }
+
+        /// <summary>供舞台使用的独立基础节拍，不受 Kiai 边界或环境倍率影响。</summary>
+        public float StageBeatPulse
+        {
+            get { return Mathf.Clamp01(stageBeatBrightnessPulse); }
+        }
+
+        /// <summary>开局、Retry 或显式跳转后丢弃旧调度，下次更新直接定位目标拍。</summary>
+        public void ResetBeatTiming(RhythmGameManager manager)
+        {
+            rhythmGameManager = manager;
+            cachedBeatmapRef = null;
+            currentTimingPointIndex = -1;
+            nextBeatTimeMs = -1;
+            lastBeatMusicTimeMs = double.NaN;
+            stageBeatBrightnessPulse = 0f;
+            beatBrightnessPulse = 0f;
         }
 
         /// <summary>当前是否处于 Kiai 段（只读）。</summary>
@@ -2854,7 +2874,11 @@ namespace OsuVR
         private void UpdateBeatTiming()
         {
             if (rhythmGameManager == null || !rhythmGameManager.isPlaying)
+            {
+                if (rhythmGameManager == null || !rhythmGameManager.IsPaused)
+                    stageBeatBrightnessPulse = 0f;
                 return;
+            }
 
             double currentTimeMs = rhythmGameManager.currentMusicTimeMs;
             Beatmap beatmap = rhythmGameManager.GetCurrentBeatmap();
@@ -2864,39 +2888,72 @@ namespace OsuVR
                 || beatmap.ControlPoints == null
                 || beatmap.ControlPoints.Timing.Count == 0
             )
-                return;
-
-            // 谱面引用变化时重置
-            if (beatmap != cachedBeatmapRef)
             {
-                cachedBeatmapRef = beatmap;
-                nextBeatTimeMs = -1;
-                currentTimingPointIndex = -1;
+                stageBeatBrightnessPulse = 0f;
+                lastBeatMusicTimeMs = double.NaN;
+                return;
             }
 
             var timingPoints = beatmap.ControlPoints.Timing;
-            int tpIndex = FindTimingPointIndex(timingPoints, currentTimeMs);
-
-            // 红线变化 → 重新同步
-            if (tpIndex != currentTimingPointIndex)
+            double anticipatedTime = currentTimeMs + beatAnticipation * 1000.0;
+            int tpIndex = FindTimingPointIndex(timingPoints, anticipatedTime);
+            var tp = timingPoints[tpIndex];
+            if (
+                double.IsNaN(currentTimeMs)
+                || double.IsInfinity(currentTimeMs)
+                || double.IsNaN(tp.Time)
+                || double.IsInfinity(tp.Time)
+                || tp.MsPerBeat <= 0
+                || double.IsNaN(tp.MsPerBeat)
+                || double.IsInfinity(tp.MsPerBeat)
+            )
             {
-                currentTimingPointIndex = tpIndex;
-                var tp = timingPoints[tpIndex];
-                currentMsPerBeat = tp.MsPerBeat;
-
-                double tpStart = tp.Time;
-                double beatsFromStart = (currentTimeMs - tpStart) / tp.MsPerBeat;
-                int beatNumber = (int)Math.Ceiling(beatsFromStart);
-                nextBeatTimeMs = tpStart + beatNumber * tp.MsPerBeat;
+                stageBeatBrightnessPulse = 0f;
+                return;
             }
 
-            double anticipatedTime = currentTimeMs + beatAnticipation * 1000.0;
-            if (nextBeatTimeMs >= 0 && anticipatedTime >= nextBeatTimeMs)
-            {
-                // 节拍触发
-                float flashPower = beatBrightnessPeak * (isKiaiActive ? kiaiBeatMultiplier : 1f);
-                beatBrightnessPulse = flashPower;
+            bool timelineReset =
+                beatmap != cachedBeatmapRef
+                || double.IsNaN(lastBeatMusicTimeMs)
+                || currentTimeMs < lastBeatMusicTimeMs;
+            bool timingPointChanged = tpIndex != currentTimingPointIndex;
+            bool synchronize = timelineReset || timingPointChanged;
+            cachedBeatmapRef = beatmap;
+            currentTimingPointIndex = tpIndex;
+            currentMsPerBeat = tp.MsPerBeat;
+            lastBeatMusicTimeMs = currentTimeMs;
 
+            // 第一条红线之前不虚构拍点；负时间的真实红线仍可正常触发。
+            if (anticipatedTime < tp.Time)
+            {
+                nextBeatTimeMs = tp.Time;
+                stageBeatBrightnessPulse = 0f;
+                if (synchronize)
+                    beatBrightnessPulse = 0f;
+                return;
+            }
+
+            double beatNumber = Math.Floor((anticipatedTime - tp.Time) / currentMsPerBeat);
+            double latestBeat = tp.Time + beatNumber * currentMsPerBeat;
+            // 正常跨红线仍触发新红线的第一拍，只有显式重定位才跳过历史事件。
+            bool trigger = !timelineReset && (timingPointChanged || latestBeat >= nextBeatTimeMs);
+            nextBeatTimeMs = latestBeat + currentMsPerBeat;
+
+            // 按音乐年龄定位包络；除以实际播放速度，保持原来按墙钟衰减的手感。
+            float rate =
+                rhythmGameManager.musicSource != null
+                    ? Mathf.Max(0.01f, Mathf.Abs(rhythmGameManager.musicSource.pitch))
+                    : 1f;
+            double ageSeconds = Math.Max(0d, currentTimeMs - latestBeat) / (1000d * rate);
+            stageBeatBrightnessPulse =
+                beatBrightnessPeak * Mathf.Exp(-(float)ageSeconds * beatBrightnessDecay);
+            if (synchronize || trigger)
+                beatBrightnessPulse =
+                    stageBeatBrightnessPulse * (isKiaiActive ? kiaiBeatMultiplier : 1f);
+
+            // 掉帧最多触发一次最新拍的视觉事件，不逐帧补发历史拍。
+            if (trigger)
+            {
                 // 晶体踢打
                 TriggerKickEvent();
 
@@ -2910,15 +2967,6 @@ namespace OsuVR
                     else if (currentPhase == GamePhase.Result)
                         burstCount = pulseBurstCountResult;
                     pulseRingPS.Emit(burstCount);
-                }
-
-                nextBeatTimeMs += currentMsPerBeat;
-                if (
-                    tpIndex + 1 < timingPoints.Count
-                    && nextBeatTimeMs >= timingPoints[tpIndex + 1].Time
-                )
-                {
-                    currentTimingPointIndex = -1;
                 }
             }
         }

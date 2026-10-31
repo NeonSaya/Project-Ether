@@ -36,6 +36,9 @@ namespace OsuVR
                     profile = ScriptableObject.CreateInstance<HapticProfile>();
                     Debug.LogWarning("[HapticManager] 未配置 HapticProfile，使用默认值兜底");
                 }
+
+                // 通常在进入打歌场景时才创建，需要主动补应用启动时已加载的设置。
+                SettingsManager.Instance?.ApplyVRSettings();
             }
             else
             {
