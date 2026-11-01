@@ -15,6 +15,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,8 +33,8 @@ import java.util.List;
  *   - 选中文件 -> 后台线程逐个通过 ContentResolver 复制到
  *     <externalFilesDir>/Songs/（即 Unity 的 persistentDataPath/Songs）
  *   - 结果写入 SharedPreferences（慢通道，供 C# 恢复后主动拉取）
- *   - 同时 UnitySendMessage 通知 C# 立即解压（快通道）
- * C# 侧 BeatmapImporter.ImportNewOszFiles() 负责解压，两条通道幂等。
+ *   - 同时 UnitySendMessage 唤醒 C# 取走保存结果（快通道）
+ * C# 侧从保存结果取件并解压，快通道只负责唤醒，避免重复处理。
  */
 public class FilePickerActivity extends UnityPlayerActivity
 {
@@ -61,8 +62,10 @@ public class FilePickerActivity extends UnityPlayerActivity
         List<Uri> uris = collectUris(resultCode, data);
         if (uris.isEmpty())
         {
-            // 用户取消选择
-            UnityPlayer.UnitySendMessage(UNITY_HELPER_OBJECT, UNITY_HELPER_METHOD, "");
+            // 取消也保存结果；成功返回却没有 URI 时按异常反馈，避免静默结束。
+            String message = resultCode == RESULT_OK ? "err:empty_result" : "cancel:";
+            savePendingResult(getApplicationContext(), message);
+            UnityPlayer.UnitySendMessage(UNITY_HELPER_OBJECT, UNITY_HELPER_METHOD, message);
             return;
         }
 
@@ -129,7 +132,7 @@ public class FilePickerActivity extends UnityPlayerActivity
 
         for (Uri uri : uris)
         {
-            File dest = null;
+            File temporary = null;
             InputStream in = null;
             OutputStream out = null;
             try
@@ -141,19 +144,33 @@ public class FilePickerActivity extends UnityPlayerActivity
                     name = name + ".osz";
                 name = sanitizeFileName(name);
 
-                dest = new File(songsDir, name);
+                File dest = new File(songsDir, name);
                 in = app.getContentResolver().openInputStream(uri);
-                out = new FileOutputStream(dest, false);
+                if (in == null)
+                    throw new IOException("Content provider returned no stream");
+                // 使用临时后缀，防止 Unity 恢复时扫描到尚未复制完成的 .osz。
+                temporary = File.createTempFile("osz-import-", ".tmp", songsDir);
+                out = new FileOutputStream(temporary, false);
 
                 byte[] buf = new byte[8192];
                 int n;
                 long total = 0;
-                while ((n = in.read(buf)) > 0)
+                while ((n = in.read(buf)) != -1)
                 {
+                    if (n == 0)
+                        continue;
                     out.write(buf, 0, n);
                     total += n;
                 }
                 out.flush();
+                out.close();
+                out = null;
+                if (total == 0)
+                    throw new IOException("Content provider returned an empty file");
+                // 同目录发布完整文件，读取失败时不碰已有的归档。
+                if (!temporary.renameTo(dest))
+                    throw new IOException("Cannot publish copied archive");
+                temporary = null;
                 Log.i(TAG, "copied " + name + " (" + total + " bytes)");
 
                 if (okNames.length() > 0)
@@ -163,9 +180,6 @@ public class FilePickerActivity extends UnityPlayerActivity
             catch (Throwable t)
             {
                 Log.e(TAG, "copy failed: " + uri, t);
-                // 清掉半截文件，避免被当作完整 .osz 解压
-                if (dest != null && dest.exists())
-                    dest.delete();
                 if (firstError == null)
                     firstError = t.getMessage();
             }
@@ -173,6 +187,9 @@ public class FilePickerActivity extends UnityPlayerActivity
             {
                 closeQuietly(in);
                 closeQuietly(out);
+                // 先关闭句柄，再仅清理本次临时文件，保留此前已完成的归档。
+                if (temporary != null && temporary.exists())
+                    temporary.delete();
             }
         }
 
@@ -187,7 +204,7 @@ public class FilePickerActivity extends UnityPlayerActivity
     }
 
     /** C# 通过 JNI 调用: 取走并清空未送达的导入结果（UnitySendMessage 丢失时兜底） */
-    public static String consumePendingResult(Context context)
+    public static synchronized String consumePendingResult(Context context)
     {
         try
         {
@@ -200,11 +217,11 @@ public class FilePickerActivity extends UnityPlayerActivity
         catch (Throwable t)
         {
             Log.e(TAG, "consumePendingResult failed", t);
-            return "";
+            return null;
         }
     }
 
-    private static void savePendingResult(Context app, String message)
+    private static synchronized void savePendingResult(Context app, String message)
     {
         try
         {

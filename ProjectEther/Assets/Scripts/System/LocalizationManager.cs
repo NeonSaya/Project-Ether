@@ -229,6 +229,42 @@ namespace OsuVR
                 },
                 { "ui_import_error", new[] { "Import failed", "导入失败", "インポート失敗" } },
                 {
+                    "ui_import_partial_error",
+                    new[]
+                    {
+                        "Some files failed: {0}",
+                        "部分文件导入失败: {0}",
+                        "一部のファイルをインポートできませんでした: {0}",
+                    }
+                },
+                {
+                    "ui_import_invalid_filename",
+                    new[]
+                    {
+                        "Invalid archive filename",
+                        "谱面压缩包文件名无效",
+                        "アーカイブ名が無効です",
+                    }
+                },
+                {
+                    "ui_import_empty_result",
+                    new[]
+                    {
+                        "The file picker returned no readable file",
+                        "文件选择器没有返回可读取的文件",
+                        "読み取り可能なファイルが返されませんでした",
+                    }
+                },
+                {
+                    "ui_import_file_missing",
+                    new[]
+                    {
+                        "Archive file is missing",
+                        "谱面压缩包文件不存在",
+                        "アーカイブが見つかりません",
+                    }
+                },
+                {
                     "ui_import_duplicate",
                     new[]
                     {
