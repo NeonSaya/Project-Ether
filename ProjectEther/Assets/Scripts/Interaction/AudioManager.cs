@@ -144,7 +144,7 @@ namespace OsuVR
                 if (!fileName.Contains("hit") && !fileName.Contains("slider"))
                     continue;
 
-                string url = "file://" + filePath;
+                string url = new System.Uri(Path.GetFullPath(filePath)).AbsoluteUri;
                 using (
                     UnityWebRequest www = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.WAV)
                 )
@@ -445,7 +445,10 @@ namespace OsuVR
             return defaultSkin.GetDefaultClip(set, type, isSlide, isTick);
         }
 
-        private readonly Dictionary<int, string> _searchKeyCache = new Dictionary<int, string>();
+        private readonly Dictionary<
+            (SampleSet, HitSoundType, int, bool, bool),
+            string
+        > _searchKeyCache = new();
 
         private string GetSearchKey(
             SampleSet set,
@@ -457,12 +460,8 @@ namespace OsuVR
         {
             if (index < 0)
                 index = 0; // 负值视为无编号（与旧逻辑 indexStr 为空一致），同时避免负数哈希位污染
-            int h =
-                ((int)set << 20)
-                | ((int)type << 14)
-                | ((index & 0x3FF) << 4)
-                | (isSlide ? 2 : 0)
-                | (isTick ? 1 : 0);
+            // 完整编号参与缓存身份，避免相隔 1024 的样本共用缓存槽。
+            var h = (set, type, index, isSlide, isTick);
             if (!_searchKeyCache.TryGetValue(h, out string key))
             {
                 string prefix = set.ToString().ToLower();

@@ -308,6 +308,25 @@ namespace OsuVR
                 AudioManager.Instance.SetMasterVolume(settings.masterVolume);
                 AudioManager.Instance.SetSFXVolume(settings.sfxVolume);
             }
+
+            foreach (var game in FindObjectsByType<RhythmGameManager>(FindObjectsSortMode.None))
+                ApplyMusicVolume(game.musicSource);
+            if (MusicManager.Instance != null)
+                ApplyMusicVolume(MusicManager.Instance.GetAudioSource());
+        }
+
+        /// <summary>没有路由到当前 Mixer 的主音乐音源，直接应用主音量和音乐音量。</summary>
+        public void ApplyMusicVolume(AudioSource source)
+        {
+            if (source == null || settings == null)
+                return;
+            bool routed =
+                audioMixer != null
+                && source.outputAudioMixerGroup != null
+                && source.outputAudioMixerGroup.audioMixer == audioMixer;
+            source.volume = routed
+                ? 1f
+                : Mathf.Clamp01(settings.masterVolume) * Mathf.Clamp01(settings.musicVolume);
         }
 
         public void ApplyGraphicsSettings()

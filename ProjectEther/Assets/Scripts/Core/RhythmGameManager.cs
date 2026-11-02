@@ -288,6 +288,7 @@ namespace OsuVR
                 musicSource.clip = musicClip;
             }
 
+            SettingsManager.Instance?.ApplyMusicVolume(musicSource);
             Debug.Log($"AudioSource初始化完成，当前clip: {musicSource.clip?.name ?? "null"}");
         }
 
@@ -894,9 +895,8 @@ namespace OsuVR
         /// </summary>
         private IEnumerator LoadAudioClip(string audioPath)
         {
-            // Windows/Android 路径需要加 file:// 前缀，且要注意转义
-            string url = "file://" + audioPath;
-            url = url.Replace("\\", "/");
+            // 转义文件名中的 URI 保留字符，不能直接拼接 file://。
+            string url = new System.Uri(Path.GetFullPath(audioPath)).AbsoluteUri;
 
             Debug.Log($"开始加载音频: {url}");
 
@@ -950,6 +950,7 @@ namespace OsuVR
                         musicSource.Stop();
                         musicSource.time = 0;
                         musicSource.volume = 1;
+                        SettingsManager.Instance?.ApplyMusicVolume(musicSource);
 
                         Debug.Log($"[Audio] 预热完成: {clip.name} ({clip.length:F1}s)");
 

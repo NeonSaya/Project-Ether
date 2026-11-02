@@ -478,9 +478,7 @@ namespace OsuVR
                 {
                     // 重复导入: 目标文件夹已存在，直接清掉 .osz，
                     // 否则它会一直残留在 Songs 里，导致每次启动都被重复扫描。
-                    // 顺带记录哈希，让之后改名的重复导入也能命中
-                    if (hash != null)
-                        SaveImportedHashes(hash, imported);
+                    // 同名不代表相同内容；未解压的新内容不能记作已导入。
                     TryDeleteOsz(oszPath, "重复文件名");
                     duplicate = true;
                     return true;

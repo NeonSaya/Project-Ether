@@ -106,7 +106,7 @@ namespace OsuVR
             public List<SongIndexEntry> entries = new List<SongIndexEntry>();
         }
 
-        private const int IndexCacheVersion = 2; // 解析逻辑变更时 +1，使旧缓存自动失效重建
+        private const int IndexCacheVersion = 3; // 解析逻辑变更时 +1，使旧缓存自动失效重建
         private static string IndexCachePath =>
             Path.Combine(Application.persistentDataPath, "song_index.json");
 
@@ -278,6 +278,7 @@ namespace OsuVR
 
             // 红线 (uninherited timing points)，按文件顺序收集，用于主导 BPM 与滑条时长计算
             var redLines = new List<(double time, double beatLength)>();
+            var velocities = new List<(double time, double multiplier)>();
             // osu! 默认 1.4，滑行速度 = 100 * SliderMultiplier (px/拍)
             float sliderMultiplier = 1.4f;
 
@@ -329,10 +330,15 @@ namespace OsuVR
                             ParseEvents(line, meta, ref section);
                             break;
                         case Section.TimingPoints:
-                            ParseTimingPoints(line, redLines);
+                            ParseTimingPoints(line, redLines, velocities);
                             break;
                         case Section.HitObjects:
-                            double hitTime = ParseHitObjectTime(line, sliderMultiplier, redLines);
+                            double hitTime = ParseHitObjectTime(
+                                line,
+                                sliderMultiplier,
+                                redLines,
+                                velocities
+                            );
                             if (hitTime > lastHitObjectTime)
                                 lastHitObjectTime = hitTime;
                             break;
@@ -355,7 +361,8 @@ namespace OsuVR
         private static double ParseHitObjectTime(
             string line,
             float sliderMultiplier,
-            List<(double time, double beatLength)> redLines
+            List<(double time, double beatLength)> redLines,
+            List<(double time, double multiplier)> velocities
         )
         {
             string[] parts = line.Split(',');
@@ -391,8 +398,18 @@ namespace OsuVR
                                 int.TryParse(parts[6], out repeatCount);
                             // osu! 官方公式：时长 = 长度 / (100 * SliderMultiplier) 拍 * beatLength * 折返数
                             double beatLength = GetBeatLengthAt(redLines, time);
+                            double velocity = 1d;
+                            foreach (var point in velocities)
+                            {
+                                if (point.time > time)
+                                    break;
+                                velocity = point.multiplier;
+                            }
                             double sliderDuration =
-                                pixelLength / (100.0 * sliderMultiplier) * beatLength * repeatCount;
+                                pixelLength
+                                / (100.0 * sliderMultiplier * velocity)
+                                * beatLength
+                                * repeatCount;
                             return time + sliderDuration;
                         }
                     }
@@ -591,8 +608,8 @@ namespace OsuVR
 
         private static void ParseEvents(string line, BeatmapMetadata meta, ref Section section)
         {
-            string[] parts = line.Split(',');
-            if (parts.Length < 3)
+            var parts = OsuVR.Storyboard.StoryboardParser.SplitCsv(line);
+            if (parts.Count < 3)
                 return;
 
             if (parts[0].Trim() == "0" && parts[1].Trim() == "0")
@@ -604,7 +621,8 @@ namespace OsuVR
 
         private static void ParseTimingPoints(
             string line,
-            List<(double time, double beatLength)> redLines
+            List<(double time, double beatLength)> redLines,
+            List<(double time, double multiplier)> velocities
         )
         {
             string[] parts = line.Split(',');
@@ -632,6 +650,8 @@ namespace OsuVR
                 {
                     redLines.Add((time, beatLength));
                 }
+                else if (!uninherited && beatLength < 0 && !double.IsInfinity(beatLength))
+                    velocities.Add((time, 100d / -beatLength));
             }
         }
 

@@ -202,6 +202,7 @@ namespace OsuVR
         private double nextBeatTimeMs = -1; // 下一拍的音乐时间（毫秒）
         private double currentMsPerBeat = 500; // 当前每拍毫秒数（默认 120BPM）
         private int currentTimingPointIndex = -1; // 当前红线索引，用于检测 BPM 变化
+        private double previousBeatTimeMs = double.NaN;
         private float beatFlashIntensity = 0f; // 当前闪烁强度
         private float beatSizePulseIntensity = 0f; // 当前 size 脉冲强度
         private bool isBeatFrame = false; // 本帧是否检测到节拍
@@ -285,75 +286,76 @@ namespace OsuVR
         private void UpdateBeatTiming()
         {
             isBeatFrame = false;
-
+            if (rhythmGameManager != null && rhythmGameManager.IsPaused)
+                return;
             if (rhythmGameManager == null || !rhythmGameManager.isPlaying)
             {
-                // 非游玩状态：用 AudioVisualizationManager 的 Bass 做粗略检测
+                previousBeatTimeMs = double.NaN;
+                currentTimingPointIndex = -1;
                 DetectFallbackBeat();
                 return;
             }
 
             double currentTimeMs = rhythmGameManager.currentMusicTimeMs;
             Beatmap beatmap = rhythmGameManager.GetCurrentBeatmap();
-
             if (
-                beatmap == null
-                || beatmap.ControlPoints == null
+                beatmap?.ControlPoints == null
                 || beatmap.ControlPoints.Timing.Count == 0
+                || !double.IsFinite(currentTimeMs)
             )
             {
+                previousBeatTimeMs = double.NaN;
                 DetectFallbackBeat();
                 return;
             }
 
-            // 谱面引用变化时重置节拍状态
-            if (beatmap != cachedBeatmap)
+            bool rewound =
+                double.IsFinite(previousBeatTimeMs) && currentTimeMs < previousBeatTimeMs;
+            if (beatmap != cachedBeatmap || rewound)
             {
                 cachedBeatmap = beatmap;
-                nextBeatTimeMs = -1;
                 currentTimingPointIndex = -1;
+                beatFlashIntensity = 0f;
+                beatSizePulseIntensity = 0f;
             }
+            previousBeatTimeMs = currentTimeMs;
 
             var timingPoints = beatmap.ControlPoints.Timing;
-
-            // 找到当前时间的红线（二分搜索）
             int tpIndex = FindTimingPointIndex(timingPoints, currentTimeMs);
+            var point = timingPoints[tpIndex];
+            currentMsPerBeat = point.MsPerBeat;
+            if (!double.IsFinite(currentMsPerBeat) || currentMsPerBeat <= 0)
+                return;
 
-            // 红线变化 → 重新同步节拍
-            if (tpIndex != currentTimingPointIndex)
+            if (currentTimingPointIndex != tpIndex)
             {
                 currentTimingPointIndex = tpIndex;
-                var tp = timingPoints[tpIndex];
-                currentMsPerBeat = tp.MsPerBeat;
-
-                // 从当前红线起始时间开始，计算下一个拍点
-                double tpStart = tp.Time;
-                double msPerBeat = tp.MsPerBeat;
-                double beatsFromStart = (currentTimeMs - tpStart) / msPerBeat;
-                int beatNumber = (int)Math.Ceiling(beatsFromStart);
-                nextBeatTimeMs = tpStart + beatNumber * msPerBeat;
+                // 首根红线以前不补出并不存在的负编号拍点。
+                // 跨过红线的帧保留刚到达的首拍，避免 Ceiling 把它推迟到下一拍。
+                double ordinal = Math.Max(
+                    0d,
+                    Math.Floor((currentTimeMs - point.Time) / currentMsPerBeat)
+                );
+                nextBeatTimeMs = point.Time + ordinal * currentMsPerBeat;
             }
 
-            // 检查是否到达拍点
             double anticipatedTime = currentTimeMs + beatAnticipation * 1000.0;
-            if (nextBeatTimeMs >= 0 && anticipatedTime >= nextBeatTimeMs)
-            {
-                TriggerBeat();
+            // 后续红线交给实际到达该时间的帧处理，不把新红线提前按旧 BPM 触发。
+            if (
+                tpIndex + 1 < timingPoints.Count
+                && nextBeatTimeMs >= timingPoints[tpIndex + 1].Time
+            )
+                return;
+            if (anticipatedTime < nextBeatTimeMs)
+                return;
 
-                // 推进到下一拍
-                // 检查是否接近下一个红线（避免跨红线时错过切换）
-                nextBeatTimeMs += currentMsPerBeat;
-
-                // 如果下一拍超出了当前红线范围且存在后续红线，让下一帧的红线检测来重新同步
-                if (
-                    tpIndex + 1 < timingPoints.Count
-                    && nextBeatTimeMs >= timingPoints[tpIndex + 1].Time
-                )
-                {
-                    // 标记需要重新同步
-                    currentTimingPointIndex = -1;
-                }
-            }
+            TriggerBeat();
+            // 前跳或掉帧只触发最新的一拍，不能随后逐帧补历史拍。
+            double latestOrdinal = Math.Max(
+                0d,
+                Math.Floor((anticipatedTime - point.Time) / currentMsPerBeat)
+            );
+            nextBeatTimeMs = point.Time + (latestOrdinal + 1d) * currentMsPerBeat;
         }
 
         /// <summary>
@@ -538,6 +540,8 @@ namespace OsuVR
 
         private void UpdateBeatFlash()
         {
+            if (rhythmGameManager != null && rhythmGameManager.IsPaused)
+                return;
             if (beatFlashIntensity > 0.01f)
             {
                 beatFlashIntensity *= Mathf.Exp(-beatFlashDecay * Time.deltaTime);
@@ -657,13 +661,13 @@ namespace OsuVR
 
                 // HSV → RGB (纯 Burst 数学)
                 float4 rgbColor = HsvToRgb(hue, saturation, value);
-                rgbColor.w = p.startColor.a;
+                // Color32 的 Alpha 是字节值，回写 Color 前归一化；保留每粒子的基础透明度。
+                rgbColor.w = p.startColor.a / 255f;
 
                 // 节拍闪烁叠加
                 if (BeatFlashIntensity > 0.1f)
                 {
-                    float flashFactor = 1f + BeatFlashIntensity * 0.3f;
-                    rgbColor.w = math.saturate(rgbColor.w * flashFactor);
+                    // 闪光只改变本帧 RGB，透明度包络由 ColorOverLifetime 统一负责。
                     rgbColor.x = math.saturate(rgbColor.x + BeatFlashIntensity * 0.05f);
                     rgbColor.y = math.saturate(rgbColor.y + BeatFlashIntensity * 0.05f);
                     rgbColor.z = math.saturate(rgbColor.z + BeatFlashIntensity * 0.05f);
