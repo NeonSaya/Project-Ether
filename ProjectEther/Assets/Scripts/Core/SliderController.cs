@@ -1,9 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
-using TMPro;
 using UnityEngine;
 using UnityEngine.Pool;
-using static UnityEngine.UI.Slider;
 
 namespace OsuVR
 {
@@ -42,9 +40,6 @@ namespace OsuVR
         public bool enableFadeOut = true;
 
         private GameObject headInstance;
-        private GameObject arrowInstance;
-
-        private bool headHitValid = false;
 
         // 折返粒子特效引用
         private ParticleSystem headReversePS;
@@ -94,7 +89,6 @@ namespace OsuVR
 
         // 嵌套物件判定索引
         private int currentNestedIndex = 0;
-        private int nextVisualIndex = 0;
 
         // 记录获得了多少个 Tick (用于计算最终分数)
         private int ticksGot = 0;
@@ -108,8 +102,6 @@ namespace OsuVR
         // 状态变量
 
         private bool isTrackingAudioPlaying = false; // 是否正在播放跟踪音效
-
-        private bool hasStarted = false; // 滑条是否已经开始
         private bool headHit = false; // 滑条头是否被击中
         private bool finished = false; // 滑条是否结束
 
@@ -150,9 +142,6 @@ namespace OsuVR
         private List<Vector3> worldPathPoints = new List<Vector3>();
         private List<float> cumulativeLengths = new List<float>(); // 路径节点的累计长度
         private float totalPathLength = 0f;
-
-        // 状态变量
-        private bool isInitialized = false;
         private bool isActive = true;
         private bool isFadingOut = false;
         private float fadeOutStartTime = 0f;
@@ -549,7 +538,6 @@ namespace OsuVR
 
             // 重置计数器
             currentNestedIndex = 0;
-            nextVisualIndex = 0;
             currentMusicTimeCache = gameManager.GetCurrentMusicTimeMs();
 
             ticksGot = 0;
@@ -561,8 +549,6 @@ namespace OsuVR
             // 更新视觉
 
             UpdateVisuals();
-
-            isInitialized = true;
             isActive = true;
         }
 
@@ -600,8 +586,6 @@ namespace OsuVR
             // 4. 处理子物体
             if (headInstance)
                 headInstance.SetActive(false);
-            if (arrowInstance)
-                arrowInstance.SetActive(false);
             if (followBall)
                 followBall.SetActive(false);
 
@@ -1051,76 +1035,6 @@ namespace OsuVR
             }
         }
 
-        // <summary>
-        /// [修正版] 消除前摇，瞬时响应
-        /// </summary>
-        private void UpdateReverseVFX(int nextSpanIndex)
-        {
-            // 1. 如果已经跑完了所有段落，立刻关闭所有
-            if (nextSpanIndex > sliderData.RepeatCount)
-            {
-                if (headReversePS)
-                {
-                    var em = headReversePS.emission;
-                    em.enabled = false;
-                    headReversePS.Clear();
-                }
-                if (tailReversePS)
-                {
-                    var em = tailReversePS.emission;
-                    em.enabled = false;
-                    tailReversePS.Clear();
-                }
-                return;
-            }
-
-            // 2. 判断我们正在前往哪里 (目标点)
-            bool targetIsTail = (nextSpanIndex % 2 != 0);
-
-            // 3. 核心判断：目标点是否是"最终终点"？
-            bool isFinalTrip = (nextSpanIndex == sliderData.RepeatCount);
-
-            // 目标需要显示的条件：是目标方向 且 不是最后一趟
-            bool showTail = targetIsTail && !isFinalTrip;
-            bool showHead = !targetIsTail && !isFinalTrip;
-
-            // --- 控制尾部 ---
-            if (tailReversePS)
-            {
-                var em = tailReversePS.emission;
-                bool wasEnabled = em.enabled;
-                em.enabled = showTail;
-
-                if (showTail && !wasEnabled)
-                {
-                    // 刚开启：瞬间发射，消除前摇
-                    tailReversePS.Emit(30);
-                }
-                else if (!showTail && wasEnabled)
-                {
-                    // 刚关闭：立刻清除残留粒子，消除延迟消失感
-                    tailReversePS.Clear();
-                }
-            }
-
-            // --- 控制头部 ---
-            if (headReversePS)
-            {
-                var em = headReversePS.emission;
-                bool wasEnabled = em.enabled;
-                em.enabled = showHead;
-
-                if (showHead && !wasEnabled)
-                {
-                    headReversePS.Emit(30);
-                }
-                else if (!showHead && wasEnabled)
-                {
-                    headReversePS.Clear();
-                }
-            }
-        }
-
         /// <summary>
         /// 设置折返粒子的透明度（0=不可见，1=完全可见）
         /// 通过 colorOverLifetime 的 alpha 通道控制
@@ -1322,7 +1236,6 @@ namespace OsuVR
 
             double startTime = sliderData.StartTime;
             double endTime = sliderData.EndTime;
-            double totalDuration = endTime - startTime;
 
             if (currentTime >= startTime && currentTime <= endTime)
             {
@@ -1788,8 +1701,6 @@ namespace OsuVR
                         vfxScore
                     );
                 }
-
-                headHitValid = true;
                 ticksGot++;
 
                 // 3. 计算动态分数 (300/100/50)
@@ -1851,10 +1762,6 @@ namespace OsuVR
             // 0. 前置检查
             if (sliderData.NestedHitObjects == null)
                 return;
-
-            // AutoPlay 模式判定窗口
-            bool isAutoPlay = gameManager != null && gameManager.useAutoPlay;
-            double earlyWindow = isAutoPlay ? 0 : -13;
 
             // -------------------------------------------------------------
             // 1. 头部判定 (Head)
@@ -1958,7 +1865,6 @@ namespace OsuVR
                     // 如果最后有效跟踪时间在滑条结束前约2帧内，仍算接住尾巴
                     if (!hit && nestedObject.Type == SliderEventType.Tail)
                     {
-                        double timeSinceLastTrack = currentMusicTimeCache - lastEffectiveTrackTime;
                         double timeUntilEnd = sliderData.EndTime - lastEffectiveTrackTime;
 
                         // 条件：曾经有效跟踪过，且最后一次跟踪在结束前2帧内
@@ -2239,20 +2145,6 @@ namespace OsuVR
             if (followBallRenderer == null)
                 return;
 
-            float minDist = float.MaxValue;
-            if (isLeftHandTracking)
-                minDist = Mathf.Min(
-                    minDist,
-                    Vector3.Distance(leftHandPos, followBall.transform.position)
-                );
-            if (isRightHandTracking)
-                minDist = Mathf.Min(
-                    minDist,
-                    Vector3.Distance(rightHandPos, followBall.transform.position)
-                );
-            float allowedRadius = (sliderWidth * 0.5f) * followRadiusMultiplier;
-            bool isEffectiveTracking = isTracking && (minDist <= allowedRadius);
-
             followBallRenderer.GetPropertyBlock(_propBlock);
 
             Color targetColor = isTracking ? Color.yellow : customBodyColor;
@@ -2429,7 +2321,6 @@ namespace OsuVR
             followBallPoolOwner = null;
             followBallRenderer = null;
             ballCollider = null;
-            arrowInstance = null;
 
             // Renderer.material 不会保留可自动恢复的原材质，释放副本前显式还原。
             foreach (var entry in originalMaterials)

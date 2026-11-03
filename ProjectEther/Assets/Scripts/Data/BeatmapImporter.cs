@@ -59,14 +59,12 @@ namespace OsuVR
         // ============================================================
         //  Android: 原生文件选择器导入 .osz
         //
-        //  真机（Pico/Quest）上从 VR 切到 2D 选择器再返回时，Activity 可能
-        //  重建、Unity 重新初始化，因此「复制文件」由 FilePickerActivity.java
-        //  的后台线程直接完成（写入 persistentDataPath/Songs），不依赖
-        //  Unity 的恢复时序。本类只负责解压与提示：
+        //  系统选择器切换焦点，部分环境也可能重建 Activity。复制由 Java 后台
+        //  完成，结果保存到 SharedPreferences；快通道只唤醒取件，避免重复处理。
+        //  提示独立于设置页面，并等待 VR 可显示后再计时：
         //    1. 调用 OpenAndroidFilePicker -> startActivityForResult(1001)
-        //    2. Java 复制完成 -> UnitySendMessage("ok:..|err:..") 快通道
-        //       + SharedPreferences 慢通道（消息丢失时 C# 主动拉取）
-        //    3. HandleImportMessage -> ImportNewOszFiles() 解压 + toast
+        //    2. Java 复制完成 -> 保存结果 + UnitySendMessage 唤醒取件
+        //    3. HandleImportMessage 按本次文件逐个解压并报告实际结果
         // ============================================================
 
         /// <summary>必须与 FilePickerActivity.java 的 REQUEST_PICK_OSU 一致</summary>
@@ -75,10 +73,19 @@ namespace OsuVR
         private static System.Action<ImportResult, string> _onFilePicked;
         private static BeatmapImporterHelper _helper;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void InitializeAndroidImports()
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            GetOrCreateHelper();
+#endif
+        }
+
         public static void OpenAndroidFilePicker(
             System.Action<ImportResult, string> onComplete = null
         )
         {
+            PullPendingImports();
             _onFilePicked = onComplete;
 
 #if UNITY_ANDROID && !UNITY_EDITOR
@@ -104,8 +111,8 @@ namespace OsuVR
                     );
 
                     using (var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
+                    using (var activity = player.GetStatic<AndroidJavaObject>("currentActivity"))
                     {
-                        var activity = player.GetStatic<AndroidJavaObject>("currentActivity");
                         activity.Call("startActivityForResult", intent, FilePickerRequestCode);
                     }
                 }
@@ -120,17 +127,55 @@ namespace OsuVR
                     e.Message != null && e.Message.Contains("No Activity found")
                         ? "此设备的系统未提供文件选择器，请手动将 .osz 文件复制到 Songs 目录"
                         : e.Message;
-                _onFilePicked?.Invoke(ImportResult.Error, hint);
+                CompleteImport(ImportResult.Error, hint);
             }
 #else
             Debug.Log("[Importer] 非 Android 平台，跳过文件选择器");
-            _onFilePicked?.Invoke(ImportResult.Cancelled, null);
+            CompleteImport(ImportResult.Cancelled, null);
 #endif
         }
 
         internal static void InvokeCallback(ImportResult result, string detail)
         {
-            _onFilePicked?.Invoke(result, detail);
+            var callback = _onFilePicked;
+            _onFilePicked = null;
+            callback?.Invoke(result, detail);
+        }
+
+        private static void CompleteImport(
+            ImportResult result,
+            string detail,
+            bool duplicatesOnly = false
+        )
+        {
+            string text;
+            Color color;
+            if (result == ImportResult.Success)
+            {
+                text = string.Format(
+                    LocalizationManager.GetText(
+                        duplicatesOnly ? "ui_import_duplicate" : "ui_import_success"
+                    ),
+                    detail
+                );
+                color = duplicatesOnly ? new Color(1f, 0.85f, 0.3f) : Color.green;
+            }
+            else if (result == ImportResult.Cancelled)
+            {
+                text = LocalizationManager.GetText("ui_import_cancelled");
+                color = new Color(1f, 0.85f, 0.3f);
+            }
+            else
+            {
+                text = LocalizationManager.GetText("ui_import_error");
+                if (!string.IsNullOrEmpty(detail))
+                    text += "\n" + detail;
+                color = Color.red;
+            }
+
+            VRToast.Show(text, color, result == ImportResult.Error ? 8f : 5f);
+            Debug.Log($"[Importer] 导入结果: {result}; {detail}");
+            InvokeCallback(result, detail);
         }
 
         private static BeatmapImporterHelper GetOrCreateHelper()
@@ -147,54 +192,116 @@ namespace OsuVR
 
         /// <summary>
         /// 处理 Java 端回传的导入结果消息。
-        /// 格式: ""=取消; "ok:a.osz|b.osz[|err:原因]"=至少一个复制成功; "err:原因"=全部失败
+        /// 格式: "cancel:"=取消; "ok:a.osz|b.osz[|err:原因]"=复制结果; "err:原因"=失败。
+        /// 此处只处理已取出的结果，不再次消费 Java 存档，避免误删下一份结果。
         /// </summary>
         internal static void HandleImportMessage(string message)
         {
-            // 消费掉 Java 侧存档，防止 OnApplicationFocus 兜底通道重复处理
-            ConsumePendingResult();
-
-            if (string.IsNullOrEmpty(message))
+            if (string.IsNullOrEmpty(message) || message == "cancel:")
             {
                 Debug.Log("[Importer] 文件选择已取消");
-                InvokeCallback(ImportResult.Cancelled, null);
+                CompleteImport(ImportResult.Cancelled, null);
                 return;
             }
 
             if (message.StartsWith("ok:"))
             {
-                // Java 已把文件复制进 Songs，这里只做解压
-                ImportNewOszFiles();
-                HasNewImport = true;
-
-                var names = new List<string>();
-                string partialError = null;
+                var imported = new List<string>();
+                var duplicates = new List<string>();
+                var errors = new List<string>();
                 foreach (var token in message.Substring(3).Split('|'))
                 {
                     if (token.StartsWith("err:"))
                     {
-                        partialError = token.Substring(4);
+                        errors.Add(token.Substring(4));
                         continue;
                     }
-                    if (token.Length > 0)
-                        names.Add(
-                            token.EndsWith(".osz") ? token.Substring(0, token.Length - 4) : token
-                        );
+                    if (token.Length == 0)
+                        continue;
+                    if (
+                        token != Path.GetFileName(token)
+                        || token.Contains("\\")
+                        || !token.EndsWith(".osz", System.StringComparison.OrdinalIgnoreCase)
+                    )
+                    {
+                        errors.Add(LocalizationManager.GetText("ui_import_invalid_filename"));
+                        continue;
+                    }
+
+                    string name = Path.GetFileNameWithoutExtension(token);
+                    if (string.IsNullOrEmpty(name))
+                    {
+                        errors.Add(LocalizationManager.GetText("ui_import_invalid_filename"));
+                        continue;
+                    }
+                    string path = Path.Combine(SongsDirectory, token);
+                    // 选歌启动扫描可能先完成解压，迟到的保存结果仍可正确报告已存在。
+                    if (!File.Exists(path) && Directory.Exists(Path.Combine(SongsDirectory, name)))
+                    {
+                        duplicates.Add(name);
+                        continue;
+                    }
+                    if (ImportOsz(path, out bool duplicate, out string error))
+                    {
+                        if (duplicate)
+                            duplicates.Add(name);
+                        else
+                            imported.Add(name);
+                    }
+                    else
+                        errors.Add($"{name}: {error}");
                 }
 
-                string detail = string.Join(", ", names);
-                if (partialError != null)
-                    detail += $"\n(部分文件导入失败: {partialError})";
-                InvokeCallback(ImportResult.Success, detail);
+                if (imported.Count == 0 && duplicates.Count == 0)
+                {
+                    CompleteImport(ImportResult.Error, string.Join("\n", errors));
+                    return;
+                }
+
+                if (imported.Count > 0)
+                    HasNewImport = true;
+                bool duplicatesOnly = imported.Count == 0;
+                string detail = string.Join(", ", duplicatesOnly ? duplicates : imported);
+                if (!duplicatesOnly && duplicates.Count > 0)
+                    detail +=
+                        "\n"
+                        + string.Format(
+                            LocalizationManager.GetText("ui_import_duplicate"),
+                            string.Join(", ", duplicates)
+                        );
+                if (errors.Count > 0)
+                    detail +=
+                        "\n"
+                        + string.Format(
+                            LocalizationManager.GetText("ui_import_partial_error"),
+                            string.Join("\n", errors)
+                        );
+                CompleteImport(ImportResult.Success, detail, duplicatesOnly);
             }
             else if (message.StartsWith("err:"))
             {
-                InvokeCallback(ImportResult.Error, message.Substring(4));
+                string detail = message.Substring(4);
+                CompleteImport(
+                    ImportResult.Error,
+                    detail == "empty_result"
+                        ? LocalizationManager.GetText("ui_import_empty_result")
+                        : detail
+                );
             }
             else
             {
-                InvokeCallback(ImportResult.Error, message);
+                CompleteImport(ImportResult.Error, message);
             }
+        }
+
+        internal static void ReceiveNativeResult(string notification)
+        {
+            string pending = ConsumePendingResult();
+            if (!string.IsNullOrEmpty(pending))
+                HandleImportMessage(pending);
+            else if (pending == null || string.IsNullOrEmpty(notification))
+                // 存储不可读时保留快通道；空消息兼容旧版 Java 的取消回调。
+                HandleImportMessage(notification);
         }
 
         /// <summary>
@@ -221,15 +328,15 @@ namespace OsuVR
 #endif
         }
 
-        /// <summary>取走并清空 Java 侧保存的导入结果（空串表示无）</summary>
+        /// <summary>取走 Java 保存结果：空串表示无，null 表示存储不可读。</summary>
         private static string ConsumePendingResult()
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
             try
             {
                 using (var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
+                using (var activity = player.GetStatic<AndroidJavaObject>("currentActivity"))
                 {
-                    var activity = player.GetStatic<AndroidJavaObject>("currentActivity");
                     using (
                         var cls = new AndroidJavaClass("com.nyaon.projectether.FilePickerActivity")
                     )
@@ -239,7 +346,7 @@ namespace OsuVR
             catch (System.Exception e)
             {
                 Debug.LogError($"[Importer] 消费导入结果失败: {e.Message}");
-                return "";
+                return null;
             }
 #else
             return "";
@@ -267,10 +374,16 @@ namespace OsuVR
 
             Debug.Log($"[Importer] 发现 {oszFiles.Length} 个新 .osz 文件，准备解压...");
             var duplicates = new List<string>();
+            var errors = new List<string>();
             foreach (var oszPath in oszFiles)
             {
-                if (ImportOsz(oszPath, out bool duplicate))
-                    duplicates.Add(Path.GetFileNameWithoutExtension(oszPath));
+                if (ImportOsz(oszPath, out bool duplicate, out string error))
+                {
+                    if (duplicate)
+                        duplicates.Add(Path.GetFileNameWithoutExtension(oszPath));
+                }
+                else
+                    errors.Add($"{Path.GetFileName(oszPath)}: {error}");
             }
 
             if (duplicates.Count > 0)
@@ -283,6 +396,14 @@ namespace OsuVR
                     5f
                 );
             }
+            if (errors.Count > 0)
+                VRToast.Show(
+                    LocalizationManager.GetText("ui_import_error")
+                        + "\n"
+                        + string.Join("\n", errors),
+                    Color.red,
+                    8f
+                );
         }
 
         /// <summary>
@@ -328,14 +449,20 @@ namespace OsuVR
             }
         }
 
-        /// <summary>解压单个 .osz。返回 true 表示因重复（内容或文件名）被跳过。</summary>
-        private static bool ImportOsz(string oszPath, out bool duplicate)
+        /// <summary>解压单个 .osz；返回是否成功，duplicate 单独标明已存在。</summary>
+        private static bool ImportOsz(string oszPath, out bool duplicate, out string error)
         {
             duplicate = false;
+            error = null;
+            string fileName = Path.GetFileNameWithoutExtension(oszPath);
+            string targetFolder = Path.Combine(SongsDirectory, fileName);
+            bool createdTarget = false;
             try
             {
-                string fileName = Path.GetFileNameWithoutExtension(oszPath);
-                string targetFolder = Path.Combine(SongsDirectory, fileName);
+                if (!File.Exists(oszPath) || string.IsNullOrEmpty(fileName))
+                    throw new FileNotFoundException(
+                        LocalizationManager.GetText("ui_import_file_missing")
+                    );
 
                 // 内容去重：同一 .osz 改名后再次导入（MD5 一致）则直接跳过
                 string hash = ComputeFileMd5(oszPath);
@@ -351,29 +478,37 @@ namespace OsuVR
                 {
                     // 重复导入: 目标文件夹已存在，直接清掉 .osz，
                     // 否则它会一直残留在 Songs 里，导致每次启动都被重复扫描。
-                    // 顺带记录哈希，让之后改名的重复导入也能命中
-                    if (hash != null)
-                        SaveImportedHashes(hash, imported);
+                    // 同名不代表相同内容；未解压的新内容不能记作已导入。
                     TryDeleteOsz(oszPath, "重复文件名");
                     duplicate = true;
                     return true;
                 }
 
                 Debug.Log($"正在解压: {fileName}...");
+                createdTarget = true;
                 ExtractZipSafely(oszPath, targetFolder);
                 File.Delete(oszPath);
                 if (hash != null)
                     SaveImportedHashes(hash, imported);
                 Debug.Log($"<color=green>导入成功:</color> {fileName}");
-                return false;
+                return true;
             }
             catch (System.Exception e)
             {
                 Debug.LogError($"解压失败 {oszPath}: {e.Message}");
-                string fileName = Path.GetFileNameWithoutExtension(oszPath);
-                string targetFolder = Path.Combine(SongsDirectory, fileName);
-                if (Directory.Exists(targetFolder))
-                    Directory.Delete(targetFolder, true);
+                error = e.Message;
+                // 只清理本次创建的目录，不删除用户原有曲目。
+                if (createdTarget && Directory.Exists(targetFolder))
+                {
+                    try
+                    {
+                        Directory.Delete(targetFolder, true);
+                    }
+                    catch (System.Exception cleanupError)
+                    {
+                        Debug.LogWarning($"[Importer] 清理失败目录失败: {cleanupError.Message}");
+                    }
+                }
                 return false;
             }
         }
@@ -451,7 +586,18 @@ namespace OsuVR
         /// </summary>
         public void OnFilesPicked(string message)
         {
-            BeatmapImporter.HandleImportMessage(message);
+            BeatmapImporter.ReceiveNativeResult(message);
+        }
+
+        private void Start()
+        {
+            BeatmapImporter.PullPendingImports();
+        }
+
+        private void OnApplicationPause(bool paused)
+        {
+            if (!paused)
+                BeatmapImporter.PullPendingImports();
         }
 
         // 从 2D 选择器返回 VR 时触发。若 UnitySendMessage 因 Activity 重建

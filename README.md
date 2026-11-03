@@ -236,7 +236,7 @@ A: 我们的 SB 引擎参考了 osu!lazer 和 storybrew 的开源实现，力求
 ### 阶段五：多线程全局优化 — 🟢 核心管线已上线
 - [x] **Storyboard 时间轴多线程化**: 时间轴求值与矩阵计算走 Burst 并行，结果写入 Persistent NativeArray；绘制前通过 `ComputeBuffer.SetData` 上传实例数据。
 - [x] **粒子颜色计算 Job 化**: `CodeDrivenAmbientParticles` 的 12000 粒子 HSV + 闪烁计算剥离至 Burst Job。
-- [x] **音符 SoA 扁平化**: `NativeArray<double>` spawnTimes / startTimes 与类型数组由主线程填充，生成时用二分查找框定区间；架构保持轻量，`worldPositions` 数组与加载期 Burst 坐标预计算均在评估清单中按需引入。
+- [x] **音符 SoA 扁平化**: `NativeArray<double>` spawnTimes / startTimes 由主线程填充，生成时用二分查找框定区间；架构保持轻量，`worldPositions` 数组与加载期 Burst 坐标预计算均在评估清单中按需引入。
 - [x] **二分搜索替代线性扫描**: `SpawnNotes` 中 O(log N) 上界查找替代 while 循环。
 - [x] **碰撞检测自定义化**: 目前保持现状。每只手每帧一次 `SphereCastNonAlloc`；实测在现有谱面规模下不构成瓶颈，等真的出现性能问题再换实现。
 

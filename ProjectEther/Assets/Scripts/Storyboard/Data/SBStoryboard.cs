@@ -31,18 +31,6 @@ namespace OsuVR.Storyboard.Data
         }
 
         /// <summary>
-        /// 评估所有元素在指定时间点的状态
-        /// </summary>
-        public void Evaluate(double currentTime)
-        {
-            for (int i = 0; i < 5; i++)
-            {
-                foreach (var element in Layers[i])
-                    element.Evaluate(currentTime);
-            }
-        }
-
-        /// <summary>
         /// 按渲染顺序 (Background → Foreground → Overlay) 获取所有元素
         /// </summary>
         public IEnumerable<SBElement> GetAllElementsInRenderOrder()

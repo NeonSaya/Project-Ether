@@ -91,19 +91,6 @@ namespace OsuVR
             LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
         }
 
-        void Update()
-        {
-            // 驱动 GameplaySettingsPage 的 Toast 淡出
-            if (pages != null)
-            {
-                foreach (var page in pages)
-                {
-                    if (page is GameplaySettingsPage gp)
-                        gp.UpdateToast();
-                }
-            }
-        }
-
         private void OnLanguageChanged()
         {
             if (pages != null)

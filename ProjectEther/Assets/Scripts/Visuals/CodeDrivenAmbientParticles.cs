@@ -165,15 +165,11 @@ namespace OsuVR
         private ParticleSystem.SizeOverLifetimeModule sizeOverLifetimeModule;
         private ParticleSystem.VelocityOverLifetimeModule velocityModule;
         private ParticleSystem.RotationOverLifetimeModule rotationModule;
-        private ParticleSystem.Particle[] particleBuffer;
-        private int bufferCapacity = 0;
 
         // Job System: Persistent NativeArray 粒子缓冲区
         private NativeArray<ParticleSystem.Particle> _particleNative;
         private bool _nativeInitialized = false;
         private SphereCollider triggerCollider;
-
-        private MaterialPropertyBlock mpb;
         private Material _runtimeMaterial; // 运行时创建的粒子材质（OnDestroy 释放）
         private ParticleSystemRenderer psRenderer;
         private Texture2D glowTexture;
@@ -187,7 +183,6 @@ namespace OsuVR
         private float kiaiBurstTimer = 0f;
 
         private bool isKiaiActive = false;
-        private bool wasKiaiActive = false;
         private RhythmGameManager rhythmGameManager;
 
         // 缓存 Gradient 避免 GC
@@ -195,13 +190,11 @@ namespace OsuVR
         private GradientAlphaKey[] cachedAlphaKeys;
         private GradientColorKey[] cachedColorKeys;
 
-        // 缓存当前 velocity y 值，用于 Lerp
-        private float currentVelocityY = 0.1f;
-
         // --- BPM 精准节拍驱动 ---
         private double nextBeatTimeMs = -1; // 下一拍的音乐时间（毫秒）
         private double currentMsPerBeat = 500; // 当前每拍毫秒数（默认 120BPM）
         private int currentTimingPointIndex = -1; // 当前红线索引，用于检测 BPM 变化
+        private double previousBeatTimeMs = double.NaN;
         private float beatFlashIntensity = 0f; // 当前闪烁强度
         private float beatSizePulseIntensity = 0f; // 当前 size 脉冲强度
         private bool isBeatFrame = false; // 本帧是否检测到节拍
@@ -223,7 +216,6 @@ namespace OsuVR
 
             InitializeParticleSystem();
             InitializeGradientCache();
-            InitializeMaterialPropertyBlock();
 
             // 预分配 Persistent NativeArray (约束: 绝对禁止每帧 New/Dispose)
             _particleNative = new NativeArray<ParticleSystem.Particle>(
@@ -285,75 +277,76 @@ namespace OsuVR
         private void UpdateBeatTiming()
         {
             isBeatFrame = false;
-
+            if (rhythmGameManager != null && rhythmGameManager.IsPaused)
+                return;
             if (rhythmGameManager == null || !rhythmGameManager.isPlaying)
             {
-                // 非游玩状态：用 AudioVisualizationManager 的 Bass 做粗略检测
+                previousBeatTimeMs = double.NaN;
+                currentTimingPointIndex = -1;
                 DetectFallbackBeat();
                 return;
             }
 
             double currentTimeMs = rhythmGameManager.currentMusicTimeMs;
             Beatmap beatmap = rhythmGameManager.GetCurrentBeatmap();
-
             if (
-                beatmap == null
-                || beatmap.ControlPoints == null
+                beatmap?.ControlPoints == null
                 || beatmap.ControlPoints.Timing.Count == 0
+                || !double.IsFinite(currentTimeMs)
             )
             {
+                previousBeatTimeMs = double.NaN;
                 DetectFallbackBeat();
                 return;
             }
 
-            // 谱面引用变化时重置节拍状态
-            if (beatmap != cachedBeatmap)
+            bool rewound =
+                double.IsFinite(previousBeatTimeMs) && currentTimeMs < previousBeatTimeMs;
+            if (beatmap != cachedBeatmap || rewound)
             {
                 cachedBeatmap = beatmap;
-                nextBeatTimeMs = -1;
                 currentTimingPointIndex = -1;
+                beatFlashIntensity = 0f;
+                beatSizePulseIntensity = 0f;
             }
+            previousBeatTimeMs = currentTimeMs;
 
             var timingPoints = beatmap.ControlPoints.Timing;
-
-            // 找到当前时间的红线（二分搜索）
             int tpIndex = FindTimingPointIndex(timingPoints, currentTimeMs);
+            var point = timingPoints[tpIndex];
+            currentMsPerBeat = point.MsPerBeat;
+            if (!double.IsFinite(currentMsPerBeat) || currentMsPerBeat <= 0)
+                return;
 
-            // 红线变化 → 重新同步节拍
-            if (tpIndex != currentTimingPointIndex)
+            if (currentTimingPointIndex != tpIndex)
             {
                 currentTimingPointIndex = tpIndex;
-                var tp = timingPoints[tpIndex];
-                currentMsPerBeat = tp.MsPerBeat;
-
-                // 从当前红线起始时间开始，计算下一个拍点
-                double tpStart = tp.Time;
-                double msPerBeat = tp.MsPerBeat;
-                double beatsFromStart = (currentTimeMs - tpStart) / msPerBeat;
-                int beatNumber = (int)Math.Ceiling(beatsFromStart);
-                nextBeatTimeMs = tpStart + beatNumber * msPerBeat;
+                // 首根红线以前不补出并不存在的负编号拍点。
+                // 跨过红线的帧保留刚到达的首拍，避免 Ceiling 把它推迟到下一拍。
+                double ordinal = Math.Max(
+                    0d,
+                    Math.Floor((currentTimeMs - point.Time) / currentMsPerBeat)
+                );
+                nextBeatTimeMs = point.Time + ordinal * currentMsPerBeat;
             }
 
-            // 检查是否到达拍点
             double anticipatedTime = currentTimeMs + beatAnticipation * 1000.0;
-            if (nextBeatTimeMs >= 0 && anticipatedTime >= nextBeatTimeMs)
-            {
-                TriggerBeat();
+            // 后续红线交给实际到达该时间的帧处理，不把新红线提前按旧 BPM 触发。
+            if (
+                tpIndex + 1 < timingPoints.Count
+                && nextBeatTimeMs >= timingPoints[tpIndex + 1].Time
+            )
+                return;
+            if (anticipatedTime < nextBeatTimeMs)
+                return;
 
-                // 推进到下一拍
-                // 检查是否接近下一个红线（避免跨红线时错过切换）
-                nextBeatTimeMs += currentMsPerBeat;
-
-                // 如果下一拍超出了当前红线范围且存在后续红线，让下一帧的红线检测来重新同步
-                if (
-                    tpIndex + 1 < timingPoints.Count
-                    && nextBeatTimeMs >= timingPoints[tpIndex + 1].Time
-                )
-                {
-                    // 标记需要重新同步
-                    currentTimingPointIndex = -1;
-                }
-            }
+            TriggerBeat();
+            // 前跳或掉帧只触发最新的一拍，不能随后逐帧补历史拍。
+            double latestOrdinal = Math.Max(
+                0d,
+                Math.Floor((anticipatedTime - point.Time) / currentMsPerBeat)
+            );
+            nextBeatTimeMs = point.Time + (latestOrdinal + 1d) * currentMsPerBeat;
         }
 
         /// <summary>
@@ -439,7 +432,6 @@ namespace OsuVR
 
         private void UpdateKiaiState()
         {
-            wasKiaiActive = isKiaiActive;
             isKiaiActive = false;
 
             if (rhythmGameManager == null || !rhythmGameManager.isPlaying)
@@ -485,7 +477,6 @@ namespace OsuVR
                 }
 
                 float currentSpeed = kiaiRiseSpeed + (mid * kiaiMidSpeedBonus);
-                currentVelocityY = currentSpeed;
 
                 velocityModule.enabled = true;
                 velocityModule.space = ParticleSystemSimulationSpace.World;
@@ -515,8 +506,6 @@ namespace OsuVR
             }
             else
             {
-                currentVelocityY = 0.1f;
-
                 velocityModule.space = ParticleSystemSimulationSpace.World;
                 velocityModule.x = new ParticleSystem.MinMaxCurve(-0.15f, 0.15f);
                 velocityModule.y = new ParticleSystem.MinMaxCurve(-0.05f, 0.2f);
@@ -538,6 +527,8 @@ namespace OsuVR
 
         private void UpdateBeatFlash()
         {
+            if (rhythmGameManager != null && rhythmGameManager.IsPaused)
+                return;
             if (beatFlashIntensity > 0.01f)
             {
                 beatFlashIntensity *= Mathf.Exp(-beatFlashDecay * Time.deltaTime);
@@ -592,27 +583,6 @@ namespace OsuVR
             ps.SetParticles(_particleNative, count);
         }
 
-        /// <summary>
-        /// 快速确定性哈希：将 uint 种子映射到 [0,1) 浮点数
-        /// </summary>
-        private static float HashToFloat(uint seed)
-        {
-            uint x = seed;
-            x ^= x << 13;
-            x ^= x >> 17;
-            x ^= x << 5;
-            return (float)(x & 0x7FFFFFFF) / (float)0x7FFFFFFF;
-        }
-
-        private void EnsureParticleBuffer(int particleCount)
-        {
-            if (particleBuffer == null || particleBuffer.Length < particleCount)
-            {
-                bufferCapacity = Mathf.Max(particleCount + 64, 256);
-                particleBuffer = new ParticleSystem.Particle[bufferCapacity];
-            }
-        }
-
         // =========================================================
         //  Burst Job: 粒子颜色并行计算
         // =========================================================
@@ -657,13 +627,13 @@ namespace OsuVR
 
                 // HSV → RGB (纯 Burst 数学)
                 float4 rgbColor = HsvToRgb(hue, saturation, value);
-                rgbColor.w = p.startColor.a;
+                // Color32 的 Alpha 是字节值，回写 Color 前归一化；保留每粒子的基础透明度。
+                rgbColor.w = p.startColor.a / 255f;
 
                 // 节拍闪烁叠加
                 if (BeatFlashIntensity > 0.1f)
                 {
-                    float flashFactor = 1f + BeatFlashIntensity * 0.3f;
-                    rgbColor.w = math.saturate(rgbColor.w * flashFactor);
+                    // 闪光只改变本帧 RGB，透明度包络由 ColorOverLifetime 统一负责。
                     rgbColor.x = math.saturate(rgbColor.x + BeatFlashIntensity * 0.05f);
                     rgbColor.y = math.saturate(rgbColor.y + BeatFlashIntensity * 0.05f);
                     rgbColor.z = math.saturate(rgbColor.z + BeatFlashIntensity * 0.05f);
@@ -985,12 +955,6 @@ namespace OsuVR
             };
             cachedFadeGradient = new Gradient();
             cachedFadeGradient.SetKeys(cachedColorKeys, cachedAlphaKeys);
-        }
-
-        private void InitializeMaterialPropertyBlock()
-        {
-            mpb = new MaterialPropertyBlock();
-            psRenderer.GetPropertyBlock(mpb);
         }
 
         // =========================================================

@@ -70,7 +70,6 @@ namespace OsuVR
 
         // Bonus (奖励)
         private int bonusCount = 0;
-        private float bonusThreshold = 0f;
 
         private IObjectPool<GameObject> myPool;
 
@@ -159,7 +158,6 @@ namespace OsuVR
             currentVisualRotation = 0f;
             targetVisualRotation = 0f;
             bonusCount = 0;
-            bonusThreshold = angleRequirement + 360f;
             rotationDeltaAccumulator = 0f;
 
             handStates.Clear();
@@ -342,6 +340,9 @@ namespace OsuVR
                     Vector3.one * Mathf.Clamp01((float)(timeLeft / duration)) * 4f;
             }
 
+            if (currentTime < spinnerData.StartTime)
+                return;
+
             CleanUpInactiveHands();
 
             // 视觉平滑
@@ -417,6 +418,12 @@ namespace OsuVR
         {
             if (!IsActive || (gameManager != null && gameManager.IsPaused))
                 return;
+            if (gameManager != null && spinnerData != null)
+            {
+                double time = gameManager.GetCurrentMusicTimeMs();
+                if (time < spinnerData.StartTime || time > spinnerData.EndTime)
+                    return;
+            }
 
             // 1. 转为本地坐标 (Z轴由HitPoint决定，这里只取XY平面)
             Vector3 localPoint3D = transform.InverseTransformPoint(hitPoint);

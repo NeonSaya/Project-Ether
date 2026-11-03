@@ -1,7 +1,6 @@
 using System.Collections;
 using TMPro;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace OsuVR
@@ -73,21 +72,6 @@ namespace OsuVR
         {
             BuildUI();
             LocalizationManager.ReloadAndNotify();
-        }
-
-        void OnEnable()
-        {
-            LocalizationManager.OnLanguageChanged += OnLanguageChanged;
-        }
-
-        void OnDisable()
-        {
-            LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
-        }
-
-        private void OnLanguageChanged()
-        {
-            // LocalizedText 组件已自动处理文本刷新
         }
 
         // ============================================================

@@ -437,9 +437,6 @@ namespace OsuVR
 
             GameObject root = new GameObject("HitCircle_Procedural");
 
-            // 构建层次结构
-            CreateSphereBody(root);
-
             // 【核心修改】
             // 1. (可选) 保留原有的 Body 作为底部的光晕/辉光
             CreateBodyLayer(root);
@@ -536,9 +533,6 @@ namespace OsuVR
 
             GameObject root = new GameObject("SliderHead_Procedural");
 
-            // 1. 创建物理球体 (隐形，用于碰撞)
-            CreateSphereBody(root);
-
             // 2. 【核心修改】创建实心层
             CreateSolidLayer(root);
 
@@ -629,17 +623,6 @@ namespace OsuVR
             {
                 Initialize();
             }
-        }
-
-        /// <summary>
-        /// 创建根物体的空 Transform（不再渲染 3D 球体）
-        /// 纯 2D 平面模式：根物体仅作为容器，碰撞体由 AddCollider 添加
-        /// </summary>
-        private static void CreateSphereBody(GameObject parent)
-        {
-            // 根物体不再添加 MeshFilter 和 MeshRenderer
-            // 所有视觉元素由子物体（Body、SolidBody、ApproachCircle、Halo）承担
-            // 碰撞体由 AddCollider 方法单独添加
         }
 
         /// <summary>

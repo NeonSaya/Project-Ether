@@ -25,19 +25,26 @@ namespace OsuVR
         public bool showHorizon = false;
         public float horizonRadius = 15f;
         public float horizonHeight = 8f;
-        [Range(60f, 340f)] public float horizonArc = 240f;
+
+        [Range(60f, 340f)]
+        public float horizonArc = 240f;
         public bool showSecondHorizon = false;
         public float secondHorizonRadius = 21f;
         public float secondHorizonHeight = 12f;
 
         [Header("悬浮光环")]
-        [Range(0, 8)] public int ringCount = 0;
+        [Range(0, 8)]
+        public int ringCount = 0;
         public float ringThickness = 0.06f;
         public float ringDepth = 8.5f;
         public float ringBaseHeight = 3.0f;
         public float ringHeightSpan = 4.6f;
-        [Range(0.3f, 1.2f)] public float ringInnerScale = 0.42f;
-        [Range(1f, 1.8f)] public float ringOuterScale = 1.25f;
+
+        [Range(0.3f, 1.2f)]
+        public float ringInnerScale = 0.42f;
+
+        [Range(1f, 1.8f)]
+        public float ringOuterScale = 1.25f;
         public float ringSpinSpeed = 10f;
 
         [Header("天光柱")]
@@ -50,12 +57,25 @@ namespace OsuVR
         [Header("整体布局")]
         [Tooltip("光环的推远倍数")]
         public float ringScale = 5f;
+
         [Tooltip("天光柱的推远倍数")]
         public float beamScale = 2f;
+
         [Tooltip("其余元素（网格/地平线）的距离倍数，默认 1 保持不变")]
         public float layoutScale = 1f;
+
         [Tooltip("整体不透明度（乘到所有灯光亮度上）")]
-        [Range(0.05f, 1f)] public float opacity = 0.45f;
+        [Range(0.05f, 1f)]
+        public float opacity = 0.45f;
+
+        [Header("音乐动态")]
+        [Tooltip("地面与顶棚网格的节拍动态倍率，不改变静态底亮度")]
+        [Range(0f, 6f)]
+        public float pulseVisibility = 6f;
+
+        [Tooltip("中间光柱的 AudioLink 频谱增益，适配真实音频较小的频谱量级")]
+        [Range(0f, 12f)]
+        public float audioVisibility = 3f;
 
         [Header("微尘")]
         public bool showSparkles = true;
@@ -91,27 +111,61 @@ namespace OsuVR
 
             BuildPlatform();
 
-            Mesh gridMesh = NewMesh(NeonStageKit.CreateFlatGrid(gridSize * s, gridSize * s, gridStep * s, gridLineWidth * s, 0.012f));
+            Mesh gridMesh = NewMesh(
+                NeonStageKit.CreateFlatGrid(
+                    gridSize * s,
+                    gridSize * s,
+                    gridStep * s,
+                    gridLineWidth * s,
+                    0.012f
+                )
+            );
             AddMesh("FloorGrid", gridMesh, _matGrid, Vector3.zero, Quaternion.identity);
 
             if (showOuterGrid)
             {
                 Mesh outerGrid = NewMesh(
-                    NeonStageKit.CreateFlatGrid(outerGridSize * s, outerGridSize * s, gridStep * 2f * s, outerGridLineWidth * s, 0.01f)
+                    NeonStageKit.CreateFlatGrid(
+                        outerGridSize * s,
+                        outerGridSize * s,
+                        gridStep * 2f * s,
+                        outerGridLineWidth * s,
+                        0.01f
+                    )
                 );
-                AddMesh("FloorGridOuter", outerGrid, _matOuterGrid, Vector3.zero, Quaternion.identity);
+                AddMesh(
+                    "FloorGridOuter",
+                    outerGrid,
+                    _matOuterGrid,
+                    Vector3.zero,
+                    Quaternion.identity
+                );
             }
 
             if (showCeilingGrid)
             {
-                AddMesh("CeilingGrid", gridMesh, _matGrid, new Vector3(0f, ceilingHeight * s, 0f), Quaternion.identity);
+                AddMesh(
+                    "CeilingGrid",
+                    gridMesh,
+                    _matGrid,
+                    new Vector3(0f, ceilingHeight * s, 0f),
+                    Quaternion.identity
+                );
             }
 
             if (showHorizon)
             {
                 AddMesh(
                     "HorizonGlow",
-                    NewMesh(NeonStageKit.CreateArcWall(horizonRadius * s, horizonHeight * s, horizonArc, 64, 0f)),
+                    NewMesh(
+                        NeonStageKit.CreateArcWall(
+                            horizonRadius * s,
+                            horizonHeight * s,
+                            horizonArc,
+                            64,
+                            0f
+                        )
+                    ),
                     _matHorizon,
                     Vector3.zero,
                     Quaternion.identity
@@ -122,7 +176,15 @@ namespace OsuVR
             {
                 AddMesh(
                     "HorizonGlowFar",
-                    NewMesh(NeonStageKit.CreateArcWall(secondHorizonRadius * s, secondHorizonHeight * s, horizonArc * 0.8f, 64, 0f)),
+                    NewMesh(
+                        NeonStageKit.CreateArcWall(
+                            secondHorizonRadius * s,
+                            secondHorizonHeight * s,
+                            horizonArc * 0.8f,
+                            64,
+                            0f
+                        )
+                    ),
                     _matHorizon2,
                     Vector3.zero,
                     Quaternion.identity
@@ -139,7 +201,9 @@ namespace OsuVR
                     float scale = Mathf.Lerp(ringInnerScale, ringOuterScale, t);
                     float rs = Mathf.Max(1f, ringScale);
                     float radius = 5.6f * scale * s * rs;
-                    Mesh ringMesh = NewMesh(NeonStageKit.CreateTorus(radius, ringThickness * s * rs, 56, 8));
+                    Mesh ringMesh = NewMesh(
+                        NeonStageKit.CreateTorus(radius, ringThickness * s * rs, 56, 8)
+                    );
                     float y = (ringBaseHeight + ringHeightSpan * t) * s * rs;
                     float z = (ringDepth + (t - 0.5f) * 3.5f) * s * rs;
                     Transform ring = AddMesh(
@@ -160,7 +224,14 @@ namespace OsuVR
             {
                 AddMesh(
                     "SkyBeam",
-                    NewMesh(NeonStageKit.CreateColumn(skyBeamRadius * s * bs, skyBeamRadius * 0.55f * s * bs, skyBeamHeight * s * bs, 16)),
+                    NewMesh(
+                        NeonStageKit.CreateColumn(
+                            skyBeamRadius * s * bs,
+                            skyBeamRadius * 0.55f * s * bs,
+                            skyBeamHeight * s * bs,
+                            16
+                        )
+                    ),
                     _matSky,
                     new Vector3(0f, 0f, skyBeamZ * s * bs),
                     Quaternion.identity
@@ -185,7 +256,11 @@ namespace OsuVR
 
             if (showSparkles)
             {
-                GameObject go = AddEmpty("Sparkles", new Vector3(0f, 1.2f, 4f), Quaternion.identity);
+                GameObject go = AddEmpty(
+                    "Sparkles",
+                    new Vector3(0f, 1.2f, 4f),
+                    Quaternion.identity
+                );
                 ParticleSystem ps = go.AddComponent<ParticleSystem>();
 
                 var main = ps.main;
@@ -219,35 +294,95 @@ namespace OsuVR
 
         protected override void ApplyBeat(float beat, float low, float high, long beatIndex)
         {
-            float now = Time.realtimeSinceStartup;
-            float a = Mathf.Clamp01(opacity);   // 整体透明度：越低越淡
+            float now = AnimationTime;
+            float a = Mathf.Clamp01(opacity); // 整体透明度：越低越淡
+            float pulse = Mathf.Max(0f, pulseVisibility);
+            float audio = Mathf.Clamp01((low * 0.75f + high * 0.25f) * audioVisibility);
+            float sourceLevel = 1f;
+            var driver = Driver;
+            var system = StageLightingSystem.Instance;
+            if (
+                driver != null
+                && driver.useEnvironmentBeat
+                && !driver.manualPreview
+                && system != null
+                && system.steadyOutsideGameplay
+                && !system.Response.InGameplay
+            )
+                sourceLevel = system.steadyIntensity;
 
-            NeonStageKit.SetMaterialLevel(_matGrid, GlowC, (idleLevel * 0.35f + low * beatGain * 0.25f + beat * 0.15f) * a);
-            NeonStageKit.SetMaterialLevel(_matOuterGrid, GlowB, (idleLevel * 0.22f + low * 0.2f) * a);
-            NeonStageKit.SetMaterialLevel(_matHorizon, GlowA, (idleLevel * 0.7f + beat * beatGain * 0.5f + low * 0.2f) * a);
-            NeonStageKit.SetMaterialLevel(_matHorizon2, GlowC, (idleLevel * 0.3f + beat * beatGain * 0.2f) * a);
-            NeonStageKit.SetMaterialLevel(_matRing, GlowB, (idleLevel * 0.55f + beat * beatGain * 0.55f) * a);
-            NeonStageKit.SetMaterialLevel(_matSkyGlow, GlowC, (idleLevel * 0.35f + low * 0.2f) * a);
-            NeonStageKit.SetMaterialLevel(_matSky, GlowC, (idleLevel * 0.3f + low * 0.15f) * a);
-            NeonStageKit.SetMaterialLevel(_matSkyBase, GlowC, (idleLevel * 0.35f + beat * accentGain * 0.3f) * a);
+            // 两路材质不经过共享的命中/Kiai 倍率，保持“网格跟节拍、光柱跟频谱”。
+            Color signalColor = NeonStageKit.Scale(ColorC, glowScale * sourceLevel);
+            Color outerColor = NeonStageKit.Scale(ColorB, glowScale * sourceLevel);
+
+            NeonStageKit.SetMaterialLevel(
+                _matGrid,
+                signalColor,
+                (idleLevel * 0.35f + beat * 0.15f * pulse) * a
+            );
+            NeonStageKit.SetMaterialLevel(
+                _matOuterGrid,
+                outerColor,
+                (idleLevel * 0.22f + beat * 0.05f * pulse) * a
+            );
+            NeonStageKit.SetMaterialLevel(
+                _matHorizon,
+                GlowA,
+                (idleLevel * 0.7f + beat * beatGain * 0.5f + low * 0.2f) * a
+            );
+            NeonStageKit.SetMaterialLevel(
+                _matHorizon2,
+                GlowC,
+                (idleLevel * 0.3f + beat * beatGain * 0.2f) * a
+            );
+            NeonStageKit.SetMaterialLevel(
+                _matRing,
+                GlowB,
+                (idleLevel * 0.55f + beat * beatGain * 0.55f) * a
+            );
+            // 中间光柱、光晕和底座仅响应实际频谱，不叠加节拍与判定闪光。
+            NeonStageKit.SetMaterialLevel(
+                _matSkyGlow,
+                signalColor,
+                (idleLevel * 0.35f + audio * 0.9f) * a
+            );
+            NeonStageKit.SetMaterialLevel(
+                _matSky,
+                signalColor,
+                (idleLevel * 0.3f + audio * 0.75f) * a
+            );
+            NeonStageKit.SetMaterialLevel(
+                _matSkyBase,
+                signalColor,
+                (idleLevel * 0.35f + audio * accentGain) * a
+            );
 
             // 微尘服从设置里的画质预设（EtherealEnvironment 的粒子密度）
             if (_sparkles != null)
             {
                 float density = 1f;
                 if (OsuVR.EtherealEnvironment.Instance != null)
-                    density = Mathf.Clamp(OsuVR.EtherealEnvironment.Instance.GetParticleDensity(), 0f, 2f);
+                    density = Mathf.Clamp(
+                        OsuVR.EtherealEnvironment.Instance.GetParticleDensity(),
+                        0f,
+                        2f
+                    );
 
                 _sparkleEmission.rateOverTime = _sparkleRateBase * density * (0.55f + low * 0.9f);
             }
 
             for (int i = 0; i < _rings.Count; i++)
             {
-                if (_rings[i] == null) continue;
+                if (_rings[i] == null)
+                    continue;
                 float spin = now * ringSpinSpeed * (i % 2 == 0 ? 1f : -1f);
                 float bob = Mathf.Sin(now * 0.35f + i * 1.7f) * 0.18f;
                 Vector3 p = _rings[i].localPosition;
-                _rings[i].localRotation = Quaternion.Euler(0f, 0f, spin + (i % 2 == 0 ? 12f : -12f));
+                _rings[i].localRotation = Quaternion.Euler(
+                    0f,
+                    0f,
+                    spin + (i % 2 == 0 ? 12f : -12f)
+                );
                 _rings[i].localPosition = new Vector3(p.x, _ringBaseY[i] + bob, p.z);
             }
         }

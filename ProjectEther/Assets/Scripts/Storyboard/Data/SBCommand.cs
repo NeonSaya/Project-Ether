@@ -35,25 +35,6 @@ namespace OsuVR.Storyboard.Data
             StartTime = startTime;
             EndTime = endTime;
         }
-
-        /// <summary>
-        /// 计算当前时间在本命令中的归一化进度 [0,1]
-        /// </summary>
-        public float GetProgress(double currentTime)
-        {
-            if (EndTime <= StartTime)
-                return 1f;
-            float t = (float)((currentTime - StartTime) / (EndTime - StartTime));
-            return Mathf.Clamp01(t);
-        }
-
-        /// <summary>
-        /// 计算经过缓动后的插值进度
-        /// </summary>
-        public float GetEasedProgress(double currentTime)
-        {
-            return EasingMath.Interpolate(Easing, GetProgress(currentTime));
-        }
     }
 
     // =====================================================
@@ -80,12 +61,6 @@ namespace OsuVR.Storyboard.Data
             StartValue = startVal;
             EndValue = endVal;
         }
-
-        public float Evaluate(double time)
-        {
-            float p = GetEasedProgress(time);
-            return Mathf.Lerp(StartValue, EndValue, p);
-        }
     }
 
     /// <summary>
@@ -107,12 +82,6 @@ namespace OsuVR.Storyboard.Data
         {
             StartPos = startPos;
             EndPos = endPos;
-        }
-
-        public Vector2 Evaluate(double time)
-        {
-            float p = GetEasedProgress(time);
-            return Vector2.Lerp(StartPos, EndPos, p);
         }
     }
 
@@ -137,12 +106,6 @@ namespace OsuVR.Storyboard.Data
             StartValue = startVal;
             EndValue = endVal;
         }
-
-        public float Evaluate(double time)
-        {
-            float p = GetEasedProgress(time);
-            return Mathf.Lerp(StartValue, EndValue, p);
-        }
     }
 
     /// <summary>
@@ -164,12 +127,6 @@ namespace OsuVR.Storyboard.Data
         {
             StartValue = startVal;
             EndValue = endVal;
-        }
-
-        public float Evaluate(double time)
-        {
-            float p = GetEasedProgress(time);
-            return Mathf.Lerp(StartValue, EndValue, p);
         }
     }
 
@@ -221,12 +178,6 @@ namespace OsuVR.Storyboard.Data
             StartValue = startVal;
             EndValue = endVal;
         }
-
-        public float Evaluate(double time)
-        {
-            float p = GetEasedProgress(time);
-            return Mathf.Lerp(StartValue, EndValue, p);
-        }
     }
 
     /// <summary>
@@ -248,11 +199,6 @@ namespace OsuVR.Storyboard.Data
         {
             StartColor = startColor;
             EndColor = endColor;
-        }
-
-        public Color Evaluate(double time)
-        {
-            return Color.Lerp(StartColor.linear, EndColor.linear, GetEasedProgress(time)).gamma;
         }
     }
 

@@ -1,6 +1,8 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.XR;
 
 namespace OsuVR
 {
@@ -33,12 +35,18 @@ namespace OsuVR
         {
             private TextMeshProUGUI _tmp;
             private Color _color;
-            private float _fadeStart;
+            private Canvas _canvas;
+            private readonly List<XRDisplaySubsystem> _displays = new();
+            private float _elapsed;
             private float _duration;
             private bool _active;
+            private bool _hasFocus;
+            private bool _paused;
+            private bool _readyLastFrame;
 
             void Awake()
             {
+                _hasFocus = Application.isFocused;
                 EnsureCreated();
             }
 
@@ -49,10 +57,11 @@ namespace OsuVR
 
                 transform.localScale = Vector3.one * 0.002f;
 
-                var canvas = gameObject.AddComponent<Canvas>();
-                canvas.renderMode = RenderMode.WorldSpace;
+                _canvas = gameObject.AddComponent<Canvas>();
+                _canvas.renderMode = RenderMode.WorldSpace;
                 // 根 Canvas 的 sortingOrder 直接生效（overrideSorting 只对嵌套 Canvas 有意义）
-                canvas.sortingOrder = 500;
+                _canvas.sortingOrder = 500;
+                _canvas.enabled = false;
                 var scaler = gameObject.AddComponent<CanvasScaler>();
                 scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
                 scaler.dynamicPixelsPerUnit = 10f;
@@ -68,6 +77,7 @@ namespace OsuVR
                 _tmp.alignment = TextAlignmentOptions.Center;
                 _tmp.enableWordWrapping = true;
                 _tmp.overflowMode = TextOverflowModes.Ellipsis;
+                _tmp.raycastTarget = false;
             }
 
             public void Show(string message, Color color, float duration)
@@ -76,17 +86,62 @@ namespace OsuVR
                 _tmp.text = message;
                 _color = color;
                 _tmp.color = color;
-                _fadeStart = Time.unscaledTime;
-                _duration = duration;
+                _elapsed = 0f;
+                _duration = Mathf.Max(0.1f, duration);
                 _active = true;
+                _readyLastFrame = false;
+                _canvas.enabled = false;
+            }
+
+            private bool CanPresent(Camera camera)
+            {
+                if (!_hasFocus || _paused || camera == null)
+                    return false;
+                if (
+                    VRSceneTransitionManager.Instance != null
+                    && VRSceneTransitionManager.Instance.IsTransitioning
+                )
+                    return false;
+
+                if (Application.platform == RuntimePlatform.Android || XRSettings.isDeviceActive)
+                {
+                    SubsystemManager.GetInstances(_displays);
+                    foreach (var display in _displays)
+                        if (display.running)
+                            return true;
+                    return false;
+                }
+                return true;
+            }
+
+            void OnApplicationFocus(bool hasFocus)
+            {
+                _hasFocus = hasFocus;
+                _readyLastFrame = false;
+            }
+
+            void OnApplicationPause(bool paused)
+            {
+                _paused = paused;
+                _readyLastFrame = false;
             }
 
             void LateUpdate()
             {
+                if (!_active)
+                    return;
+
                 // 跟随相机：放在玩家视线前方 1.5m、略低于视线，任何朝向都能看到
                 var cam = Camera.main;
                 if (cam == null)
                     cam = FindFirstObjectByType<Camera>();
+                if (!CanPresent(cam))
+                {
+                    _canvas.enabled = false;
+                    _readyLastFrame = false;
+                    return;
+                }
+
                 if (cam != null)
                 {
                     Vector3 forward = cam.transform.forward;
@@ -101,23 +156,25 @@ namespace OsuVR
                     );
                 }
 
-                if (!_active)
-                    return;
-
-                float elapsed = Time.unscaledTime - _fadeStart;
-                if (elapsed >= _duration)
+                _canvas.enabled = true;
+                // 返回 VR 的首帧可能携带整个暂停间隔，先显示，再从后续可见帧计时。
+                if (_readyLastFrame)
+                    _elapsed += Time.unscaledDeltaTime;
+                _readyLastFrame = true;
+                if (_elapsed >= _duration)
                 {
                     _active = false;
                     _tmp.text = string.Empty;
+                    _canvas.enabled = false;
                     return;
                 }
 
                 float fadeStart = _duration * 0.6f;
-                if (elapsed > fadeStart)
-                {
-                    float alpha = 1f - (elapsed - fadeStart) / (_duration - fadeStart);
-                    _tmp.color = new Color(_color.r, _color.g, _color.b, alpha);
-                }
+                float alpha =
+                    _elapsed > fadeStart
+                        ? 1f - (_elapsed - fadeStart) / (_duration - fadeStart)
+                        : 1f;
+                _tmp.color = new Color(_color.r, _color.g, _color.b, _color.a * alpha);
             }
         }
     }

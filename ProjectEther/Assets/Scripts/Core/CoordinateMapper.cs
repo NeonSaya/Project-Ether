@@ -21,10 +21,6 @@ namespace OsuVR
         // Osu坐标中心点对应的世界坐标（玩家眼睛高度前方）
         private static readonly Vector3 TargetCenter = new Vector3(0f, 1.6f, TargetDistance);
 
-        // 计算缩放比例
-        private static readonly float ScaleX = TargetWidth / OSURegionWidth;
-        private static readonly float ScaleY = TargetHeight / OSURegionHeight;
-
         /// <summary>
         /// 将osu的2D坐标映射到VR空间中的3D位置
         /// </summary>

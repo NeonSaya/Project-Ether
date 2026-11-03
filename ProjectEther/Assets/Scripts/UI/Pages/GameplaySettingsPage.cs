@@ -128,35 +128,7 @@ namespace OsuVR
         private void OnImportButtonClicked()
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
-            BeatmapImporter.OpenAndroidFilePicker(
-                (result, detail) =>
-                {
-                    switch (result)
-                    {
-                        case ImportResult.Success:
-                            ShowToast(
-                                string.Format(
-                                    LocalizationManager.GetText("ui_import_success"),
-                                    detail
-                                ),
-                                Color.green
-                            );
-                            break;
-                        case ImportResult.Cancelled:
-                            ShowToast(
-                                LocalizationManager.GetText("ui_import_cancelled"),
-                                new Color(1f, 0.85f, 0.3f)
-                            );
-                            break;
-                        case ImportResult.Error:
-                            string errMsg = LocalizationManager.GetText("ui_import_error");
-                            if (!string.IsNullOrEmpty(detail))
-                                errMsg += "\n" + detail;
-                            ShowToast(errMsg, Color.red, 8f);
-                            break;
-                    }
-                }
-            );
+            BeatmapImporter.OpenAndroidFilePicker();
 #else
             BeatmapImporter.OpenSongsDirectory();
             ShowToast(
@@ -170,74 +142,9 @@ namespace OsuVR
         //  Toast 提示
         // ============================================================
 
-        private GameObject _toastObj;
-        private TextMeshProUGUI _toastTmp;
-        private float _toastFadeStart;
-        private float _toastDuration;
-        private Color _toastColor;
-        private bool _toastActive;
-
         private void ShowToast(string message, Color color, float duration = 3f)
         {
-            if (_toastObj == null)
-            {
-                // 独立世界空间 Canvas，悬浮在玩家面前
-                _toastObj = new GameObject("Toast_Import");
-                _toastObj.transform.position = new Vector3(0f, 2.5f, 1f);
-                _toastObj.transform.localScale = Vector3.one * 0.002f;
-
-                var canvas = _toastObj.AddComponent<Canvas>();
-                canvas.renderMode = RenderMode.WorldSpace;
-                // 始终压在其它 UI 之上（主 UI 的 sortingOrder=100，场景切换遮罩=9999）
-                canvas.overrideSorting = true;
-                canvas.sortingOrder = 500;
-                var scaler = _toastObj.AddComponent<CanvasScaler>();
-                scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
-                scaler.dynamicPixelsPerUnit = 10f;
-                _toastObj.AddComponent<CanvasGroup>();
-
-                var toastText = new GameObject("Text");
-                toastText.transform.SetParent(_toastObj.transform, false);
-                var rt = toastText.AddComponent<RectTransform>();
-                rt.sizeDelta = new Vector2(800f, 120f);
-
-                _toastTmp = toastText.AddComponent<TextMeshProUGUI>();
-                _toastTmp.fontSize = 22f;
-                _toastTmp.fontStyle = FontStyles.Bold;
-                _toastTmp.alignment = TextAlignmentOptions.Center;
-                _toastTmp.enableAutoSizing = false;
-                _toastTmp.enableWordWrapping = true;
-                _toastTmp.overflowMode = TextOverflowModes.Ellipsis;
-            }
-
-            _toastTmp.text = message;
-            _toastColor = color;
-            _toastTmp.color = color;
-            _toastObj.SetActive(true);
-            _toastFadeStart = Time.unscaledTime;
-            _toastDuration = duration;
-            _toastActive = true;
-        }
-
-        public void UpdateToast()
-        {
-            if (!_toastActive || _toastObj == null)
-                return;
-
-            float elapsed = Time.unscaledTime - _toastFadeStart;
-            if (elapsed >= _toastDuration)
-            {
-                _toastObj.SetActive(false);
-                _toastActive = false;
-                return;
-            }
-
-            float fadeStart = _toastDuration * 0.6f;
-            if (elapsed > fadeStart)
-            {
-                float alpha = 1f - (elapsed - fadeStart) / (_toastDuration - fadeStart);
-                _toastTmp.color = new Color(_toastColor.r, _toastColor.g, _toastColor.b, alpha);
-            }
+            VRToast.Show(message, color, duration);
         }
 
         public void RefreshLanguageDropdown()

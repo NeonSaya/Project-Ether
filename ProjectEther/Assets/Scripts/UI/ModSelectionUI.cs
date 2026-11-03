@@ -20,7 +20,6 @@ namespace OsuVR
         private ModInfo modInfo;
         private bool isSelected = false;
         private Color normalColor = new Color(0.1f, 0.1f, 0.14f, 0.95f);
-        private Color selectedColor = new Color(0.3f, 0.6f, 0.9f);
 
         public event System.Action<ModType> OnModClicked;
 

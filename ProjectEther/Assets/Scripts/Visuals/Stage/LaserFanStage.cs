@@ -11,14 +11,17 @@ namespace OsuVR
     public class LaserFanStage : StageVariantBase
     {
         [Header("旋转激光")]
-        [Range(2, 14)] public int beamCount = 3;
+        [Range(2, 14)]
+        public int beamCount = 3;
         public float beamLength = 16f;
         public float beamWidth = 0.12f;
         public float pivotX = 6.5f;
         public float pivotY = 1.6f;
         public float pivotZ = 11f;
+
         [Tooltip("连续旋转速度（度/秒）")]
         public float spinSpeed = 9f;
+
         [Tooltip("每拍步进（度）")]
         public float beatStepDegrees = 5f;
         public float stepSnapSpeed = 8f;
@@ -75,14 +78,17 @@ namespace OsuVR
             _lastBeatIndex = -1;
             _lastTime = Time.realtimeSinceStartup;
 
-            Mesh beamMesh = NewMesh(NeonStageKit.CreateColumn(beamWidth, beamWidth * 0.7f, beamLength, 4));
+            Mesh beamMesh = NewMesh(
+                NeonStageKit.CreateColumn(beamWidth, beamWidth * 0.7f, beamLength, 4)
+            );
 
             for (int side = 0; side < 2; side++)
             {
                 float x = side == 0 ? -pivotX : pivotX;
                 for (int i = 0; i < beamCount; i++)
                 {
-                    float baseAngle = (i / (float)Mathf.Max(1, beamCount)) * 180f + (side == 0 ? 0f : 90f);
+                    float baseAngle =
+                        (i / (float)Mathf.Max(1, beamCount)) * 180f + (side == 0 ? 0f : 90f);
                     GameObject pivot = AddEmpty(
                         "LaserPivot_" + side + "_" + i,
                         new Vector3(x, pivotY, pivotZ),
@@ -123,52 +129,126 @@ namespace OsuVR
 
             if (showSecondFrame)
             {
-                BuildFrame("GateFar", secondFrameScale, secondFrameZ, _matGateFar, gateWidth, gateHeight, gateBarThickness * 1.6f);
+                BuildFrame(
+                    "GateFar",
+                    secondFrameScale,
+                    secondFrameZ,
+                    _matGateFar,
+                    gateWidth,
+                    gateHeight,
+                    gateBarThickness * 1.6f
+                );
             }
 
             if (showFloorStrips)
             {
-                Mesh stripMesh = NewMesh(NeonStageKit.CreateFloorStrip(stripWidth, stripLength, 0.015f));
-                AddMesh("StripLeft", stripMesh, _matStrip, new Vector3(-stripOffset, 0f, 0.2f), Quaternion.identity);
-                AddMesh("StripRight", stripMesh, _matStrip, new Vector3(stripOffset, 0f, 0.2f), Quaternion.identity);
+                Mesh stripMesh = NewMesh(
+                    NeonStageKit.CreateFloorStrip(stripWidth, stripLength, 0.015f)
+                );
+                AddMesh(
+                    "StripLeft",
+                    stripMesh,
+                    _matStrip,
+                    new Vector3(-stripOffset, 0f, 0.2f),
+                    Quaternion.identity
+                );
+                AddMesh(
+                    "StripRight",
+                    stripMesh,
+                    _matStrip,
+                    new Vector3(stripOffset, 0f, 0.2f),
+                    Quaternion.identity
+                );
             }
         }
 
-        void BuildFrame(string name, float scale, float z, Material material, float width, float height, float thickness)
+        void BuildFrame(
+            string name,
+            float scale,
+            float z,
+            Material material,
+            float width,
+            float height,
+            float thickness
+        )
         {
             float w = width * scale;
             float h = height * scale;
             Vector3 center = new Vector3(0f, 1.6f + height * (scale - 1f) * 0.5f, z);
 
-            Mesh barV = NewMesh(NeonStageKit.CreateColumn(thickness, thickness, h + thickness * 2f, 4));
-            Mesh barH = NewMesh(NeonStageKit.CreateColumn(thickness, thickness, w + thickness * 2f, 4));
+            Mesh barV = NewMesh(
+                NeonStageKit.CreateColumn(thickness, thickness, h + thickness * 2f, 4)
+            );
+            Mesh barH = NewMesh(
+                NeonStageKit.CreateColumn(thickness, thickness, w + thickness * 2f, 4)
+            );
 
-            AddBar(name + "Top", barH, material, center + Vector3.up * (h * 0.5f), Vector3.right, w, thickness);
-            AddBar(name + "Bottom", barH, material, center - Vector3.up * (h * 0.5f), Vector3.right, w, thickness);
-            AddBar(name + "Left", barV, material, center - Vector3.right * (w * 0.5f), Vector3.up, h, thickness);
-            AddBar(name + "Right", barV, material, center + Vector3.right * (w * 0.5f), Vector3.up, h, thickness);
+            AddBar(
+                name + "Top",
+                barH,
+                material,
+                center + Vector3.up * (h * 0.5f),
+                Vector3.right,
+                w,
+                thickness
+            );
+            AddBar(
+                name + "Bottom",
+                barH,
+                material,
+                center - Vector3.up * (h * 0.5f),
+                Vector3.right,
+                w,
+                thickness
+            );
+            AddBar(
+                name + "Left",
+                barV,
+                material,
+                center - Vector3.right * (w * 0.5f),
+                Vector3.up,
+                h,
+                thickness
+            );
+            AddBar(
+                name + "Right",
+                barV,
+                material,
+                center + Vector3.right * (w * 0.5f),
+                Vector3.up,
+                h,
+                thickness
+            );
         }
 
         protected override void ApplyBeat(float beat, float low, float high, long beatIndex)
         {
-            float now = Time.realtimeSinceStartup;
+            float now = AnimationTime;
             float deltaTime = Mathf.Clamp(now - _lastTime, 0f, 0.1f);
             _lastTime = now;
 
             if (beatIndex != _lastBeatIndex)
             {
+                bool jumped = beatIndex < _lastBeatIndex || beatIndex - _lastBeatIndex > 1;
                 _lastBeatIndex = beatIndex;
-                _stepTarget += beatStepDegrees;
+                _stepTarget = beatIndex * beatStepDegrees;
+                if (jumped)
+                    _stepCurrent = _stepTarget;
             }
 
-            float snap = 1f - Mathf.Exp(-stepSnapSpeed * Mathf.Max(0.0001f, deltaTime));
+            float snap = 1f - Mathf.Exp(-stepSnapSpeed * deltaTime);
             _stepCurrent = Mathf.Lerp(_stepCurrent, _stepTarget, snap);
 
             float spin = now * spinSpeed + _stepCurrent;
             for (int i = 0; i < _pivots.Count; i++)
             {
-                if (_pivots[i] == null) continue;
-                _pivots[i].localRotation = Quaternion.Euler(0f, 0f, _baseAngles[i] + spin * (i % 2 == 0 ? 1f : -1f));
+                if (_pivots[i] == null)
+                    continue;
+                _pivots[i].localRotation = Quaternion.Euler(
+                    0f,
+                    0f,
+                    _baseAngles[i] + spin * (i % 2 == 0 ? 1f : -1f)
+                );
             }
 
             float beamLevel = idleLevel * 0.8f + beat * beatGain;
@@ -177,9 +257,17 @@ namespace OsuVR
             NeonStageKit.SetMaterialLevel(_matGateGlow, GlowC, idleLevel * 0.5f + low * 0.35f);
             NeonStageKit.SetMaterialLevel(_matBeamA, GlowA, beamLevel);
             NeonStageKit.SetMaterialLevel(_matBeamB, GlowB, beamLevel);
-            NeonStageKit.SetMaterialLevel(_matGate, GlowC, idleLevel * 0.5f + low * accentGain * 0.4f + beat * 0.25f);
+            NeonStageKit.SetMaterialLevel(
+                _matGate,
+                GlowC,
+                idleLevel * 0.5f + low * accentGain * 0.4f + beat * 0.25f
+            );
             NeonStageKit.SetMaterialLevel(_matGateFar, GlowB, idleLevel * 0.3f + low * 0.2f);
-            NeonStageKit.SetMaterialLevel(_matStrip, GlowC, idleLevel * 0.7f + beat * accentGain * 0.6f);
+            NeonStageKit.SetMaterialLevel(
+                _matStrip,
+                GlowC,
+                idleLevel * 0.7f + beat * accentGain * 0.6f
+            );
         }
     }
 }

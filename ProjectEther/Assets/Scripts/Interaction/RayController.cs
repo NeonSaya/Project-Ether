@@ -54,9 +54,6 @@ namespace OsuVR
         public Transform visualRay;
 
         private InputAction triggerAction;
-
-        // --- 3D 物理检测 ---
-        private GameObject lastHitObject;
         public Vector3 CurrentHitPoint { get; private set; }
         public bool IsHitting { get; private set; }
 
@@ -407,7 +404,6 @@ namespace OsuVR
                 currentHitMap.Clear();
                 IsHitting = false;
                 CurrentHitPoint = Vector3.zero;
-                lastHitObject = null;
                 return;
             }
 
@@ -450,7 +446,6 @@ namespace OsuVR
 
             IsHitting = closestObj != null;
             CurrentHitPoint = IsHitting ? closestPt : Vector3.zero;
-            lastHitObject = closestObj;
 
             foreach (var old in previousHitObjects)
             {

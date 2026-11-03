@@ -1,11 +1,10 @@
 using System.Collections.Generic;
-using OsuVR.Storyboard;
 
 namespace OsuVR.Storyboard.Engine
 {
     /// <summary>
     /// 命令组：扁平化命令列表 (对应 osu!droid CommandGroup)
-    /// 支持 Loop 展开、按 (StartTime, EndTime) 排序
+    /// 缓存命令时间范围，按 (StartTime, EndTime, Sequence) 排序。
     /// </summary>
     public class SBCommandGroup
     {
@@ -58,25 +57,6 @@ namespace OsuVR.Storyboard.Engine
         public void Sort()
         {
             Commands.Sort(CompareCommands);
-            InvalidateCache();
-        }
-
-        /// <summary>
-        /// 递归展平内层嵌套 Loop，但保留 SBLoopCommand 本身（运行时动态评估）
-        /// </summary>
-        public void ToFlatGroup()
-        {
-            for (int i = 0; i < Commands.Count; i++)
-            {
-                if (Commands[i] is SBLoopCommand loop)
-                    loop.InnerGroup.ToFlatGroup();
-            }
-            InvalidateCache();
-        }
-
-        public void Clear()
-        {
-            Commands.Clear();
             InvalidateCache();
         }
 

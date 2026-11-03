@@ -933,8 +933,6 @@ namespace OsuVR
             for (int i = 0; i < allPoints.Count; i++)
             {
                 var current = allPoints[i];
-                double nextTime =
-                    (i + 1 < allPoints.Count) ? allPoints[i + 1].Time : double.MaxValue;
 
                 if (current.IsKiai && !kiaiStartTime.HasValue)
                 {
@@ -1244,34 +1242,6 @@ namespace OsuVR
                     return SampleBank.None;
             }
         }
-
-#if UNITY_EDITOR
-        /// <summary>
-        /// 解析滑条的示例（仅编辑器）
-        /// </summary>
-        public static void TestSliderParsing()
-        {
-            // 测试滑条解析
-            string sliderLine = "100,200,1000,2,0,B|150:250|200:300,1,100.5";
-
-            Beatmap testBeatmap = new Beatmap();
-            ParseHitObject(sliderLine, testBeatmap);
-
-            if (
-                testBeatmap.HitObjects.Count > 0
-                && testBeatmap.HitObjects[0] is SliderObject slider
-            )
-            {
-                Debug.Log($"滑条解析测试成功:");
-                Debug.Log($"  开始时间: {slider.StartTime}ms");
-                Debug.Log($"  位置: {slider.Position}");
-                Debug.Log($"  曲线类型: {slider.CurveType}");
-                Debug.Log($"  控制点数: {slider.ControlPoints.Count}");
-                Debug.Log($"  重复次数: {slider.RepeatCount}");
-                Debug.Log($"  像素长度: {slider.PixelLength}");
-            }
-        }
-#endif
     }
 
     /// <summary>

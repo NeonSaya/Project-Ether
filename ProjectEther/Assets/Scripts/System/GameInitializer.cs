@@ -7,8 +7,18 @@ namespace OsuVR
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void InitializeGame()
         {
+            CreateSettingsManager();
             CreateGameContext();
             CreateUnicodeFontLoader();
+        }
+
+        static void CreateSettingsManager()
+        {
+            if (SettingsManager.Instance == null)
+            {
+                var go = new GameObject("[SettingsManager]");
+                go.AddComponent<SettingsManager>();
+            }
         }
 
         static void CreateGameContext()
