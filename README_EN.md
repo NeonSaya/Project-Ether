@@ -237,7 +237,7 @@ This is the project's killer feature. Core logic: `Audio digitization (FFT) -> D
 ### Phase 5: Global Multithreading Optimization — 🟢 Core Pipeline Live
 - [x] **Storyboard Timeline Multithreading**: Timeline evaluation and matrix computation are Burst-parallelized and written into Persistent NativeArrays; the draw path still calls `ComputeBuffer.SetData` to upload instance data.
 - [x] **Particle Color Calculation Job-ified**: `CodeDrivenAmbientParticles` 12000 particle HSV + flicker calculation offloaded to Burst Job.
-- [x] **Note SoA Flattening**: `NativeArray<double>` spawnTimes / startTimes plus a type array are filled on the main thread, and spawning narrows the range with a binary search; Burst precomputation of note positions at load time stays on the evaluation list.
+- [x] **Note SoA Flattening**: `NativeArray<double>` spawnTimes / startTimes are filled on the main thread, and spawning narrows the range with a binary search; Burst precomputation of note positions at load time stays on the evaluation list.
 - [x] **Binary Search Replaces Linear Scan**: `SpawnNotes` uses O(log N) upper bound search replacing while loops.
 - [x] **Custom Collision Detection**: Keeping the current state for now. Each hand fires one `SphereCastNonAlloc` per frame, which measurements show is not a bottleneck at current beatmap scales; the implementation changes only if a real performance problem appears.
 

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 
 namespace OsuVR
@@ -311,7 +310,6 @@ namespace OsuVR
         private int baseStardustMaxParticles;
         private int baseStardustRate;
         private int baseBokehMaxParticles;
-        private int baseBokehRate;
         private int baseCrystalsMaxParticles;
         private int baseFallingStarMaxParticles;
         private int baseFallingStarRate;
@@ -320,7 +318,6 @@ namespace OsuVR
         private float currentParticleDensity = 1.0f;
         private float currentHueOffset = 0f;
         private float currentBrightness = 1f;
-        private EnvironmentState currentState = EnvironmentState.Idle;
         private GamePhase currentPhase = GamePhase.Menu;
 
         // 缓存
@@ -1480,7 +1477,6 @@ namespace OsuVR
             go.transform.SetParent(transform);
 
             baseBokehMaxParticles = bokehMaxParticles;
-            baseBokehRate = bokehRateMenu;
 
             bokehPS = go.AddComponent<ParticleSystem>();
             var main = bokehPS.main;
@@ -2124,7 +2120,6 @@ namespace OsuVR
 
         public void SetEnvironmentState(EnvironmentState state)
         {
-            currentState = state;
             Gradient targetGradient = gradientIdle;
             float targetSpeedMultiplier = 1f;
 

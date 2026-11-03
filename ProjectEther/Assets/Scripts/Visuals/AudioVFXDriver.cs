@@ -73,7 +73,6 @@ namespace OsuVR
 
         private VisualEffect visualEffect;
         private Vector3 currentScale;
-        private float currentEnergy;
 
         // =========================================================
         // 生命周期

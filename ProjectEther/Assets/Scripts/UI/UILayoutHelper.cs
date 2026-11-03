@@ -23,10 +23,8 @@ namespace OsuVR
 
         public static readonly Color DefaultPanelColor = new Color(0.08f, 0.08f, 0.12f, 0.92f);
         public static readonly Color DefaultTextColor = new Color(0.9f, 0.92f, 0.95f, 1f);
-        public static readonly Color AccentColor = new Color(0.3f, 0.6f, 1f, 1f);
         public static readonly Color ButtonNormalColor = new Color(0.15f, 0.18f, 0.28f, 1f);
         public static readonly Color ButtonHoverColor = new Color(0.22f, 0.3f, 0.5f, 1f);
-        public static readonly Color ButtonPressedColor = new Color(0.12f, 0.2f, 0.4f, 1f);
 
         public const float DefaultCurveRadius = 3.5f;
         public const int DefaultFontSize = 36;
@@ -238,81 +236,6 @@ namespace OsuVR
         }
 
         // ============================================================
-        //  垂直布局
-        // ============================================================
-
-        /// <summary>
-        /// 添加垂直布局组件
-        /// </summary>
-        public static VerticalLayoutGroup AddVerticalLayout(
-            Transform parent,
-            float spacing = 15f,
-            float paddingLeft = 0f,
-            float paddingRight = 0f,
-            float paddingTop = 0f,
-            float paddingBottom = 0f,
-            TextAnchor childAlignment = TextAnchor.UpperCenter
-        )
-        {
-            var vlg = parent.gameObject.AddComponent<VerticalLayoutGroup>();
-            vlg.spacing = spacing;
-            vlg.childAlignment = childAlignment;
-            vlg.childControlWidth = false;
-            vlg.childControlHeight = false;
-            vlg.childForceExpandWidth = false;
-            vlg.childForceExpandHeight = false;
-            vlg.padding = new RectOffset(
-                (int)paddingLeft,
-                (int)paddingRight,
-                (int)paddingTop,
-                (int)paddingBottom
-            );
-            return vlg;
-        }
-
-        /// <summary>
-        /// 添加 Content Size Fitter（让容器自适应子物体大小）
-        /// </summary>
-        public static ContentSizeFitter AddContentSizeFitter(
-            Transform parent,
-            ContentSizeFitter.FitMode horizontal = ContentSizeFitter.FitMode.Unconstrained,
-            ContentSizeFitter.FitMode vertical = ContentSizeFitter.FitMode.PreferredSize
-        )
-        {
-            var fitter = parent.gameObject.AddComponent<ContentSizeFitter>();
-            fitter.horizontalFit = horizontal;
-            fitter.verticalFit = vertical;
-            return fitter;
-        }
-
-        /// <summary>
-        /// 为 Layout 子元素设置 LayoutElement 约束
-        /// </summary>
-        public static LayoutElement SetLayoutElement(
-            Transform target,
-            float? minWidth = null,
-            float? minHeight = null,
-            float? preferredWidth = null,
-            float? preferredHeight = null
-        )
-        {
-            var le = target.gameObject.GetComponent<LayoutElement>();
-            if (le == null)
-                le = target.gameObject.AddComponent<LayoutElement>();
-
-            if (minWidth.HasValue)
-                le.minWidth = minWidth.Value;
-            if (minHeight.HasValue)
-                le.minHeight = minHeight.Value;
-            if (preferredWidth.HasValue)
-                le.preferredWidth = preferredWidth.Value;
-            if (preferredHeight.HasValue)
-                le.preferredHeight = preferredHeight.Value;
-
-            return le;
-        }
-
-        // ============================================================
         //  效果组件
         // ============================================================
 
@@ -381,20 +304,6 @@ namespace OsuVR
             trigger.triggers.Add(enter);
         }
 
-        // ============================================================
-        //  坐标与锚点工具
-        // ============================================================
-
-        /// <summary>
-        /// 设置 RectTransform 锚点为居中
-        /// </summary>
-        public static void SetAnchorCenter(RectTransform rt)
-        {
-            rt.anchorMin = new Vector2(0.5f, 0.5f);
-            rt.anchorMax = new Vector2(0.5f, 0.5f);
-            rt.pivot = new Vector2(0.5f, 0.5f);
-        }
-
         /// <summary>
         /// 设置 RectTransform 锚点为拉伸（填充父物体）
         /// </summary>
@@ -404,104 +313,6 @@ namespace OsuVR
             rt.anchorMax = Vector2.one;
             rt.sizeDelta = Vector2.zero;
             rt.anchoredPosition = Vector2.zero;
-        }
-
-        /// <summary>
-        /// 设置 anchoredPosition
-        /// </summary>
-        public static void SetPosition(RectTransform rt, float x, float y)
-        {
-            rt.anchoredPosition = new Vector2(x, y);
-        }
-
-        // ============================================================
-        //  水平布局
-        // ============================================================
-
-        /// <summary>
-        /// 添加水平布局组件
-        /// </summary>
-        public static HorizontalLayoutGroup AddHorizontalLayout(
-            Transform parent,
-            float spacing = 0f,
-            TextAnchor childAlignment = TextAnchor.MiddleCenter,
-            float paddingLeft = 0f,
-            float paddingRight = 0f,
-            float paddingTop = 0f,
-            float paddingBottom = 0f
-        )
-        {
-            var hlg = parent.gameObject.AddComponent<HorizontalLayoutGroup>();
-            hlg.spacing = spacing;
-            hlg.childAlignment = childAlignment;
-            hlg.childControlWidth = false;
-            hlg.childControlHeight = false;
-            hlg.childForceExpandWidth = false;
-            hlg.childForceExpandHeight = false;
-            hlg.padding = new RectOffset(
-                (int)paddingLeft,
-                (int)paddingRight,
-                (int)paddingTop,
-                (int)paddingBottom
-            );
-            return hlg;
-        }
-
-        // ============================================================
-        //  ScrollView（滚动视图）
-        // ============================================================
-
-        /// <summary>
-        /// 创建 ScrollView（ScrollRect + Viewport(Mask) + Content）
-        /// </summary>
-        /// <returns>(scrollRect, contentRectTransform)</returns>
-        public static (ScrollRect scrollRect, RectTransform content) CreateScrollView(
-            Transform parent,
-            string name,
-            float width,
-            float height,
-            Color? viewportColor = null
-        )
-        {
-            // ScrollView 根物体
-            var scrollGo = new GameObject(name);
-            scrollGo.transform.SetParent(parent, false);
-            var scrollRt = scrollGo.AddComponent<RectTransform>();
-            scrollRt.sizeDelta = new Vector2(width, height);
-
-            var scrollRect = scrollGo.AddComponent<ScrollRect>();
-            scrollRect.horizontal = false;
-            scrollRect.vertical = true;
-            scrollRect.movementType = ScrollRect.MovementType.Clamped;
-            scrollRect.scrollSensitivity = 30f;
-
-            // Viewport（视口）
-            var viewportGo = new GameObject("Viewport");
-            viewportGo.transform.SetParent(scrollGo.transform, false);
-            var viewportRt = viewportGo.AddComponent<RectTransform>();
-            SetAnchorStretch(viewportRt);
-
-            var viewportImg = viewportGo.AddComponent<Image>();
-            viewportImg.color = viewportColor ?? new Color(0, 0, 0, 0.01f);
-            viewportImg.raycastTarget = true;
-
-            var mask = viewportGo.AddComponent<Mask>();
-            mask.showMaskGraphic = false;
-
-            // Content（滚动内容区）
-            var contentGo = new GameObject("Content");
-            contentGo.transform.SetParent(viewportGo.transform, false);
-            var contentRt = contentGo.AddComponent<RectTransform>();
-            contentRt.anchorMin = new Vector2(0, 1);
-            contentRt.anchorMax = new Vector2(1, 1);
-            contentRt.pivot = new Vector2(0.5f, 1);
-            contentRt.sizeDelta = new Vector2(0, 0);
-            contentRt.anchoredPosition = Vector2.zero;
-
-            scrollRect.viewport = viewportRt;
-            scrollRect.content = contentRt;
-
-            return (scrollRect, contentRt);
         }
 
         // ============================================================

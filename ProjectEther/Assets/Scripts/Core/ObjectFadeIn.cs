@@ -34,7 +34,6 @@ namespace OsuVR
         private double fadeOutStartTime;
         private double fadeOutDuration;
         private FadeMode fadeMode = FadeMode.Standard;
-        private double sliderEndTime = 0;
 
         public void Initialize(
             double hitTimeMs,
@@ -48,7 +47,6 @@ namespace OsuVR
             this.timePreempt = timePreemptMs;
             this.gameManager = manager;
             this.fadeMode = mode;
-            this.sliderEndTime = endTimeMs;
             this.isInitialized = true;
             this.hasFinishedFadeIn = false;
 

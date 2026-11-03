@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using TMPro;
 using UnityEngine;
 
 namespace OsuVR
@@ -21,11 +20,6 @@ namespace OsuVR
     {
         [Header("UI Controller")]
         public ScoreBoardController boardController;
-
-        // ================================================================
-        // Lazer 源码常量
-        // ================================================================
-        private const double MAX_SCORE = 1000000; // 理论满分
         private const double COMBO_EXPONENT = 0.5; // 连击指数 (Sqrt)
 
         // ================================================================

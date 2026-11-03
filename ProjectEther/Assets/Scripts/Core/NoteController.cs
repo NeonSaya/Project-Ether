@@ -49,9 +49,6 @@ namespace OsuVR
         private MaterialPropertyBlock _propBlock;
         private Renderer[] allRenderers;
         public Vector3? nextNotePosition;
-
-        // 缓存组件
-        private ApproachCircleScaler cachedScaler;
         private ObjectFadeIn fadeInComponent;
         private static Camera _cachedMainCamera;
 

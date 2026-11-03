@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace OsuVR
@@ -56,7 +55,6 @@ namespace OsuVR
         Material _matHaloB;
         Material _matBaseRing;
         Material _matTopBand;
-        Material _matPlatformEdge;
         Transform _ring;
         Transform _outerRing;
 

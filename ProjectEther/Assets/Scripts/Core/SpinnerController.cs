@@ -70,7 +70,6 @@ namespace OsuVR
 
         // Bonus (奖励)
         private int bonusCount = 0;
-        private float bonusThreshold = 0f;
 
         private IObjectPool<GameObject> myPool;
 
@@ -159,7 +158,6 @@ namespace OsuVR
             currentVisualRotation = 0f;
             targetVisualRotation = 0f;
             bonusCount = 0;
-            bonusThreshold = angleRequirement + 360f;
             rotationDeltaAccumulator = 0f;
 
             handStates.Clear();

@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace OsuVR
@@ -372,29 +371,6 @@ namespace OsuVR
                 textSliderInfo.text = "";
             if (textSpinnerBonus != null)
                 textSpinnerBonus.text = "";
-        }
-
-        /// <summary>
-        /// 隐藏结算界面的动画
-        /// </summary>
-        private IEnumerator HideResultCoroutine()
-        {
-            float elapsed = 0f;
-            while (elapsed < fadeDuration)
-            {
-                elapsed += Time.deltaTime;
-                float t = 1f - (elapsed / fadeDuration);
-
-                if (canvasGroup != null)
-                    canvasGroup.alpha = t;
-                if (resultPanel != null)
-                    resultPanel.transform.localScale = originalPanelScale * t;
-
-                yield return null;
-            }
-
-            if (resultPanel != null)
-                resultPanel.SetActive(false);
         }
 
         /// <summary>

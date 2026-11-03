@@ -33,11 +33,11 @@ Material:
     - _Gain: 1
     - _MediaLoop: 0
     - _MediaPlaying: 1
-    - _MediaTime: 0.98823136
-    - _MediaVolume: 1
+    - _MediaTime: 0.98865336
+    - _MediaVolume: 0.8
     - _SourceDistance: 30.727812
     - _SourceSpatialBlend: 0
-    - _SourceVolume: 1
+    - _SourceVolume: 0.8
     - _ThemeColorMode: 0
     - _Threshold0: 0.45
     - _Threshold1: 0.45

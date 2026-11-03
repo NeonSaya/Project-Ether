@@ -165,15 +165,11 @@ namespace OsuVR
         private ParticleSystem.SizeOverLifetimeModule sizeOverLifetimeModule;
         private ParticleSystem.VelocityOverLifetimeModule velocityModule;
         private ParticleSystem.RotationOverLifetimeModule rotationModule;
-        private ParticleSystem.Particle[] particleBuffer;
-        private int bufferCapacity = 0;
 
         // Job System: Persistent NativeArray 粒子缓冲区
         private NativeArray<ParticleSystem.Particle> _particleNative;
         private bool _nativeInitialized = false;
         private SphereCollider triggerCollider;
-
-        private MaterialPropertyBlock mpb;
         private Material _runtimeMaterial; // 运行时创建的粒子材质（OnDestroy 释放）
         private ParticleSystemRenderer psRenderer;
         private Texture2D glowTexture;
@@ -187,16 +183,12 @@ namespace OsuVR
         private float kiaiBurstTimer = 0f;
 
         private bool isKiaiActive = false;
-        private bool wasKiaiActive = false;
         private RhythmGameManager rhythmGameManager;
 
         // 缓存 Gradient 避免 GC
         private Gradient cachedFadeGradient;
         private GradientAlphaKey[] cachedAlphaKeys;
         private GradientColorKey[] cachedColorKeys;
-
-        // 缓存当前 velocity y 值，用于 Lerp
-        private float currentVelocityY = 0.1f;
 
         // --- BPM 精准节拍驱动 ---
         private double nextBeatTimeMs = -1; // 下一拍的音乐时间（毫秒）
@@ -224,7 +216,6 @@ namespace OsuVR
 
             InitializeParticleSystem();
             InitializeGradientCache();
-            InitializeMaterialPropertyBlock();
 
             // 预分配 Persistent NativeArray (约束: 绝对禁止每帧 New/Dispose)
             _particleNative = new NativeArray<ParticleSystem.Particle>(
@@ -441,7 +432,6 @@ namespace OsuVR
 
         private void UpdateKiaiState()
         {
-            wasKiaiActive = isKiaiActive;
             isKiaiActive = false;
 
             if (rhythmGameManager == null || !rhythmGameManager.isPlaying)
@@ -487,7 +477,6 @@ namespace OsuVR
                 }
 
                 float currentSpeed = kiaiRiseSpeed + (mid * kiaiMidSpeedBonus);
-                currentVelocityY = currentSpeed;
 
                 velocityModule.enabled = true;
                 velocityModule.space = ParticleSystemSimulationSpace.World;
@@ -517,8 +506,6 @@ namespace OsuVR
             }
             else
             {
-                currentVelocityY = 0.1f;
-
                 velocityModule.space = ParticleSystemSimulationSpace.World;
                 velocityModule.x = new ParticleSystem.MinMaxCurve(-0.15f, 0.15f);
                 velocityModule.y = new ParticleSystem.MinMaxCurve(-0.05f, 0.2f);
@@ -594,27 +581,6 @@ namespace OsuVR
 
             // 3. 主线程: SetParticles 回写 (极其迅速)
             ps.SetParticles(_particleNative, count);
-        }
-
-        /// <summary>
-        /// 快速确定性哈希：将 uint 种子映射到 [0,1) 浮点数
-        /// </summary>
-        private static float HashToFloat(uint seed)
-        {
-            uint x = seed;
-            x ^= x << 13;
-            x ^= x >> 17;
-            x ^= x << 5;
-            return (float)(x & 0x7FFFFFFF) / (float)0x7FFFFFFF;
-        }
-
-        private void EnsureParticleBuffer(int particleCount)
-        {
-            if (particleBuffer == null || particleBuffer.Length < particleCount)
-            {
-                bufferCapacity = Mathf.Max(particleCount + 64, 256);
-                particleBuffer = new ParticleSystem.Particle[bufferCapacity];
-            }
         }
 
         // =========================================================
@@ -989,12 +955,6 @@ namespace OsuVR
             };
             cachedFadeGradient = new Gradient();
             cachedFadeGradient.SetKeys(cachedColorKeys, cachedAlphaKeys);
-        }
-
-        private void InitializeMaterialPropertyBlock()
-        {
-            mpb = new MaterialPropertyBlock();
-            psRenderer.GetPropertyBlock(mpb);
         }
 
         // =========================================================

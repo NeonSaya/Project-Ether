@@ -52,8 +52,6 @@ namespace OsuVR
         private const string PREF_KEY_SB_SCREEN_DISTANCE = "Settings_SBScreenDistance";
         private const string PREF_KEY_SB_SCREEN_ALPHA = "Settings_SBScreenAlpha";
 
-        private const int DEFAULT_TARGET_FPS = -1; // -1 = 不限制 (PC), 由 FrameRateUnlocker 处理 Android
-
         // =========================================================
         // 跨平台画质预设
         // =========================================================
@@ -459,11 +457,6 @@ namespace OsuVR
             if (linear <= 0.0001f)
                 return -80f;
             return 20f * Mathf.Log10(linear);
-        }
-
-        private float DecibelToLinear(float db)
-        {
-            return Mathf.Pow(10f, db / 20f);
         }
 
         #endregion

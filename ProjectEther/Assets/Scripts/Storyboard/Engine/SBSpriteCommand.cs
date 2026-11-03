@@ -29,32 +29,9 @@ namespace OsuVR.Storyboard.Engine
         }
 
         /// <summary>
-        /// 计算经过缓动后的归一化进度 [0,1]
-        /// </summary>
-        public float GetProgress(double time)
-        {
-            if (StartTime == EndTime)
-                return time < StartTime ? 0f : 1f;
-            if (time < StartTime)
-                return 0f;
-            if (time > EndTime)
-                return 1f;
-            return EasingMath.Interpolate(
-                Easing,
-                (float)((time - StartTime) / (EndTime - StartTime))
-            );
-        }
-
-        /// <summary>
         /// 创建时间偏移后的副本 (用于 Loop 展开)
         /// </summary>
         public abstract SBSpriteCommand CreateOffsetCommand(double offset);
-
-        /// <summary>
-        /// 创建 "hold" 命令：将 EndValue 保持在 [holdStart, holdEnd] 区间
-        /// 用于 Loop 展开优化——超出展开限制的迭代用 hold 覆盖
-        /// </summary>
-        public abstract SBSpriteCommand CreateHoldCommand(double holdStart, double holdEnd);
     }
 
     /// <summary>
@@ -93,18 +70,6 @@ namespace OsuVR.Storyboard.Engine
                 Sequence = Sequence,
             };
         }
-
-        public override SBSpriteCommand CreateHoldCommand(double holdStart, double holdEnd)
-        {
-            return new SBFloatCommand(
-                Target,
-                SBEasing.Linear,
-                holdStart,
-                holdEnd,
-                EndValue,
-                EndValue
-            );
-        }
     }
 
     /// <summary>
@@ -142,18 +107,6 @@ namespace OsuVR.Storyboard.Engine
             {
                 Sequence = Sequence,
             };
-        }
-
-        public override SBSpriteCommand CreateHoldCommand(double holdStart, double holdEnd)
-        {
-            return new SBColorCommand(
-                Target,
-                SBEasing.Linear,
-                holdStart,
-                holdEnd,
-                EndValue,
-                EndValue
-            );
         }
     }
 
@@ -200,23 +153,11 @@ namespace OsuVR.Storyboard.Engine
                 ResetSuppressed = ResetSuppressed,
             };
         }
-
-        public override SBSpriteCommand CreateHoldCommand(double holdStart, double holdEnd)
-        {
-            return new SBBoolCommand(
-                Target,
-                SBEasing.Linear,
-                holdStart,
-                holdEnd,
-                EndValue,
-                EndValue
-            );
-        }
     }
 
     /// <summary>
     /// Loop 容器命令 (对应 osu!droid CommandLoop)
-    /// 包含一个内层 CommandGroup，在 ToFlatGroup() 时展开为偏移后的普通命令
+    /// 保存内层 CommandGroup，由 SBTimelineFlattener 转换为扁平数据。
     /// </summary>
     public class SBLoopCommand : SBSpriteCommand
     {
@@ -242,11 +183,6 @@ namespace OsuVR.Storyboard.Engine
         public override SBSpriteCommand CreateOffsetCommand(double offset)
         {
             return new SBLoopCommand(StartTime + offset, LoopCount, InnerGroup);
-        }
-
-        public override SBSpriteCommand CreateHoldCommand(double holdStart, double holdEnd)
-        {
-            return null; // Loop 命令无需 hold
         }
     }
 }

@@ -523,12 +523,6 @@ namespace OsuVR
             pool.Release(item);
         }
 
-        // ================= 缓动函数库 =================
-        float EaseOutElastic(float x) =>
-            x == 0 ? 0
-            : x >= 1 ? 1
-            : Mathf.Pow(2, -10 * x) * Mathf.Sin((x * 10 - 0.75f) * ((2 * Mathf.PI) / 3)) + 1;
-
         float EaseOutBack(float x) =>
             1 + 2.70158f * Mathf.Pow(x - 1, 3) + 1.70158f * Mathf.Pow(x - 1, 2);
 

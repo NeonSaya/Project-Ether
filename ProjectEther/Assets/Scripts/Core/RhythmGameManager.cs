@@ -1,16 +1,13 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using OsuVR;
 using OsuVR.Storyboard;
 using OsuVR.Storyboard.Data;
 using Unity.Collections;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
-using UnityEngine.UI;
 
 namespace OsuVR
 {
@@ -160,7 +157,6 @@ namespace OsuVR
 
         // 音符核心数据 (SoA 设计, Allocator.Persistent)
         NativeArray<double> _noteSpawnTimes; // 每个音符的 spawn 时间
-        NativeArray<int> _noteTypes; // 0=Circle (圆圈), 1=Slider (滑条), 2=Spinner (转盘)
         NativeArray<double> _noteStartTimes; // 每个音符的 StartTime
         bool _noteDataInitialized = false;
 
@@ -319,9 +315,6 @@ namespace OsuVR
                 SpawnNotes();
                 CheckGameEnd();
             }
-
-            // 更新调试信息
-            UpdateDebugInfo();
         }
 
         /// <summary>
@@ -1151,22 +1144,14 @@ namespace OsuVR
 
             // 1. 创建 SoA NativeArray (Allocator.Persistent)
             _noteSpawnTimes = new NativeArray<double>(count, Allocator.Persistent);
-            _noteTypes = new NativeArray<int>(count, Allocator.Persistent);
             _noteStartTimes = new NativeArray<double>(count, Allocator.Persistent);
 
-            // 2. 填充 spawn times + types (主线程: 访问 OOP 数据)
+            // 2. 填充生成时间与开始时间（主线程访问 OOP 数据）
             for (int i = 0; i < count; i++)
             {
                 var obj = hitObjects[i];
                 _noteSpawnTimes[i] = obj.StartTime - obj.TimePreempt;
                 _noteStartTimes[i] = obj.StartTime;
-
-                if (obj is SpinnerObject)
-                    _noteTypes[i] = 2;
-                else if (obj is SliderObject)
-                    _noteTypes[i] = 1;
-                else
-                    _noteTypes[i] = 0;
             }
 
             _noteDataInitialized = true;
@@ -1177,8 +1162,6 @@ namespace OsuVR
         {
             if (_noteSpawnTimes.IsCreated)
                 _noteSpawnTimes.Dispose();
-            if (_noteTypes.IsCreated)
-                _noteTypes.Dispose();
             if (_noteStartTimes.IsCreated)
                 _noteStartTimes.Dispose();
             _noteDataInitialized = false;
@@ -1882,15 +1865,6 @@ namespace OsuVR
 
             activeNoteObjects.Clear();
             activeNotes = 0;
-        }
-
-        /// <summary>
-        /// 更新调试信息
-        /// </summary>
-        private void UpdateDebugInfo()
-        {
-            // 这里可以添加更多调试信息
-            // 例如显示在UI上
         }
 
         /// <summary>
