@@ -499,7 +499,6 @@ namespace OsuVR
             PlaySelectedPreview();
             Debug.Log($"[SimpleSongSelection] 切换难度: {diff.Version}");
             UpdateInfoPanel(diff);
-            UpdateStatsWithMods();
 
             if (sfxSource != null && selectSound != null)
                 sfxSource.PlayOneShot(selectSound);
@@ -580,6 +579,9 @@ namespace OsuVR
                         : mapData.Version;
                     difficultyText.text = $"{diffName} ▼";
                 }
+
+                // 切歌、切难度和语言刷新都重新应用 Mod，避免基础数值覆盖等效 AR。
+                UpdateStatsWithMods();
             }
             catch (System.Exception e)
             {
@@ -612,7 +614,7 @@ namespace OsuVR
             float origHp = selectedDifficulty.HPDrainRate;
 
             float cs = origCs;
-            float ar = origAr;
+            float ar = new ModEffectsApplier(mods).GetEffectiveAR(origAr);
             float od = origOd;
             float hp = origHp;
 
@@ -622,14 +624,12 @@ namespace OsuVR
             if (hasHR)
             {
                 cs = Mathf.Min(cs * 1.3f, 10f);
-                ar = Mathf.Min(ar * 1.4f, 10f);
                 od = Mathf.Min(od * 1.4f, 10f);
                 hp = Mathf.Min(hp * 1.4f, 10f);
             }
             else if (hasEZ)
             {
                 cs = cs * 0.5f;
-                ar = ar * 0.5f;
                 od = od * 0.5f;
                 hp = hp * 0.5f;
             }
@@ -647,8 +647,13 @@ namespace OsuVR
                 }
                 if (arText != null)
                 {
-                    arText.text = ar.ToString("F1");
-                    arText.color = hasHR ? increasedColor : (hasEZ ? decreasedColor : normalColor);
+                    arText.text = ar.ToString(
+                        "F1",
+                        System.Globalization.CultureInfo.InvariantCulture
+                    );
+                    arText.color = Mathf.Approximately(ar, origAr)
+                        ? normalColor
+                        : (ar > origAr ? increasedColor : decreasedColor);
                 }
                 if (odText != null)
                 {

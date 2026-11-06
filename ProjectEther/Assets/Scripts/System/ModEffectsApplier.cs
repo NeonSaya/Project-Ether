@@ -230,8 +230,8 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 获取修改后的 Approach Rate
-        /// 上限为 10
+        /// 获取 HR/EZ 修改后的基础 Approach Rate，上限为 10。
+        /// 不含速度倍率；用于谱面时钟下的预判时间计算。
         /// </summary>
         public float GetModifiedAR(float baseAR)
         {
@@ -239,21 +239,25 @@ namespace OsuVR
         }
 
         /// <summary>
-        /// 获取修改后的预判时间 (毫秒)
-        /// 基于 AR 计算：AR<5 时 1200+120*(5-AR)，AR>=5 时 1200-150*(AR-5)
+        /// 获取谱面时钟下的预判时间（毫秒）。
+        /// DT/HT 已由音乐时钟统一加速/减速，此处不再除以速度倍率。
         /// </summary>
         public double GetModifiedTimePreempt(float baseAR)
         {
-            float modifiedAR = GetModifiedAR(baseAR);
+            return RhythmGameManager.CalculateTimePreempt(GetModifiedAR(baseAR));
+        }
 
-            if (modifiedAR < 5)
-            {
-                return 1200 + 120 * (5 - modifiedAR);
-            }
-            else
-            {
-                return 1200 - 150 * (modifiedAR - 5);
-            }
+        /// <summary>
+        /// 获取真实时间下的等效 AR，仅用于显示，不回写谱面时序。
+        /// 先应用 HR/EZ，再按 DT/HT 换算预判时间并反求 AR，不限制在 0~10。
+        /// 例如 AR10 + DT：450 / 1.5 = 300ms，对应 AR11。
+        /// </summary>
+        public float GetEffectiveAR(float baseAR)
+        {
+            double timePreempt = GetModifiedTimePreempt(baseAR) / SpeedMultiplier;
+            return (float)(
+                timePreempt > 1200 ? 5 - (timePreempt - 1200) / 120 : 5 + (1200 - timePreempt) / 150
+            );
         }
 
         // =========================================================
