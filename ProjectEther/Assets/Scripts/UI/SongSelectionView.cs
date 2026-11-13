@@ -11,6 +11,11 @@ namespace OsuVR
     public sealed class SongSelectionView : MonoBehaviour
     {
         private SimpleSongSelection owner;
+        private SongSelectionBackground background;
+        public bool HasFullBackground => background != null;
+
+        public void SetBackground(string path) => background?.SetPath(path);
+
         private TMP_FontAsset font;
         private TMP_InputField search;
         private TextMeshProUGUI count;
@@ -49,8 +54,21 @@ namespace OsuVR
 
             var background = left.parent.GetComponent<Image>();
             if (background != null)
-                background.color = SongSelectionStyle.Background;
-            SongSelectionStyle.Fill(left, SongSelectionStyle.Panel);
+            {
+                background.color = Color.clear;
+                background.raycastTarget = false;
+            }
+            var backgroundRoot = SongSelectionStyle.Rect(
+                left.parent,
+                "SongSelectionBackground",
+                0,
+                0,
+                1200,
+                800
+            );
+            this.background = backgroundRoot.gameObject.AddComponent<SongSelectionBackground>();
+            this.background.Build();
+            SongSelectionStyle.Fill(left, Color.clear);
             var title = left.Find("Title").GetComponent<TextMeshProUGUI>();
             SongSelectionStyle.Place(title.rectTransform, 14, 8, 350, 38);
             SongSelectionStyle.ConfigureText(title, 24);
@@ -120,7 +138,22 @@ namespace OsuVR
             scrollRect.anchorMax = Vector2.one;
             scrollRect.offsetMin = new Vector2(12, 60);
             scrollRect.offsetMax = new Vector2(-12, -180);
-            SongSelectionStyle.Fill(scrollRect, SongSelectionStyle.Panel, true);
+            SongSelectionStyle.Fill(scrollRect, Color.clear, true);
+            var viewportImage = scroll.viewport.GetComponent<Image>();
+            if (viewportImage != null)
+            {
+                var stencilMask = scroll.viewport.GetComponent<Mask>();
+                if (stencilMask != null)
+                {
+                    // 模板遮罩仍需不透明几何写入模板；只隐藏颜色，不抹掉裁剪覆盖率。
+                    viewportImage.color = Color.white;
+                    stencilMask.showMaskGraphic = false;
+                }
+                else
+                {
+                    viewportImage.color = Color.clear;
+                }
+            }
             SongSelectionStyle.AddScrollbar(scroll, "SongLibraryScrollbar");
             var listLayout = owner.listContent.GetComponent<VerticalLayoutGroup>();
             if (listLayout != null)
@@ -415,7 +448,7 @@ namespace OsuVR
 
         private void StyleDetails(RectTransform info)
         {
-            SongSelectionStyle.Fill(info, SongSelectionStyle.Panel);
+            SongSelectionStyle.Fill(info, Color.clear);
             var header = info.Find("HeaderBar");
             if (header != null)
                 header.gameObject.SetActive(false);
@@ -424,15 +457,12 @@ namespace OsuVR
                 var fitter = owner.backgroundImage.GetComponent<AspectRatioFitter>();
                 if (fitter != null)
                     fitter.enabled = false;
-                SongSelectionStyle.Place(owner.backgroundImage.rectTransform, 0, 0, 750, 202);
                 owner.backgroundImage.raycastTarget = false;
-                var backing = SongSelectionStyle.Rect(info, "TitleBacking", 0, 92, 750, 110);
-                SongSelectionStyle.Fill(backing, new Color(0.07f, 0.085f, 0.14f, 0.94f));
-                backing.SetSiblingIndex(owner.backgroundImage.transform.GetSiblingIndex() + 1);
+                owner.backgroundImage.gameObject.SetActive(false);
             }
-            SongSelectionStyle.Place(owner.titleText.rectTransform, 24, 100, 702, 54);
+            SongSelectionStyle.Place(owner.titleText.rectTransform, 24, 16, 702, 54);
             SongSelectionStyle.ConfigureText(owner.titleText, 28);
-            SongSelectionStyle.Place(owner.artistText.rectTransform, 24, 158, 546, 34);
+            SongSelectionStyle.Place(owner.artistText.rectTransform, 24, 72, 546, 34);
             SongSelectionStyle.ConfigureText(owner.artistText, 18);
             owner.artistText.color = SongSelectionStyle.Muted;
             selectedFavorite = LocalButton(
@@ -441,13 +471,14 @@ namespace OsuVR
                 "ui_library_favorite_add",
                 owner.ToggleSelectedFavorite,
                 590,
-                156,
+                70,
                 136,
                 40,
                 14
             );
             var stats = (RectTransform)info.Find("StatsContainer");
-            SongSelectionStyle.Place(stats, 24, 216, 702, 80);
+            SongSelectionStyle.Place(stats, 24, 156, 702, 80);
+            SongSelectionStyle.Fill(stats, SongSelectionStyle.Control);
             var horizontal = stats.GetComponent<HorizontalLayoutGroup>();
             if (horizontal != null)
                 horizontal.enabled = false;
@@ -464,7 +495,7 @@ namespace OsuVR
                 if (cellFitter != null)
                     cellFitter.enabled = false;
                 SongSelectionStyle.Place((RectTransform)cell, statIndex++ * 142, 0, 134, 80);
-                SongSelectionStyle.Fill((RectTransform)cell, SongSelectionStyle.Control);
+                SongSelectionStyle.Fill((RectTransform)cell, Color.clear);
                 var label = cell.Find("Label").GetComponent<TextMeshProUGUI>();
                 var value = cell.Find("Value").GetComponent<TextMeshProUGUI>();
                 SongSelectionStyle.Place(label.rectTransform, 4, 2, 120, 28);
@@ -478,11 +509,11 @@ namespace OsuVR
                 value.rectTransform.sizeDelta = new Vector2(-8, 44);
                 SongSelectionStyle.ConfigureText(value, 24, TextAlignmentOptions.Center);
             }
-            PlaceDivider(info.Find("Divider1"), 208);
-            PlaceDivider(info.Find("Divider2"), 308);
+            PlaceDivider(info.Find("Divider1"), 146);
+            PlaceDivider(info.Find("Divider2"), 248);
             var selector = (RectTransform)owner.difficultyText.transform.parent;
-            SongSelectionStyle.Place(selector, 24, 320, 702, 36);
-            SongSelectionStyle.Fill(selector, SongSelectionStyle.Panel);
+            SongSelectionStyle.Place(selector, 24, 258, 702, 36);
+            SongSelectionStyle.Fill(selector, Color.clear);
             SongSelectionStyle.Place(owner.difficultyText.rectTransform, 174, 0, 528, 36);
             SongSelectionStyle.ConfigureText(
                 owner.difficultyText,
@@ -497,21 +528,21 @@ namespace OsuVR
                 (RectTransform)owner.difficultyDropdownContainer,
                 "Difficulty",
                 24,
-                366,
+                306,
                 702,
-                210,
+                270,
                 new Vector2(334, 44)
             );
             owner.difficultyDropdownContainer = difficultyScroll.content;
             metadata = SongSelectionStyle.Label(info, "MapMetadata", font, 14);
-            SongSelectionStyle.Place(metadata.rectTransform, 24, 584, 702, 28);
+            SongSelectionStyle.Place(metadata.rectTransform, 24, 114, 702, 28);
             metadata.color = SongSelectionStyle.Muted;
         }
 
         private void StyleMods()
         {
             var panel = (RectTransform)owner.modPanel.transform;
-            SongSelectionStyle.Fill(panel, SongSelectionStyle.Panel);
+            SongSelectionStyle.Fill(panel, Color.clear);
             var header = panel.Find("HeaderBar");
             if (header != null)
                 header.gameObject.SetActive(false);
@@ -571,7 +602,7 @@ namespace OsuVR
             viewport.anchorMax = Vector2.one;
             viewport.offsetMin = viewport.offsetMax = Vector2.zero;
             viewport.gameObject.AddComponent<RectMask2D>();
-            SongSelectionStyle.Fill(viewport, SongSelectionStyle.Panel, true);
+            SongSelectionStyle.Fill(viewport, Color.clear, true);
             var content = SongSelectionStyle.Rect(viewport, name + "Content", 0, 0, width - 24, 0);
             content.anchorMin = new Vector2(0, 1);
             content.anchorMax = new Vector2(1, 1);
@@ -598,6 +629,10 @@ namespace OsuVR
 
         private void StyleActions()
         {
+            var panel = (RectTransform)owner.playButton.transform.parent.parent;
+            var panelImage = panel.GetComponent<Image>();
+            if (panelImage != null)
+                panelImage.color = Color.clear;
             SongSelectionStyle.ConfigureButton(owner.backMenuButton, SongSelectionStyle.Control);
             SongSelectionStyle.ConfigureButton(owner.openModButton, SongSelectionStyle.Control);
             SongSelectionStyle.ConfigureButton(owner.playButton, SongSelectionStyle.Pink);
@@ -764,6 +799,11 @@ namespace OsuVR
 
         private void RefreshBackground()
         {
+            if (background != null)
+            {
+                background.RefreshUVs();
+                return;
+            }
             var image = owner.backgroundImage;
             if (image == null || image.texture == null)
                 return;

@@ -736,6 +736,12 @@ namespace OsuVR
 
         void LoadBackgroundImage(string backgroundPath)
         {
+            if (libraryView != null && libraryView.HasFullBackground)
+            {
+                runtimeBackgroundPath = backgroundPath;
+                libraryView.SetBackground(backgroundPath);
+                return;
+            }
             if (backgroundImage == null)
                 return;
             runtimeBackgroundPath = backgroundPath;
