@@ -30,6 +30,22 @@ namespace OsuVR
         public bool ShouldRetry { get; set; } = false;
 
         // =========================================================
+        // 选歌浏览状态：仅在本次运行内保留，不与游玩/重试路径混用
+        // =========================================================
+
+        /// <summary>上次选中的难度文件路径。</summary>
+        public string SongSelectionBeatmapPath { get; set; }
+
+        /// <summary>上次选中的谱面目录，用于原难度删除后的回退。</summary>
+        public string SongSelectionFolderPath { get; set; }
+
+        /// <summary>列表的归一化滚动位置，1 表示顶部。</summary>
+        public float SongSelectionScrollPosition { get; set; } = 1f;
+
+        /// <summary>本次运行的搜索、排序和筛选条件。</summary>
+        public SongLibraryQuery SongSelectionQuery { get; } = new SongLibraryQuery();
+
+        // =========================================================
         // Mod 系统
         // =========================================================
 

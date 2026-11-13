@@ -65,6 +65,29 @@ namespace OsuVR
         private List<GameObject> difficultyButtons = new List<GameObject>();
         private readonly List<SongItemView> songItemViews = new List<SongItemView>();
         private SongItemView currentSelectedView = null;
+        private bool songListInitialized;
+        private bool restoringScrollPosition;
+        private float pendingScrollPosition;
+        private bool selectionHiddenByQuery;
+        private SongFavoritesStore favoritesStore;
+        private SongSelectionView libraryView;
+        private bool refreshQueryOnEnable;
+        private string runtimeBackgroundPath;
+
+        public SongLibraryQuery LibraryQuery
+        {
+            get
+            {
+                EnsureGameContext();
+                return GameContext.Instance.SongSelectionQuery;
+            }
+        }
+
+        private SongFavoritesStore Favorites =>
+            favoritesStore ??= new SongFavoritesStore(
+                BeatmapImporter.SongsDirectory,
+                System.IO.Path.Combine(Application.persistentDataPath, "song_favorites.json")
+            );
 
         [Header("滚动按钮")]
         public Button scrollUpButton;
@@ -80,15 +103,15 @@ namespace OsuVR
             BeatmapImporter.PullPendingImports();
             BeatmapImporter.ImportNewOszFiles();
 
-            if (listContent != null)
-            {
-                cachedScrollRect = listContent.GetComponentInParent<ScrollRect>();
-            }
-
+            SetupButtonReferences();
+            EnsureGameContext();
+            libraryView =
+                GetComponent<SongSelectionView>() ?? gameObject.AddComponent<SongSelectionView>();
+            libraryView.Build(this);
             RefreshSongList();
+            BeatmapImporter.HasNewImport = false;
             GenerateModButtons();
 
-            SetupButtonReferences();
             SetupButtonListeners();
 
             if (modPanel != null)
@@ -104,8 +127,9 @@ namespace OsuVR
         void OnEnable()
         {
             LocalizationManager.OnLanguageChanged += OnLanguageChanged;
-            if (selectedDifficulty != null)
-                PlaySelectedPreview();
+            // 首次启用时由 Start 统一导入和建表，避免在引用接线前重复刷新。
+            if (!songListInitialized)
+                return;
 
             // 从设置返回时，检测是否有新歌曲导入并刷新列表
             if (BeatmapImporter.HasNewImport)
@@ -115,13 +139,90 @@ namespace OsuVR
                 RefreshSongList();
                 Debug.Log("[SimpleSongSelection] 检测到新导入，歌曲列表已刷新");
             }
+            else if (refreshQueryOnEnable)
+            {
+                ApplyLibraryQuery(true);
+            }
+            else if (selectedDifficulty != null)
+            {
+                PlaySelectedPreview();
+            }
+            refreshQueryOnEnable = false;
         }
 
         void OnDisable()
         {
+            string pending = libraryView?.TakePendingSearch();
+            if (pending != null && GameContext.Instance != null)
+            {
+                GameContext.Instance.SongSelectionQuery.SearchText = pending;
+                GameContext.Instance.SongSelectionScrollPosition = 1f;
+                pendingScrollPosition = 1f;
+                restoringScrollPosition = true;
+                refreshQueryOnEnable = true;
+            }
+            SaveSongSelectionState();
             LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
             if (songPreviewPlayer != null)
                 songPreviewPlayer.StopPreview();
+        }
+
+        void OnDestroy()
+        {
+            if (cachedScrollRect != null)
+                cachedScrollRect.onValueChanged.RemoveListener(OnSongListScrolled);
+        }
+
+        void LateUpdate()
+        {
+            if (!restoringScrollPosition)
+                return;
+
+            // 条目高度与 ContentSizeFitter 更新后再定位，避免首帧被布局重置到顶部。
+            Canvas.ForceUpdateCanvases();
+            if (listContent is RectTransform contentRect)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(contentRect);
+            if (cachedScrollRect != null)
+            {
+                cachedScrollRect.StopMovement();
+                cachedScrollRect.verticalNormalizedPosition = pendingScrollPosition;
+            }
+            restoringScrollPosition = false;
+        }
+
+        private void CacheScrollRect()
+        {
+            var scrollRect = listContent.GetComponentInParent<ScrollRect>();
+            if (cachedScrollRect == scrollRect)
+                return;
+            if (cachedScrollRect != null)
+                cachedScrollRect.onValueChanged.RemoveListener(OnSongListScrolled);
+            cachedScrollRect = scrollRect;
+            if (cachedScrollRect != null)
+                cachedScrollRect.onValueChanged.AddListener(OnSongListScrolled);
+        }
+
+        private void OnSongListScrolled(Vector2 position)
+        {
+            if (songListInitialized && !restoringScrollPosition && GameContext.Instance != null)
+                GameContext.Instance.SongSelectionScrollPosition = Mathf.Clamp01(position.y);
+        }
+
+        private void SaveSongSelectionState()
+        {
+            if (!songListInitialized || GameContext.Instance == null)
+                return;
+
+            var context = GameContext.Instance;
+            if (!selectionHiddenByQuery)
+            {
+                context.SongSelectionBeatmapPath = selectedDifficulty?.OsuFilePath;
+                context.SongSelectionFolderPath = selectedSet?.FolderPath;
+            }
+            if (!restoringScrollPosition && cachedScrollRect != null)
+                context.SongSelectionScrollPosition = Mathf.Clamp01(
+                    cachedScrollRect.verticalNormalizedPosition
+                );
         }
 
         private void PlaySelectedPreview()
@@ -155,7 +256,10 @@ namespace OsuVR
 
             foreach (var text in allTexts)
             {
-                if (mapping.TryGetValue(text.text, out string key))
+                // 曲目标题是动态内容，由选曲与语言刷新负责，不能被占位文案覆盖。
+                if (text == titleText)
+                    continue;
+                if (text.text != null && mapping.TryGetValue(text.text, out string key))
                 {
                     if (text.GetComponent<LocalizedText>() == null)
                     {
@@ -170,9 +274,19 @@ namespace OsuVR
         {
             UpdateToggleModsButtonText();
             UpdateModDisplay();
+            libraryView?.RefreshLanguage();
+            if (songListInitialized)
+            {
+                ApplyLibraryQuery(false);
+                return;
+            }
             if (selectedDifficulty != null)
             {
                 UpdateInfoPanel(selectedDifficulty);
+            }
+            else if (titleText != null)
+            {
+                titleText.text = LocalizationManager.GetText("ui_select_beatmap");
             }
             if (selectedSet != null)
             {
@@ -325,25 +439,77 @@ namespace OsuVR
                 return;
             }
 
+            RebuildSongList(SongMetaLoader.ScanSongFolderGrouped());
+        }
+
+        private void RebuildSongList(List<BeatmapSet> sets)
+        {
+            EnsureGameContext();
+            CacheScrollRect();
+            SaveSongSelectionState();
+            beatmapSets = sets;
+            RenderLibrary(false, true);
+        }
+
+        private void ApplyLibraryQuery(bool resetScroll)
+        {
+            if (!songListInitialized)
+                return;
+            SaveSongSelectionState();
+            RenderLibrary(resetScroll, false);
+        }
+
+        private void RenderLibrary(bool resetScroll, bool closeMods)
+        {
+            var context = GameContext.Instance;
+            string beatmapPath = context.SongSelectionBeatmapPath;
+            string folderPath = context.SongSelectionFolderPath;
+            pendingScrollPosition = resetScroll ? 1f : context.SongSelectionScrollPosition;
+            context.SongSelectionScrollPosition = pendingScrollPosition;
+            restoringScrollPosition = true;
+            selectionHiddenByQuery = false;
+
+            // 先用全库验证目标是否仍存在，筛选暂时隐藏曲目时保留它的恢复书签。
+            BeatmapMetadata remembered = null;
+            if (!string.IsNullOrEmpty(beatmapPath))
+            {
+                foreach (var set in beatmapSets)
+                {
+                    remembered = set.Difficulties.Find(diff => diff.OsuFilePath == beatmapPath);
+                    if (remembered == null && set.FolderPath == folderPath)
+                        remembered = set.GetDefaultDifficulty();
+                    if (remembered != null)
+                        break;
+                }
+            }
+            context.SongSelectionBeatmapPath = remembered?.OsuFilePath;
+            context.SongSelectionFolderPath = remembered?.FolderPath;
+            beatmapPath = remembered?.OsuFilePath;
+            folderPath = remembered?.FolderPath;
+
             foreach (Transform child in listContent)
             {
+                // Destroy 延迟到帧末，先停用旧条目，使本帧布局只计算新列表。
+                child.gameObject.SetActive(false);
                 Destroy(child.gameObject);
             }
 
             songItemViews.Clear();
             currentSelectedView = null;
 
-            beatmapSets = SongMetaLoader.ScanSongFolderGrouped();
+            songListInitialized = true;
+            bool originalLanguage =
+                SettingsManager.Instance != null
+                && SettingsManager.Instance.Settings != null
+                && SettingsManager.Instance.Settings.displayOriginalLanguage;
+            var visibleSets = LibraryQuery.Apply(beatmapSets, IsFavorite, originalLanguage);
 
             if (beatmapSets.Count == 0)
             {
                 Debug.LogWarning("[SimpleSongSelection] 未找到歌曲");
-                return;
             }
 
-            Debug.Log($"[SimpleSongSelection] 找到 {beatmapSets.Count} 个 BeatmapSet");
-
-            foreach (var set in beatmapSets)
+            foreach (var set in visibleSets)
             {
                 GameObject obj = Instantiate(songItemPrefab, listContent);
                 obj.transform.localScale = Vector3.one;
@@ -359,6 +525,11 @@ namespace OsuVR
                         set.Difficulties.Count,
                         (meta) => OnBeatmapSetSelected(set)
                     );
+                    view.ConfigureLibraryRow(
+                        IsFavorite(set.FolderPath),
+                        () => ToggleFavorite(set.FolderPath),
+                        titleText != null ? titleText.font : null
+                    );
                     songItemViews.Add(view);
                 }
                 else
@@ -366,12 +537,123 @@ namespace OsuVR
                     Debug.LogWarning($"[SimpleSongSelection] 预制体缺少 SongItemView 组件");
                 }
             }
+
+            libraryView?.RefreshLibrary(visibleSets.Count, beatmapSets.Count);
+            foreach (var set in visibleSets)
+            {
+                var difficulty = set.Difficulties.Find(diff => diff.OsuFilePath == beatmapPath);
+                if (difficulty == null && set.FolderPath == folderPath && folderPath != null)
+                    difficulty = set.GetDefaultDifficulty();
+                if (difficulty == null || string.IsNullOrEmpty(beatmapPath))
+                    continue;
+
+                SelectBeatmap(set, difficulty, false, closeMods);
+                return;
+            }
+
+            selectionHiddenByQuery = remembered != null;
+            ClearSelection();
+            SaveSongSelectionState();
+        }
+
+        public void SetSearch(string value)
+        {
+            libraryView?.TakePendingSearch();
+            LibraryQuery.SearchText = value ?? "";
+            ApplyLibraryQuery(true);
+        }
+
+        private void CommitPendingSearch()
+        {
+            string value = libraryView?.TakePendingSearch();
+            if (value != null)
+                LibraryQuery.SearchText = value;
+        }
+
+        public void SetSort(SongSortMode mode, bool descending)
+        {
+            CommitPendingSearch();
+            LibraryQuery.SortMode = mode;
+            LibraryQuery.Descending = descending;
+            ApplyLibraryQuery(true);
+        }
+
+        public void SetFavoritesOnly(bool value)
+        {
+            CommitPendingSearch();
+            LibraryQuery.FavoritesOnly = value;
+            ApplyLibraryQuery(true);
+        }
+
+        public void SetBpmRange(SongBpmRange value)
+        {
+            CommitPendingSearch();
+            LibraryQuery.BpmRange = value;
+            ApplyLibraryQuery(true);
+        }
+
+        public void SetLengthRange(SongLengthRange value)
+        {
+            CommitPendingSearch();
+            LibraryQuery.LengthRange = value;
+            ApplyLibraryQuery(true);
+        }
+
+        public void SetApproachRange(SongApproachRange value)
+        {
+            CommitPendingSearch();
+            LibraryQuery.ApproachRange = value;
+            ApplyLibraryQuery(true);
+        }
+
+        public void ClearLibraryFilters()
+        {
+            libraryView?.TakePendingSearch();
+            LibraryQuery.ClearFilters();
+            ApplyLibraryQuery(true);
+        }
+
+        public bool IsFavorite(string folderPath) => Favorites.IsFavorite(folderPath);
+
+        public void ToggleSelectedFavorite()
+        {
+            if (selectedDifficulty != null)
+                ToggleFavorite(selectedDifficulty.FolderPath);
+        }
+
+        public void ToggleFavorite(string folderPath)
+        {
+            if (!Favorites.TryToggle(folderPath))
+            {
+                ShowToast(LocalizationManager.GetText("ui_library_favorite_failed"));
+                return;
+            }
+            if (LibraryQuery.FavoritesOnly)
+                ApplyLibraryQuery(false);
+            else
+            {
+                foreach (var view in songItemViews)
+                    if (view != null)
+                        view.SetFavorite(IsFavorite(view.Metadata.FolderPath));
+                libraryView?.RefreshSelected(selectedDifficulty);
+            }
         }
 
         void OnBeatmapSetSelected(BeatmapSet set)
         {
+            SelectBeatmap(set, set.GetDefaultDifficulty(), true);
+        }
+
+        private void SelectBeatmap(
+            BeatmapSet set,
+            BeatmapMetadata difficulty,
+            bool playSound,
+            bool closeMods = true
+        )
+        {
+            selectionHiddenByQuery = false;
             selectedSet = set;
-            selectedDifficulty = set.GetDefaultDifficulty();
+            selectedDifficulty = difficulty;
             PlaySelectedPreview();
 
             UpdateSelectionHighlight(set);
@@ -380,17 +662,58 @@ namespace OsuVR
                 $"[SimpleSongSelection] 选中 BeatmapSet: {set.Title} ({set.Difficulties.Count} 个难度)"
             );
 
-            if (sfxSource != null && selectSound != null)
+            if (playSound && sfxSource != null && selectSound != null)
                 sfxSource.PlayOneShot(selectSound);
 
-            LoadBackgroundImage(set.BackgroundPath);
+            if (
+                closeMods
+                || runtimeBackgroundPath != set.BackgroundPath
+                || _runtimeBgTexture == null
+            )
+                LoadBackgroundImage(set.BackgroundPath);
             UpdateInfoPanel(selectedDifficulty);
             GenerateDifficultyButtons(set);
+            if (playButton != null)
+                playButton.interactable = true;
+            SaveSongSelectionState();
 
-            if (isModPanelActive)
+            if (isModPanelActive && closeMods)
             {
                 ToggleModPanel();
             }
+        }
+
+        private void ClearSelection()
+        {
+            selectedSet = null;
+            selectedDifficulty = null;
+            ClearDifficultyButtons();
+            if (songPreviewPlayer != null)
+                songPreviewPlayer.StopPreview();
+            LoadBackgroundImage(null);
+            if (backgroundImage != null)
+                backgroundImage.texture = null;
+            if (playButton != null)
+                playButton.interactable = false;
+            if (titleText != null)
+                titleText.text = LocalizationManager.GetText("ui_select_beatmap");
+            foreach (
+                var text in new[]
+                {
+                    artistText,
+                    csText,
+                    arText,
+                    odText,
+                    hpText,
+                    lengthText,
+                    difficultyText,
+                }
+            )
+            {
+                if (text != null)
+                    text.text = "-";
+            }
+            libraryView?.RefreshSelected(null);
         }
 
         void UpdateSelectionHighlight(BeatmapSet set)
@@ -402,11 +725,7 @@ namespace OsuVR
 
             foreach (var view in songItemViews)
             {
-                if (
-                    view.Metadata != null
-                    && view.Metadata.Title == set.Title
-                    && view.Metadata.Artist == set.Artist
-                )
+                if (view.Metadata != null && view.Metadata.FolderPath == set.FolderPath)
                 {
                     view.SetSelected(true);
                     currentSelectedView = view;
@@ -419,6 +738,7 @@ namespace OsuVR
         {
             if (backgroundImage == null)
                 return;
+            runtimeBackgroundPath = backgroundPath;
 
             // 释放上一张运行时背景纹理，防止浏览谱面时显存无限泄漏（一体机 OOM）
             if (_runtimeBgTexture != null)
@@ -433,6 +753,8 @@ namespace OsuVR
                 _runtimeBgTexture = bgTex;
                 backgroundImage.texture = bgTex;
                 backgroundImage.color = new Color(1f, 1f, 1f, 0.12f);
+                if (libraryView != null)
+                    backgroundImage.color = new Color(1f, 1f, 1f, 0.23f);
                 backgroundImage.gameObject.SetActive(true);
             }
             else
@@ -446,12 +768,7 @@ namespace OsuVR
             if (difficultyDropdownContainer == null)
                 return;
 
-            foreach (var btn in difficultyButtons)
-            {
-                if (btn != null)
-                    Destroy(btn);
-            }
-            difficultyButtons.Clear();
+            ClearDifficultyButtons();
 
             foreach (var diff in set.Difficulties)
             {
@@ -486,11 +803,25 @@ namespace OsuVR
                 btn.onClick.AddListener(() => OnDifficultySelected(capturedDiff));
 
                 difficultyButtons.Add(btnObj);
+                libraryView?.ConfigureDifficulty(btn, diff == selectedDifficulty);
             }
 
             LayoutRebuilder.ForceRebuildLayoutImmediate(
                 difficultyDropdownContainer as RectTransform
             );
+        }
+
+        private void ClearDifficultyButtons()
+        {
+            foreach (var btn in difficultyButtons)
+            {
+                if (btn != null)
+                {
+                    btn.SetActive(false);
+                    Destroy(btn);
+                }
+            }
+            difficultyButtons.Clear();
         }
 
         void OnDifficultySelected(BeatmapMetadata diff)
@@ -499,6 +830,13 @@ namespace OsuVR
             PlaySelectedPreview();
             Debug.Log($"[SimpleSongSelection] 切换难度: {diff.Version}");
             UpdateInfoPanel(diff);
+            SaveSongSelectionState();
+            if (libraryView != null && selectedSet != null)
+                for (int i = 0; i < difficultyButtons.Count; i++)
+                    libraryView.ConfigureDifficulty(
+                        difficultyButtons[i].GetComponent<Button>(),
+                        selectedSet.Difficulties[i] == diff
+                    );
 
             if (sfxSource != null && selectSound != null)
                 sfxSource.PlayOneShot(selectSound);
@@ -577,7 +915,7 @@ namespace OsuVR
                     string diffName = string.IsNullOrEmpty(mapData.Version)
                         ? LocalizationManager.GetText("ui_normal")
                         : mapData.Version;
-                    difficultyText.text = $"{diffName} ▼";
+                    difficultyText.text = diffName;
                 }
 
                 // 切歌、切难度和语言刷新都重新应用 Mod，避免基础数值覆盖等效 AR。
@@ -598,6 +936,7 @@ namespace OsuVR
                 if (lengthText != null)
                     lengthText.text = "-";
             }
+            libraryView?.RefreshSelected(mapData);
         }
 
         void UpdateStatsWithMods()
@@ -784,6 +1123,8 @@ namespace OsuVR
                     {
                         img.color = inactiveColor;
                     }
+                    if (libraryView != null)
+                        libraryView.ConfigureMod(img.GetComponent<ModButtonController>(), isActive);
                 }
             }
 
@@ -815,6 +1156,7 @@ namespace OsuVR
             }
 
             UpdateToggleModsButtonText();
+            libraryView?.PanelChanged();
         }
 
         void UpdateToggleModsButtonText()
@@ -850,6 +1192,7 @@ namespace OsuVR
 
             GameContext.Instance.SelectedBeatmapPath = selectedDifficulty.OsuFilePath;
             GameContext.Instance.CurrentBeatmapPath = selectedDifficulty.OsuFilePath;
+            SaveSongSelectionState();
 
             if (Application.CanStreamedLevelBeLoaded(gameSceneName))
             {
@@ -867,6 +1210,7 @@ namespace OsuVR
 
         public void GoBack()
         {
+            SaveSongSelectionState();
             if (songPreviewPlayer != null)
                 songPreviewPlayer.StopPreview();
             VRSceneTransitionManager.Instance.TransitionToScene("MainMenuScene");
