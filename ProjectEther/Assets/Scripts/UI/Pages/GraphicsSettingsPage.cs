@@ -144,6 +144,9 @@ namespace OsuVR
             );
 #endif
 
+            if (antiAliasingDropdown != null)
+                MenuPageStyle.PairDropdowns(qualityDropdown, antiAliasingDropdown);
+            MenuPageStyle.Divider(parent);
             showFpsToggle = CreateToggle(
                 parent,
                 "Performance Monitor",
@@ -189,6 +192,7 @@ namespace OsuVR
                 }
             );
 
+            MenuPageStyle.Divider(parent);
             storyboardDistanceSlider = CreateSlider(
                 parent,
                 "Screen Distance",

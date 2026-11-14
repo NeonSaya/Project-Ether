@@ -544,35 +544,10 @@ PrefabInstance:
       propertyPath: rightStickAction.m_Action.m_Name
       value: Right Stick
       objectReference: {fileID: 0}
-    - target: {fileID: 5041252558263177254, guid: b378079ab90e57e4aabe341ba7a3749f,
-        type: 3}
-      propertyPath: laserWidth
-      value: 0.012
-      objectReference: {fileID: 0}
-    - target: {fileID: 5041252558263177254, guid: b378079ab90e57e4aabe341ba7a3749f,
-        type: 3}
-      propertyPath: laserColor.b
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 5041252558263177254, guid: b378079ab90e57e4aabe341ba7a3749f,
-        type: 3}
-      propertyPath: laserColor.g
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5041252558263177254, guid: b378079ab90e57e4aabe341ba7a3749f,
-        type: 3}
-      propertyPath: laserColor.r
-      value: 1
-      objectReference: {fileID: 0}
     - target: {fileID: 6120492380853372432, guid: b378079ab90e57e4aabe341ba7a3749f,
         type: 3}
       propertyPath: m_RenderPostProcessing
       value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 7162328023566560714, guid: b378079ab90e57e4aabe341ba7a3749f,
-        type: 3}
-      propertyPath: laserWidth
-      value: 0.012
       objectReference: {fileID: 0}
     - target: {fileID: 7647497083426514023, guid: b378079ab90e57e4aabe341ba7a3749f,
         type: 3}

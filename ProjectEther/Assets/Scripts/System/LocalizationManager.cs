@@ -146,6 +146,60 @@ namespace OsuVR
                 { "ui_spinner_bonus", new[] { "Spinner Bonus", "转盘奖励", "スピナーボーナス" } },
                 { "ui_max", new[] { "MAX", "MAX", "MAX" } },
                 { "ui_tab_controller", new[] { "Controller", "控制器", "コントローラー" } },
+                {
+                    "ui_controller_appearance",
+                    new[] { "Controller Appearance", "手柄外观", "コントローラー外観" }
+                },
+                {
+                    "ui_controller_appearance_hint",
+                    new[]
+                    {
+                        "Choose a design. Both hands update immediately.",
+                        "选择喜欢的外观，即时应用到双手。",
+                        "デザインを選ぶと両手にすぐ反映されます。",
+                    }
+                },
+                {
+                    "ui_controller_auto_save",
+                    new[]
+                    {
+                        "Changes are saved automatically",
+                        "选择后自动保存",
+                        "変更は自動で保存されます",
+                    }
+                },
+                { "ui_controller_selected", new[] { "Selected", "当前使用", "選択中" } },
+                { "ui_controller_select", new[] { "Select", "点击切换", "選択する" } },
+                { "ui_controller_model_a", new[] { "Star Shuttle", "星梭", "スターシャトル" } },
+                { "ui_controller_model_b", new[] { "Twin Fin", "双鳍", "ツインフィン" } },
+                { "ui_controller_model_c", new[] { "Halo Core", "环核", "リングコア" } },
+                {
+                    "ui_controller_description_a",
+                    new[]
+                    {
+                        "Tapered shell, a single light seam.",
+                        "收口梭形，单道光缝。",
+                        "細身のシェルと一筋の光。",
+                    }
+                },
+                {
+                    "ui_controller_description_b",
+                    new[]
+                    {
+                        "Twin fins around a compact core.",
+                        "双鳍轮廓，紧凑光芯。",
+                        "小さな光のコアを包む二枚のフィン。",
+                    }
+                },
+                {
+                    "ui_controller_description_c",
+                    new[]
+                    {
+                        "An open ring around a glowing core.",
+                        "开放环形，悬浮光芯。",
+                        "光のコアを囲む開いたリング。",
+                    }
+                },
                 { "ui_master_volume", new[] { "Master Volume", "主音量", "マスターボリューム" } },
                 { "ui_music_volume", new[] { "Music Volume", "音乐音量", "音楽ボリューム" } },
                 { "ui_sfx_volume", new[] { "SFX Volume", "音效音量", "効果音ボリューム" } },

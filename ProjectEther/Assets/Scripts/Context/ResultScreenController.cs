@@ -104,6 +104,7 @@ namespace OsuVR
         private bool isAnimating = false; // 是否正在播放动画
 
         private Vector3 originalPanelScale; // 面板原始缩放
+        private ResultScreenView resultView;
 
         // =========================================================
         // 生命周期
@@ -122,6 +123,7 @@ namespace OsuVR
                 return;
             }
 
+            resultView = ResultScreenView.Build(this);
             AutoAttachLocalizedTexts();
 
             // 默认动画曲线
@@ -184,14 +186,26 @@ namespace OsuVR
 
         private void UpdateStatisticsTexts(ResultData result)
         {
-            if (textHit300 != null && textHit300.text.Contains(":"))
-                textHit300.text = $"{LocalizationManager.GetText("ui_hit300")}: {result.hit300}";
-            if (textHit100 != null && textHit100.text.Contains(":"))
-                textHit100.text = $"{LocalizationManager.GetText("ui_hit100")}: {result.hit100}";
-            if (textHit50 != null && textHit50.text.Contains(":"))
-                textHit50.text = $"{LocalizationManager.GetText("ui_hit50")}: {result.hit50}";
-            if (textMiss != null && textMiss.text.Contains(":"))
-                textMiss.text = $"{LocalizationManager.GetText("ui_miss")}: {result.hitMiss}";
+            if (textHit300 != null && (resultView != null || textHit300.text.Contains(":")))
+                textHit300.text = StatisticText(
+                    result.hit300,
+                    LocalizationManager.GetText("ui_hit300")
+                );
+            if (textHit100 != null && (resultView != null || textHit100.text.Contains(":")))
+                textHit100.text = StatisticText(
+                    result.hit100,
+                    LocalizationManager.GetText("ui_hit100")
+                );
+            if (textHit50 != null && (resultView != null || textHit50.text.Contains(":")))
+                textHit50.text = StatisticText(
+                    result.hit50,
+                    LocalizationManager.GetText("ui_hit50")
+                );
+            if (textMiss != null && (resultView != null || textMiss.text.Contains(":")))
+                textMiss.text = StatisticText(
+                    result.hitMiss,
+                    LocalizationManager.GetText("ui_miss")
+                );
 
             if (textSliderInfo != null && result.totalSliders > 0)
             {
@@ -497,14 +511,17 @@ namespace OsuVR
             {
                 elapsed += Time.deltaTime;
                 current = (int)(target * (elapsed / duration));
-                text.text = $"{label}: {current}";
+                text.text = StatisticText(current, label);
                 yield return null;
             }
 
-            text.text = $"{label}: {target}";
+            text.text = StatisticText(target, label);
             if (color.HasValue)
                 text.color = color.Value;
         }
+
+        private string StatisticText(int value, string label) =>
+            resultView != null ? value.ToString() : $"{label}: {value}";
 
         /// <summary>
         /// 评级弹出动画
@@ -572,7 +589,10 @@ namespace OsuVR
                 ApplyCJKFont(textTitle);
                 // 应用 Quote 样式 (TMP 样式表定义: <i><size=75%><margin=10%>)
                 string titleText = title ?? LocalizationManager.GetText("ui_unknown_title");
-                textTitle.text = $"<i><size=75%><margin=10%>{titleText}</i></size></margin>";
+                textTitle.text =
+                    resultView != null
+                        ? titleText
+                        : $"<i><size=75%><margin=10%>{titleText}</i></size></margin>";
                 ApplySingleLineStyle(textTitle);
             }
             else
@@ -582,7 +602,10 @@ namespace OsuVR
             {
                 ApplyCJKFont(textArtist);
                 string artistText = artist ?? LocalizationManager.GetText("ui_unknown_artist");
-                textArtist.text = $"<i><size=75%><margin=10%>{artistText}</i></size></margin>";
+                textArtist.text =
+                    resultView != null
+                        ? artistText
+                        : $"<i><size=75%><margin=10%>{artistText}</i></size></margin>";
                 ApplySingleLineStyle(textArtist);
             }
 
@@ -622,6 +645,15 @@ namespace OsuVR
             tmp.raycastTarget = false;
 
             var rt = tmp.rectTransform;
+            if (resultView != null)
+            {
+                // 新布局有各自的列宽，语言刷新不得重新铺成旧版全宽。
+                rt.sizeDelta = new Vector2(
+                    rt.sizeDelta.x,
+                    Mathf.Max(rt.sizeDelta.y, tmp.fontSize * 1.6f + 4)
+                );
+                return;
+            }
             var panelRt = rt.parent as RectTransform;
             // 面板为全拉伸矩形，宽度 = 画布宽；留 80 边距，布局异常时兜底 1120
             float width = panelRt != null ? panelRt.rect.width - 80f : 1120f;

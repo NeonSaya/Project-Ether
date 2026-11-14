@@ -670,6 +670,7 @@ namespace OsuVR
 
         private void FinishSpinner()
         {
+            bool wasActive = IsActive;
             IsActive = false;
             if (angleRequirement > 0)
                 Progress = totalRotationAngle / angleRequirement;
@@ -685,6 +686,12 @@ namespace OsuVR
             }
             // 音量 = TimingPoint音量 × 样本倍率
             float vol = (spinnerData.TimingPointVolume / 100f) * (spinnerData.SampleVolume / 100f);
+            // 转盘完成由双手共享，视觉反馈只在首次结束且命中成功时发送。
+            if (wasActive && Progress > 0.5f && gameManager != null && !gameManager.IsPaused)
+            {
+                RayHitFeedback.NotifyHit(false, discRotating != null ? discRotating : transform);
+                RayHitFeedback.NotifyHit(true, discRotating != null ? discRotating : transform);
+            }
             // 判定逻辑
             if (Progress >= 1.0f)
             {

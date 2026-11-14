@@ -44,9 +44,15 @@ namespace OsuVR
             // 直接在图片上统一压低亮度，避免多层羽化遮罩叠出亮边和分块感。
             Color libraryTint = new Color(0.09f, 0.11f, 0.17f, 1);
             Color detailTint = new Color(0.28f, 0.31f, 0.38f, 1);
-            current.Configure(libraryTint, detailTint, 0.27f, 0.60f, 12);
-            incoming.Configure(libraryTint, detailTint, 0.27f, 0.60f, 12);
+            ConfigureTint(libraryTint, detailTint);
             current.enabled = incoming.enabled = false;
+        }
+
+        /// <summary>由使用页面调整文字保护区，选歌默认亮度和淡化时序不变。</summary>
+        internal void ConfigureTint(Color left, Color right)
+        {
+            current.Configure(left, right, 0.27f, 0.60f, 12);
+            incoming.Configure(left, right, 0.27f, 0.60f, 12);
         }
 
         private static SongSelectionBackdropGraphic AddFull(

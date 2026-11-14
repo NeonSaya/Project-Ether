@@ -5,26 +5,7 @@ using UnityEngine.UI;
 
 namespace OsuVR
 {
-    /// <summary>
-    /// 制作人员页面 — 代码驱动 UI
-    ///
-    /// 结构复刻 SimpleVRSettingsMenu 的画布/滚动/底部按钮模式：
-    ///   CreditsCanvas (Canvas WorldSpace, sortingOrder=100, localScale=0.0025)
-    ///     └─ CreditsContainer (Image: 0.05,0.05,0.08,0.85)
-    ///        ├─ TitleBar (anchor 0,1->1,1, Title + Version)
-    ///        ├─ ContentArea (ScrollRect + Mask 视口)
-    ///        │  └─ ScrollContent (VLG + ContentSizeFitter)
-    ///        │     ├─ 节：开发者 + 开发者的话
-    ///        │     ├─ 节：开源鸣谢（按分类鸣谢）
-    ///        │     ├─ 节：开源许可（含许可全文）
-    ///        │     └─ 节：版权与商标
-    ///        └─ BottomButtons (Back)
-    ///
-    /// 内容组织为 节(Section) → 分组(Group) → 条目(Entry)。
-    /// 所有文本均集中在 C# 源码：正文条目与许可全文在本文件，节标题与
-    /// 开发者的话在 LocalizationManager.cs（三语，走 LocalizedText 字体切换）。
-    /// 无任何 Inspector 硬编码文本，改文本直接改 cs 即可。
-    /// </summary>
+    /// <summary>制作人员与完整开源许可的单列滚动页；正文集中在 C# 层。</summary>
     public class SimpleCreditsMenu : MonoBehaviour
     {
         [Header("音效资源（需在 Inspector 中配置）")]
@@ -37,15 +18,12 @@ namespace OsuVR
         private const int SortingOrder = 100;
         private const float CanvasWidth = 660f;
         private const float CanvasHeight = 495f;
-        private const float TitleBarHeight = 70f;
 
         // ---- 颜色（沿用设置菜单配色） ----
-        private static readonly Color ContainerBgColor = new Color(0.05f, 0.05f, 0.08f, 0.85f);
-        private static readonly Color PanelBgColor = new Color(0.08f, 0.08f, 0.12f, 0.6f);
-        private static readonly Color SectionTitleColor = new Color(0.35f, 0.65f, 0.95f, 1f);
-        private static readonly Color GroupTitleColor = new Color(0.7f, 0.75f, 0.85f, 1f);
-        private static readonly Color EntryColor = new Color(0.88f, 0.88f, 0.92f, 1f);
-        private static readonly Color MutedColor = new Color(0.6f, 0.62f, 0.68f, 1f);
+        private static readonly Color SectionTitleColor = SongSelectionStyle.Accent;
+        private static readonly Color GroupTitleColor = SongSelectionStyle.Muted;
+        private static readonly Color EntryColor = SongSelectionStyle.Text;
+        private static readonly Color MutedColor = SongSelectionStyle.Muted;
 
         // ---- 开源许可全文（所有文本集中在 C# 层，改这里即可） ----
         private const string MitLicenseText =
@@ -102,158 +80,60 @@ namespace OsuVR
 
         private void BuildUI()
         {
-            // ---- 音频源 ----
             audioSource = gameObject.AddComponent<AudioSource>();
             audioSource.playOnAwake = false;
-            audioSource.spatialBlend = 0f;
+            audioSource.spatialBlend = 0;
+            var canvas = UILayoutHelper.CreateCanvas("CreditsCanvas", CanvasWidth, CanvasHeight);
+            canvas.sortingOrder = SortingOrder;
+            canvas.transform.SetParent(transform, false);
+            canvas.transform.localPosition = new Vector3(0, 0, CanvasLocalZ);
+            canvas.transform.localScale = Vector3.one * CanvasScale;
+            canvas.GetComponent<CanvasScaler>().dynamicPixelsPerUnit = 10;
 
-            // ---- 根 Canvas（与设置菜单同规格） ----
-            var rootCanvas = UILayoutHelper.CreateCanvas(
-                "CreditsCanvas",
-                CanvasWidth,
-                CanvasHeight
+            var container = MenuPageStyle.Rect(
+                canvas.transform,
+                "CreditsContainer",
+                0,
+                0,
+                660,
+                495
             );
-            rootCanvas.sortingOrder = SortingOrder;
-            rootCanvas.transform.SetParent(transform, false);
-            rootCanvas.transform.localPosition = new Vector3(0f, 0f, CanvasLocalZ);
-            rootCanvas.transform.localScale = Vector3.one * CanvasScale;
-
-            var canvasRt = rootCanvas.GetComponent<RectTransform>();
-            canvasRt.anchorMin = new Vector2(0.5f, 0.5f);
-            canvasRt.anchorMax = new Vector2(0.5f, 0.5f);
-            canvasRt.pivot = new Vector2(0.5f, 0.5f);
-            canvasRt.anchoredPosition = Vector2.zero;
-            canvasRt.sizeDelta = new Vector2(CanvasWidth, CanvasHeight);
-
-            var scaler = rootCanvas.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
-            scaler.dynamicPixelsPerUnit = 10f;
-
-            // ---- CreditsContainer ----
-            var containerGo = new GameObject("CreditsContainer");
-            containerGo.transform.SetParent(rootCanvas.transform, false);
-            var containerRt = containerGo.AddComponent<RectTransform>();
-            containerRt.anchorMin = Vector2.zero;
-            containerRt.anchorMax = Vector2.one;
-            containerRt.sizeDelta = Vector2.zero;
-            containerRt.anchoredPosition = Vector2.zero;
-
-            var containerImg = containerGo.AddComponent<Image>();
-            containerImg.color = ContainerBgColor;
-            containerImg.raycastTarget = true;
-
-            // ---- TitleBar（标题 + 版本副标题） ----
-            var titleBarGo = new GameObject("TitleBar");
-            titleBarGo.transform.SetParent(containerGo.transform, false);
-            var titleBarRt = titleBarGo.AddComponent<RectTransform>();
-            titleBarRt.anchorMin = new Vector2(0, 1);
-            titleBarRt.anchorMax = new Vector2(1, 1);
-            titleBarRt.pivot = new Vector2(0.5f, 1);
-            titleBarRt.sizeDelta = new Vector2(0, TitleBarHeight);
-            titleBarRt.anchoredPosition = Vector2.zero;
-
-            var titleTmp = CreateText(
-                titleBarRt,
-                "Credits",
-                22f,
-                Color.white,
-                TextAlignmentOptions.Center,
-                FontStyles.Bold,
-                "ui_credits"
-            );
-            var titleTrt = titleTmp.rectTransform;
-            titleTrt.anchorMin = new Vector2(0, 1);
-            titleTrt.anchorMax = new Vector2(1, 1);
-            titleTrt.pivot = new Vector2(0.5f, 1);
-            titleTrt.anchoredPosition = new Vector2(0, -6);
-            titleTrt.sizeDelta = new Vector2(-40, 32);
-
-            var versionTmp = CreateText(
-                titleBarRt,
+            MenuPageStyle.Stretch(container);
+            SongSelectionStyle.Fill(container, Color.clear, true);
+            MenuPageStyle.Backdrop(container);
+            var header = MenuPageStyle.Rect(container, "TitleBar", 28, 8, 604, 44);
+            MenuPageStyle.Label(header, "Title", "Credits", "ui_credits", 0, 0, 300, 44, 22);
+            MenuPageStyle.Label(
+                header,
+                "Version",
                 $"Project Ether v{Application.version}",
-                12f,
+                null,
+                310,
+                8,
+                294,
+                30,
+                12,
                 MutedColor,
-                TextAlignmentOptions.Center,
-                FontStyles.Normal,
-                null
+                TextAlignmentOptions.MidlineRight
             );
-            var versionTrt = versionTmp.rectTransform;
-            versionTrt.anchorMin = new Vector2(0, 1);
-            versionTrt.anchorMax = new Vector2(1, 1);
-            versionTrt.pivot = new Vector2(0.5f, 1);
-            versionTrt.anchoredPosition = new Vector2(0, -40);
-            versionTrt.sizeDelta = new Vector2(-40, 22);
+            var line = MenuPageStyle.Rect(container, "HeaderLine", 28, 54, 604, 1);
+            SongSelectionStyle.Fill(line, SongSelectionStyle.Line);
 
-            // ---- ContentArea (ScrollRect 视口) ----
-            var contentAreaGo = new GameObject("ContentArea");
-            contentAreaGo.transform.SetParent(containerGo.transform, false);
-            var contentAreaRt = contentAreaGo.AddComponent<RectTransform>();
-            contentAreaRt.anchorMin = Vector2.zero;
-            contentAreaRt.anchorMax = Vector2.one;
-            // 顶 inset=75（TitleBar 70 + 5 间距），底 inset=82.5（同设置菜单）
-            contentAreaRt.sizeDelta = new Vector2(-55, -157.5f);
-            contentAreaRt.anchoredPosition = new Vector2(0, 3.75f);
+            MenuPageStyle.Scroll(container, "ContentArea", 28, 68, 604, 338, out var content);
+            var layout = content.gameObject.AddComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(8, 10, 4, 12);
+            layout.spacing = 6;
+            layout.childControlWidth = layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            BuildSections(content);
 
-            var viewportImg = contentAreaGo.AddComponent<Image>();
-            viewportImg.color = PanelBgColor;
-            viewportImg.raycastTarget = true;
-            contentAreaGo.AddComponent<Mask>().showMaskGraphic = true;
-
-            var scrollRect = contentAreaGo.AddComponent<ScrollRect>();
-            scrollRect.horizontal = false;
-            scrollRect.vertical = true;
-            scrollRect.movementType = ScrollRect.MovementType.Elastic;
-            scrollRect.elasticity = 0.1f;
-            scrollRect.scrollSensitivity = 50f;
-
-            // ---- ScrollContent ----
-            var scrollContentGo = new GameObject("ScrollContent");
-            scrollContentGo.transform.SetParent(contentAreaGo.transform, false);
-            var scrollContentRt = scrollContentGo.AddComponent<RectTransform>();
-            scrollContentRt.anchorMin = new Vector2(0, 1);
-            scrollContentRt.anchorMax = new Vector2(1, 1);
-            scrollContentRt.pivot = new Vector2(0.5f, 1);
-            scrollContentRt.anchoredPosition = Vector2.zero;
-            scrollContentRt.sizeDelta = Vector2.zero;
-
-            var sizeFitter = scrollContentGo.AddComponent<ContentSizeFitter>();
-            sizeFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-            sizeFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-            var contentVlg = scrollContentGo.AddComponent<VerticalLayoutGroup>();
-            contentVlg.padding = new RectOffset(20, 20, 16, 16);
-            contentVlg.spacing = 6f;
-            contentVlg.childControlWidth = true;
-            contentVlg.childControlHeight = true;
-            contentVlg.childForceExpandWidth = true;
-            contentVlg.childForceExpandHeight = false;
-
-            scrollRect.content = scrollContentRt;
-            scrollRect.viewport = contentAreaRt;
-
-            // ---- 正文内容 ----
-            BuildSections(scrollContentRt);
-
-            // ---- BottomButtons ----
-            var bottomGo = new GameObject("BottomButtons");
-            bottomGo.transform.SetParent(containerGo.transform, false);
-            var bottomRt = bottomGo.AddComponent<RectTransform>();
-            bottomRt.anchorMin = new Vector2(0.5f, 0);
-            bottomRt.anchorMax = new Vector2(0.5f, 0);
-            bottomRt.pivot = new Vector2(0.5f, 0);
-            bottomRt.sizeDelta = new Vector2(440, 55);
-            bottomRt.anchoredPosition = new Vector2(0, 20);
-
-            var bottomHlg = bottomGo.AddComponent<HorizontalLayoutGroup>();
-            bottomHlg.spacing = 44f;
-            bottomHlg.childAlignment = TextAnchor.MiddleCenter;
-            bottomHlg.childControlWidth = true;
-            bottomHlg.childControlHeight = true;
-            bottomHlg.childForceExpandWidth = true;
-            bottomHlg.childForceExpandHeight = true;
-
+            var bottom = MenuPageStyle.Rect(container, "BottomButtons", 28, 425, 604, 50);
+            var bottomLayout = bottom.gameObject.AddComponent<HorizontalLayoutGroup>();
+            bottomLayout.childControlWidth = bottomLayout.childControlHeight = true;
+            bottomLayout.childForceExpandWidth = bottomLayout.childForceExpandHeight = true;
             CreateBottomButton(
-                bottomGo.transform,
+                bottom,
                 "Back",
                 "ui_back",
                 () =>
@@ -262,25 +142,19 @@ namespace OsuVR
                     VRSceneTransitionManager.Instance.TransitionToScene("MainMenuScene");
                 }
             );
-
             StartCoroutine(NotifyRayControllerNextFrame());
         }
 
         // ============================================================
-        //  正文内容（节 → 分组 → 条目）
+        //  正文内容（节 → 分组 → 条目），许可全文保持原样
         // ============================================================
 
         private void BuildSections(RectTransform parent)
         {
             // ============ 第 1 节：开发者 ============
             AddSectionTitle(parent, "Development", "ui_credits_section_dev");
-            AddEntry(
-                parent,
-                "Project Ether — Design & Code — NyaonSaya><",
-                14f,
-                EntryColor,
-                FontStyles.Bold
-            );
+            AddEntry(parent, "NyaonSaya><", 21f, EntryColor, FontStyles.Bold);
+            AddEntry(parent, "Project Ether · Design & Code", 13f, MutedColor);
             AddSpacing(parent, 8f);
 
             AddGroupTitle(parent, "A Word from the Developer", "ui_credits_section_word");
@@ -294,7 +168,7 @@ namespace OsuVR
                 "ui_credits_word_text"
             );
             wordTmp.raycastTarget = false;
-            AddSpacing(parent, 12f);
+            MenuPageStyle.Divider(parent);
 
             // ============ 第 2 节：开源鸣谢 ============
             AddSectionTitle(parent, "Open Source Acknowledgments", "ui_credits_section_opensource");
@@ -440,7 +314,7 @@ namespace OsuVR
                 FontStyles.Bold,
                 locKey
             );
-            tmp.rectTransform.sizeDelta = new Vector2(0, 24f);
+            tmp.rectTransform.sizeDelta = new Vector2(0, 30f);
         }
 
         /// <summary>分组小标题（可选本地化）</summary>
@@ -455,7 +329,7 @@ namespace OsuVR
                 FontStyles.Bold,
                 locKey
             );
-            tmp.rectTransform.sizeDelta = new Vector2(0, 20f);
+            tmp.rectTransform.sizeDelta = new Vector2(0, 25f);
         }
 
         /// <summary>普通条目（英文正文）</summary>
@@ -520,8 +394,10 @@ namespace OsuVR
             go.AddComponent<RectTransform>();
 
             var tmp = go.AddComponent<TextMeshProUGUI>();
+            tmp.font = MenuPageStyle.Font;
             tmp.text = text;
             tmp.fontSize = fontSize;
+            tmp.richText = false;
             tmp.fontStyle = style;
             tmp.color = color;
             tmp.alignment = alignment;
@@ -584,6 +460,7 @@ namespace OsuVR
             var lt = textGo.AddComponent<LocalizedText>();
             lt.localizationKey = locKey;
 
+            MenuPageStyle.ButtonStyle(button, SongSelectionStyle.Control);
             UILayoutHelper.AddHoverSoundEffect(go, audioSource, hoverSound, 0.5f);
         }
 

@@ -25,7 +25,7 @@ namespace OsuVR
         }
 
         [Header("模式选择")]
-        public ControlMode currentMode = ControlMode.WristGain;
+        public ControlMode currentMode = ControlMode.Direct1to1;
 
         [Header("手柄设置")]
         public bool isRightHand = true;
@@ -53,12 +53,24 @@ namespace OsuVR
         public LayerMask noteLayer;
         public Transform visualRay;
 
+        // 模型与射线共用同一瞄准旋转，保留手柄本体的完整旋转与扭转。
+        public Quaternion AimRotationOffset =>
+            Quaternion.Euler(directOffset.x + verticalOffset, 0, 0);
+
         private InputAction triggerAction;
         public Vector3 CurrentHitPoint { get; private set; }
         public bool IsHitting { get; private set; }
 
         // --- UI 检测 ---
         public bool IsHittingUI { get; private set; }
+
+        // 视觉反馈复用当前手的既有输入状态，不创建额外绑定。
+        public bool IsTriggerPressed => IsTriggerHeld();
+        public bool IsGameplayPaused => cachedGameManager != null && cachedGameManager.IsPaused;
+        private Collider visualHitCollider;
+        private Vector3 gameplaySurfacePoint;
+        private Vector3 gameplaySurfaceNormal;
+        private bool hasGameplaySurface;
         private GameObject currentUIHoverObject;
         private GameObject previousUIHoverObject;
 
@@ -93,6 +105,7 @@ namespace OsuVR
 
         void OnEnable()
         {
+            currentMode = ControlMode.Direct1to1;
             if (triggerAction != null)
                 triggerAction.Enable();
             EnableAction(rightStickAction);
@@ -114,6 +127,8 @@ namespace OsuVR
             HandleUIHover();
             previousUIHoverObject = null;
             IsHittingUI = false;
+            visualHitCollider = null;
+            hasGameplaySurface = false;
             pointerData = null;
             hoverPointerData = null;
         }
@@ -236,10 +251,9 @@ namespace OsuVR
 
         void Update()
         {
-            if (currentMode == ControlMode.WristGain)
-                ApplyWristGainMapping();
-            else
-                ApplyDirectMapping();
+            // 旧场景或外部调用即使带入WristGain，也只能使用Direct映射。
+            currentMode = ControlMode.Direct1to1;
+            ApplyDirectMapping();
 
             // 滚动区域缓存：场景加载后密集刷新，UI 射线直接使用活动注册表
             if (postLoadRefreshFrames > 0)
@@ -347,27 +361,18 @@ namespace OsuVR
         //  模式映射
         // ============================================================
 
+        // 保留旧入口以兼容已有调用，所有路径都使用Direct。
         private void ApplyWristGainMapping()
         {
-            Vector3 currentEuler = transform.localRotation.eulerAngles;
-            float inputX = NormalizeAngle(currentEuler.x);
-            float inputY = NormalizeAngle(currentEuler.y);
-            if (visualRay != null)
-            {
-                visualRay.localRotation = Quaternion.Euler(
-                    CalculateNonLinear(inputX) + verticalOffset,
-                    CalculateNonLinear(inputY),
-                    0
-                );
-                visualRay.localPosition = new Vector3(0, directOffset.y, directOffset.z);
-            }
+            currentMode = ControlMode.Direct1to1;
+            ApplyDirectMapping();
         }
 
         private void ApplyDirectMapping()
         {
             if (visualRay != null)
             {
-                visualRay.localRotation = Quaternion.Euler(directOffset.x + verticalOffset, 0, 0);
+                visualRay.localRotation = AimRotationOffset;
                 visualRay.localPosition = new Vector3(0, directOffset.y, directOffset.z);
             }
         }
@@ -403,6 +408,8 @@ namespace OsuVR
                 currentHitObjects.Clear();
                 currentHitMap.Clear();
                 IsHitting = false;
+                visualHitCollider = null;
+                hasGameplaySurface = false;
                 CurrentHitPoint = Vector3.zero;
                 return;
             }
@@ -425,6 +432,7 @@ namespace OsuVR
             float minDist = float.MaxValue;
             Vector3 closestPt = Vector3.zero;
             GameObject closestObj = null;
+            Collider closestCollider = null;
 
             for (int _hi = 0; _hi < hitCount; _hi++)
             {
@@ -441,11 +449,17 @@ namespace OsuVR
                     minDist = hit.distance;
                     closestPt = hit.point;
                     closestObj = obj;
+                    closestCollider = hit.collider;
                 }
             }
 
             IsHitting = closestObj != null;
+            visualHitCollider = closestCollider;
             CurrentHitPoint = IsHitting ? closestPt : Vector3.zero;
+            hasGameplaySurface = TryProjectGameplaySurface(
+                out gameplaySurfacePoint,
+                out gameplaySurfaceNormal
+            );
 
             foreach (var old in previousHitObjects)
             {
@@ -459,6 +473,73 @@ namespace OsuVR
             previousHitObjects.Clear();
             foreach (var key in currentHitMap.Keys)
                 previousHitObjects.Add(key);
+        }
+
+        /// <summary>只为落点投影求可见表面，原SphereCast判定点和UI事件坐标保持不变。</summary>
+        public bool TryGetVisualSurface(out Vector3 point, out Vector3 normal)
+        {
+            point = CurrentHitPoint;
+            normal = visualRay != null ? -visualRay.forward : Vector3.back;
+            if (visualRay == null)
+                return false;
+            if (IsHittingUI)
+            {
+                if (currentUIHoverObject == null)
+                    return true;
+                var surface = currentUIHoverObject.transform;
+                return ProjectVisualPlane(surface, out point, out normal);
+            }
+            if (!IsHitting)
+                return false;
+            if (hasGameplaySurface)
+            {
+                // 在Hover回调前取样，音符本帧被击中/回池也不会让圆点跳回球形判定壳。
+                point = gameplaySurfacePoint;
+                normal = gameplaySurfaceNormal;
+                return true;
+            }
+            return visualHitCollider == null;
+        }
+
+        private bool ProjectVisualPlane(Transform surface, out Vector3 point, out Vector3 normal)
+        {
+            point = CurrentHitPoint;
+            normal = surface.forward;
+            var plane = new Plane(normal, surface.position);
+            var ray = new Ray(visualRay.position, visualRay.forward);
+            if (!plane.Raycast(ray, out float distance) || distance > rayLength)
+                return false;
+            point = ray.GetPoint(distance);
+            if (Vector3.Dot(normal, visualRay.position - point) < 0)
+                normal = -normal;
+            return true;
+        }
+
+        private bool TryProjectGameplaySurface(out Vector3 point, out Vector3 normal)
+        {
+            point = CurrentHitPoint;
+            normal = -visualRay.forward;
+            if (visualHitCollider == null)
+                return false;
+            var note = visualHitCollider.GetComponentInParent<NoteController>();
+            if (note != null)
+                return ProjectVisualPlane(note.transform, out point, out normal);
+            var slider = visualHitCollider.GetComponentInParent<SliderController>();
+            if (slider != null)
+                return ProjectVisualPlane(slider.transform, out point, out normal);
+            var spinner = visualHitCollider.GetComponentInParent<SpinnerController>();
+            if (spinner != null)
+                return ProjectVisualPlane(
+                    spinner.discRotating != null ? spinner.discRotating : spinner.transform,
+                    out point,
+                    out normal
+                );
+            var ray = new Ray(visualRay.position, visualRay.forward);
+            if (!visualHitCollider.Raycast(ray, out var hit, rayLength))
+                return false;
+            point = hit.point;
+            normal = hit.normal;
+            return true;
         }
 
         // ============================================================
@@ -982,7 +1063,7 @@ namespace OsuVR
 
         public void SetMode(bool isLazyMode)
         {
-            currentMode = isLazyMode ? ControlMode.WristGain : ControlMode.Direct1to1;
+            currentMode = ControlMode.Direct1to1;
         }
 
         /// <summary>

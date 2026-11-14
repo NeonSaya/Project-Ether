@@ -364,7 +364,7 @@ namespace OsuVR
         {
             if (cachedScrollRect == null)
                 return;
-            cachedScrollRect.verticalNormalizedPosition += scrollAmount / 1000f;
+            cachedScrollRect.verticalNormalizedPosition += scrollAmount / 1000f * 3f;
             cachedScrollRect.verticalNormalizedPosition = Mathf.Clamp01(
                 cachedScrollRect.verticalNormalizedPosition
             );
@@ -374,7 +374,7 @@ namespace OsuVR
         {
             if (cachedScrollRect == null)
                 return;
-            cachedScrollRect.verticalNormalizedPosition -= scrollAmount / 1000f;
+            cachedScrollRect.verticalNormalizedPosition -= scrollAmount / 1000f * 3f;
             cachedScrollRect.verticalNormalizedPosition = Mathf.Clamp01(
                 cachedScrollRect.verticalNormalizedPosition
             );

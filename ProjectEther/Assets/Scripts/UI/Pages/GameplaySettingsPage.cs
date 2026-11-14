@@ -90,7 +90,8 @@ namespace OsuVR
             );
 
             // --- 导入谱面按钮 ---
-            UILayoutHelper.CreateButton(
+            MenuPageStyle.Divider(parent);
+            var importButton = UILayoutHelper.CreateButton(
                 parent,
                 LocalizationManager.GetText("ui_import_osz"),
                 () =>
@@ -104,6 +105,7 @@ namespace OsuVR
                 fontSize: 18f,
                 addBoxCollider: true
             );
+            MenuPageStyle.ButtonStyle(importButton, SongSelectionStyle.Selected, 16);
         }
 
         public override void RefreshUI(GameSettings tempSettings)

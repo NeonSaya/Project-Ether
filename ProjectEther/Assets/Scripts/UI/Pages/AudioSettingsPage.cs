@@ -76,6 +76,7 @@ namespace OsuVR
             );
 
             // Audio Offset（Prefab 精确结构：Header + Slider + FineTune 按钮行）
+            MenuPageStyle.Divider(parent);
             audioOffsetSlider = CreateAudioOffsetRow(
                 parent,
                 "Audio Offset",
