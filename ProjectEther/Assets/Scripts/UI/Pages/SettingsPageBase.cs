@@ -105,7 +105,10 @@ namespace OsuVR
             );
 
             if (slider != null)
+            {
+                MenuPageStyle.Slider(slider);
                 AddControlSounds(slider.gameObject, true);
+            }
 
             return slider;
         }
@@ -138,7 +141,7 @@ namespace OsuVR
             rowRt.anchorMin = new Vector2(0f, 0.5f);
             rowRt.anchorMax = new Vector2(1f, 0.5f);
             rowRt.pivot = new Vector2(0.5f, 0.5f);
-            rowRt.sizeDelta = new Vector2(0f, 95f);
+            rowRt.sizeDelta = new Vector2(0f, 104f);
 
             var rowVlg = rowGo.AddComponent<VerticalLayoutGroup>();
             rowVlg.spacing = 2f;
@@ -287,7 +290,7 @@ namespace OsuVR
             var fineTuneRt = fineTuneGo.AddComponent<RectTransform>();
             fineTuneRt.anchorMin = new Vector2(0.5f, 0.5f);
             fineTuneRt.anchorMax = new Vector2(0.5f, 0.5f);
-            fineTuneRt.sizeDelta = new Vector2(0f, 28f);
+            fineTuneRt.sizeDelta = new Vector2(0f, 32f);
 
             var fineTuneHlg = fineTuneGo.AddComponent<HorizontalLayoutGroup>();
             fineTuneHlg.spacing = 6f;
@@ -308,6 +311,9 @@ namespace OsuVR
             // 右侧 Spacer（弹性宽度）
             CreateFineTuneSpacer(fineTuneGo.transform);
 
+            MenuPageStyle.Slider(slider, true);
+            headerLabelTmp.font = headerValueTmp.font = MenuPageStyle.Font;
+            headerLabelTmp.color = headerValueTmp.color = SongSelectionStyle.Text;
             return slider;
         }
 
@@ -331,7 +337,7 @@ namespace OsuVR
             var go = new GameObject(text);
             go.transform.SetParent(parent, false);
             var rt = go.AddComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(42f, 24f);
+            rt.sizeDelta = new Vector2(48f, 32f);
 
             var img = go.AddComponent<Image>();
             img.color = UILayoutHelper.ButtonNormalColor;
@@ -367,12 +373,7 @@ namespace OsuVR
             tmp.enableAutoSizing = false;
             tmp.raycastTarget = false;
 
-            UILayoutHelper.AddColorHoverEffect(
-                go,
-                img,
-                UILayoutHelper.ButtonNormalColor,
-                UILayoutHelper.ButtonHoverColor
-            );
+            MenuPageStyle.ButtonStyle(button, SongSelectionStyle.Control, 13);
             UILayoutHelper.AddHoverSoundEffect(go, audioSource, hoverSound, 0.5f);
         }
 
@@ -401,7 +402,10 @@ namespace OsuVR
             );
 
             if (toggle != null)
+            {
+                MenuPageStyle.Toggle(toggle);
                 AddControlSounds(toggle.gameObject, false);
+            }
 
             return toggle;
         }
@@ -433,7 +437,10 @@ namespace OsuVR
             );
 
             if (dropdown != null)
+            {
+                MenuPageStyle.Dropdown(dropdown);
                 AddControlSounds(dropdown.gameObject, false);
+            }
 
             return dropdown;
         }
@@ -509,6 +516,7 @@ namespace OsuVR
             if (toggle == null)
                 return;
             toggle.SetIsOnWithoutNotify(value);
+            toggle.GetComponent<ToggleCheckboxAnimation>()?.RefreshState();
         }
 
         /// <summary>

@@ -57,6 +57,27 @@ namespace OsuVR
             targetState = isOn;
         }
 
+        /// <summary>设置页无通知刷新时同步目标，避免重置后图形仍停在旧状态。</summary>
+        public void RefreshState()
+        {
+            if (toggle == null)
+                return;
+            targetState = toggle.isOn;
+            SetStateImmediate(targetState);
+        }
+
+        /// <summary>换用几何勾选图形，仍由本组件驱动原来的大小和透明度动画。</summary>
+        internal void SetFillGraphic(Image graphic)
+        {
+            if (toggle == null)
+                toggle = GetComponent<Toggle>();
+            fillImage = graphic;
+            fillRect = graphic.rectTransform;
+            if (toggle.graphic != null)
+                toggle.graphic = graphic;
+            RefreshState();
+        }
+
         void Update()
         {
             if (fillRect == null || backgroundImage == null)

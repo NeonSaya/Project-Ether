@@ -225,7 +225,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &857785151572334562
 Transform:
   m_ObjectHideFlags: 0
@@ -248,7 +248,7 @@ SkinnedMeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 48598003503762776}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -3089,7 +3089,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &3033195684994987003
 Transform:
   m_ObjectHideFlags: 0
@@ -3112,7 +3112,7 @@ SkinnedMeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2401478303785412929}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -4965,6 +4965,7 @@ GameObject:
   - component: {fileID: 149480227273990383}
   - component: {fileID: 512923413061468241}
   - component: {fileID: 3588498708657264690}
+  - component: {fileID: 2954359880908781546}
   m_Layer: 7
   m_Name: Right Controller
   m_TagString: Untagged
@@ -5217,6 +5218,19 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   visualRay: {fileID: 8989519548756775686}
+--- !u!114 &2954359880908781546
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4089526529831990592}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 23f8b066325c63e49bcd72b806341fb1, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  legacyVisual: {fileID: 7571331178224927532}
 --- !u!1 &4089526530159031743
 GameObject:
   m_ObjectHideFlags: 0
@@ -5231,6 +5245,7 @@ GameObject:
   - component: {fileID: 7643056590499492403}
   - component: {fileID: 7014367429272922844}
   - component: {fileID: 7647497083426514023}
+  - component: {fileID: 7433907999893204589}
   m_Layer: 7
   m_Name: Left Controller
   m_TagString: Untagged
@@ -5483,6 +5498,19 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   visualRay: {fileID: 1686663148636315402}
+--- !u!114 &7433907999893204589
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4089526530159031743}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 23f8b066325c63e49bcd72b806341fb1, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  legacyVisual: {fileID: 5156731135355585127}
 --- !u!1 &4282723491541462074
 GameObject:
   m_ObjectHideFlags: 0
@@ -6761,10 +6789,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rayController: {fileID: 0}
-  laserColor: {r: 0, g: 1, b: 1, a: 1}
-  hitColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
-  laserWidth: 0.01
-  rayMaterial: {fileID: 0}
+  laserColor: {r: 0.4117647, g: 0.81960785, b: 0.9137255, a: 1}
+  hitColor: {r: 0.6764706, g: 0.9007843, b: 0.95254904, a: 1}
+  laserWidth: 0.0024
+  rayMaterial: {fileID: 2100000, guid: 524c12704af26844bbac903b4129307f, type: 2}
+  reticleMaterial: {fileID: 2100000, guid: 981d298c3737eef4aa869be6db4e821a, type: 2}
 --- !u!1 &5888245676895173925
 GameObject:
   m_ObjectHideFlags: 0
@@ -6915,10 +6944,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rayController: {fileID: 0}
-  laserColor: {r: 0, g: 1, b: 1, a: 1}
-  hitColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
-  laserWidth: 0.01
-  rayMaterial: {fileID: 0}
+  laserColor: {r: 0.8039216, g: 0.36078432, b: 0.5764706, a: 1}
+  hitColor: {r: 0.89215684, g: 0.64843136, b: 0.76705885, a: 1}
+  laserWidth: 0.0024
+  rayMaterial: {fileID: 2100000, guid: 524c12704af26844bbac903b4129307f, type: 2}
+  reticleMaterial: {fileID: 2100000, guid: 981d298c3737eef4aa869be6db4e821a, type: 2}
 --- !u!1 &6282859759557328884
 GameObject:
   m_ObjectHideFlags: 0

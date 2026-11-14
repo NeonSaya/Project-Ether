@@ -63,6 +63,8 @@ namespace OsuVR
 
         private Canvas rootCanvas;
         private AudioSource audioSource;
+        private ControllerAppearanceMenu controllerAppearanceMenu;
+        private LocalizedText controllerAppearanceName;
 
         // ============================================================
         //  生命周期
@@ -71,7 +73,15 @@ namespace OsuVR
         void Start()
         {
             BuildUI();
+            ControllerAppearance.Changed += OnControllerAppearanceChanged;
+            LocalizationManager.OnLanguageChanged += RefreshControllerAppearanceEntry;
             LocalizationManager.ReloadAndNotify();
+        }
+
+        private void OnDestroy()
+        {
+            ControllerAppearance.Changed -= OnControllerAppearanceChanged;
+            LocalizationManager.OnLanguageChanged -= RefreshControllerAppearanceEntry;
         }
 
         // ============================================================
@@ -194,10 +204,98 @@ namespace OsuVR
                 sizeDelta: new Vector2(VersionWidth, VersionHeight)
             );
 
+            BuildControllerAppearanceEntry();
+
             // ---- 通知 RayController（延迟一帧，确保 Canvas 完全初始化） ----
             StartCoroutine(NotifyRayControllerNextFrame());
 
             Debug.Log("[SimpleMainMenu] 动态 UI 构建完成 (1:1 复刻 Prefab 布局)");
+        }
+
+        private void BuildControllerAppearanceEntry()
+        {
+            var rect = MenuPageStyle.Rect(
+                rootCanvas.transform,
+                "ControllerAppearanceEntry",
+                426,
+                156,
+                148,
+                50
+            );
+            var button = rect.gameObject.AddComponent<Button>();
+            button.targetGraphic = SongSelectionStyle.Fill(rect, Color.white, true);
+            SongSelectionStyle.ConfigureButton(button, SongSelectionStyle.Control);
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
+            button.onClick.AddListener(() =>
+            {
+                PlayClickSound();
+                OnControllerAppearanceClicked();
+            });
+            UILayoutHelper.AddHoverSoundEffect(button.gameObject, audioSource, hoverSound, 0.5f);
+            var title = MenuPageStyle.Label(
+                rect,
+                "Title",
+                LocalizationManager.GetText("ui_controller_appearance"),
+                "ui_controller_appearance",
+                10,
+                2,
+                128,
+                24,
+                12,
+                SongSelectionStyle.Text,
+                TextAlignmentOptions.Center
+            );
+            title.fontStyle = FontStyles.Bold;
+            var name = MenuPageStyle.Label(
+                rect,
+                "CurrentModel",
+                "",
+                null,
+                10,
+                26,
+                128,
+                23,
+                11,
+                SongSelectionStyle.Accent,
+                TextAlignmentOptions.Center
+            );
+            name.enableAutoSizing = true;
+            name.fontSizeMin = 10;
+            name.fontSizeMax = 11;
+            // 空 key 只借用多语言字体，选项变化由此组件统一刷新。
+            controllerAppearanceName = name.gameObject.AddComponent<LocalizedText>();
+            RefreshControllerAppearanceEntry();
+        }
+
+        private void OnControllerAppearanceClicked()
+        {
+            if (controllerAppearanceMenu == null)
+            {
+                controllerAppearanceMenu = gameObject.AddComponent<ControllerAppearanceMenu>();
+                controllerAppearanceMenu.Initialize(
+                    () => rootCanvas.gameObject.SetActive(false),
+                    () => rootCanvas.gameObject.SetActive(true),
+                    PlayClickSound,
+                    audioSource,
+                    hoverSound
+                );
+            }
+            controllerAppearanceMenu.Show();
+        }
+
+        private void OnControllerAppearanceChanged(int index)
+        {
+            RefreshControllerAppearanceEntry();
+        }
+
+        private void RefreshControllerAppearanceEntry()
+        {
+            if (controllerAppearanceName == null)
+                return;
+            int index = ControllerAppearance.SelectedIndex;
+            controllerAppearanceName.SetTextDirectly(
+                $"{(char)('A' + index)} · {ControllerAppearance.GetModelName(index)}"
+            );
         }
 
         /// <summary>
@@ -317,6 +415,7 @@ namespace OsuVR
         private IEnumerator NotifyRayControllerNextFrame()
         {
             yield return null;
+            Canvas.ForceUpdateCanvases();
             RayController.NotifyUICanvasChanged();
             Debug.Log("[SimpleMainMenu] RayController 缓存已刷新");
         }

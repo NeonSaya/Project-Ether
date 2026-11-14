@@ -146,6 +146,60 @@ namespace OsuVR
                 { "ui_spinner_bonus", new[] { "Spinner Bonus", "转盘奖励", "スピナーボーナス" } },
                 { "ui_max", new[] { "MAX", "MAX", "MAX" } },
                 { "ui_tab_controller", new[] { "Controller", "控制器", "コントローラー" } },
+                {
+                    "ui_controller_appearance",
+                    new[] { "Controller Appearance", "手柄外观", "コントローラー外観" }
+                },
+                {
+                    "ui_controller_appearance_hint",
+                    new[]
+                    {
+                        "Choose a design. Both hands update immediately.",
+                        "选择喜欢的外观，即时应用到双手。",
+                        "デザインを選ぶと両手にすぐ反映されます。",
+                    }
+                },
+                {
+                    "ui_controller_auto_save",
+                    new[]
+                    {
+                        "Changes are saved automatically",
+                        "选择后自动保存",
+                        "変更は自動で保存されます",
+                    }
+                },
+                { "ui_controller_selected", new[] { "Selected", "当前使用", "選択中" } },
+                { "ui_controller_select", new[] { "Select", "点击切换", "選択する" } },
+                { "ui_controller_model_a", new[] { "Star Shuttle", "星梭", "スターシャトル" } },
+                { "ui_controller_model_b", new[] { "Twin Fin", "双鳍", "ツインフィン" } },
+                { "ui_controller_model_c", new[] { "Halo Core", "环核", "リングコア" } },
+                {
+                    "ui_controller_description_a",
+                    new[]
+                    {
+                        "Tapered shell, a single light seam.",
+                        "收口梭形，单道光缝。",
+                        "細身のシェルと一筋の光。",
+                    }
+                },
+                {
+                    "ui_controller_description_b",
+                    new[]
+                    {
+                        "Twin fins around a compact core.",
+                        "双鳍轮廓，紧凑光芯。",
+                        "小さな光のコアを包む二枚のフィン。",
+                    }
+                },
+                {
+                    "ui_controller_description_c",
+                    new[]
+                    {
+                        "An open ring around a glowing core.",
+                        "开放环形，悬浮光芯。",
+                        "光のコアを囲む開いたリング。",
+                    }
+                },
                 { "ui_master_volume", new[] { "Master Volume", "主音量", "マスターボリューム" } },
                 { "ui_music_volume", new[] { "Music Volume", "音乐音量", "音楽ボリューム" } },
                 { "ui_sfx_volume", new[] { "SFX Volume", "音效音量", "効果音ボリューム" } },
@@ -378,6 +432,120 @@ namespace OsuVR
                     }
                 },
             };
+            AddSongLibraryTexts();
+        }
+
+        private static void AddSongLibraryTexts()
+        {
+            var entries = new Dictionary<string, string[]>
+            {
+                { "ui_library_title", new[] { "LIBRARY", "曲库", "ライブラリ" } },
+                { "ui_library_stat_cs", new[] { "CS", "CS", "CS" } },
+                { "ui_library_stat_ar", new[] { "AR", "AR", "AR" } },
+                { "ui_library_stat_od", new[] { "OD", "OD", "OD" } },
+                { "ui_library_stat_hp", new[] { "HP", "HP", "HP" } },
+                { "ui_library_stat_length", new[] { "Length", "时长", "長さ" } },
+                { "ui_library_all", new[] { "All", "全部", "すべて" } },
+                { "ui_library_favorites", new[] { "Favorites", "收藏", "お気に入り" } },
+                { "ui_library_search", new[] { "Search songs", "搜索曲库", "曲を検索" } },
+                {
+                    "ui_library_search_placeholder",
+                    new[]
+                    {
+                        "Search song, artist, mapper",
+                        "搜索歌曲、艺术家、谱师",
+                        "曲名・アーティスト・譜面作者",
+                    }
+                },
+                { "ui_library_keys", new[] { "Keys", "键盘", "入力" } },
+                { "ui_library_clear", new[] { "Clear filters", "清除筛选", "条件をクリア" } },
+                { "ui_library_filter", new[] { "Filter", "筛选", "絞込" } },
+                { "ui_library_sort", new[] { "Sort by", "排序方式", "並び順" } },
+                { "ui_library_sort_title", new[] { "Title", "曲名", "曲名" } },
+                { "ui_library_sort_artist", new[] { "Artist", "艺术家", "アーティスト" } },
+                { "ui_library_sort_bpm", new[] { "BPM", "BPM", "BPM" } },
+                { "ui_library_sort_length", new[] { "Length", "时长", "長さ" } },
+                { "ui_library_ascending", new[] { "Ascending ↑", "升序 ↑", "昇順 ↑" } },
+                { "ui_library_descending", new[] { "Descending ↓", "降序 ↓", "降順 ↓" } },
+                { "ui_library_any", new[] { "Any", "不限", "すべて" } },
+                { "ui_library_bpm", new[] { "BPM", "BPM", "BPM" } },
+                { "ui_library_length", new[] { "Length", "时长", "長さ" } },
+                { "ui_library_ar", new[] { "AR (base)", "AR（谱面原值）", "AR（元の値）" } },
+                {
+                    "ui_library_count",
+                    new[] { "{0} / {1} songs", "{0} / {1} 首曲目", "{0} / {1} 曲" }
+                },
+                {
+                    "ui_library_empty",
+                    new[]
+                    {
+                        "Your library is empty\nImport beatmaps in Settings",
+                        "曲库为空\n可在设置中导入谱面",
+                        "曲がありません\n設定から譜面を追加できます",
+                    }
+                },
+                {
+                    "ui_library_no_matches",
+                    new[]
+                    {
+                        "No matching songs\nTry clearing your filters",
+                        "没有匹配的曲目\n试试清除搜索或筛选",
+                        "一致する曲がありません\n検索条件を変えてください",
+                    }
+                },
+                { "ui_library_difficulty", new[] { "DIFFICULTY", "选择难度", "難易度" } },
+                { "ui_library_favorite_add", new[] { "☆ Favorite", "☆ 收藏", "☆ お気に入り" } },
+                { "ui_library_favorite_remove", new[] { "★ Favorited", "★ 已收藏", "★ 登録済み" } },
+                {
+                    "ui_library_favorite_failed",
+                    new[]
+                    {
+                        "Could not save favorite",
+                        "收藏保存失败，请检查存储空间",
+                        "お気に入りを保存できません",
+                    }
+                },
+                {
+                    "ui_library_metadata",
+                    new[]
+                    {
+                        "Mapper  {0}   ·   {1} BPM",
+                        "谱师  {0}   ·   {1} BPM",
+                        "譜面作者  {0}   ·   {1} BPM",
+                    }
+                },
+                {
+                    "ui_library_row_metadata",
+                    new[]
+                    {
+                        "{0} BPM · {1} · {2} diffs",
+                        "{0} BPM · {1} · {2} 个难度",
+                        "{0} BPM · {1} · {2} 譜面",
+                    }
+                },
+                {
+                    "ui_library_pick_hint",
+                    new[]
+                    {
+                        "Choose a song to preview, then select a difficulty",
+                        "选择左侧曲目试听，再选择难度开始演奏",
+                        "曲を試聴して難易度を選びましょう",
+                    }
+                },
+                { "ui_library_play", new[] { "PLAY", "开始演奏", "プレイ" } },
+                { "ui_library_scroll_up", new[] { "▲ Up", "▲ 向上", "▲ 上へ" } },
+                { "ui_library_scroll_down", new[] { "▼ Down", "▼ 向下", "▼ 下へ" } },
+                { "ui_library_paste", new[] { "Paste", "粘贴", "貼り付け" } },
+                { "ui_library_space", new[] { "Space", "空格", "スペース" } },
+                { "ui_library_backspace", new[] { "Backspace", "退格", "削除" } },
+                { "ui_library_done", new[] { "Done", "完成", "完了" } },
+                {
+                    "ui_library_score_multiplier",
+                    new[] { "Score multiplier", "分数倍率", "スコア倍率" }
+                },
+            };
+            foreach (var entry in entries)
+                localizationDict.Add(entry.Key, entry.Value);
         }
 
         private static void LoadLanguage()

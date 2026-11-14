@@ -697,6 +697,7 @@ namespace OsuVR
                 return;
             hasBeenHit = true;
             isActive = false;
+            RayHitFeedback.NotifyHit(isRightHand, transform);
 
             // 立即禁用碰撞体，释放射线通道给下一个音符
             var col = GetComponent<Collider>();

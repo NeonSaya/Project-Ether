@@ -1,29 +1,10 @@
 using System.Collections;
-using System.Collections.Generic;
-using TMPro;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace OsuVR
 {
-    /// <summary>
-    /// 设置菜单 — 精确复刻 VRSettingsMenu.prefab
-    ///
-    /// 层级结构（1:1 复刻 Prefab）：
-    ///   SettingsCanvas (Canvas WorldSpace, sortingOrder=100, localScale=0.0025)
-    ///     anchor(0,0)->(1,1), sizeDelta(0,0)
-    ///     └─ SettingsContainer (Image: 0.05,0.05,0.08,0.85)
-    ///        anchor(0,0)->(1,1), sizeDelta(0,0)
-    ///        ├─ TabBar (anchor 0,1->1,1, sizeDelta 0x50, pivot 顶部)
-    ///        │  HLG: padding(25,25,8,8), spacing=8, childControlWidth=1
-    ///        ├─ ContentArea (anchor 0,0->1,1, pos(0,10), sizeDelta(-50,-130))
-    ///        │  ├─ AudioPanel (active=1)
-    ///        │  ├─ GraphicsPanel (active=0)
-    ///        │  ├─ GamePanel (active=0)
-    ///        │  └─ ControllerOffsetPanel (active=0)
-    ///        └─ BottomButtons (anchor 0.5,0->0.5,0, pos(0,20), sizeDelta 400x50)
-    /// </summary>
+    /// <summary>设置页：保留四标签、即时应用、滚动和返回/重置的原有流程。</summary>
     public class SimpleVRSettingsMenu : MonoBehaviour
     {
         [Header("原子预制体（需在 Inspector 中配置）")]
@@ -35,35 +16,11 @@ namespace OsuVR
         public AudioClip hoverSound;
         public AudioClip clickSound;
 
-        // ---- Prefab 精确常量 ----
-        private const float CanvasLocalZ = 1.5f;
-        private const float CanvasScale = 0.0025f;
-        private const int SortingOrder = 100;
-        private const float CanvasWidth = 660f;
-        private const float CanvasHeight = 495f;
-        private const float TabBarHeight = 55f;
-
-        // ---- Prefab 精确颜色 ----
-        private static readonly Color ContainerBgColor = new Color(0.05f, 0.05f, 0.08f, 0.85f);
-        private static readonly Color PanelBgColor = new Color(0.08f, 0.08f, 0.12f, 0.6f);
-        private static readonly Color TabNormalColor = new Color(0.12f, 0.12f, 0.18f, 0.7f);
-        private static readonly Color TabHighlightedColor = new Color(0.2f, 0.25f, 0.35f, 0.85f);
-        private static readonly Color TabPressedColor = new Color(0.78f, 0.78f, 0.78f, 1f);
-        private static readonly Color TabSelectedColor = new Color(0.15f, 0.3f, 0.5f, 0.9f);
-        private static readonly Color TabActiveColor = new Color(0.2f, 0.35f, 0.55f, 1f);
-        private static readonly Color TabInactiveColor = new Color(0.12f, 0.12f, 0.18f, 0.7f);
-        private static readonly Color IndicatorActiveColor = new Color(0.25f, 0.55f, 0.85f, 1f);
-        private static readonly Color IndicatorInactiveColor = new Color(0.25f, 0.55f, 0.85f, 0f);
-        private static readonly Color ButtonNormalColor = new Color(0.12f, 0.15f, 0.22f, 0.6f);
-        private static readonly Color ButtonHighlightedColor = new Color(0.2f, 0.3f, 0.45f, 0.8f);
-        private static readonly Color ButtonPressedColor = new Color(0.08f, 0.1f, 0.15f, 0.7f);
-        private static readonly Color ButtonSelectedColor = new Color(0.18f, 0.25f, 0.38f, 0.75f);
-
-        // ---- 运行时状态 ----
+        private const float CanvasWidth = 660;
+        private const float CanvasHeight = 495;
         private CanvasGroup canvasGroup;
         private AudioSource audioSource;
         private GameSettings tempSettings;
-
         private SettingsPageBase[] pages;
         private RectTransform[] pagePanels;
         private Image[] tabButtonImages;
@@ -71,181 +28,87 @@ namespace OsuVR
         private int currentTabIndex;
         private ScrollRect settingsScrollRect;
 
-        // ============================================================
-        //  生命周期
-        // ============================================================
-
         void Start()
         {
             BuildUI();
             LocalizationManager.ReloadAndNotify();
         }
 
-        void OnEnable()
-        {
-            LocalizationManager.OnLanguageChanged += OnLanguageChanged;
-        }
+        void OnEnable() => LocalizationManager.OnLanguageChanged += OnLanguageChanged;
 
-        void OnDisable()
-        {
-            LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
-        }
+        void OnDisable() => LocalizationManager.OnLanguageChanged -= OnLanguageChanged;
 
         private void OnLanguageChanged()
         {
-            if (pages != null)
-            {
-                foreach (var page in pages)
-                {
-                    if (page is GameplaySettingsPage gp)
-                        gp.RefreshLanguageDropdown();
-                }
-            }
+            if (pages == null)
+                return;
+            foreach (var page in pages)
+                if (page is GameplaySettingsPage gameplay)
+                    gameplay.RefreshLanguageDropdown();
         }
-
-        // ============================================================
-        //  UI 构建（精确复刻 VRSettingsMenu.prefab）
-        // ============================================================
 
         private void BuildUI()
         {
-            // ---- 音频源 ----
             audioSource = gameObject.AddComponent<AudioSource>();
             audioSource.playOnAwake = false;
-            audioSource.spatialBlend = 0f;
+            audioSource.spatialBlend = 0;
+            var canvas = UILayoutHelper.CreateCanvas("SettingsCanvas", CanvasWidth, CanvasHeight);
+            canvas.sortingOrder = 100;
+            canvas.transform.SetParent(transform, false);
+            canvas.transform.localPosition = new Vector3(0, 0, 1.5f);
+            canvas.transform.localScale = Vector3.one * 0.0025f;
+            var canvasRect = (RectTransform)canvas.transform;
+            canvasRect.anchorMin = canvasRect.anchorMax = canvasRect.pivot = Vector2.one * 0.5f;
+            canvasRect.anchoredPosition = Vector2.zero;
+            canvas.GetComponent<CanvasScaler>().dynamicPixelsPerUnit = 10;
+            canvasGroup = canvas.gameObject.AddComponent<CanvasGroup>();
 
-            // ---- 根 Canvas ----
-            // WorldSpace Canvas，固定尺寸（与 SimpleMainMenu 一致的模式）
-            var rootCanvas = UILayoutHelper.CreateCanvas(
-                "SettingsCanvas",
-                CanvasWidth,
-                CanvasHeight
+            var container = MenuPageStyle.Rect(
+                canvas.transform,
+                "SettingsContainer",
+                0,
+                0,
+                660,
+                495
             );
-            rootCanvas.sortingOrder = SortingOrder;
-            rootCanvas.transform.SetParent(transform, false);
-            rootCanvas.transform.localPosition = new Vector3(0f, 0f, CanvasLocalZ);
-            rootCanvas.transform.localScale = Vector3.one * CanvasScale;
-
-            var canvasRt = rootCanvas.GetComponent<RectTransform>();
-            canvasRt.anchorMin = new Vector2(0.5f, 0.5f);
-            canvasRt.anchorMax = new Vector2(0.5f, 0.5f);
-            canvasRt.pivot = new Vector2(0.5f, 0.5f);
-            canvasRt.anchoredPosition = Vector2.zero;
-            canvasRt.sizeDelta = new Vector2(CanvasWidth, CanvasHeight);
-
-            var scaler = rootCanvas.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
-            scaler.dynamicPixelsPerUnit = 10f;
-
-            // Prefab：根物体上挂 CanvasGroup
-            canvasGroup = rootCanvas.gameObject.AddComponent<CanvasGroup>();
-
-            // ---- SettingsContainer ----
-            // Prefab：Image(0.05,0.05,0.08,0.85)，全屏拉伸
-            var containerGo = new GameObject("SettingsContainer");
-            containerGo.transform.SetParent(rootCanvas.transform, false);
-            var containerRt = containerGo.AddComponent<RectTransform>();
-            containerRt.anchorMin = Vector2.zero;
-            containerRt.anchorMax = Vector2.one;
-            containerRt.sizeDelta = Vector2.zero;
-            containerRt.anchoredPosition = Vector2.zero;
-
-            var containerImg = containerGo.AddComponent<Image>();
-            containerImg.color = ContainerBgColor;
-            containerImg.raycastTarget = true;
-
-            // ---- TabBar ----
-            // Prefab: anchor(0,1)->(1,1), sizeDelta(0,50), pivot(0.5,1)
-            // HLG: padding(25,25,8,8), spacing=8, childAlignment=LowerCenter, childControlWidth=1
-            var tabBarGo = new GameObject("TabBar");
-            tabBarGo.transform.SetParent(containerGo.transform, false);
-            var tabBarRt = tabBarGo.AddComponent<RectTransform>();
-            tabBarRt.anchorMin = new Vector2(0, 1);
-            tabBarRt.anchorMax = new Vector2(1, 1);
-            tabBarRt.pivot = new Vector2(0.5f, 1);
-            tabBarRt.sizeDelta = new Vector2(0, TabBarHeight);
-            tabBarRt.anchoredPosition = Vector2.zero;
-
-            var tabHlg = tabBarGo.AddComponent<HorizontalLayoutGroup>();
-            tabHlg.padding = new RectOffset(28, 28, 9, 9);
-            tabHlg.spacing = 9f;
-            tabHlg.childAlignment = TextAnchor.LowerCenter;
-            tabHlg.childControlWidth = true;
-            tabHlg.childControlHeight = true;
-            tabHlg.childForceExpandWidth = true;
-            tabHlg.childForceExpandHeight = true;
-
-            // 标签页顺序：Audio、Graphics、Game、Controller（与 Prefab 一致）
-            string[] tabKeys =
+            MenuPageStyle.Stretch(container);
+            SongSelectionStyle.Fill(container, Color.clear, true);
+            MenuPageStyle.Backdrop(container);
+            var tabs = MenuPageStyle.Rect(container, "TabBar", 28, 12, 604, 40);
+            var tabsLayout = tabs.gameObject.AddComponent<HorizontalLayoutGroup>();
+            tabsLayout.spacing = 9;
+            tabsLayout.childControlWidth = tabsLayout.childControlHeight = true;
+            tabsLayout.childForceExpandWidth = tabsLayout.childForceExpandHeight = true;
+            string[] keys =
             {
                 "ui_tab_audio",
                 "ui_tab_graphics",
                 "ui_tab_game",
                 "ui_tab_controller",
             };
-            string[] tabDefaults = { "Audio", "Graphics", "Game", "Controller" };
-            int tabCount = tabKeys.Length;
+            string[] labels = { "Audio", "Graphics", "Game", "Controller" };
+            tabButtonImages = new Image[keys.Length];
+            tabIndicators = new Image[keys.Length];
+            for (int i = 0; i < keys.Length; i++)
+                CreateTabButton(tabs, i, keys[i], labels[i]);
 
-            tabButtonImages = new Image[tabCount];
-            tabIndicators = new Image[tabCount];
+            settingsScrollRect = MenuPageStyle.Scroll(
+                container,
+                "ContentArea",
+                28,
+                64,
+                604,
+                342,
+                out var content
+            );
+            var contentLayout = content.gameObject.AddComponent<VerticalLayoutGroup>();
+            contentLayout.childControlWidth = contentLayout.childControlHeight = true;
+            contentLayout.childForceExpandWidth = true;
+            contentLayout.childForceExpandHeight = false;
 
-            for (int i = 0; i < tabCount; i++)
-                CreateTabButton(tabBarGo.transform, i, tabKeys[i], tabDefaults[i]);
-
-            // ---- ContentArea (Viewport) ----
-            var contentAreaGo = new GameObject("ContentArea");
-            contentAreaGo.transform.SetParent(containerGo.transform, false);
-            var contentAreaRt = contentAreaGo.AddComponent<RectTransform>();
-            contentAreaRt.anchorMin = Vector2.zero;
-            contentAreaRt.anchorMax = Vector2.one;
-            contentAreaRt.sizeDelta = new Vector2(-55, -143);
-            contentAreaRt.anchoredPosition = new Vector2(0, 11);
-
-            // ScrollRect 视口: Mask 裁剪超出区域
-            var viewportImg = contentAreaGo.AddComponent<Image>();
-            viewportImg.color = PanelBgColor;
-            viewportImg.raycastTarget = true;
-            contentAreaGo.AddComponent<Mask>().showMaskGraphic = true;
-
-            var scrollRect = contentAreaGo.AddComponent<ScrollRect>();
-            scrollRect.horizontal = false;
-            scrollRect.vertical = true;
-            scrollRect.movementType = ScrollRect.MovementType.Elastic;
-            scrollRect.elasticity = 0.1f;
-            scrollRect.scrollSensitivity = 50f;
-
-            // ---- ScrollContent ----
-            var scrollContentGo = new GameObject("ScrollContent");
-            scrollContentGo.transform.SetParent(contentAreaGo.transform, false);
-            var scrollContentRt = scrollContentGo.AddComponent<RectTransform>();
-            scrollContentRt.anchorMin = new Vector2(0, 1);
-            scrollContentRt.anchorMax = new Vector2(1, 1);
-            scrollContentRt.pivot = new Vector2(0.5f, 1);
-            scrollContentRt.anchoredPosition = Vector2.zero;
-            scrollContentRt.sizeDelta = new Vector2(0, 0);
-
-            // ContentSizeFitter: 高度由子物体撑开
-            var sizeFitter = scrollContentGo.AddComponent<ContentSizeFitter>();
-            sizeFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-            sizeFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-            // VLG 排列页面
-            var contentVlg = scrollContentGo.AddComponent<VerticalLayoutGroup>();
-            contentVlg.childControlWidth = true;
-            contentVlg.childControlHeight = true;
-            contentVlg.childForceExpandWidth = true;
-            contentVlg.childForceExpandHeight = false;
-
-            scrollRect.content = scrollContentRt;
-            scrollRect.viewport = contentAreaRt;
-            settingsScrollRect = scrollRect;
-
-            // 初始化 tempSettings
             tempSettings =
                 SettingsManager.Instance?.Settings?.Clone()
                 ?? ScriptableObject.CreateInstance<GameSettings>();
-
-            // 创建页面
             pages = new SettingsPageBase[]
             {
                 new AudioSettingsPage(),
@@ -253,9 +116,7 @@ namespace OsuVR
                 new GameplaySettingsPage(),
                 new ControllerSettingsPage(),
             };
-
             pagePanels = new RectTransform[pages.Length];
-
             for (int i = 0; i < pages.Length; i++)
             {
                 pages[i]
@@ -267,68 +128,30 @@ namespace OsuVR
                         hoverSound,
                         clickSound
                     );
-
-                // 在 ScrollContent 下创建面板
-                var panelGo = new GameObject($"Page_{i}");
-                panelGo.transform.SetParent(scrollContentRt, false);
-                var panelRt = panelGo.AddComponent<RectTransform>();
-                panelRt.anchorMin = new Vector2(0, 1);
-                panelRt.anchorMax = new Vector2(1, 1);
-                panelRt.pivot = new Vector2(0.5f, 1);
-
-                var panelImg = panelGo.AddComponent<Image>();
-                panelImg.color = PanelBgColor;
-                panelImg.raycastTarget = false;
-
-                // 本页面控件的 VLG
-                var vlg = panelGo.AddComponent<VerticalLayoutGroup>();
-                vlg.padding = new RectOffset(16, 16, 11, 11);
-                vlg.spacing = 14f;
-                vlg.childAlignment = TextAnchor.UpperCenter;
-                vlg.childControlWidth = true;
-                vlg.childControlHeight = false;
-                vlg.childForceExpandWidth = true;
-                vlg.childForceExpandHeight = true;
-
-                // ContentSizeFitter: 页面高度由控件撑开
-                var pageFitter = panelGo.AddComponent<ContentSizeFitter>();
-                pageFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-                pageFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-                // 构建页面内容
-                pages[i].BuildContent(panelRt, tempSettings, 0f);
-
-                LayoutRebuilder.ForceRebuildLayoutImmediate(panelRt);
-
-                pagePanels[i] = panelRt;
-
-                // AudioPanel 初始激活，其余面板禁用
-                panelGo.SetActive(i == 0);
+                var panel = MenuPageStyle.Rect(content, $"Page_{i}", 0, 0, 0, 0);
+                var layout = panel.gameObject.AddComponent<VerticalLayoutGroup>();
+                layout.padding = new RectOffset(12, 12, 10, 10);
+                layout.spacing = 14;
+                layout.childAlignment = TextAnchor.UpperCenter;
+                layout.childControlWidth = true;
+                layout.childControlHeight = false;
+                layout.childForceExpandWidth = true;
+                layout.childForceExpandHeight = false;
+                panel.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter
+                    .FitMode
+                    .PreferredSize;
+                pages[i].BuildContent(panel, tempSettings, 0);
+                pagePanels[i] = panel;
+                panel.gameObject.SetActive(i == 0);
             }
 
-            // ---- BottomButtons ----
-            // Prefab: anchor(0.5,0)->(0.5,0), anchoredPos(0,20), sizeDelta(400,50)
-            // HLG: spacing=40, childAlignment=MiddleCenter, childControlWidth=1
-            var bottomGo = new GameObject("BottomButtons");
-            bottomGo.transform.SetParent(containerGo.transform, false);
-            var bottomRt = bottomGo.AddComponent<RectTransform>();
-            bottomRt.anchorMin = new Vector2(0.5f, 0);
-            bottomRt.anchorMax = new Vector2(0.5f, 0);
-            bottomRt.pivot = new Vector2(0.5f, 0);
-            bottomRt.sizeDelta = new Vector2(440, 55);
-            bottomRt.anchoredPosition = new Vector2(0, 20);
-
-            var bottomHlg = bottomGo.AddComponent<HorizontalLayoutGroup>();
-            bottomHlg.spacing = 44f;
-            bottomHlg.childAlignment = TextAnchor.MiddleCenter;
-            bottomHlg.childControlWidth = true;
-            bottomHlg.childControlHeight = true;
-            bottomHlg.childForceExpandWidth = true;
-            bottomHlg.childForceExpandHeight = true;
-
-            // 返回按钮（配色与样式与 Prefab 一致）
+            var bottom = MenuPageStyle.Rect(container, "BottomButtons", 60, 425, 540, 50);
+            var bottomLayout = bottom.gameObject.AddComponent<HorizontalLayoutGroup>();
+            bottomLayout.spacing = 36;
+            bottomLayout.childControlWidth = bottomLayout.childControlHeight = true;
+            bottomLayout.childForceExpandWidth = bottomLayout.childForceExpandHeight = true;
             CreateBottomButton(
-                bottomGo.transform,
+                bottom,
                 "Back",
                 "ui_back",
                 () =>
@@ -337,160 +160,53 @@ namespace OsuVR
                     VRSceneTransitionManager.Instance.TransitionToScene("MainMenuScene");
                 }
             );
-
-            // 重置按钮
-            CreateBottomButton(bottomGo.transform, "Reset", "ui_reset", OnResetClicked);
-
-            // ---- 初始化 ----
+            CreateBottomButton(bottom, "Reset", "ui_reset", OnResetClicked);
             currentTabIndex = 0;
             UpdateTabVisuals();
-
             StartCoroutine(NotifyRayControllerNextFrame());
         }
 
-        // ============================================================
-        //  Tab 按钮（精确复刻 Prefab）
-        // ============================================================
-
-        private void CreateTabButton(Transform parent, int index, string locKey, string defaultText)
+        private void CreateTabButton(Transform parent, int index, string key, string text)
         {
-            var go = new GameObject($"Tab_{index}");
-            go.transform.SetParent(parent, false);
-            go.AddComponent<RectTransform>();
-
-            // Prefab：Image 颜色 (0.12,0.12,0.18,0.7)
-            var img = go.AddComponent<Image>();
-            img.color = TabNormalColor;
-
-            // Prefab：Button 颜色
-            var button = go.AddComponent<Button>();
-            var colors = button.colors;
-            colors.normalColor = TabNormalColor;
-            colors.highlightedColor = TabHighlightedColor;
-            colors.pressedColor = TabPressedColor;
-            colors.selectedColor = TabSelectedColor;
-            button.colors = colors;
-            button.targetGraphic = img;
-
-            int capturedIndex = index;
-            button.onClick.AddListener(() => SwitchTab(capturedIndex));
-
-            // 指示条（底部横线）
-            var indicatorGo = new GameObject("Indicator");
-            indicatorGo.transform.SetParent(go.transform, false);
-            var indicatorRt = indicatorGo.AddComponent<RectTransform>();
-            indicatorRt.anchorMin = new Vector2(0, 0);
-            indicatorRt.anchorMax = new Vector2(1, 0);
-            indicatorRt.pivot = new Vector2(0.5f, 0);
-            indicatorRt.sizeDelta = new Vector2(0, 3f);
-            indicatorRt.anchoredPosition = Vector2.zero;
-            var indicatorImg = indicatorGo.AddComponent<Image>();
-            indicatorImg.color = IndicatorInactiveColor;
-
-            // 文本（fontSize=15, color 0.9,0.9,0.95,1，居中）
-            var textGo = new GameObject("Text");
-            textGo.transform.SetParent(go.transform, false);
-            var textRt = textGo.AddComponent<RectTransform>();
-            textRt.anchorMin = Vector2.zero;
-            textRt.anchorMax = Vector2.one;
-            textRt.sizeDelta = Vector2.zero;
-            textRt.anchoredPosition = Vector2.zero;
-
-            var tmp = textGo.AddComponent<TextMeshProUGUI>();
-            tmp.text = defaultText;
-            tmp.fontSize = 15f;
-            tmp.color = new Color(0.9f, 0.9f, 0.95f, 1f);
-            tmp.alignment = TextAlignmentOptions.Center;
-            tmp.enableAutoSizing = false;
-            tmp.raycastTarget = false;
-
-            var lt = textGo.AddComponent<LocalizedText>();
-            lt.localizationKey = locKey;
-
-            // 悬停效果
-            UILayoutHelper.AddColorHoverEffect(go, img, TabNormalColor, TabHighlightedColor);
-            UILayoutHelper.AddHoverSoundEffect(go, audioSource, hoverSound, 0.5f);
-
-            tabButtonImages[index] = img;
-            tabIndicators[index] = indicatorImg;
+            int tabIndex = index;
+            var button = MenuPageStyle.Button(
+                parent,
+                $"Tab_{index}",
+                text,
+                key,
+                () => SwitchTab(tabIndex)
+            );
+            UILayoutHelper.AddHoverSoundEffect(button.gameObject, audioSource, hoverSound, 0.5f);
+            var indicator = MenuPageStyle.Rect(button.transform, "Indicator", 0, 0, 0, 2);
+            indicator.anchorMin = Vector2.zero;
+            indicator.anchorMax = new Vector2(1, 0);
+            indicator.pivot = new Vector2(0.5f, 0);
+            indicator.anchoredPosition = Vector2.zero;
+            tabIndicators[index] = SongSelectionStyle.Fill(indicator, Color.clear);
+            tabButtonImages[index] = button.GetComponent<Image>();
         }
-
-        // ============================================================
-        //  底部按钮（精确复刻 Prefab）
-        // ============================================================
 
         private void CreateBottomButton(
             Transform parent,
             string text,
-            string locKey,
-            UnityEngine.Events.UnityAction onClick
+            string key,
+            UnityEngine.Events.UnityAction action
         )
         {
-            var go = new GameObject(text);
-            go.transform.SetParent(parent, false);
-            go.AddComponent<RectTransform>();
-
-            // Prefab：Image 颜色 (0.12,0.15,0.22,0.6)
-            var img = go.AddComponent<Image>();
-            img.color = ButtonNormalColor;
-
-            var button = go.AddComponent<Button>();
-            var colors = button.colors;
-            colors.normalColor = ButtonNormalColor;
-            colors.highlightedColor = ButtonHighlightedColor;
-            colors.pressedColor = ButtonPressedColor;
-            colors.selectedColor = ButtonSelectedColor;
-            button.colors = colors;
-            button.targetGraphic = img;
-            button.onClick.AddListener(onClick);
-
-            // 文本（fontSize=15, color 0.9,0.9,0.95,1，居中）
-            var textGo = new GameObject("Text");
-            textGo.transform.SetParent(go.transform, false);
-            var textRt = textGo.AddComponent<RectTransform>();
-            textRt.anchorMin = Vector2.zero;
-            textRt.anchorMax = Vector2.one;
-            textRt.sizeDelta = Vector2.zero;
-            textRt.anchoredPosition = Vector2.zero;
-
-            var tmp = textGo.AddComponent<TextMeshProUGUI>();
-            tmp.text = text;
-            tmp.fontSize = 15f;
-            tmp.color = new Color(0.9f, 0.9f, 0.95f, 1f);
-            tmp.alignment = TextAlignmentOptions.Center;
-            tmp.enableAutoSizing = false;
-            tmp.raycastTarget = false;
-
-            var lt = textGo.AddComponent<LocalizedText>();
-            lt.localizationKey = locKey;
-
-            UILayoutHelper.AddHoverSoundEffect(go, audioSource, hoverSound, 0.5f);
+            var button = MenuPageStyle.Button(parent, text, text, key, action);
+            UILayoutHelper.AddHoverSoundEffect(button.gameObject, audioSource, hoverSound, 0.5f);
         }
-
-        // ============================================================
-        //  Tab 切换
-        // ============================================================
 
         private void SwitchTab(int index)
         {
             PlayClickSound();
             currentTabIndex = index;
-
             for (int i = 0; i < pagePanels.Length; i++)
                 pagePanels[i].gameObject.SetActive(i == index);
-
-            // 切换选项卡时重置滚动位置到顶部
-            if (settingsScrollRect != null)
-                settingsScrollRect.verticalNormalizedPosition = 1f;
-
+            settingsScrollRect.verticalNormalizedPosition = 1;
             UpdateTabVisuals();
-
-            // 强制重建当前面板布局（非活动面板的布局未被计算）
-            if (index < pagePanels.Length)
-                LayoutRebuilder.ForceRebuildLayoutImmediate(pagePanels[index]);
-
-            // 刷新当前页面 UI
-            if (tempSettings != null && pages != null && index < pages.Length)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(pagePanels[index]);
+            if (tempSettings != null)
             {
                 tempSettings.CopyFrom(SettingsManager.Instance.Settings);
                 pages[index].RefreshUI(tempSettings);
@@ -501,43 +217,33 @@ namespace OsuVR
         {
             for (int i = 0; i < tabButtonImages.Length; i++)
             {
-                bool isActive = (i == currentTabIndex);
-                tabButtonImages[i].color = isActive ? TabActiveColor : TabInactiveColor;
-                tabIndicators[i].color = isActive ? IndicatorActiveColor : IndicatorInactiveColor;
+                bool active = i == currentTabIndex;
+                SongSelectionStyle.ConfigureButton(
+                    tabButtonImages[i].GetComponent<Button>(),
+                    active ? SongSelectionStyle.Selected : SongSelectionStyle.Control
+                );
+                tabIndicators[i].color = active ? SongSelectionStyle.Accent : Color.clear;
             }
         }
-
-        // ============================================================
-        //  按钮回调
-        // ============================================================
 
         private void OnResetClicked()
         {
             PlayClickSound();
             SettingsManager.Instance.ResetToDefaults();
             tempSettings.CopyFrom(SettingsManager.Instance.Settings);
-
             if (currentTabIndex < pages.Length)
                 pages[currentTabIndex].RefreshUI(tempSettings);
         }
 
-        // ============================================================
-        //  显示 / 隐藏
-        // ============================================================
-
         public void Show()
         {
             gameObject.SetActive(true);
-
             if (canvasGroup != null)
             {
-                canvasGroup.alpha = 1f;
-                canvasGroup.interactable = true;
-                canvasGroup.blocksRaycasts = true;
+                canvasGroup.alpha = 1;
+                canvasGroup.interactable = canvasGroup.blocksRaycasts = true;
             }
-
             RayController.NotifyUICanvasChanged();
-
             if (tempSettings != null && SettingsManager.Instance != null)
             {
                 tempSettings.CopyFrom(SettingsManager.Instance.Settings);
@@ -548,17 +254,11 @@ namespace OsuVR
 
         public void Hide()
         {
-            if (canvasGroup != null)
-            {
-                canvasGroup.alpha = 0f;
-                canvasGroup.interactable = false;
-                canvasGroup.blocksRaycasts = false;
-            }
+            if (canvasGroup == null)
+                return;
+            canvasGroup.alpha = 0;
+            canvasGroup.interactable = canvasGroup.blocksRaycasts = false;
         }
-
-        // ============================================================
-        //  工具方法
-        // ============================================================
 
         private void PlayClickSound()
         {

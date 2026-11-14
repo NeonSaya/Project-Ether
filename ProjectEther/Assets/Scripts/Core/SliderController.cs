@@ -130,6 +130,9 @@ namespace OsuVR
         private double lastEffectiveTrackTime = 0;
         private const double TAIL_GRACE_PERIOD_MS = 33.0; // 约2帧的容错时间
 
+        // 仅供射线视觉反馈：左手为 1，右手为 2，不参与原判定。
+        private int lastEffectiveTrackingHandMask = 0;
+
         // 避免每帧重复获取时间的缓存
         private double currentMusicTimeCache;
 
@@ -542,6 +545,7 @@ namespace OsuVR
 
             ticksGot = 0;
             headHit = false;
+            lastEffectiveTrackingHandMask = 0;
             lastHeadCheckDiff = double.NaN;
             finished = false;
             if (combinedMesh != null)
@@ -1473,6 +1477,7 @@ namespace OsuVR
         /// </summary>
         private void UpdateGraceTimers()
         {
+            int effectiveTrackingHandMask = 0;
             if (followBall == null || !headHit)
                 return;
 
@@ -1488,6 +1493,8 @@ namespace OsuVR
                 {
                     leftHandGraceTimer = GRACE_PERIOD_SECONDS;
                     anyHandEffective = true;
+                    effectiveTrackingHandMask |= 1;
+                    RayHitFeedback.NotifyTracking(false);
                 }
                 else
                 {
@@ -1507,6 +1514,8 @@ namespace OsuVR
                 {
                     rightHandGraceTimer = GRACE_PERIOD_SECONDS;
                     anyHandEffective = true;
+                    effectiveTrackingHandMask |= 2;
+                    RayHitFeedback.NotifyTracking(true);
                 }
                 else
                 {
@@ -1522,11 +1531,20 @@ namespace OsuVR
             if (anyHandEffective)
             {
                 lastEffectiveTrackTime = currentMusicTimeCache;
+                lastEffectiveTrackingHandMask = effectiveTrackingHandMask;
             }
 
             // 钳制到非负值
             leftHandGraceTimer = Mathf.Max(0, leftHandGraceTimer);
             rightHandGraceTimer = Mathf.Max(0, rightHandGraceTimer);
+        }
+
+        private void NotifyHitForHandMask(int handMask)
+        {
+            if ((handMask & 1) != 0)
+                RayHitFeedback.NotifyHit(false, transform);
+            if ((handMask & 2) != 0)
+                RayHitFeedback.NotifyHit(true, transform);
         }
 
         /// <summary>
@@ -1659,6 +1677,8 @@ namespace OsuVR
             if (offset >= earlyWindow && offset <= hitWindowMs)
             {
                 headHit = true;
+                lastEffectiveTrackingHandMask = isRightHand ? 2 : 1;
+                RayHitFeedback.NotifyHit(isRightHand, transform);
 
                 if (isRightHand)
                     isRightHandTracking = true;
@@ -1828,6 +1848,8 @@ namespace OsuVR
 
                 // --- 判定开始 ---
                 bool hit = false;
+                // 视觉反馈单独记录当前距离合格的手，不改变命中判定。
+                int hitHandMask = 0;
 
                 // [修改] 使用容错机制判定
                 if (followBall != null)
@@ -1843,6 +1865,11 @@ namespace OsuVR
                             minDist,
                             Vector3.Distance(leftHandPos, followBall.transform.position)
                         );
+                        if (
+                            Vector3.Distance(leftHandPos, followBall.transform.position)
+                            <= allowedRadius
+                        )
+                            hitHandMask |= 1;
                     }
 
                     // 检查右手（考虑容错期）
@@ -1853,6 +1880,11 @@ namespace OsuVR
                             minDist,
                             Vector3.Distance(rightHandPos, followBall.transform.position)
                         );
+                        if (
+                            Vector3.Distance(rightHandPos, followBall.transform.position)
+                            <= allowedRadius
+                        )
+                            hitHandMask |= 2;
                     }
 
                     // 只要任意手在容错期内且距离有效，就算hit
@@ -1930,6 +1962,7 @@ namespace OsuVR
                             break;
 
                         case SliderEventType.Repeat:
+                            NotifyHitForHandMask(hitHandMask);
                             // Repeat 使用节点索引 = SpanIndex + 1
                             int repeatNodeIndex = nestedObject.SpanIndex + 1;
                             if (AudioManager.Instance != null)
@@ -1970,6 +2003,15 @@ namespace OsuVR
                             break;
 
                         case SliderEventType.Tail:
+                            int tailHitHandMask = hitHandMask;
+                            if (
+                                tailHitHandMask == 0
+                                && lastEffectiveTrackTime > sliderData.StartTime
+                                && sliderData.EndTime - lastEffectiveTrackTime
+                                    <= TAIL_GRACE_PERIOD_MS
+                            )
+                                tailHitHandMask = lastEffectiveTrackingHandMask;
+                            NotifyHitForHandMask(tailHitHandMask);
                             // Tail 使用节点索引 = RepeatCount + 1
                             int tailNodeIndex = sliderData.RepeatCount + 1;
                             if (AudioManager.Instance != null)
